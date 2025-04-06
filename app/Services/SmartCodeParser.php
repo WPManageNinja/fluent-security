@@ -30,6 +30,11 @@ class SmartCodeParser
 
     public function parseShortcode($string, $data)
     {
+        // check if the string contains any smartcode
+        if (strpos($string, '{{') === false && strpos($string, '##') === false) {
+            return $string;
+        }
+
         return preg_replace_callback('/({{|##)+(.*?)(}}|##)/', function ($matches) use ($data) {
             return $this->replace($matches, $data);
         }, $string);
@@ -218,7 +223,6 @@ class SmartCodeParser
 
             return $defaultValue;
         }
-
         $customKey = $valueKeys[0];
         $customProperty = $valueKeys[1];
 
