@@ -159,11 +159,12 @@ class LoginCustomizerHandler
 
         <p class="fs_reg_item fs_reg_item_terms">
             <label for="agree_terms">
-                <input type="checkbox" <?php echo $agreeTerms ? 'checked' : ''; ?> name="agree_terms" id="agree_terms" value="agreed" size="50" required="required"/>
-                <?php if($policyUrl): ?>
-                <?php printf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="'.esc_url($policyUrl).'">'.__('terms and conditions.').'</a>'); ?>
+                <input type="checkbox" <?php echo $agreeTerms ? 'checked' : ''; ?> name="agree_terms" id="agree_terms"
+                       value="agreed" size="50" required="required"/>
+                <?php if ($policyUrl): ?>
+                    <?php printf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="' . esc_url($policyUrl) . '">' . __('terms and conditions.') . '</a>'); ?>
                 <?php else: ?>
-                <?php _e('I agree to the terms and conditions', 'fluent-security'); ?>
+                    <?php _e('I agree to the terms and conditions', 'fluent-security'); ?>
                 <?php endif; ?>
             </label>
         </p>
@@ -364,10 +365,9 @@ class LoginCustomizerHandler
                 ]
             ],
             'register'               => [
-                'title'              => 'Sign up to {{site.name}}',
-                'description'        => 'Please enter your details to register',
-                'extend_signup_form' => 'yes',
-                'design'             => [
+                'title'        => 'Sign up to {{site.name}}',
+                'description'  => 'Please enter your details to register',
+                'design'       => [
                     'background'         => '#ffffff',
                     'color'              => '#19283a',
                     'btn_primary_bg'     => '#2B2E33',
@@ -378,7 +378,7 @@ class LoginCustomizerHandler
                     'side_heading_color' => '#19283a',
                     'side_content_color' => '#19283a'
                 ],
-                'side_content'       => [
+                'side_content' => [
                     'title'       => 'Welcome to {{site.name}}',
                     'description' => ''
                 ]
@@ -456,6 +456,14 @@ class LoginCustomizerHandler
     public function isSecureSignupForm()
     {
         $settings = Helper::getAuthSettings();
-        return Arr::get($settings, 'secure_signup_form', 'no') === 'yes';
+        $enabled = Arr::get($settings, 'secure_signup_form', 'no') === 'yes';
+        
+        if (!$enabled) {
+            $customSignUpSettings = $this->getSettings();
+            $enabled = Arr::get($customSignUpSettings, 'enabled', 'no') === 'yes';
+        }
+
+        return $enabled;
+
     }
 }
