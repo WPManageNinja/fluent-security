@@ -30,14 +30,12 @@ class LoginCustomizerHandler
                 }
             </style>
             <?php
-
         });
 
         add_action('register_form', function () {
             if (!$this->isSecureSignupForm()) {
                 return false;
             }
-
             $this->addExtendedRegFields();
         });
 
@@ -74,6 +72,20 @@ class LoginCustomizerHandler
         $allSettings = $this->getSettings();
 
         $formSettings = Arr::get($allSettings, $formType, []);
+
+        $smartCodeParse = new \FluentAuth\App\Services\SmartCodeParser();
+
+        $formSettings['title'] = $smartCodeParse->parse($formSettings['title'], null);
+        $formSettings['description'] = $smartCodeParse->parse($formSettings['description'], null);
+
+        if(isset($formSettings['side_content'])) {
+            $formSettings['side_content']['title'] = $smartCodeParse->parse($formSettings['side_content']['title'], null);
+            $formSettings['side_content']['description'] = $smartCodeParse->parse($formSettings['side_content']['description'], null);
+        } else {
+            $loginForm = Arr::get($allSettings, 'login', []);
+            $formSettings['side_content']['title'] = $smartCodeParse->parse($loginForm['side_content']['title'], null);
+            $formSettings['side_content']['description'] = $smartCodeParse->parse($loginForm['side_content']['description'], null);
+        }
 
         add_action('login_enqueue_scripts', function () use ($formType, $allSettings) {
             wp_enqueue_style(
@@ -457,7 +469,7 @@ class LoginCustomizerHandler
     {
         $settings = Helper::getAuthSettings();
         $enabled = Arr::get($settings, 'secure_signup_form', 'no') === 'yes';
-        
+
         if (!$enabled) {
             $customSignUpSettings = $this->getSettings();
             $enabled = Arr::get($customSignUpSettings, 'enabled', 'no') === 'yes';

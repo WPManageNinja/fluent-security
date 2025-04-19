@@ -9,6 +9,11 @@ class SmartCodeParser
 {
     public function parse($templateString, $data)
     {
+
+        if(!$templateString) {
+            return $templateString;
+        }
+
         $result = [];
         $isSingle = false;
 
