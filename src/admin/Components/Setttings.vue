@@ -26,6 +26,12 @@
                                 {{ $t('Disable REST Endpoint for wp users query for public (Recommended: Disable)') }}
                             </el-checkbox>
                         </el-form-item>
+
+                        <el-form-item>
+                            <el-checkbox true-label="yes" false-label="no" v-model="settings.secure_signup_form">
+                                {{ $t('Replace Default Signup Form with Secure form with Email Verfication (Recommended: Enable)') }}
+                            </el-checkbox>
+                        </el-form-item>
                     </div>
 
                     <div class="fls_login_settings">
@@ -305,6 +311,7 @@ export default {
                 login_try_timing: 30,
                 disable_users_rest: 'yes',
                 auto_delete_logs_day: 30,
+                secure_signup_form: 'yes',
                 notification_user_roles: ['administrator', 'editor', 'author'],
                 notification_email: '{admin_email}',
                 notify_on_blocked: 'no',

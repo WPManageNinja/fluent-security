@@ -3,6 +3,7 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
+use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
 
 class LoginCustomizerHandler
@@ -10,18 +11,49 @@ class LoginCustomizerHandler
 
     public function register()
     {
+        add_action('login_head', function () {
+            if (!$this->isSecureSignupForm()) {
+                return false;
+            }
+            ?>
+            <style>
+                #login #reg_passmail {
+                    display: none !important;
+                }
+
+                #login p.fs_reg_item_terms {
+                    margin-bottom: 20px;
+                }
+
+                body.fls_register_form_token #registerform > p {
+                    display: none !important;
+                }
+            </style>
+            <?php
+
+        });
+
+        add_action('register_form', function () {
+            if (!$this->isSecureSignupForm()) {
+                return false;
+            }
+
+            $this->addExtendedRegFields();
+        });
+
+        add_filter('registration_errors', [$this, 'maybeInterceptRegistration'], 10, 3);
+        add_action('register_post', [$this, 'maybeIntercept2FaRegistration'], 10, 3);
+
         add_action('login_init', [$this, 'maybeCustomizeAuthPage']);
     }
 
     public function maybeCustomizeAuthPage()
     {
-        add_filter('registration_errors', [$this, 'maybeInterceptRegistration'], 10, 3);
-        add_action('register_post', [$this, 'maybeIntercept2FaRegistration'], 10, 3);
-
         $settings = $this->getSettings();
         if ($settings['enabled'] !== 'yes') {
             return;
         }
+
         $currentAction = $this->getCurrentAction();
         if (!$currentAction) {
             return;
@@ -43,9 +75,7 @@ class LoginCustomizerHandler
 
         $formSettings = Arr::get($allSettings, $formType, []);
 
-        $isSecureSignUp = $formType == 'register' && $formSettings['extend_signup_form'] == 'yes';
-
-        add_action('login_enqueue_scripts', function () use ($formType, $allSettings, $isSecureSignUp) {
+        add_action('login_enqueue_scripts', function () use ($formType, $allSettings) {
             wp_enqueue_style(
                 'fls-login-customizer',
                 FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_customizer.css',
@@ -61,10 +91,6 @@ class LoginCustomizerHandler
                 }
             }
             $cssVars = '.fls_login_page_wrap { ' . $css . '  }';
-
-            if ($isSecureSignUp) {
-                $cssVars .= '#reg_passmail { display: none !important; }';
-            }
 
             wp_add_inline_style('fls-login-customizer', $cssVars);
         });
@@ -99,49 +125,50 @@ class LoginCustomizerHandler
             <?php
         });
 
-
-        if ($isSecureSignUp) {
-            add_action('register_form', function () {
-                // We will add the custom fields here
-                $fullName = Arr::get($_POST, 'user_full_name', '');
-                $password = Arr::get($_POST, 'user_password', '');
-                $confirmPassword = Arr::get($_POST, 'user_confirm_password', '');
-
-                ?>
-                <p>
-                    <label for="user_full_name"><?php _e('Your Full Name', 'fluent-security'); ?></label>
-                    <input type="text" name="user_full_name" id="user_full_name" class="input"
-                           value="<?php echo esc_attr($fullName); ?>" size="100" autocomplete="name"
-                           required="required"/>
-                </p>
-
-                <p>
-                    <label for="user_password"><?php _e('Password', 'fluent-security'); ?></label>
-                    <input type="password" name="user_password" id="user_password" class="input"
-                           value="<?php echo htmlspecialchars($password, ENT_QUOTES, 'UTF-8'); ?>" size="50"
-                           required="required"/>
-                </p>
-
-                <p>
-                    <label for="user_confirm_password"><?php _e('Re-Enter Password', 'fluent-security'); ?></label>
-                    <input type="password" name="user_confirm_password"
-                           value="<?php echo htmlspecialchars($confirmPassword, ENT_QUOTES, 'UTF-8'); ?>"
-                           id="user_confirm_password" class="input" size="50" required="required"/>
-                </p>
-
-                <p>
-                    <label for="agree_terms">
-                        <input type="checkbox" name="agree_terms" id="agree_terms" value="agreed" size="50"
-                               required="required"/>
-                        <?php _e('I agree to the terms and conditions', 'fluent-security'); ?>
-                    </label>
-                </p>
-                <?php
-            });
-        }
-
     }
 
+    public function addExtendedRegFields()
+    {
+        $policyUrl = get_privacy_policy_url();
+        // We will add the custom fields here
+        $fullName = Arr::get($_POST, 'user_full_name', '');
+        $password = Arr::get($_POST, 'user_password', '');
+        $confirmPassword = Arr::get($_POST, 'user_confirm_password', '');
+        $agreeTerms = Arr::get($_POST, 'agree_terms', '');
+        ?>
+        <p class="fs_reg_item fs_reg_item_full_name">
+            <label for="user_full_name"><?php _e('Your Full Name', 'fluent-security'); ?></label>
+            <input type="text" name="user_full_name" id="user_full_name" class="input"
+                   value="<?php echo esc_attr($fullName); ?>" size="100" autocomplete="name"
+                   required="required"/>
+        </p>
+
+        <p class="fs_reg_item fs_reg_item_password">
+            <label for="user_password"><?php _e('Password', 'fluent-security'); ?></label>
+            <input type="password" name="user_password" id="user_password" class="input"
+                   value="<?php echo htmlspecialchars($password, ENT_QUOTES, 'UTF-8'); ?>" size="50"
+                   required="required"/>
+        </p>
+
+        <p class="fs_reg_item fs_reg_item_conf_password">
+            <label for="user_confirm_password"><?php _e('Re-Enter Password', 'fluent-security'); ?></label>
+            <input type="password" name="user_confirm_password"
+                   value="<?php echo htmlspecialchars($confirmPassword, ENT_QUOTES, 'UTF-8'); ?>"
+                   id="user_confirm_password" class="input" size="50" required="required"/>
+        </p>
+
+        <p class="fs_reg_item fs_reg_item_terms">
+            <label for="agree_terms">
+                <input type="checkbox" <?php echo $agreeTerms ? 'checked' : ''; ?> name="agree_terms" id="agree_terms" value="agreed" size="50" required="required"/>
+                <?php if($policyUrl): ?>
+                <?php printf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="'.esc_url($policyUrl).'">'.__('terms and conditions.').'</a>'); ?>
+                <?php else: ?>
+                <?php _e('I agree to the terms and conditions', 'fluent-security'); ?>
+                <?php endif; ?>
+            </label>
+        </p>
+        <?php
+    }
 
     public function maybeInterceptRegistration(\WP_Error $errors, $sanitized_user_login, $user_email)
     {
@@ -149,15 +176,17 @@ class LoginCustomizerHandler
             return $errors;
         }
 
-        if ($this->validateRegistrationData($errors, $_POST)->has_errors()) {
+        if (!$this->isSecureSignupForm()) {
             return $errors;
         }
 
-        $errors->add('confirm_token', sprintf(__('A verification code has been sent to %s. Please provide the code below:', 'fluent-security'), $user_email));
+        $registrationValidation = $this->validateRegistrationData($_POST);
 
-        add_filter('fluent_auth/extra_ogin_page_wrap_css_class', function ($cssClass) {
-            return 'fls_register_form_token';
-        });
+        if ($registrationValidation->has_errors()) {
+            return $registrationValidation;
+        }
+
+        $errors->add('confirm_token', sprintf(__('A verification code has been sent to %s. Please provide the code below:', 'fluent-security'), $user_email));
 
         $fullName = Arr::get($_POST, 'user_full_name', '');
 
@@ -175,6 +204,11 @@ class LoginCustomizerHandler
             echo (new CustomAuthHandler())->sendSignupEmailVerificationHtml($formData);
         });
 
+        add_action('login_body_class', function ($classes) {
+            $classes[] = 'fls_register_form_token';
+            return $classes;
+        });
+
         return $errors;
     }
 
@@ -184,13 +218,16 @@ class LoginCustomizerHandler
             return false; // it's an aleady error
         }
 
+        if (!$this->isSecureSignupForm()) {
+            return false;
+        }
+
         $verficationHash = Arr::get($_POST, '_email_verification_hash', '');
         if (!$verficationHash) {
             return false;
         }
 
         $token = Arr::get($_POST, '_email_verification_token', '');
-
         $isTokenValidated = AuthService::verifyTokenHash($verficationHash, $token);
         if (is_wp_error($isTokenValidated)) {
             $errors->add('confirm_token', $isTokenValidated->get_error_message());
@@ -204,7 +241,6 @@ class LoginCustomizerHandler
                     $errors->add($code, $error_message);
                 }
             }
-
             return false;
         }
 
@@ -238,9 +274,12 @@ class LoginCustomizerHandler
         }
 
         $user = get_user_by('ID', $userId);
-        $isAutoLogin = apply_filters('fluent_auth/auto_login_after_signup', true, $user);
-        if ($isAutoLogin) {
-            AuthService::makeLogin($userId);
+
+        if ($user) {
+            $isAutoLogin = apply_filters('fluent_auth/auto_login_after_signup', true, $user);
+            if ($isAutoLogin) {
+                $user = AuthService::makeLogin($user);
+            }
         }
 
         if (!get_current_user_id()) {
@@ -271,7 +310,6 @@ class LoginCustomizerHandler
         if (empty($data['user_full_name'])) {
             $errors->add('user_full_name', __('Please enter your full name.', 'fluent-security'));
         }
-
 
         $fullName = Arr::get($data, 'user_full_name', '');
 
@@ -381,7 +419,8 @@ class LoginCustomizerHandler
             'register',
             'checkemail',
             'confirmaction',
-            'login'
+            'login',
+            'fls_2fa_email'
         );
 
         if (!in_array($action, $default_actions, true)) {
@@ -414,4 +453,9 @@ class LoginCustomizerHandler
         return $type;
     }
 
+    public function isSecureSignupForm()
+    {
+        $settings = Helper::getAuthSettings();
+        return Arr::get($settings, 'secure_signup_form', 'no') === 'yes';
+    }
 }

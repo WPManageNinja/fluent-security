@@ -113,6 +113,14 @@ class AuthService
 
     public static function makeLogin($user, $provider = '')
     {
+        if (is_numeric($user)) {
+            $user = get_user_by('ID', $user);
+        }
+
+        if (!$user) {
+            return new \WP_Error('user_not_found', __('User not found', 'fluent-security'));
+        }
+
         $canLogin = apply_filters('fluent_auth/can_user_login', false, $user, $provider);
 
         if ($provider && is_wp_error($canLogin)) {

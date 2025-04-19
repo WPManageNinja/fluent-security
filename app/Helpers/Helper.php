@@ -20,6 +20,7 @@ class Helper
             'login_try_limit'         => 5,
             'login_try_timing'        => 30,
             'disable_users_rest'      => 'no',
+            'secure_signup_form'      => 'yes',
             'notification_user_roles' => [],
             'notify_on_blocked'       => 'no',
             'notification_email'      => '{admin_email}',
