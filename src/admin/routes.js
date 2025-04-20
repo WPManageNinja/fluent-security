@@ -10,6 +10,7 @@ import EditWpEmail from './Components/CustomWpEmails/EditWpEmail.vue';
 import TemplateSettings from "./Components/CustomWpEmails/TemplateSettings.vue";
 import SecurityScans from "./Components/SecurityScan/index.vue";
 import RegisterPromt from "./Components/SecurityScan/RegisterPromt.vue";
+import AuthCustomizer from "./Components/AuthCustomizer/AuthCustomizer.vue";
 
 export var routes = [
     {
@@ -110,6 +111,15 @@ export var routes = [
         meta: {
             active: 'security_scans',
             title: 'Security Scans'
+        }
+    },
+    {
+        path: '/auth-customizer',
+        name:'auth_customizer',
+        component: AuthCustomizer,
+        meta: {
+            active: 'auth_customizer',
+            title: 'Auth Customizer'
         }
     }
 ];

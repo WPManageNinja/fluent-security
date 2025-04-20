@@ -163,4 +163,12 @@ class SettingsController
             'settings' => $oldSettings
         ];
     }
+
+    public static function getAuthCustomizerSetting(\WP_REST_Request $request)
+    {
+        return [
+            'settings' => Helper::getAuthCustomizerSettings(),
+            'login_form_html' => ''
+        ];
+    }
 }

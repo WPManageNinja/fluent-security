@@ -10,7 +10,7 @@ class SmartCodeParser
     public function parse($templateString, $data)
     {
 
-        if(!$templateString) {
+        if (!$templateString) {
             return $templateString;
         }
 
@@ -35,6 +35,10 @@ class SmartCodeParser
 
     public function parseShortcode($string, $data)
     {
+        if (!$string) {
+            return '';
+        }
+
         // check if the string contains any smartcode
         if (strpos($string, '{{') === false && strpos($string, '##') === false) {
             return $string;

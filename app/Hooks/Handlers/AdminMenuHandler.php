@@ -150,7 +150,8 @@ class AdminMenuHandler
                 'full_name' => $fullName,
                 'email'     => $currentUser->user_email
             ],
-            'i18n'          => TransStrings::getStrings()
+            'i18n'          => TransStrings::getStrings(),
+            'suggestedColors' => ['#000000', '#abb8c3', '#ffffff', '#f78da7', '#ff6900', '#fcb900', '#7bdcb5', '#00d084', '#8ed1fc', '#0693e3', '#9b51e0']
         ]);
 
         echo '<div id="fluent_auth_app"><h3 style="text-align: center; margin-top: 100px;">Loading Settings..</h3></div>';

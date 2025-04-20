@@ -388,4 +388,74 @@ class Helper
             return false;
         }
     }
+
+    public static function getAuthCustomizerSettings()
+    {
+        $siteTitle = get_bloginfo('name');
+        // get site logo
+        $siteLogo = '';
+
+        $tagLine = get_bloginfo('description');
+
+        $defaults = [
+            'status' => 'no',
+            'login'  => [
+                'banner' => [
+                    'hidden'           => false,
+                    'type'             => 'banner',
+                    'position'         => 'left',
+                    'logo'             => $siteLogo,
+                    'title'            => 'Welcome to ' . $siteTitle,
+                    'description'      => $tagLine,
+                    'title_color'      => '#19283a',
+                    'text_color'       => '#525866',
+                    'background_image' => '',
+                    'background_color' => '#F5F7FA'
+                ],
+                'form'   => [
+                    'type'               => 'form',
+                    'position'           => 'right',
+                    'title'              => 'Login to ' . $siteTitle,
+                    'description'        => 'Please enter your details to login',
+                    'title_color'        => '#19283a',
+                    'text_color'         => '#525866',
+                    'button_label'       => 'Login',
+                    'button_color'       => '#2B2E33',
+                    'button_label_color' => '#ffffff',
+                    'background_image'   => '',
+                    'background_color'   => '#ffffff'
+                ]
+            ],
+            'signup' => [
+                'banner' => [
+                    'hidden'           => false,
+                    'type'             => 'banner',
+                    'position'         => 'left',
+                    'logo'             => $siteLogo,
+                    'title'            => 'Welcome to ' . $siteTitle,
+                    'description'      => $tagLine,
+                    'title_color'      => '#19283a',
+                    'text_color'       => '#525866',
+                    'background_image' => '',
+                    'background_color' => '#F5F7FA',
+                ],
+                'form'   => [
+                    'type'               => 'form',
+                    'position'           => 'right',
+                    'title'              => 'Sign Up to ' . $siteTitle,
+                    'description'        => 'Please enter your details to register',
+                    'button_label'       => 'Sign up',
+                    'terms_label'        => '',
+                    'title_color'        => '#19283a',
+                    'text_color'         => '#525866',
+                    'button_color'       => '#2B2E33',
+                    'button_label_color' => '#ffffff',
+                    'background_image'   => '',
+                    'background_color'   => '#ffffff',
+                ]
+            ]
+        ];
+
+        return $defaults;
+    }
 }
