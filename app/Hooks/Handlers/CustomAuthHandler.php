@@ -1199,19 +1199,17 @@ class CustomAuthHandler
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
 
-
         ob_start();
         ?>
 
         <div class="fls_signup_verification">
-            <div class="fls_field_group fls_field_vefication">
-                <p class="fls_2fa_instruction"><?php echo esc_html(sprintf(__('A verification code as been sent to %s. Please provide the code bellow: ', 'fluent-'), $formData['email'])) ?></p>
+            <div class="fls_field_group fls_field_verification">
+                <p class="fls_2fa_instruction"><?php echo esc_html(\sprintf(__('A verification code has been sent to %s. Please provide the code below: ', 'fluent-'), $formData['email'])) ?></p>
                 <input type="hidden" name="_email_verification_hash" value="<?php echo esc_attr($hash); ?>"/>
                 <div class="fls_field_label is-required"><label
-                        for="fls_field_vefication"><?php _e('Vefication Code', 'fluent-security'); ?></label></div>
+                        for="fls_field_verification"><?php _e('Vefication Code', 'fluent-security'); ?></label></div>
                 <div class="fs_input_wrap">
-                    <input type="text" id="fls_field_vefication" class="input" placeholder="2FA Code"
-                           name="_email_verification_token" required></div>
+                    <input type="text" id="fls_field_verification" class="input" placeholder="<?php _e('2FA Code', 'fluent-security'); ?>" name="_email_verification_token" required></div>
             </div>
             <p class="submit">
                 <button type="submit" class="button button-primary" id="fls_verification_submit">
