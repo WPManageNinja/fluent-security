@@ -86,6 +86,9 @@ export default {
             this.$get('child-sites')
                 .then(response => {
                     this.sites = response.sites;
+                    if(!this.sites.length) {
+                        this.addinNew = true;
+                    }
                 })
                 .catch(errors => {
                     this.$handleError(errors);
