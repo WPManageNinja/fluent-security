@@ -19,7 +19,7 @@
                             <template v-if="settings.status == 'active'">
                                 <el-button v-loading="saving" :disabled="saving" v-if="scheduling.auto_scan != 'yes'"
                                            type="primary"
-                                           @click="scheduling.auto_scan = 'yes'">{
+                                           @click="scheduling.auto_scan = 'yes'">
                                     {{ $t('Enable Auto Scanning') }}
                                 </el-button>
                                 <div v-else>
