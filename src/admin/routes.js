@@ -11,6 +11,7 @@ import TemplateSettings from "./Components/CustomWpEmails/TemplateSettings.vue";
 import SecurityScans from "./Components/SecurityScan/index.vue";
 import RegisterPromt from "./Components/SecurityScan/RegisterPromt.vue";
 import AuthCustomizer from "./Components/AuthCustomizer/AuthCustomizer.vue";
+import ServerMode from "./Components/ServerMode/ServerMode.vue";
 
 export var routes = [
     {
@@ -115,11 +116,20 @@ export var routes = [
     },
     {
         path: '/auth-customizer',
-        name:'auth_customizer',
+        name: 'auth_customizer',
         component: AuthCustomizer,
         meta: {
             active: 'auth_customizer',
             title: 'Auth Customizer'
+        }
+    },
+    {
+        path: '/server-mode',
+        name: 'server_mode',
+        component: ServerMode,
+        meta: {
+            active: 'server_mode',
+            title: 'Server Mode Settings'
         }
     }
 ];

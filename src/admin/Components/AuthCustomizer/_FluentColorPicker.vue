@@ -1,6 +1,6 @@
 <template>
     <div class="fcom_color_item">
-        <el-color-picker :predefine="appVars.suggestedColors" ref="colorPicker"
+        <el-color-picker :show-alpha="true" :predefine="appVars.suggestedColors" ref="colorPicker"
                          @active-change="(val) => { color = val }" v-model="color"/>
         <label style="cursor: pointer;" class="fcom_color_label" @click="showColorPicker">
             {{ label }}

@@ -916,17 +916,28 @@ ul.fls_listed_data {
 .fcom_full_editor_side.lockscreen_editor {
   width: 350px;
   max-height: calc(100vh - 60px);
-  background: #fdf6f0;
+  background: #F0F2F5;
 }
 .fcom_full_editor_main.lockscreen_editor {
   padding: 2rem;
-  background:  #fdf6f0;
+  background:  #F0F2F5;
 }
 
 
+.fcom_full_editor_body {
+  .el-popover, .el-notification, .el-color-picker__panel.el-popper {
+    z-index: 999999999 !important;
+  }
+}
+
 .fcom_full_editor {
+  z-index: 99999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: white;
-  z-index: 999;
 
   .full_editor_actions {
     display: flex;
@@ -1119,7 +1130,7 @@ ul.fls_listed_data {
 
           .el-color-picker__color-inner {
             border: 1px solid #e3e8ee;
-            border-radius: 50%;
+            border-radius: 0;
           }
         }
       }
@@ -1140,13 +1151,14 @@ ul.fls_listed_data {
   }
 
   .fcom_full_editor_header_wrap {
-    background-color: #e5e7eb;
-    border-bottom: 1px solid #f8f8f8;
+    ackground-color: white;
+    border-bottom: 1px solid #DADDE1;
   }
 
   .fcom_full_editor_side {
     background: #f8f8f8;
     padding: 20px;
+    border-right: 1px solid #DADDE1;
 
     &.lockscreen_editor {
       width: 350px;
@@ -1208,7 +1220,7 @@ ul.fls_listed_data {
                       img {
                         width: 100%;
                         height: 100px;
-                        object-fit: cover;
+                        object-fit: contain;
                       }
                     }
 
@@ -1347,7 +1359,7 @@ ul.fls_listed_data {
 
     &.lockscreen_editor {
       padding: 2rem;
-      background:  #fdf6f0;
+      background:  #F0F2F5;
 
       .el-scrollbar {
         border-radius: 8px;
@@ -1456,4 +1468,25 @@ ul.fls_listed_data {
       max-width: 200px;
     }
   }
+}
+
+.fcom_auth_wrap {
+  background-repeat: no-repeat;
+  background-size: cover;
+
+  .fcom_auth_image img {
+    max-height: 120px;
+    width: auto;
+  }
+
+  .fcom_auth_title {
+    h2 {
+      margin: 15px 0;
+      font-size: 28px;
+    }
+  }
+  .fcom_auth_description {
+    font-size: 16px;
+  }
+
 }

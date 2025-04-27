@@ -1,9 +1,10 @@
 <template>
+    <auth-customizer-settings />
     <social-auth-settings />
     <div class="dashboard box_wrapper">
         <div class="box dashboard_box box_narrow">
             <div v-loading="loading" class="box_header" style="padding: 15px;font-size: 16px;">
-                {{$t('Login or Signup Forms and Login Redirects')}}
+                {{$t('Login or Signup Forms Shortcodes')}}
                 <div class="box_actions">
                     <el-button size="small" v-loading="saving" :disabled="saving" @click="saveSettings()" type="success">
                         {{$t('Save Settings')}}
@@ -65,10 +66,12 @@
 
 <script type="text/babel">
 import SocialAuthSettings from "./SocialAuthSettings.vue";
+import AuthCustomizerSettings from "./AuthCustomizer/AuthCustomizerSettings.vue";
 export default {
     name: 'AuthShortcodes',
     components : {
-        SocialAuthSettings
+        SocialAuthSettings,
+        AuthCustomizerSettings
     },
     data() {
         return {

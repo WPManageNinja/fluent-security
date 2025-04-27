@@ -48,8 +48,9 @@ class LoginCustomizerHandler
     public function maybeCustomizeAuthPage()
     {
         $settings = $this->getSettings();
-        if ($settings['enabled'] !== 'yes') {
-            return;
+
+        if ($settings['status'] !== 'yes') {
+             return;
         }
 
         $currentAction = $this->getCurrentAction();
@@ -68,26 +69,36 @@ class LoginCustomizerHandler
 
     private function loadCustomizedDesign($currentAction, $formType)
     {
-
         $allSettings = $this->getSettings();
-
         $formSettings = Arr::get($allSettings, $formType, []);
+
+        if (!$formSettings) {
+            $formSettings = Arr::get($allSettings, 'login', []);
+
+            $formSettings['form']['title'] = '';
+            $formSettings['form']['description'] = '';
+
+            if ($formType == 'reset_password') {
+                $formSettings['form']['title'] = __('Reset Password', 'fluent-security');
+                $formSettings['form']['description'] = '';
+            }
+        }
 
         $smartCodeParse = new \FluentAuth\App\Services\SmartCodeParser();
 
-        $formSettings['title'] = $smartCodeParse->parse($formSettings['title'], null);
-        $formSettings['description'] = $smartCodeParse->parse($formSettings['description'], null);
+        $formSettings['form']['title'] = $smartCodeParse->parse($formSettings['form']['title'], null);
+        $formSettings['form']['description'] = $smartCodeParse->parse($formSettings['form']['description'], null);
 
-        if(isset($formSettings['side_content'])) {
-            $formSettings['side_content']['title'] = $smartCodeParse->parse($formSettings['side_content']['title'], null);
-            $formSettings['side_content']['description'] = $smartCodeParse->parse($formSettings['side_content']['description'], null);
+        if (isset($formSettings['banner'])) {
+            $formSettings['banner']['title'] = $smartCodeParse->parse($formSettings['banner']['title'], null);
+            $formSettings['banner']['description'] = $smartCodeParse->parse($formSettings['banner']['description'], null);
         } else {
             $loginForm = Arr::get($allSettings, 'login', []);
-            $formSettings['side_content']['title'] = $smartCodeParse->parse($loginForm['side_content']['title'], null);
-            $formSettings['side_content']['description'] = $smartCodeParse->parse($loginForm['side_content']['description'], null);
+            $formSettings['banner']['title'] = $smartCodeParse->parse($loginForm['banner']['title'], null);
+            $formSettings['banner']['description'] = $smartCodeParse->parse($loginForm['banner']['description'], null);
         }
 
-        add_action('login_enqueue_scripts', function () use ($formType, $allSettings) {
+        add_action('login_enqueue_scripts', function () use ($formType, $formSettings) {
             wp_enqueue_style(
                 'fls-login-customizer',
                 FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_customizer.css',
@@ -95,14 +106,26 @@ class LoginCustomizerHandler
                 FLUENT_AUTH_VERSION
             );
 
-            $designs = Arr::get($allSettings, $formType . '.design', []);
+            $bannerDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
+            $formDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
+
+            $bannerValues = array_filter(Arr::only(Arr::get($formSettings, 'banner', []), $bannerDesignElements));
+            $formValues = array_filter(Arr::only(Arr::get($formSettings, 'form', []), $formDesignElements));
+
             $css = '';
-            foreach ($designs as $designKey => $designValue) {
+            foreach ($bannerValues as $designKey => $designValue) {
                 if ($designValue) {
-                    $css .= '--fls-' . $designKey . ': ' . $designValue . ';';
+                    $css .= '--fls-banner-' . $designKey . ': ' . $designValue . ';';
                 }
             }
-            $cssVars = '.fls_login_page_wrap { ' . $css . '  }';
+
+            foreach ($formValues as $designKey => $designValue) {
+                if ($designValue) {
+                    $css .= '--fls-form-' . $designKey . ': ' . $designValue . ';';
+                }
+            }
+
+            $cssVars = ':root { ' . $css . '  }';
 
             wp_add_inline_style('fls-login-customizer', $cssVars);
         });
@@ -110,26 +133,35 @@ class LoginCustomizerHandler
         add_action('login_header', function () use ($formSettings, $formType) {
 
             $extraCssClass = apply_filters('fluent_auth/extra_ogin_page_wrap_css_class', '');
+            $extraCssClass .= 'fls_layout_banner_'.Arr::get($formSettings, 'banner.position');
 
             ?>
             <div class="fls_login_page_wrap fls_form_type_<?php echo esc_attr($formType); ?> <?php echo esc_attr($extraCssClass); ?>">
             <div class="fls_login_form_wrap"><div class="fls_form_wrap">
             <div class="fls_login_header">
-                <h1><?php echo wp_kses_post(Arr::get($formSettings, 'title')); ?></h1>
-                <p><?php echo wp_kses_post(Arr::get($formSettings, 'description')); ?></p>
+                <h1><?php echo wp_kses_post(Arr::get($formSettings, 'form.title')); ?></h1>
+                <p><?php echo wp_kses_post(Arr::get($formSettings, 'form.description')); ?></p>
             </div>
             <?php
         });
 
         add_action('login_footer', function () use ($formSettings) {
+            $backgroundImage = Arr::get($formSettings, 'banner.background_image');
             ?>
             </div></div> <!-- End of fls_form_wrap and fls_login_form_wrap-->
 
-            <div class="fls_login_cusom_content_wrap">
+            <div style="<?php if ($backgroundImage) {
+                echo 'background-image: url(' . esc_url($backgroundImage) . ')';
+            } ?>" class="fls_login_cusom_content_wrap">
                 <div class="fls_login_cusom_content">
                     <div class="fls_login_cusom_content_inner">
-                        <h1><?php echo wp_kses_post(Arr::get($formSettings, 'side_content.title', '')); ?></h1>
-                        <p><?php echo wp_kses_post(Arr::get($formSettings, 'side_content.description', '')); ?></p>
+                        <?php if ($logo = Arr::get($formSettings, 'banner.logo')): ?>
+                            <div class="fls_banner_header_logo">
+                                <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr__('Logo', 'fluent-security'); ?>"/>
+                            </div>
+                        <?php endif; ?>
+                        <h1><?php echo wp_kses_post(Arr::get($formSettings, 'banner.title', '')); ?></h1>
+                        <p><?php echo wp_kses_post(Arr::get($formSettings, 'banner.description', '')); ?></p>
                     </div>
                 </div>
             </div>
@@ -355,57 +387,7 @@ class LoginCustomizerHandler
 
     private function getSettings()
     {
-        $defaults = [
-            'enabled'                => 'yes',
-            'login'                  => [
-                'title'        => 'Welcome Back to {{site.name}}',
-                'description'  => 'Please enter your details to login',
-                'design'       => [
-                    'background'         => '#ffffff',
-                    'color'              => '#19283a',
-                    'btn_primary_bg'     => '#2B2E33',
-                    'btn_primary_color'  => '#ffffff',
-                    'form_bg'            => '',
-                    'side_bg_image_url'  => '',
-                    'side_background'    => '#f5f7fa',
-                    'side_heading_color' => '#19283a',
-                    'side_content_color' => '#19283a'
-                ],
-                'side_content' => [
-                    'title'       => 'Welcome to {{site.name}}',
-                    'description' => ''
-                ]
-            ],
-            'register'               => [
-                'title'        => 'Sign up to {{site.name}}',
-                'description'  => 'Please enter your details to register',
-                'design'       => [
-                    'background'         => '#ffffff',
-                    'color'              => '#19283a',
-                    'btn_primary_bg'     => '#2B2E33',
-                    'btn_primary_color'  => '#ffffff',
-                    'form_bg'            => '',
-                    'side_bg_image_url'  => '',
-                    'side_background'    => '#f5f7fa',
-                    'side_heading_color' => '#19283a',
-                    'side_content_color' => '#19283a'
-                ],
-                'side_content' => [
-                    'title'       => 'Welcome to {{site.name}}',
-                    'description' => ''
-                ]
-            ],
-            'reset_password'         => [
-                'title'       => 'Reset Your Password',
-                'description' => ''
-            ],
-            'reset_password_confirm' => [
-                'title'       => 'Set Your New Password',
-                'description' => ''
-            ]
-        ];
-
-        return $defaults;
+        return Helper::getAuthCustomizerSettings();
     }
 
     private function getCurrentAction()
@@ -450,7 +432,7 @@ class LoginCustomizerHandler
                 $type = 'login';
                 break;
             case 'register':
-                $type = 'register';
+                $type = 'signup';
                 break;
             case 'lostpassword':
                 $type = 'reset_password';

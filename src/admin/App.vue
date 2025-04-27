@@ -65,13 +65,19 @@ export default {
             jQuery('.fframe_menu_item').removeClass('router-current-active_li');
             jQuery('.fframe_route_' + to.meta.active).addClass('router-current-active_li');
             document.title = this.$t(to.meta.title) + ' | ' + this.$t('FluentAuth');
-
         }
     },
     created() {
         jQuery('.update-nag,.notice, #wpbody-content > .updated, #wpbody-content > .error').remove();
     },
     mounted() {
+        if (this.appVars.has_server_mode) {
+            this.menuItems.push({
+                route: 'server_mode',
+                title: this.$t('Remote Auth')
+            });
+        }
+
         jQuery('.fframe_handheld span').on('click', function () {
             jQuery('ul.fframe_menu').toggle('show');
         });

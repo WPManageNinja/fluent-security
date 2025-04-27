@@ -38,11 +38,9 @@ class CustomAuthHandler
         }
 
         if (apply_filters('fluent_auth/respect_front_login_url', true) && strpos($redirect_to, '/wp-admin') === false) {
-            return $redirect_to; // it's a frontend URl so let's not alter that
-        }
-
-        if ($url = $this->getDefaultLoginRedirectUrl($user)) {
-            return $url;
+            // it's a frontend redirect url
+        } else if ($url = $this->getDefaultLoginRedirectUrl($user)) {
+            $redirect_to = $url;
         }
 
         return $redirect_to;
@@ -653,7 +651,6 @@ class CustomAuthHandler
      */
     public function handleLoginAjax()
     {
-
         if (!$this->isEnabled()) {
             wp_send_json([
                 'message' => __('Login is not enabled', 'fluent-security')
@@ -684,7 +681,8 @@ class CustomAuthHandler
 
         $redirectUrl = admin_url();
         if (isset($data['redirect_to']) && filter_var($data['redirect_to'], FILTER_VALIDATE_URL)) {
-            $redirectUrl = sanitize_url($data['redirect_to']);
+            $userRedirect = sanitize_url($data['redirect_to']);
+            $redirectUrl = wp_validate_redirect($userRedirect, $redirectUrl);
         }
 
         if ($currentUserId = get_current_user_id()) { // user already registered
@@ -843,13 +841,13 @@ class CustomAuthHandler
 
         $user = get_user_by('ID', $userId);
         $isAutoLogin = apply_filters('fluent_auth/auto_login_after_signup', true, $user);
-
         $message = __('Registration has been completed. Please login now', 'fluent-security');
 
         $redirectUrl = false;
         if ($isAutoLogin) {
             $this->login($userId);
             $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
+            $redirectUrl = wp_validate_redirect($redirectUrl, admin_url());
             $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
             $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
             $message = __('Successfully registered to the site.', 'fluent-security');
@@ -1046,7 +1044,7 @@ class CustomAuthHandler
 
         wp_clear_auth_cookie();
         wp_set_current_user($userId);
-        wp_set_auth_cookie($userId);
+        wp_set_auth_cookie($userId, true, is_ssl());
 
         /*
          * Action after login
@@ -1209,12 +1207,15 @@ class CustomAuthHandler
                 <div class="fls_field_label is-required"><label
                         for="fls_field_verification"><?php _e('Vefication Code', 'fluent-security'); ?></label></div>
                 <div class="fs_input_wrap">
-                    <input type="text" id="fls_field_verification" class="input" placeholder="<?php _e('2FA Code', 'fluent-security'); ?>" name="_email_verification_token" required></div>
+                    <input type="text" id="fls_field_verification" class="input"
+                           placeholder="<?php _e('2FA Code', 'fluent-security'); ?>" name="_email_verification_token"
+                           required></div>
             </div>
             <p class="submit">
                 <button type="submit" class="button button-primary" id="fls_verification_submit">
                     <svg version="1.1" class="fls_loading_svg" x="0px" y="0px" width="40px" height="20px"
-                         viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;display: none;" xml:space="preserve">
+                         viewBox="0 0 50 50" style="enable-background:new 0 0 50 50;display: none;"
+                         xml:space="preserve">
                     <path fill="currentColor"
                           d="M43.935,25.145c0-10.318-8.364-18.683-18.683-18.683c-10.318,0-18.683,8.365-18.683,18.683h4.068c0-8.071,6.543-14.615,14.615-14.615c8.072,0,14.615,6.543,14.615,14.615H43.935z">
                         <animateTransform attributeType="xml" attributeName="transform" type="rotate" from="0 25 25"

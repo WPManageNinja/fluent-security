@@ -14,9 +14,10 @@
     color: var(--fls-primary-text, #19283a);
 
     .fls_form_wrap {
-      max-width: 600px;
+      max-width: 500px;
       margin: 0 auto;
       padding: 40px 20px;
+      width: 100%;
 
       form {
         background: transparent;
@@ -39,10 +40,12 @@
 
         h1 {
           text-align: left;
+          color: var(--fls-form-title_color, #19283a);
         }
 
         p {
           font-size: 16px;
+          color: var(--fls-form-text_color, #19283a);
         }
       }
 
@@ -73,6 +76,7 @@
         float: left;
         margin-top: 20px;
       }
+
       .submit .button.wp-generate-pw {
         padding-inline: 0;
         border-radius: 8px;
@@ -97,19 +101,29 @@
     flex: 1;
     display: flex;
     align-items: center;
-    background: var(--fls-side_background, #f6f7f7);
+    background: var(--fls-banner-background_color, transparent);
     background-size: cover;
     background-position: center;
     background-blend-mode: multiply;
+    justify-content: center;
 
-    .fls_login_cusom_content {
+    .fls_login_cusom_content_inner {
       padding: 20px;
       text-align: center;
       margin: 0 auto;
       max-width: 800px;
       color: var(--fls-side_content_color, #19283a);
       h1 {
-        color: var(--fls-side_heading_color, #19283a);
+        color: var(--fls-banner-title_color, #19283a);
+      }
+      p {
+        color: var(--fls-banner-text_color, #19283a);
+      }
+      .fls_banner_header_logo {
+        img {
+          max-height: 120px;
+          width: auto;
+        }
       }
     }
 
@@ -119,8 +133,9 @@
     #registerform > * {
       display: none !important;
     }
+
     #registerform .fls_signup_verification {
-        display: block !important;
+      display: block !important;
     }
 
     .fls_2fa_instruction {
@@ -144,6 +159,15 @@
       font-size: 16px;
     }
   }
+
+  &.fls_layout_banner_left {
+    flex-direction: row-reverse;
+  }
+
+  @media all and (max-width: 767px) {
+    flex-direction: column-reverse !important;
+  }
+
 }
 
 .fls_form_type_register {

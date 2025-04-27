@@ -391,6 +391,7 @@ class Helper
 
     public static function getAuthCustomizerSettings()
     {
+
         $siteTitle = get_bloginfo('name');
         // get site logo
         $siteLogo = '';
@@ -456,6 +457,40 @@ class Helper
             ]
         ];
 
-        return $defaults;
+        $settings = get_option('__fls_auth_customizer_settings', []);
+
+        if (!$settings) {
+            return $defaults;
+        }
+
+        $settings = wp_parse_args($settings, $defaults);
+
+        return $settings;
+    }
+
+
+    public static function formatAuthCustomizerSettings($settingFields)
+    {
+        $textFields = ['type', 'title', 'button_label', 'position', 'title_color', 'text_color', 'button_color', 'button_label_color', 'background_color'];
+        $mediaFields = ['logo', 'background_image'];
+
+        $formattedFields = [];
+        foreach ($settingFields as $section => $settings) {
+            if(is_string($settings)) {
+                $formattedFields[$section] = sanitize_text_field($settings);
+                continue;
+            }
+
+            foreach ($settings as $key => $setting) {
+                $textValues = array_map('sanitize_text_field', Arr::only($setting, $textFields));
+                $mediaUrls = array_map('sanitize_url', Arr::only($setting, $mediaFields));
+                $formattedField = array_merge($textValues, $mediaUrls);
+                $formattedField['description'] = wp_kses_post(Arr::get($setting, 'description'));
+                $formattedField['hidden'] = Arr::isTrue($setting, 'hidden');
+                $formattedFields[$section][$key] = $formattedField;
+            }
+        }
+
+        return $formattedFields;
     }
 }

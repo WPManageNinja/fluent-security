@@ -55,7 +55,7 @@ export default {
     },
     computed: {
         action_url() {
-            return this.appVars.rest.url + '/feeds/media-upload'
+            return this.appVars.rest.url + '/upload-image'
         },
         headers() {
             return {

@@ -183,7 +183,7 @@ export default {
         },
         saveSettings() {
             this.saving = true;
-            this.$post('admin/auth-settings', {
+            this.$post('auth-customizer', {
                 settings: this.authSettings,
             })
                 .then(response => {

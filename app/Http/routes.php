@@ -3,6 +3,11 @@ defined('ABSPATH') || exit;
 
 $router = new \FluentAuth\App\Services\Router('fluent-auth');
 
+function fluent_auth_public_route_permission($request)
+{
+    return true;
+}
+
 $permissions = ['manage_options'];
 
 $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getSettings'], $permissions)
@@ -29,4 +34,10 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('security-scan-settings/scan/update-schedule-scan', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'updateScheduleScan'], $permissions)
     ->post('security-scan-settings/scan/reset-api', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resetApi'], $permissions)
     ->post('security-scan-settings/scan/reset-ignores', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resetIgnores'], $permissions)
-    ->get('auth-customizer', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getAuthCustomizerSetting'], $permissions);
+    ->get('auth-customizer', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getAuthCustomizerSetting'], $permissions)
+    ->post('auth-customizer', ['\FluentAuth\App\Http\Controllers\SettingsController', 'saveAuthCustomizerSetting'], $permissions)
+    ->post('upload-image', ['\FluentAuth\App\Http\Controllers\SettingsController', 'uploadImage'], $permissions)
+    ->post('child-sites',['\FluentAuth\App\Http\Controllers\SettingsController', 'saveChildSite'], $permissions)
+    ->get('child-sites',['\FluentAuth\App\Http\Controllers\SettingsController', 'getChildSites'], $permissions)
+    ->post('child-sites/validate-token', ['\FluentAuth\App\Http\Controllers\SettingsController', 'validateChildSiteToken'], 'fluent_auth_public_route_permission');
+

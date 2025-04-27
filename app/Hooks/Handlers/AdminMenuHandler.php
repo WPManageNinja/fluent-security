@@ -128,7 +128,7 @@ class AdminMenuHandler
             $fullName = $currentUser->display_name;
         }
 
-        wp_localize_script('fluent_auth_app', 'fluentAuthAdmin', [
+        wp_localize_script('fluent_auth_app', 'fluentAuthAdmin', apply_filters('fluent_security/app_vars', [
             'slug'          => 'fluent-security',
             'nonce'         => wp_create_nonce('fluent-security'),
             'rest'          => [
@@ -152,7 +152,7 @@ class AdminMenuHandler
             ],
             'i18n'          => TransStrings::getStrings(),
             'suggestedColors' => ['#000000', '#abb8c3', '#ffffff', '#f78da7', '#ff6900', '#fcb900', '#7bdcb5', '#00d084', '#8ed1fc', '#0693e3', '#9b51e0']
-        ]);
+        ]));
 
         echo '<div id="fluent_auth_app"><h3 style="text-align: center; margin-top: 100px;">Loading Settings..</h3></div>';
     }

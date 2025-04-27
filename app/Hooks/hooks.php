@@ -15,4 +15,5 @@ defined('ABSPATH') || exit;
 (new \FluentAuth\App\Hooks\Handlers\BasicTasksHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\WPSystemEmailHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\LoginCustomizerHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\ServerModeHandler())->register();
 

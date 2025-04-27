@@ -3,6 +3,12 @@
         <el-container>
             <el-header class="fcom_full_editor_header_wrap">
                 <div class="fcom_full_editor_header">
+                    <el-button @click="$router.push({name: 'auth_shortcodes'})" class="fcom_back_header">
+                        <el-icon>
+                            <ArrowLeftBold />
+                        </el-icon>
+                        <span>{{ $t('Back') }}</span>
+                    </el-button>
                     <div class="fcom_editor_menu object_menu">
                         <ul class="fcom_space_menu_ul">
                             <li @click.prevent="currentTab = 'login'">
@@ -88,6 +94,12 @@ export default {
     },
     mounted() {
         this.getSettings();
-    }
+        // add class to body
+        document.body.classList.add('fcom_full_editor_body');
+    },
+    beforeDestroy() {
+        // remove class from body
+        document.body.classList.remove('fcom_full_editor_body');
+    },
 }
 </script>
