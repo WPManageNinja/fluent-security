@@ -1063,7 +1063,7 @@ msgstr ""
 #: app/Services/TransStrings.php:149
 msgid ""
 "Please get free API to enable Scheduled Scan and get notifed when FluentAuth "
-"detect file changes."
+"detects file changes."
 msgstr ""
 
 #: app/Http/Controllers/SecurityScanController.php:64
@@ -1719,9 +1719,8 @@ msgstr ""
 
 #: app/Services/TransStrings.php:232
 msgid ""
-"You can scan your site to find any unauthorized files changes for WordPress "
-"core files. After scanning FluentAuth will show if there has any security "
-"issues."
+"You can scan your site to detect unauthorized changes in WordPress core files. "
+"After scanning, FluentAuth will display any security issues found."
 msgstr ""
 
 #: app/Services/TransStrings.php:222
