@@ -57,7 +57,7 @@
                     <template v-else-if="settings.status == 'self'">
                         <p style="font-weight: bold;">{{ $t('Scheduled scanning is currently disabled') }}</p>
                         <p>
-                            {{ $t('Please get free API to enable Scheduled Scan and get notifed when FleuntAuth detect file changes.') }}</p>
+                            {{ $t('Please get free API to enable Scheduled Scan and get notifed when FluentAuth detect file changes.') }}</p>
                         <el-button type="primary" @click="$router.push({name: 'security_scan_register'})">
                             {{ $t('Setup Auto Scanning') }}
                         </el-button>

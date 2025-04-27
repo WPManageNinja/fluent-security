@@ -1062,7 +1062,7 @@ msgstr ""
 
 #: app/Services/TransStrings.php:149
 msgid ""
-"Please get free API to enable Scheduled Scan and get notifed when FleuntAuth "
+"Please get free API to enable Scheduled Scan and get notifed when FluentAuth "
 "detect file changes."
 msgstr ""
 

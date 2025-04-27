@@ -61,9 +61,9 @@ class SystemEmailService
                     '{{user._previous_email_address_}}' => __('Previous Email Address', 'fluent-security'),
                 ]
             ],
-            'fluent_auth_welocme_email_to_user'           => [
-                'name'                => 'fluent_auth_welocme_email_to_user',
-                'title'               => 'Welcome Email after signup via FleuntAuth Signup Form',
+            'fluent_auth_welcome_email_to_user'           => [
+                'name'                => 'fluent_auth_welcome_email_to_user',
+                'title'               => 'Welcome Email after signup via FluentAuth Signup Form',
                 'description'         => 'A friendly welcome email sent to new users after registration via FluentAuth Signup Form.',
                 'recipient'           => 'user',
                 'hook'                => 'fluent_auth/after_creating_user',
@@ -194,11 +194,11 @@ class SystemEmailService
                     'body'    => self::getDefaultEmailBody('user_registration_to_admin'),
                 ]
             ],
-            'fluent_auth_welocme_email_to_user'           => [
+            'fluent_auth_welcome_email_to_user'           => [
                 'status' => 'system',
                 'email'  => [
                     'subject' => 'Welcome to {{site.name}} - Your Account is Ready',
-                    'body'    => self::getDefaultEmailBody('fluent_auth_welocme_email_to_user'),
+                    'body'    => self::getDefaultEmailBody('fluent_auth_welcome_email_to_user'),
                 ]
             ]
         ];
@@ -343,7 +343,7 @@ class SystemEmailService
             <p>This is an automated message from the fluentAuth plugin.</p>
             <?php
             return ob_get_clean();
-        } else if ($type == 'fluent_auth_welocme_email_to_user') {
+        } else if ($type == 'fluent_auth_welcome_email_to_user') {
             ob_start();
             ?>
             <p>Hello {{user.display_name}},</p>

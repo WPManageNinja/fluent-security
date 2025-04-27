@@ -146,7 +146,7 @@ class TransStrings
             'Password Reset Form ShortCode' => __('Password Reset Form ShortCode', 'fluent-security'),
             'Please Provide the Required Smartcodes' => __('Please Provide the Required Smartcodes', 'fluent-security'),
             'Please add the following code in your wp-config.php file (please replace the *** with your app values)' => __('Please add the following code in your wp-config.php file (please replace the *** with your app values)', 'fluent-security'),
-            'Please get free API to enable Scheduled Scan and get notifed when FleuntAuth detect file changes.' => __('Please get free API to enable Scheduled Scan and get notifed when FleuntAuth detect file changes.', 'fluent-security'),
+            'Please get free API to enable Scheduled Scan and get notifed when FluentAuth detect file changes.' => __('Please get free API to enable Scheduled Scan and get notifed when FluentAuth detect file changes.', 'fluent-security'),
             'Please provide valid API key' => __('Please provide valid API key', 'fluent-security'),
             'Please provide valid name and email address' => __('Please provide valid name and email address', 'fluent-security'),
             'Please set your Github app Redirect URL:' => __('Please set your Github app Redirect URL:', 'fluent-security'),
