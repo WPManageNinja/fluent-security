@@ -241,11 +241,12 @@ class TwoFaHandler
 
     private function send2FaEmail($data, $user, $autoLoginUrl = false)
     {
-        $emailSubject = sprintf(__('Your Login code for %1s - %d', 'fluent-security'), get_bloginfo('name'), $data['two_fa_code']);
+        $blogName = html_entity_decode(get_bloginfo('name'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $emailSubject = sprintf(__('Your Login code for %1s - %d', 'fluent-security'), $blogName, $data['two_fa_code']);
 
         $emailLines = [
             sprintf(__('Hello %s,', 'fluent-security'), $user->display_name),
-            sprintf(__('Someone requested to login to %s and here is the Login code that you can use in the login form', 'fluent-security'), get_bloginfo('name')),
+            sprintf(__('Someone requested to login to %s and here is the Login code that you can use in the login form', 'fluent-security'), $blogName),
             '<b>' . __('Your Login Code: ', 'fluent-security') . '</b>',
             '<p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">' . $data['two_fa_code'] . '</p>',
             sprintf(__('This code will expire in %d minutes and can only be used once.', 'fluent-security'), 10),
@@ -259,7 +260,7 @@ class TwoFaHandler
             $emailLines[] = ' ';
             $emailLines[] = __('You can also login by clicking the following button', 'fluent-security');
             $callToAction = [
-                'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), get_bloginfo('name')),
+                'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), $blogName),
                 'url'      => $autoLoginUrl
             ];
         }
