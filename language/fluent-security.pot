@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FluentAuth - Auth Security Plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-28 21:24+0000\n"
+"POT-Creation-Date: 2025-04-28 05:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Loco https://localise.biz/\n"
-"X-Loco-Version: 2.7.1; wp-6.7.2\n"
+"X-Loco-Version: 2.7.2; wp-6.8\n"
 "X-Domain: fluent-security"
 
 #: app/Hooks/Handlers/SocialAuthHandler.php:507
@@ -26,73 +26,77 @@ msgstr ""
 msgid "%s Google"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1056
+#: app/Hooks/Handlers/CustomAuthHandler.php:1022
 #, php-format
 msgid "%s is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1018
+#: app/Hooks/Handlers/CustomAuthHandler.php:1211
+msgid "2FA Code"
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:984
 #, php-format
 msgid "<p>%s</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1015
+#: app/Hooks/Handlers/CustomAuthHandler.php:981
 #, php-format
 msgid "<p>Hi %s,</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1019
+#: app/Hooks/Handlers/CustomAuthHandler.php:985
 msgid ""
 "<p>If you did not request to reset your password, please ignore this email."
 "</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1016
+#: app/Hooks/Handlers/CustomAuthHandler.php:982
 msgid ""
 "<p>Someone has requested a new password for the following account on "
 "WordPress:</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1017
+#: app/Hooks/Handlers/CustomAuthHandler.php:983
 #, php-format
 msgid "<p>Username: %s</p>"
 msgstr ""
 
-#: app/Services/AuthService.php:274
+#: app/Services/AuthService.php:282
 msgid ""
 "<strong>Error:</strong> This email address is already registered. Please "
 "login or try reset password"
 msgstr ""
 
-#: app/Services/AuthService.php:218
+#: app/Services/AuthService.php:226
 msgid ""
 "<strong>Error</strong>: Could not register you. Please contact the site "
 "admin!"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:967
+#: app/Hooks/Handlers/CustomAuthHandler.php:933
 msgid "<strong>Error</strong>: Invalid username or email"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:708
+#: app/Hooks/Handlers/CustomAuthHandler.php:706
 msgid ""
 "<strong>Error</strong>: Invalid username, email address or incorrect "
 "password."
 msgstr ""
 
-#: app/Services/AuthService.php:251
+#: app/Services/AuthService.php:259
 msgid "<strong>Error</strong>: Please enter a username."
 msgstr ""
 
-#: app/Services/AuthService.php:267
+#: app/Services/AuthService.php:275
 msgid "<strong>Error</strong>: Please type your email address."
 msgstr ""
 
-#: app/Services/AuthService.php:261
+#: app/Services/AuthService.php:269
 msgid "<strong>Error</strong>: Sorry, that username is not allowed."
 msgstr ""
 
-#: app/Services/AuthService.php:269
+#: app/Services/AuthService.php:277
 msgid "<strong>Error</strong>: The email address is not correct."
 msgstr ""
 
@@ -102,22 +106,27 @@ msgid ""
 "different combination."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:961
+#: app/Hooks/Handlers/CustomAuthHandler.php:927
 msgid ""
 "<strong>Error</strong>: There is no account with that username or email "
 "address."
 msgstr ""
 
-#: app/Services/AuthService.php:256
+#: app/Services/AuthService.php:264
 msgid ""
 "<strong>Error</strong>: This username is already registered. Please choose "
 "another one."
 msgstr ""
 
-#: app/Services/AuthService.php:253
+#: app/Services/AuthService.php:261
 msgid ""
 "<strong>Error</strong>: This username is invalid because it uses illegal "
 "characters. Please enter a valid username."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:234
+#, php-format
+msgid "A verification code has been sent to %s. Please provide the code below:"
 msgstr ""
 
 #: app/Services/TransStrings.php:11
@@ -128,7 +137,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1225
+#: app/Hooks/Handlers/CustomAuthHandler.php:1191
 msgid "Activate your account"
 msgstr ""
 
@@ -156,7 +165,7 @@ msgstr ""
 msgid "All Logs has been deleted"
 msgstr ""
 
-#: app/Services/TransStrings.php:233
+#: app/Services/TransStrings.php:264
 msgid ""
 "All the file changes are marked as ignored previously. You can review the "
 "files and check if you want to keep them on ignored lists or not."
@@ -166,7 +175,7 @@ msgstr ""
 msgid "All Time"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:197
+#: app/Hooks/Handlers/CustomAuthHandler.php:195
 msgid "Already have an account?"
 msgstr ""
 
@@ -184,11 +193,11 @@ msgstr ""
 msgid "API has been reset successfully."
 msgstr ""
 
-#: app/Services/IntegrityChecker/Api.php:48
+#: app/Services/IntegrityChecker/Api.php:46
 msgid "API ID could not be generated. Please try again"
 msgstr ""
 
-#: app/Services/IntegrityChecker/Api.php:84
+#: app/Services/IntegrityChecker/Api.php:82
 msgid "API Key could not be verified. Please try again"
 msgstr ""
 
@@ -209,7 +218,23 @@ msgid "Automatically delete logs older than (in days)"
 msgstr ""
 
 #: app/Services/TransStrings.php:22
+msgid "Back"
+msgstr ""
+
+#: app/Services/TransStrings.php:23
 msgid "Background Color"
+msgstr ""
+
+#: app/Services/TransStrings.php:24
+msgid "Background Image"
+msgstr ""
+
+#: app/Services/TransStrings.php:25
+msgid "Banner"
+msgstr ""
+
+#: app/Services/TransStrings.php:26
+msgid "Banner Settings"
 msgstr ""
 
 #: app/Hooks/Handlers/AdminMenuHandler.php:143
@@ -221,35 +246,43 @@ msgstr ""
 msgid "Blocked Logins"
 msgstr ""
 
-#: app/Services/TransStrings.php:23
+#: app/Services/TransStrings.php:27
 msgid "Body Background Color"
 msgstr ""
 
-#: app/Services/TransStrings.php:24
+#: app/Services/TransStrings.php:28
 msgid "Border Radius"
 msgstr ""
 
-#: app/Services/TransStrings.php:25
+#: app/Services/TransStrings.php:29
 msgid "Browser"
 msgstr ""
 
-#: app/Services/TransStrings.php:26
+#: app/Services/TransStrings.php:30
 msgid "Button"
 msgstr ""
 
-#: app/Services/TransStrings.php:27
+#: app/Services/TransStrings.php:31
+msgid "Button Background"
+msgstr ""
+
+#: app/Services/TransStrings.php:32
 msgid "Button Preview"
 msgstr ""
 
-#: app/Services/TransStrings.php:28
+#: app/Services/TransStrings.php:33
 msgid "Button Text"
 msgstr ""
 
-#: app/Services/TransStrings.php:29
+#: app/Services/TransStrings.php:34
+msgid "Button Text Color"
+msgstr ""
+
+#: app/Services/TransStrings.php:35
 msgid "Button URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:30
+#: app/Services/TransStrings.php:36
 msgid "Cancel"
 msgstr ""
 
@@ -257,7 +290,7 @@ msgstr ""
 msgid "Check your inbox"
 msgstr ""
 
-#: app/Services/TransStrings.php:235
+#: app/Services/TransStrings.php:266
 msgid "click here"
 msgstr ""
 
@@ -266,16 +299,24 @@ msgstr ""
 msgid "Click the link below to sign in to your %s account"
 msgstr ""
 
-#: app/Services/TransStrings.php:31
+#: app/Services/TransStrings.php:37
 msgid "Close"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1256
+#: app/Hooks/Handlers/CustomAuthHandler.php:1225
 msgid "Complete Signup"
 msgstr ""
 
 #: app/Hooks/Handlers/BasicTasksHandler.php:146
 msgid "Configure Fluent Auth"
+msgstr ""
+
+#: app/Services/TransStrings.php:38
+msgid "Configure the appearance and behavior of your login form."
+msgstr ""
+
+#: app/Services/TransStrings.php:39
+msgid "Configure the appearance and behavior of your signup form."
 msgstr ""
 
 #: app/Services/SystemEmailService.php:49
@@ -286,43 +327,55 @@ msgstr ""
 msgid "Connect with"
 msgstr ""
 
-#: app/Services/TransStrings.php:32
+#: app/Services/TransStrings.php:40
+msgid "Content"
+msgstr ""
+
+#: app/Services/TransStrings.php:41
 msgid "Content Background Color"
 msgstr ""
 
-#: app/Services/TransStrings.php:33
+#: app/Services/TransStrings.php:42
 msgid "Content Text Color"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:331
+#: app/Hooks/Handlers/CustomAuthHandler.php:329
 #: app/Hooks/Handlers/MagicLoginHandler.php:91
 msgid "Continue"
 msgstr ""
 
-#: app/Services/TransStrings.php:34
+#: app/Services/TransStrings.php:43
 msgid "Continue & Set API Key"
 msgstr ""
 
-#: app/Services/TransStrings.php:35
+#: app/Services/TransStrings.php:44
 msgid "Core Security Settings"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:122
+#: app/Hooks/Handlers/CustomAuthHandler.php:120
 msgid "Create an Account"
 msgstr ""
 
-#: app/Services/TransStrings.php:36
+#: app/Services/TransStrings.php:45
 msgid "Credential Storage Method"
 msgstr ""
 
-#: app/Services/TransStrings.php:37
+#: app/Services/TransStrings.php:46
 msgid ""
 "Custimize your default system emails sent by WordPress. Make it beautiful, "
 "use your own contents."
 msgstr ""
 
-#: app/Services/TransStrings.php:38
+#: app/Services/TransStrings.php:47
 msgid "Customize Default WordPress System Emails"
+msgstr ""
+
+#: app/Services/TransStrings.php:48
+msgid "Customize Login"
+msgstr ""
+
+#: app/Services/TransStrings.php:49
+msgid "Customize Sign Up"
 msgstr ""
 
 #: app/Hooks/Handlers/AdminMenuHandler.php:80
@@ -330,97 +383,101 @@ msgstr ""
 msgid "Customize WP Emails"
 msgstr ""
 
-#: app/Services/TransStrings.php:39
+#: app/Services/TransStrings.php:50
 msgid "Customize Your Email Template Design"
 msgstr ""
 
-#: app/Services/TransStrings.php:40
+#: app/Services/TransStrings.php:51
 msgid "Customized Content"
 msgstr ""
 
-#: app/Services/TransStrings.php:41
+#: app/Services/TransStrings.php:52
 msgid "Daily"
 msgstr ""
 
-#: fluent-security.php:91 app/Services/TransStrings.php:42
+#: fluent-security.php:91 app/Services/TransStrings.php:53
 #: app/Hooks/Handlers/AdminMenuHandler.php:35
 #: app/Hooks/Handlers/AdminMenuHandler.php:36
 msgid "Dashboard"
 msgstr ""
 
-#: app/Services/TransStrings.php:43
+#: app/Services/TransStrings.php:54
 msgid "Database"
 msgstr ""
 
-#: app/Services/TransStrings.php:44
+#: app/Services/TransStrings.php:55
 msgid "Date"
 msgstr ""
 
-#: app/Services/TransStrings.php:47
+#: app/Services/TransStrings.php:58
 msgid "Default content has been set successfully."
 msgstr ""
 
-#: app/Services/TransStrings.php:45
+#: app/Services/TransStrings.php:56
 msgid "Default Login Redirect URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:46
+#: app/Services/TransStrings.php:57
 msgid "Default Logout Redirect URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:48
+#: app/Services/TransStrings.php:59
 msgid "Delete All Logs"
 msgstr ""
 
-#: app/Services/TransStrings.php:49
+#: app/Services/TransStrings.php:60
 msgid "Description"
 msgstr ""
 
-#: app/Services/TransStrings.php:50
+#: app/Services/TransStrings.php:61
+msgid "Design"
+msgstr ""
+
+#: app/Services/TransStrings.php:62
 msgid "Design Your Button"
 msgstr ""
 
-#: app/Services/TransStrings.php:58
+#: app/Services/TransStrings.php:70
 #, php-format
 msgid "Disable admin bar and %s access for selected user roles."
 msgstr ""
 
-#: app/Services/TransStrings.php:51
+#: app/Services/TransStrings.php:63
 msgid "Disable App Login (Rest API) for Remote Access. (Recommended: Disable)"
 msgstr ""
 
-#: app/Services/TransStrings.php:52
+#: app/Services/TransStrings.php:64
 msgid ""
 "Disable Magic Login for specific user roles (Leave blank to enable magic "
 "login for all users)"
 msgstr ""
 
-#: app/Services/TransStrings.php:53
+#: app/Services/TransStrings.php:65
 msgid "Disable Public User Indexing"
 msgstr ""
 
-#: app/Services/TransStrings.php:54
+#: app/Services/TransStrings.php:66
 msgid ""
 "Disable REST Endpoint for wp users query for public (Recommended: Disable)"
 msgstr ""
 
-#: app/Services/TransStrings.php:55
+#: app/Services/TransStrings.php:67
 msgid "Disable Rest Remote App Login"
 msgstr ""
 
-#: app/Services/TransStrings.php:56
+#: app/Services/TransStrings.php:68
 msgid "Disable XML-RPC (Most of the sites don't need XMLRPC)"
 msgstr ""
 
-#: app/Services/TransStrings.php:57
+#: app/Services/TransStrings.php:69
 msgid "Disable XML-RPC Requests"
 msgstr ""
 
-#: app/Services/TransStrings.php:59
+#: app/Services/TransStrings.php:71
 msgid "Disable/Change Auto Scanning"
 msgstr ""
 
-#: app/Services/TransStrings.php:60
+#: app/Services/TransStrings.php:72
 msgid "Disabled"
 msgstr ""
 
@@ -428,11 +485,11 @@ msgstr ""
 msgid "Display Name"
 msgstr ""
 
-#: app/Services/TransStrings.php:61
+#: app/Services/TransStrings.php:73
 msgid "Do not send digest email summary"
 msgstr ""
 
-#: app/Services/TransStrings.php:62
+#: app/Services/TransStrings.php:74
 msgid "Edit"
 msgstr ""
 
@@ -440,16 +497,16 @@ msgstr ""
 msgid "Email"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:424
-#: app/Hooks/Handlers/CustomAuthHandler.php:451
+#: app/Hooks/Handlers/CustomAuthHandler.php:422
+#: app/Hooks/Handlers/CustomAuthHandler.php:449
 msgid "Email Address"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:681
+#: app/Hooks/Handlers/CustomAuthHandler.php:678
 msgid "Email and Password is required"
 msgstr ""
 
-#: app/Services/TransStrings.php:63
+#: app/Services/TransStrings.php:75
 msgid "Email Body"
 msgstr ""
 
@@ -457,7 +514,7 @@ msgstr ""
 msgid "Email body is not valid. Please check the smartcodes."
 msgstr ""
 
-#: app/Services/TransStrings.php:64
+#: app/Services/TransStrings.php:76
 msgid "Email Content Status"
 msgstr ""
 
@@ -474,7 +531,7 @@ msgstr ""
 msgid "Email ID is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:713
+#: app/Hooks/Handlers/CustomAuthHandler.php:711
 msgid "Email or Password is not valid. Please try again"
 msgstr ""
 
@@ -482,7 +539,7 @@ msgstr ""
 msgid "Email settings has been succcesfully updated"
 msgstr ""
 
-#: app/Services/TransStrings.php:65
+#: app/Services/TransStrings.php:77
 msgid "Email Subject"
 msgstr ""
 
@@ -495,75 +552,75 @@ msgstr ""
 msgid "Email template settings has been succcesfully updated"
 msgstr ""
 
-#: app/Services/TransStrings.php:66
+#: app/Services/TransStrings.php:78
 msgid "Enable Auto Scanning"
 msgstr ""
 
-#: app/Services/TransStrings.php:75
+#: app/Services/TransStrings.php:87
 msgid ""
 "Enable auto-scanning of your Core WordPress files and get emails if there "
 "has any un-authorized file changes."
 msgstr ""
 
-#: app/Services/TransStrings.php:67
+#: app/Services/TransStrings.php:79
 msgid "Enable Custom Login / Signup Shortcodes"
 msgstr ""
 
-#: app/Services/TransStrings.php:68
+#: app/Services/TransStrings.php:80
 msgid "Enable Custom Login Redirects"
 msgstr ""
 
-#: app/Services/TransStrings.php:69
+#: app/Services/TransStrings.php:81
 msgid "Enable Login Security and Login Limit (recommended)"
 msgstr ""
 
-#: app/Services/TransStrings.php:70
+#: app/Services/TransStrings.php:82
 msgid "Enable Login with Github"
 msgstr ""
 
-#: app/Services/TransStrings.php:71
+#: app/Services/TransStrings.php:83
 msgid "Enable Login with Google"
 msgstr ""
 
-#: app/Services/TransStrings.php:72
+#: app/Services/TransStrings.php:84
 msgid "Enable Magic Login (User can login via url sent to email)"
 msgstr ""
 
-#: app/Services/TransStrings.php:73
+#: app/Services/TransStrings.php:85
 msgid "Enable Social Login / Signup"
 msgstr ""
 
-#: app/Services/TransStrings.php:74
+#: app/Services/TransStrings.php:86
 msgid "Enable Two-Factor Authentication via Email"
 msgstr ""
 
-#: app/Services/TransStrings.php:76
+#: app/Services/TransStrings.php:88
 msgid "Enabled"
 msgstr ""
 
-#: app/Services/TransStrings.php:77
+#: app/Services/TransStrings.php:89
 msgid "Enabled for all user roles"
 msgstr ""
 
-#: app/Services/TransStrings.php:78
+#: app/Services/TransStrings.php:90
 msgid ""
 "Ensure your WordPress core files remain secure by detecting any unauthorized "
 "changes or tampering"
 msgstr ""
 
-#: app/Services/TransStrings.php:79
+#: app/Services/TransStrings.php:91
 msgid "Enter email address"
 msgstr ""
 
-#: app/Services/TransStrings.php:80
+#: app/Services/TransStrings.php:92
 msgid "Enter from name"
 msgstr ""
 
-#: app/Services/TransStrings.php:81
+#: app/Services/TransStrings.php:93
 msgid "Enter reply email address"
 msgstr ""
 
-#: app/Services/TransStrings.php:82
+#: app/Services/TransStrings.php:94
 msgid "Enter reply to name"
 msgstr ""
 
@@ -573,15 +630,15 @@ msgid ""
 "send a magic link to your inbox."
 msgstr ""
 
-#: app/Services/TransStrings.php:83
+#: app/Services/TransStrings.php:95
 msgid "Every Hour"
 msgstr ""
 
-#: app/Services/TransStrings.php:84
+#: app/Services/TransStrings.php:96
 msgid "Extended Login Options"
 msgstr ""
 
-#: app/Services/TransStrings.php:85
+#: app/Services/TransStrings.php:97
 msgid "Extra Folders in Root"
 msgstr ""
 
@@ -598,8 +655,8 @@ msgstr ""
 msgid "First Name"
 msgstr ""
 
+#: app/Hooks/Handlers/CustomAuthHandler.php:402
 #: app/Hooks/Handlers/CustomAuthHandler.php:404
-#: app/Hooks/Handlers/CustomAuthHandler.php:406
 msgid "First name"
 msgstr ""
 
@@ -607,7 +664,7 @@ msgstr ""
 msgid "Fluent Auth Team"
 msgstr ""
 
-#: app/Services/TransStrings.php:86 app/Hooks/Handlers/AdminMenuHandler.php:25
+#: app/Services/TransStrings.php:98 app/Hooks/Handlers/AdminMenuHandler.php:25
 msgid "FluentAuth"
 msgstr ""
 
@@ -615,13 +672,13 @@ msgstr ""
 msgid "FluentAuth - Auth Security Plugin"
 msgstr ""
 
-#: app/Services/TransStrings.php:87
+#: app/Services/TransStrings.php:99
 msgid ""
 "FluentAuth found some file changes but you marked them as ignored them "
 "previously"
 msgstr ""
 
-#: app/Services/TransStrings.php:88
+#: app/Services/TransStrings.php:100
 msgid ""
 "FluentAuth has scanned your site and found no unauthorized changes in "
 "WordPress core files."
@@ -631,45 +688,53 @@ msgstr ""
 msgid "FluentAuth Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:89
+#: app/Services/TransStrings.php:101
 msgid "Font Size"
 msgstr ""
 
-#: app/Services/TransStrings.php:90
+#: app/Services/TransStrings.php:102
 msgid "Font Style"
 msgstr ""
 
-#: app/Services/TransStrings.php:91
+#: app/Services/TransStrings.php:103
 msgid "Footer Text"
 msgstr ""
 
-#: app/Services/TransStrings.php:92
+#: app/Services/TransStrings.php:104
 msgid "Footer Text Color"
 msgstr ""
 
-#: app/Services/TransStrings.php:93
+#: app/Services/TransStrings.php:105
 msgid ""
 "For more information how to setup Github app for social authentication please"
 msgstr ""
 
-#: app/Services/TransStrings.php:94
+#: app/Services/TransStrings.php:106
 msgid ""
 "For more information how to setup google app for social authentication please"
 msgstr ""
 
-#: app/Services/TransStrings.php:95
+#: app/Services/TransStrings.php:107
 msgid "For multiple emails, please use comma separated values"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:128
+#: app/Hooks/Handlers/CustomAuthHandler.php:126
 msgid "Forgot your password?"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:768
+#: app/Services/TransStrings.php:108
+msgid "Form"
+msgstr ""
+
+#: app/Services/TransStrings.php:109
+msgid "Form Settings"
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:766
 msgid "Form validation failed. Please provide the correct data"
 msgstr ""
 
-#: app/Services/TransStrings.php:96
+#: app/Services/TransStrings.php:110
 msgid "Found changes"
 msgstr ""
 
@@ -677,57 +742,57 @@ msgstr ""
 msgid "From email is not valid"
 msgstr ""
 
-#: app/Services/TransStrings.php:97
+#: app/Services/TransStrings.php:111
 msgid ""
 "Full Authentication Flow ShortCode (includes Login Form, Registration Form "
 "and Password Reset Form)"
 msgstr ""
 
-#: app/Services/TransStrings.php:98
+#: app/Services/TransStrings.php:112
 msgid "Github Client ID"
 msgstr ""
 
-#: app/Services/TransStrings.php:99
+#: app/Services/TransStrings.php:113
 msgid "Github Client Secret"
 msgstr ""
 
-#: app/Services/TransStrings.php:100
+#: app/Services/TransStrings.php:114
 msgid "Go to Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:101
+#: app/Services/TransStrings.php:115
 msgid "Google Client ID"
 msgstr ""
 
-#: app/Services/TransStrings.php:102
+#: app/Services/TransStrings.php:116
 msgid "Google Client Secret"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1215
+#: app/Hooks/Handlers/CustomAuthHandler.php:1181
 #: app/Hooks/Handlers/TwoFaHandler.php:247
 #: app/Hooks/Handlers/MagicLoginHandler.php:213
 #, php-format
 msgid "Hello %s,"
 msgstr ""
 
-#: app/Services/TransStrings.php:103
+#: app/Services/TransStrings.php:117
 #, php-format
 msgid "Hello %s, view your security config and recent login activities"
 msgstr ""
 
-#: app/Services/TransStrings.php:104
+#: app/Services/TransStrings.php:118
 msgid "Hide Preview"
 msgstr ""
 
-#: app/Services/TransStrings.php:105
+#: app/Services/TransStrings.php:119
 msgid "Highlight Background"
 msgstr ""
 
-#: app/Services/TransStrings.php:106
+#: app/Services/TransStrings.php:120
 msgid "Highlight Text Color"
 msgstr ""
 
-#: app/Services/TransStrings.php:107
+#: app/Services/TransStrings.php:121
 msgid "How many times user can try login in"
 msgstr ""
 
@@ -736,7 +801,16 @@ msgstr ""
 msgid "https://fluentauth.com"
 msgstr ""
 
-#: app/Services/TransStrings.php:109
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:209
+#, php-format
+msgid "I agree to the %s"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:211
+msgid "I agree to the terms and conditions"
+msgstr ""
+
+#: app/Services/TransStrings.php:123
 #, php-format
 msgid ""
 "If a user fails to log in %1s times within %2s minutes minutes, the system "
@@ -753,13 +827,13 @@ msgstr ""
 msgid "If you did not make this request, you can safely ignore this email."
 msgstr ""
 
-#: app/Services/TransStrings.php:110
+#: app/Services/TransStrings.php:124
 msgid ""
 "If you want to change the notification email address or disable scanning "
 "service,"
 msgstr ""
 
-#: app/Services/TransStrings.php:111
+#: app/Services/TransStrings.php:125
 msgid "If you want to define customized redirect URL then use shortcode:"
 msgstr ""
 
@@ -771,69 +845,104 @@ msgstr ""
 msgid "Ignore status has been updated."
 msgstr ""
 
-#: app/Services/TransStrings.php:112
+#: app/Services/TransStrings.php:126
 msgid "Ignored"
 msgstr ""
 
-#: app/Services/TransStrings.php:113
+#: app/Services/TransStrings.php:127
 msgid "Ignored Files & Folders"
 msgstr ""
 
-#: app/Services/TransStrings.php:114
+#: app/Services/TransStrings.php:128
+msgid "Image Preview"
+msgstr ""
+
+#: app/Services/TransStrings.php:129
 msgid "Insert"
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:281
+msgid "Invalid callback URL"
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:192
+msgid "Invalid file"
 msgstr ""
 
 #: app/Http/Controllers/SecurityScanController.php:187
 msgid "Invalid folder name."
 msgstr ""
 
+#: app/Http/Controllers/SettingsController.php:267
+#: app/Http/Controllers/SettingsController.php:273
+#: app/Http/Controllers/SettingsController.php:366
+msgid "Invalid request"
+msgstr ""
+
 #: app/Services/IntegrityChecker/Api.php:36
-#: app/Services/IntegrityChecker/Api.php:74
-#: app/Services/IntegrityChecker/Api.php:112
-#: app/Services/IntegrityChecker/Api.php:118
-#: app/Services/IntegrityChecker/Api.php:149
+#: app/Services/IntegrityChecker/Api.php:72
+#: app/Services/IntegrityChecker/Api.php:110
+#: app/Services/IntegrityChecker/Api.php:116
+#: app/Services/IntegrityChecker/Api.php:147
 msgid "Invalid response from the server. Please try again"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:943
+#: app/Http/Controllers/SettingsController.php:376
+msgid "Invalid server token"
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:372
+msgid "Invalid Site ID"
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:278
+msgid "Invalid site URL"
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:384
+#: app/Http/Controllers/SettingsController.php:391
+msgid "Invalid user token"
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:909
 msgid "Invalid username or email"
 msgstr ""
 
-#: app/Services/TransStrings.php:108
+#: app/Services/TransStrings.php:122
 msgid "IP"
 msgstr ""
 
-#: app/Services/TransStrings.php:115
+#: app/Services/TransStrings.php:130
 msgid "Last 30 days"
 msgstr ""
 
-#: app/Services/TransStrings.php:116
+#: app/Services/TransStrings.php:131
 msgid "Last 7 days"
 msgstr ""
 
 #: app/Http/Controllers/SystemEmailsController.php:41
-#: app/Hooks/Handlers/CustomAuthHandler.php:410
+#: app/Hooks/Handlers/CustomAuthHandler.php:408
 msgid "Last Name"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:412
+#: app/Hooks/Handlers/CustomAuthHandler.php:410
 msgid "Last name"
 msgstr ""
 
-#: app/Services/TransStrings.php:117
+#: app/Services/TransStrings.php:132
 #, php-format
 msgid "Last Scanned %s ago"
 msgstr ""
 
-#: app/Services/TransStrings.php:118
+#: app/Services/TransStrings.php:133
 msgid "Last Scanned Status"
 msgstr ""
 
-#: app/Services/TransStrings.php:119
+#: app/Services/TransStrings.php:134
 msgid "Learn More"
 msgstr ""
 
-#: app/Services/TransStrings.php:120
+#: app/Services/TransStrings.php:135
 msgid ""
 "Let's Secure your site by checking unauthorized changes of WP Core Files"
 msgstr ""
@@ -842,15 +951,16 @@ msgstr ""
 msgid "Log has been deleted"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1101
+#: app/Hooks/Handlers/CustomAuthHandler.php:1067
 msgid "Log In"
 msgstr ""
 
-#: app/Services/TransStrings.php:121
+#: app/Services/TransStrings.php:136
 msgid "Log Login Logs"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:199
+#: app/Services/TransStrings.php:137
+#: app/Hooks/Handlers/CustomAuthHandler.php:197
 #: app/Hooks/Handlers/TwoFaHandler.php:346
 msgid "Login"
 msgstr ""
@@ -859,11 +969,11 @@ msgstr ""
 msgid "Login Code"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:659
+#: app/Hooks/Handlers/CustomAuthHandler.php:656
 msgid "Login is not enabled"
 msgstr ""
 
-#: app/Services/TransStrings.php:122
+#: app/Services/TransStrings.php:138
 msgid "Login Notifications"
 msgstr ""
 
@@ -871,28 +981,28 @@ msgstr ""
 msgid "Login or Signup"
 msgstr ""
 
-#: app/Services/TransStrings.php:129
-msgid "Login or Signup Forms and Login Redirects"
+#: app/Services/TransStrings.php:145
+msgid "Login or Signup Forms Shortcodes"
 msgstr ""
 
-#: app/Services/TransStrings.php:123
+#: app/Services/TransStrings.php:139
 msgid "Login Redirect URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:124 app/Hooks/Handlers/AdminMenuHandler.php:71
+#: app/Services/TransStrings.php:140 app/Hooks/Handlers/AdminMenuHandler.php:71
 #: app/Hooks/Handlers/AdminMenuHandler.php:72
 msgid "Login Redirects"
 msgstr ""
 
-#: app/Services/TransStrings.php:125
+#: app/Services/TransStrings.php:141
 msgid "Login Redirects Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:126
+#: app/Services/TransStrings.php:142
 msgid "Login Security Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:127
+#: app/Services/TransStrings.php:143
 msgid "Login Try Limit per IP address in certain defined minutes"
 msgstr ""
 
@@ -900,7 +1010,7 @@ msgstr ""
 msgid "Login Url"
 msgstr ""
 
-#: app/Services/TransStrings.php:128
+#: app/Services/TransStrings.php:144
 msgid "Login Username"
 msgstr ""
 
@@ -917,15 +1027,15 @@ msgstr ""
 msgid "Login via URL is not activated"
 msgstr ""
 
-#: app/Services/TransStrings.php:130
+#: app/Services/TransStrings.php:146
 msgid "Login with Github Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:131
+#: app/Services/TransStrings.php:147
 msgid "Login with Google Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:132
+#: app/Services/TransStrings.php:148
 msgid "Login/Signip Forms"
 msgstr ""
 
@@ -934,34 +1044,43 @@ msgstr ""
 msgid "Login/Signup Forms"
 msgstr ""
 
-#: app/Services/TransStrings.php:133
+#: app/Services/TransStrings.php:149
+msgid "Login/Signup Page Customizer"
+msgstr ""
+
+#: app/Services/TransStrings.php:150
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:160
+msgid "Logo"
+msgstr ""
+
+#: app/Services/TransStrings.php:151
 msgid "Logout Redirect URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:134 app/Hooks/Handlers/AdminMenuHandler.php:44
+#: app/Services/TransStrings.php:152 app/Hooks/Handlers/AdminMenuHandler.php:44
 #: app/Hooks/Handlers/AdminMenuHandler.php:45
 msgid "Logs"
 msgstr ""
 
-#: app/Services/TransStrings.php:230
+#: app/Services/TransStrings.php:261
 msgid ""
 "Look like there has some file changes has been detected. Please review "
 "individual files and take necesarry actions."
 msgstr ""
 
-#: app/Services/TransStrings.php:135
+#: app/Services/TransStrings.php:153
 msgid "Magic Login Form Shortcode"
 msgstr ""
 
-#: app/Services/TransStrings.php:136
+#: app/Services/TransStrings.php:154
 msgid "Make magic login as primary login method"
 msgstr ""
 
-#: app/Services/TransStrings.php:137
+#: app/Services/TransStrings.php:155
 msgid "Media"
 msgstr ""
 
-#: app/Services/TransStrings.php:236
+#: app/Services/TransStrings.php:267
 msgid "minutes"
 msgstr ""
 
@@ -973,36 +1092,40 @@ msgstr ""
 msgid "Nonce Verification failed. Please try again"
 msgstr ""
 
-#: app/Services/TransStrings.php:138
+#: app/Services/TransStrings.php:156
 msgid "Not enough data. This section will show recent failed login attempts"
 msgstr ""
 
-#: app/Services/TransStrings.php:139
+#: app/Services/TransStrings.php:157
 msgid "Not enough data. This section will show recent successful logins"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:120
+#: app/Hooks/Handlers/CustomAuthHandler.php:118
 msgid "Not registered?"
 msgstr ""
 
-#: app/Services/TransStrings.php:140
+#: app/Services/TransStrings.php:158
 msgid "Notification Email"
 msgstr ""
 
-#: app/Services/TransStrings.php:142
+#: app/Services/TransStrings.php:160
 msgid "Notification is disabled"
 msgstr ""
 
-#: app/Services/TransStrings.php:141
+#: app/Services/TransStrings.php:159
 msgid "Notification Send to Email Address"
 msgstr ""
 
-#: app/Services/TransStrings.php:143
+#: app/Services/TransStrings.php:161
 msgid "Only Login Form ShortCode"
 msgstr ""
 
-#: app/Services/TransStrings.php:144
+#: app/Services/TransStrings.php:162
 msgid "Only Registration Form ShortCode"
+msgstr ""
+
+#: app/Services/TransStrings.php:163
+msgid "Open Login/Signup Page Customizer"
 msgstr ""
 
 #: app/Hooks/Handlers/MagicLoginHandler.php:72
@@ -1010,22 +1133,27 @@ msgstr ""
 msgid "Or"
 msgstr ""
 
-#: app/Services/TransStrings.php:145
+#: app/Services/TransStrings.php:164
 msgid "Other Settings"
 msgstr ""
 
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:191
+#: app/Hooks/Handlers/CustomAuthHandler.php:429
 #: app/Hooks/Handlers/CustomAuthHandler.php:431
-#: app/Hooks/Handlers/CustomAuthHandler.php:433
-#: app/Hooks/Handlers/CustomAuthHandler.php:544
-#: app/Hooks/Handlers/CustomAuthHandler.php:1099
+#: app/Hooks/Handlers/CustomAuthHandler.php:542
+#: app/Hooks/Handlers/CustomAuthHandler.php:1065
 msgid "Password"
 msgstr ""
 
-#: app/Services/TransStrings.php:146
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:378
+msgid "Password and Confirm password need to be matched"
+msgstr ""
+
+#: app/Services/TransStrings.php:165
 msgid "Password Reset Form ShortCode"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:980
+#: app/Hooks/Handlers/CustomAuthHandler.php:946
 msgid "Password reset is not allowed for this user"
 msgstr ""
 
@@ -1034,13 +1162,17 @@ msgstr ""
 msgid "Password Set URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:148 app/Services/TransStrings.php:234
+#: app/Services/TransStrings.php:167 app/Services/TransStrings.php:265
 msgid ""
 "Please add the following code in your wp-config.php file (please replace the "
 "*** with your app values)"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1044
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:382
+msgid "Please agree to the terms and conditions."
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:1010
 msgid "Please check your email for the reset link"
 msgstr ""
 
@@ -1050,20 +1182,32 @@ msgid ""
 "Provide here to login"
 msgstr ""
 
-#: app/Services/TransStrings.php:237
+#: app/Services/TransStrings.php:268
 msgid "please click here"
 msgstr ""
 
-#: app/Services/TransStrings.php:231
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:356
+msgid "Please enter your full name."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:374
+msgid "Please enter your password."
+msgstr ""
+
+#: app/Services/TransStrings.php:262
 msgid ""
 "Please fill up the form and get a free API key to enable Security Scan and "
 "Automatted Notification. (You need the free API key just once)"
 msgstr ""
 
-#: app/Services/TransStrings.php:149
+#: app/Services/TransStrings.php:168
 msgid ""
 "Please get free API to enable Scheduled Scan and get notifed when FluentAuth "
 "detects file changes."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:365
+msgid "Please provide a full name."
 msgstr ""
 
 #: app/Http/Controllers/SecurityScanController.php:64
@@ -1086,18 +1230,21 @@ msgstr ""
 msgid "Please provide a valid login code"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:799
-#: app/Hooks/Handlers/CustomAuthHandler.php:804
+#: app/Hooks/Handlers/CustomAuthHandler.php:797
+#: app/Hooks/Handlers/CustomAuthHandler.php:802
 msgid "Please provide a valid name"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:827
-#: app/Hooks/Handlers/CustomAuthHandler.php:845
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:370
+msgid "Please provide a valid name."
+msgstr ""
+
+#: app/Services/AuthService.php:302 app/Services/AuthService.php:315
 msgid ""
 "Please provide a valid vefification code that sent to your email address"
 msgstr ""
 
-#: app/Services/TransStrings.php:147
+#: app/Services/TransStrings.php:166
 msgid "Please Provide the Required Smartcodes"
 msgstr ""
 
@@ -1105,19 +1252,19 @@ msgstr ""
 msgid "Please provide username / email to get magic login link"
 msgstr ""
 
-#: app/Services/TransStrings.php:150
+#: app/Services/TransStrings.php:169
 msgid "Please provide valid API key"
 msgstr ""
 
-#: app/Services/TransStrings.php:151
+#: app/Services/TransStrings.php:170
 msgid "Please provide valid name and email address"
 msgstr ""
 
-#: app/Services/TransStrings.php:152
+#: app/Services/TransStrings.php:171
 msgid "Please set your Github app Redirect URL:"
 msgstr ""
 
-#: app/Services/TransStrings.php:153
+#: app/Services/TransStrings.php:172
 msgid "Please set your Google app Redirect URL:"
 msgstr ""
 
@@ -1125,15 +1272,15 @@ msgstr ""
 msgid "Please Wait..."
 msgstr ""
 
-#: app/Services/TransStrings.php:154
+#: app/Services/TransStrings.php:173
 msgid "Preview"
 msgstr ""
 
-#: app/Services/TransStrings.php:155
+#: app/Services/TransStrings.php:174
 msgid "Preview Email"
 msgstr ""
 
-#: app/Services/TransStrings.php:156
+#: app/Services/TransStrings.php:175
 msgid "Previewing Email"
 msgstr ""
 
@@ -1141,44 +1288,58 @@ msgstr ""
 msgid "Previous Email Address"
 msgstr ""
 
-#: app/Services/TransStrings.php:157
+#: app/Services/TransStrings.php:176
 msgid "Provide API Key"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1061
+#: app/Hooks/Handlers/CustomAuthHandler.php:1027
 #, php-format
 msgid "Provided %s is not a valid email"
 msgstr ""
 
-#: app/Services/TransStrings.php:238
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:198
+msgid "Re-Enter Password"
+msgstr ""
+
+#: app/Services/TransStrings.php:269
 msgid "read this documentation"
 msgstr ""
 
-#: app/Services/TransStrings.php:158
+#: app/Services/TransStrings.php:177
 msgid "Recent Failed & Blocked Logins"
 msgstr ""
 
-#: app/Services/TransStrings.php:159
+#: app/Services/TransStrings.php:178
 msgid "Recent Successful Logins"
 msgstr ""
 
-#: app/Services/TransStrings.php:239
+#: app/Services/TransStrings.php:270
 msgid "refresh"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:878
+#: app/Hooks/Handlers/CustomAuthHandler.php:844
 msgid "Registration has been completed. Please login now"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1100
+#: app/Hooks/Handlers/CustomAuthHandler.php:1066
 msgid "Remember Me"
 msgstr ""
 
-#: app/Services/TransStrings.php:160
+#: app/Services/TransStrings.php:179
+msgid "Remote Auth"
+msgstr ""
+
+#: app/Services/TransStrings.php:180
 msgid "Remove from Ignore List"
 msgstr ""
 
-#: app/Services/TransStrings.php:161
+#: app/Services/TransStrings.php:181
+msgid ""
+"Replace Default Signup Form with Secure form with Email Verfication "
+"(Recommended: Enable)"
+msgstr ""
+
+#: app/Services/TransStrings.php:182
 msgid "Reply to email (optional)"
 msgstr ""
 
@@ -1186,51 +1347,56 @@ msgstr ""
 msgid "Reply to email is not valid"
 msgstr ""
 
-#: app/Services/TransStrings.php:162
+#: app/Services/TransStrings.php:183
 msgid "Reset"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:130
-#: app/Hooks/Handlers/CustomAuthHandler.php:249
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:82
+#: app/Hooks/Handlers/CustomAuthHandler.php:128
+#: app/Hooks/Handlers/CustomAuthHandler.php:247
 msgid "Reset Password"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:997
-#: app/Hooks/Handlers/CustomAuthHandler.php:1013
+#: app/Hooks/Handlers/CustomAuthHandler.php:963
+#: app/Hooks/Handlers/CustomAuthHandler.php:979
 #, php-format
 msgid "Reset your password for %s"
 msgstr ""
 
-#: app/Services/TransStrings.php:163
+#: app/Services/TransStrings.php:184
 #, php-format
 msgid "Roles to disable %s access and hide admin bar"
 msgstr ""
 
-#: app/Services/TransStrings.php:164
+#: app/Services/TransStrings.php:185
 msgid "Save"
 msgstr ""
 
-#: app/Services/TransStrings.php:165
+#: app/Services/TransStrings.php:186
+msgid "Save Changes"
+msgstr ""
+
+#: app/Services/TransStrings.php:187
 msgid "Save Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:166
+#: app/Services/TransStrings.php:188
 msgid "Scan Again"
 msgstr ""
 
-#: app/Services/TransStrings.php:167
+#: app/Services/TransStrings.php:189
 msgid "Scan Result"
 msgstr ""
 
-#: app/Services/TransStrings.php:168
+#: app/Services/TransStrings.php:190
 msgid "Scanner Status"
 msgstr ""
 
-#: app/Services/TransStrings.php:170
+#: app/Services/TransStrings.php:192
 msgid "Scanning in progress. Please wait...."
 msgstr ""
 
-#: app/Services/TransStrings.php:169
+#: app/Services/TransStrings.php:191
 msgid "Scanning Interval"
 msgstr ""
 
@@ -1238,27 +1404,27 @@ msgstr ""
 msgid "Schedule scan has been updated."
 msgstr ""
 
-#: app/Services/TransStrings.php:171
+#: app/Services/TransStrings.php:193
 msgid "Scheduled Scanning"
 msgstr ""
 
-#: app/Services/TransStrings.php:172
+#: app/Services/TransStrings.php:194
 msgid "Scheduled scanning is currently disabled"
 msgstr ""
 
-#: app/Services/TransStrings.php:173
+#: app/Services/TransStrings.php:195
 msgid "Scheduled scanning is currently enabled"
 msgstr ""
 
-#: app/Services/TransStrings.php:174
+#: app/Services/TransStrings.php:196
 msgid "Search"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:667
+#: app/Hooks/Handlers/CustomAuthHandler.php:664
 msgid "Security nonce is required"
 msgstr ""
 
-#: app/Services/TransStrings.php:175 app/Hooks/Handlers/AdminMenuHandler.php:89
+#: app/Services/TransStrings.php:197 app/Hooks/Handlers/AdminMenuHandler.php:89
 #: app/Hooks/Handlers/AdminMenuHandler.php:90
 msgid "Security Scans"
 msgstr ""
@@ -1268,77 +1434,78 @@ msgstr ""
 msgid "Security Settings"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:673
+#: app/Hooks/Handlers/CustomAuthHandler.php:670
 msgid "Security verification failed"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:744
-#: app/Hooks/Handlers/CustomAuthHandler.php:922
+#: app/Hooks/Handlers/CustomAuthHandler.php:742
+#: app/Hooks/Handlers/CustomAuthHandler.php:888
 msgid "Security verification failed. Please try again"
 msgstr ""
 
-#: app/Services/TransStrings.php:179
+#: app/Services/TransStrings.php:201
 msgid "Select disable roles"
 msgstr ""
 
-#: app/Services/TransStrings.php:176
+#: app/Services/TransStrings.php:198
 msgid "Select Interval"
 msgstr ""
 
-#: app/Services/TransStrings.php:177
+#: app/Services/TransStrings.php:199
 msgid "Select Range"
 msgstr ""
 
-#: app/Services/TransStrings.php:178
+#: app/Services/TransStrings.php:200
 msgid "Select Roles that requires Two-Factor Authentication"
 msgstr ""
 
-#: app/Services/TransStrings.php:180
+#: app/Services/TransStrings.php:202
 msgid "Send Digest Email Report Summary"
 msgstr ""
 
-#: app/Services/TransStrings.php:181
+#: app/Services/TransStrings.php:203
 msgid "Send Email notification if any of the following user roles login"
 msgstr ""
 
-#: app/Services/TransStrings.php:182
+#: app/Services/TransStrings.php:204
 msgid "Send email notification when a user get blocked"
 msgstr ""
 
-#: app/Services/TransStrings.php:183
+#: app/Services/TransStrings.php:205
 msgid "Send from email (optional)"
 msgstr ""
 
-#: app/Services/TransStrings.php:184
+#: app/Services/TransStrings.php:206
 msgid "Send from name (optional)"
 msgstr ""
 
-#: app/Services/TransStrings.php:185
+#: app/Services/TransStrings.php:207
 msgid "Set Default"
 msgstr ""
 
-#: app/Services/TransStrings.php:186
+#: app/Services/TransStrings.php:208
 msgid "Set Default Subject & Body"
 msgstr ""
 
-#: fluent-security.php:85 app/Services/TransStrings.php:187
+#: fluent-security.php:85 app/Services/TransStrings.php:209
 msgid "Settings"
 msgstr ""
 
-#: app/Http/Controllers/SettingsController.php:30
-#: app/Http/Controllers/SettingsController.php:162
+#: app/Http/Controllers/SettingsController.php:31
+#: app/Http/Controllers/SettingsController.php:163
+#: app/Http/Controllers/SettingsController.php:183
 msgid "Settings has been updated"
 msgstr ""
 
-#: app/Services/TransStrings.php:188
+#: app/Services/TransStrings.php:210
 msgid "Settings Overview"
 msgstr ""
 
-#: app/Services/TransStrings.php:189
+#: app/Services/TransStrings.php:211
 msgid "Setup Auto Scanning"
 msgstr ""
 
-#: app/Services/TransStrings.php:190
+#: app/Services/TransStrings.php:212
 msgid "Show Preview"
 msgstr ""
 
@@ -1349,7 +1516,11 @@ msgstr ""
 msgid "Sign in to %s"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:189
+#: app/Services/TransStrings.php:213
+msgid "Sign Up"
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:187
 msgid "Signup"
 msgstr ""
 
@@ -1357,7 +1528,15 @@ msgstr ""
 msgid "Site Data"
 msgstr ""
 
-#: app/Services/TransStrings.php:191
+#: app/Http/Controllers/SettingsController.php:327
+msgid "Site has been added successfully"
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:260
+msgid "Site has been removed successfully"
+msgstr ""
+
+#: app/Services/TransStrings.php:214
 msgid "Site Scan"
 msgstr ""
 
@@ -1373,7 +1552,7 @@ msgstr ""
 msgid "Site URL"
 msgstr ""
 
-#: app/Services/TransStrings.php:192
+#: app/Services/TransStrings.php:215
 msgid "Social Login/Signup Settings"
 msgstr ""
 
@@ -1384,11 +1563,11 @@ msgid ""
 "in the login form"
 msgstr ""
 
-#: app/Services/TransStrings.php:193
+#: app/Services/TransStrings.php:216
 msgid "Sorry! Settings could not be loaded. Please reload the page"
 msgstr ""
 
-#: app/Services/TransStrings.php:194
+#: app/Services/TransStrings.php:217
 msgid "Sorry! Settings could not be loaded. Please reload the page."
 msgstr ""
 
@@ -1420,7 +1599,7 @@ msgstr ""
 msgid "Sorry! we could not find your valid email via github"
 msgstr ""
 
-#: app/Services/TransStrings.php:195
+#: app/Services/TransStrings.php:218
 msgid "Sorry! we could not load this preview"
 msgstr ""
 
@@ -1436,23 +1615,27 @@ msgstr ""
 msgid "Sorry, You can not use this verification method"
 msgstr ""
 
+#: app/Http/Controllers/SettingsController.php:217
+msgid "Sorry, you can only upload JPG, PNG, GIF, WebP, BMP or SVG files."
+msgstr ""
+
 #: app/Hooks/Handlers/TwoFaHandler.php:195
 msgid "Sorry, your login code has been expired. Please try to login again"
 msgstr ""
 
-#: app/Services/TransStrings.php:197
+#: app/Services/TransStrings.php:220
 msgid "Start Scan for WP Core Files"
 msgstr ""
 
-#: app/Services/TransStrings.php:196
+#: app/Services/TransStrings.php:219
 msgid "Start Scan Your Site"
 msgstr ""
 
-#: app/Services/TransStrings.php:198
+#: app/Services/TransStrings.php:221
 msgid "Status"
 msgstr ""
 
-#: app/Services/TransStrings.php:199
+#: app/Services/TransStrings.php:222
 msgid "Subject:"
 msgstr ""
 
@@ -1465,7 +1648,7 @@ msgstr ""
 msgid "Successful Logins"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:887
+#: app/Hooks/Handlers/CustomAuthHandler.php:853
 msgid "Successfully registered to the site."
 msgstr ""
 
@@ -1474,27 +1657,27 @@ msgid ""
 "Super Simple Login / Signup Security and Social Login Plugin for WordPress"
 msgstr ""
 
-#: app/Services/TransStrings.php:200
+#: app/Services/TransStrings.php:223
 msgid "System Default"
 msgstr ""
 
-#: app/Services/TransStrings.php:201
+#: app/Services/TransStrings.php:224
 msgid "System Emails"
 msgstr ""
 
-#: app/Services/TransStrings.php:202
+#: app/Services/TransStrings.php:225
 msgid "System Emails send to Site Admin"
 msgstr ""
 
-#: app/Services/TransStrings.php:203
+#: app/Services/TransStrings.php:226
 msgid "System Emails send to User"
 msgstr ""
 
-#: app/Services/TransStrings.php:204
+#: app/Services/TransStrings.php:227
 msgid "Template Settings"
 msgstr ""
 
-#: app/Services/TransStrings.php:205
+#: app/Services/TransStrings.php:228
 msgid "Text Color"
 msgstr ""
 
@@ -1505,17 +1688,37 @@ msgid ""
 "to enable enhanced security of your site"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1216
+#: app/Hooks/Handlers/CustomAuthHandler.php:1182
 msgid ""
 "Thank you for registering with us! To complete the setup of your account, "
 "please enter the verification code below on the registration page."
 msgstr ""
 
-#: app/Services/TransStrings.php:206
+#: app/Services/TransStrings.php:230
+msgid "The button background color of the form"
+msgstr ""
+
+#: app/Services/TransStrings.php:231
+msgid "The button text color of the form"
+msgstr ""
+
+#: app/Services/TransStrings.php:229
 msgid "The Last Step!"
 msgstr ""
 
-#: app/Services/TransStrings.php:240
+#: app/Services/TransStrings.php:232
+msgid "The main background color of the form"
+msgstr ""
+
+#: app/Services/TransStrings.php:233
+msgid "The text color of the form"
+msgstr ""
+
+#: app/Services/TransStrings.php:234
+msgid "The title color of the form"
+msgstr ""
+
+#: app/Services/TransStrings.php:271
 msgid "then"
 msgstr ""
 
@@ -1523,7 +1726,7 @@ msgstr ""
 msgid "There has an error when log you in. Please try to login again"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1219
+#: app/Hooks/Handlers/CustomAuthHandler.php:1185
 msgid ""
 "This code is valid for 10 minutes and is meant to ensure the security of "
 "your account. If you did not initiate this request, please ignore this email."
@@ -1538,16 +1741,21 @@ msgstr ""
 msgid "This email has been sent from FluentAuth Security Plugin. Site: %s"
 msgstr ""
 
-#: app/Services/TransStrings.php:208
+#: app/Services/TransStrings.php:236
 msgid ""
 "This email notification is disabled. So no email notification will be sent "
 "for this event."
 msgstr ""
 
-#: app/Services/TransStrings.php:229
+#: app/Services/TransStrings.php:260
 msgid ""
 "This email will use the system default content. If you want to customize the "
 "email subject and body please switch to Custimized Content."
+msgstr ""
+
+#: app/Http/Controllers/SettingsController.php:245
+#: app/Http/Controllers/SettingsController.php:336
+msgid "This feature is only available in the server mode."
 msgstr ""
 
 #: app/Http/Controllers/SecurityScanController.php:199
@@ -1571,23 +1779,35 @@ msgstr ""
 msgid "This link will expire in %d minutes and can only be used once."
 msgstr ""
 
-#: app/Services/TransStrings.php:207
+#: app/Services/TransStrings.php:235
 msgid "This Month"
 msgstr ""
 
-#: app/Services/TransStrings.php:209
+#: app/Http/Controllers/SettingsController.php:311
+msgid "This site already exists."
+msgstr ""
+
+#: app/Services/TransStrings.php:237
 msgid "Time limit for login try in minutes"
 msgstr ""
 
-#: app/Services/TransStrings.php:210
+#: app/Services/TransStrings.php:238
+msgid "Title"
+msgstr ""
+
+#: app/Services/TransStrings.php:239
+msgid "Title Color"
+msgstr ""
+
+#: app/Services/TransStrings.php:240
 msgid "To:"
 msgstr ""
 
-#: app/Services/TransStrings.php:211
+#: app/Services/TransStrings.php:241
 msgid "Today"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1193
+#: app/Hooks/Handlers/CustomAuthHandler.php:1159
 msgid "Too many requests. Please try again later"
 msgstr ""
 
@@ -1595,19 +1815,23 @@ msgstr ""
 msgid "Two-Factor Authentication Code"
 msgstr ""
 
-#: app/Services/TransStrings.php:212
+#: app/Services/TransStrings.php:242
 msgid "Use 0 if you do not want to delete the logs"
+msgstr ""
+
+#: app/Services/TransStrings.php:243
+msgid "Use Customized & Modern Style for Login/Signup Page"
 msgstr ""
 
 #: app/Hooks/Handlers/MagicLoginHandler.php:101
 msgid "Use Regular Login form"
 msgstr ""
 
-#: app/Services/TransStrings.php:213
+#: app/Services/TransStrings.php:244
 msgid "User Agent"
 msgstr ""
 
-#: app/Services/TransStrings.php:214
+#: app/Services/TransStrings.php:245
 msgid "User Capability"
 msgstr ""
 
@@ -1615,8 +1839,12 @@ msgstr ""
 msgid "User Data"
 msgstr ""
 
-#: app/Services/TransStrings.php:215
+#: app/Services/TransStrings.php:246
 msgid "User ID"
+msgstr ""
+
+#: app/Services/AuthService.php:121
+msgid "User not found"
 msgstr ""
 
 #: app/Services/SystemEmailService.php:82
@@ -1627,16 +1855,16 @@ msgstr ""
 msgid "User registration is disabled"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:738
+#: app/Hooks/Handlers/CustomAuthHandler.php:736
 msgid "User registration is not enabled"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:150
+#: app/Hooks/Handlers/CustomAuthHandler.php:148
 #, php-format
 msgid "User registration is not enabled. <a href=\"%s\">Go to Home Page</a>"
 msgstr ""
 
-#: app/Services/TransStrings.php:216
+#: app/Services/TransStrings.php:247
 msgid "User Role"
 msgstr ""
 
@@ -1644,35 +1872,35 @@ msgstr ""
 msgid "User Roles"
 msgstr ""
 
-#: app/Services/TransStrings.php:217
+#: app/Services/TransStrings.php:248
 #: app/Http/Controllers/SystemEmailsController.php:44
+#: app/Hooks/Handlers/CustomAuthHandler.php:415
 #: app/Hooks/Handlers/CustomAuthHandler.php:417
-#: app/Hooks/Handlers/CustomAuthHandler.php:419
 msgid "Username"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:543
+#: app/Hooks/Handlers/CustomAuthHandler.php:541
 msgid "Username or Email"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1098
+#: app/Hooks/Handlers/CustomAuthHandler.php:1064
 msgid "Username or Email Address"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:931
+#: app/Hooks/Handlers/CustomAuthHandler.php:897
 msgid "Username or email is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1243
+#: app/Hooks/Handlers/CustomAuthHandler.php:1208
 msgid "Vefication Code"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1217
+#: app/Hooks/Handlers/CustomAuthHandler.php:1183
 #, php-format
 msgid "Verification Code: %s"
 msgstr ""
 
-#: app/Services/TransStrings.php:218
+#: app/Services/TransStrings.php:249
 msgid "View File"
 msgstr ""
 
@@ -1687,23 +1915,23 @@ msgstr ""
 msgid "We just emailed a magic link to %s. Click the link to sign in."
 msgstr ""
 
-#: app/Services/TransStrings.php:219
+#: app/Services/TransStrings.php:250
 msgid "We recommend to enable login logs as well as set login try limit"
 msgstr ""
 
-#: app/Services/TransStrings.php:220
+#: app/Services/TransStrings.php:251
 msgid "WordPress Core Files Integrity Check"
 msgstr ""
 
-#: app/Services/TransStrings.php:221
+#: app/Services/TransStrings.php:252
 msgid "Yes, Reset"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:77
-#: app/Hooks/Handlers/CustomAuthHandler.php:155
-#: app/Hooks/Handlers/CustomAuthHandler.php:216
-#: app/Hooks/Handlers/CustomAuthHandler.php:271
-#: app/Hooks/Handlers/CustomAuthHandler.php:301
+#: app/Hooks/Handlers/CustomAuthHandler.php:75
+#: app/Hooks/Handlers/CustomAuthHandler.php:153
+#: app/Hooks/Handlers/CustomAuthHandler.php:214
+#: app/Hooks/Handlers/CustomAuthHandler.php:269
+#: app/Hooks/Handlers/CustomAuthHandler.php:299
 #, php-format
 msgid "You are already logged in. <a href=\"%s\">Go to Home Page</a>"
 msgstr ""
@@ -1717,44 +1945,45 @@ msgstr ""
 msgid "You can also login by clicking the following button"
 msgstr ""
 
-#: app/Services/TransStrings.php:232
+#: app/Services/TransStrings.php:263
 msgid ""
 "You can scan your site to detect unauthorized changes in WordPress core files. "
 "After scanning, FluentAuth will display any security issues found."
 msgstr ""
 
-#: app/Services/TransStrings.php:222
+#: app/Services/TransStrings.php:253
 msgid ""
 "You may remove the h3 content or change it. If you want to define customized "
 "redirect URL then use shortcode:"
 msgstr ""
 
-#: app/Services/TransStrings.php:223
+#: app/Services/TransStrings.php:254
 msgid "You will get email alerts if there has any un-authorized file changes."
 msgstr ""
 
-#: app/Services/TransStrings.php:224
+#: app/Services/TransStrings.php:255
 msgid "Your Email"
 msgstr ""
 
-#: app/Services/TransStrings.php:225
-#: app/Hooks/Handlers/CustomAuthHandler.php:426
-#: app/Hooks/Handlers/CustomAuthHandler.php:453
+#: app/Services/TransStrings.php:256
+#: app/Hooks/Handlers/CustomAuthHandler.php:424
+#: app/Hooks/Handlers/CustomAuthHandler.php:451
 msgid "Your Email Address"
 msgstr ""
 
-#: app/Services/TransStrings.php:226
+#: app/Services/TransStrings.php:257
 msgid "Your Email Subject"
 msgstr ""
 
+#: app/Hooks/Handlers/CustomAuthHandler.php:318
 #: app/Hooks/Handlers/CustomAuthHandler.php:320
-#: app/Hooks/Handlers/CustomAuthHandler.php:322
 #: app/Hooks/Handlers/MagicLoginHandler.php:85
 #: app/Hooks/Handlers/MagicLoginHandler.php:87
 msgid "Your Email/Username"
 msgstr ""
 
-#: app/Services/TransStrings.php:227
+#: app/Services/TransStrings.php:258
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:184
 msgid "Your Full Name"
 msgstr ""
 
@@ -1779,7 +2008,7 @@ msgstr ""
 msgid "Your Login Code: "
 msgstr ""
 
-#: app/Services/TransStrings.php:228
+#: app/Services/TransStrings.php:259
 msgid "Your Name"
 msgstr ""
 
@@ -1791,7 +2020,7 @@ msgstr ""
 msgid "Your provided code or url is not valid"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1211
+#: app/Hooks/Handlers/CustomAuthHandler.php:1177
 #, php-format
 msgid "Your registration verification code for %s"
 msgstr ""
@@ -1800,6 +2029,6 @@ msgstr ""
 msgid "Your settings has been saved successfully."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:834
+#: app/Services/AuthService.php:307
 msgid "Your verification code has beeen expired. Please try again"
 msgstr ""
