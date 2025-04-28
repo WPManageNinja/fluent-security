@@ -164,7 +164,7 @@ class WPSystemEmailHandler
 
     public function maybeSendCustomizedEmailOnFluentAuthSignup($userId)
     {
-        $setting = SystemEmailService::getEmailSettingsByType('fluent_auth_welocme_email_to_user');
+        $setting = SystemEmailService::getEmailSettingsByType('fluent_auth_welcome_email_to_user');
 
 
         $status = Arr::get($setting, 'status', '');

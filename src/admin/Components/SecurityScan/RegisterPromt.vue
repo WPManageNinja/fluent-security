@@ -59,7 +59,7 @@
             <template v-if="is_main">
                 <hr style="margin-top: 20px"/>
                 <p>Or if you don't want to automatic scan with API service, <a
-                    @click.prevent="processRegularScanService()" href="#">click here</a> to use regula scan service.</p>
+                    @click.prevent="processRegularScanService()" href="#">click here</a> to use regular scan service.</p>
             </template>
         </div>
         <div v-else-if="loading">
