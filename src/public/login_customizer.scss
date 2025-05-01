@@ -24,11 +24,20 @@
         border: none;
         box-shadow: none;
         margin: 0;
-        padding: 0;
+        padding: 0 2px;
+        overflow: auto;
+        p {
+          width: 100%;
+          display: block;
+          & > label {
+            font-weight: 500;
+          }
+        }
       }
 
       #login {
-        all: unset;
+        padding: 0;
+        width: 100%;
       }
 
       h1.wp-login-logo {
