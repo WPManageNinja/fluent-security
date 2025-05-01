@@ -3,8 +3,10 @@
     "/dist/public/fls_login.js": "/dist/public/fls_login.js",
     "/dist/public/login_helper.js": "/dist/public/login_helper.js",
     "/dist/public/login_customizer.css": "/dist/public/login_customizer.css",
+    "/dist/images/index.php": "/dist/images/index.php",
     "/dist/images/logo.png": "/dist/images/logo.png",
     "/dist/images/logo.svg": "/dist/images/logo.svg",
     "/dist/images/success.png": "/dist/images/success.png",
-    "/dist/libs/diff.js": "/dist/libs/diff.js"
+    "/dist/libs/diff.js": "/dist/libs/diff.js",
+    "/dist/libs/index.php": "/dist/libs/index.php"
 }

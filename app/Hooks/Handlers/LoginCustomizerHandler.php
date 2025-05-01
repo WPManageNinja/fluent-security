@@ -50,7 +50,7 @@ class LoginCustomizerHandler
         $settings = $this->getSettings();
 
         if ($settings['status'] !== 'yes') {
-             return;
+            return;
         }
 
         $currentAction = $this->getCurrentAction();
@@ -133,7 +133,7 @@ class LoginCustomizerHandler
         add_action('login_header', function () use ($formSettings, $formType) {
 
             $extraCssClass = apply_filters('fluent_auth/extra_ogin_page_wrap_css_class', '');
-            $extraCssClass .= 'fls_layout_banner_'.Arr::get($formSettings, 'banner.position');
+            $extraCssClass .= 'fls_layout_banner_' . Arr::get($formSettings, 'banner.position');
 
             ?>
             <div class="fls_login_page_wrap fls_form_type_<?php echo esc_attr($formType); ?> <?php echo esc_attr($extraCssClass); ?>">
@@ -157,7 +157,8 @@ class LoginCustomizerHandler
                     <div class="fls_login_cusom_content_inner">
                         <?php if ($logo = Arr::get($formSettings, 'banner.logo')): ?>
                             <div class="fls_banner_header_logo">
-                                <img src="<?php echo esc_url($logo); ?>" alt="<?php echo esc_attr__('Logo', 'fluent-security'); ?>"/>
+                                <img src="<?php echo esc_url($logo); ?>"
+                                     alt="<?php echo esc_attr__('Logo', 'fluent-security'); ?>"/>
                             </div>
                         <?php endif; ?>
                         <h1><?php echo wp_kses_post(Arr::get($formSettings, 'banner.title', '')); ?></h1>
@@ -333,16 +334,14 @@ class LoginCustomizerHandler
             exit;
         }
 
-        $redirect_to = !empty($_POST['redirect_to']) ? $_POST['redirect_to'] : null;
-
-        if (!$redirect_to) {
-            $redirectUrl = admin_url();
-            if (isset($_POST['redirect_to']) && filter_var($_POST['redirect_to'], FILTER_VALIDATE_URL)) {
-                $redirectUrl = sanitize_url($_POST['redirect_to']);
-            } else {
-                $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
-            }
+        $redirectUrl = admin_url();
+        $intendedRedirectUrl = false;
+        if (isset($_POST['redirect_to']) && filter_var($_POST['redirect_to'], FILTER_VALIDATE_URL)) {
+            $redirectUrl = sanitize_url($_POST['redirect_to']);
+            $intendedRedirectUrl = $redirectUrl;
         }
+
+        $redirectUrl = apply_filters('login_redirect', $redirectUrl, $intendedRedirectUrl, $user);
 
         wp_redirect($redirectUrl);
         exit();

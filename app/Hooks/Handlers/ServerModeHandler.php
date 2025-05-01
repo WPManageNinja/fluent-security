@@ -14,10 +14,13 @@ class ServerModeHandler
             return;
         }
 
+
         add_filter('fluent_security/app_vars', function ($vars) {
             $vars['has_server_mode'] = 'yes';
             return $vars;
         });
+
+
 
         add_action('init', [$this, 'maybeRemoteLoginInit'], 1);
 
@@ -65,6 +68,7 @@ class ServerModeHandler
     {
         // check cookie
         if (isset($_COOKIE['__fls_auth_client_id'])) {
+
             $clientId = sanitize_text_field($_COOKIE['__fls_auth_client_id']);
             $authSites = get_option('__fls_child_sites', []);
             if (!isset($authSites[$clientId])) {
@@ -78,6 +82,8 @@ class ServerModeHandler
 
             return $this->redirectToChildSite($siteConfig, $user->ID, false);
         }
+
+        return $redirect_to;
     }
 
     public function isEnabled()
