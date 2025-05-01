@@ -29,6 +29,34 @@ class WPSystemEmailHandler
 
         add_action('fluent_auth/after_creating_user', [$this, 'maybeSendCustomizedEmailOnFluentAuthSignup'], 10, 1);
 
+
+        /*
+         * If we want to disable the email to user when a new user is registered
+         * We will just disable the welcome email by WP
+         */
+        add_filter('wp_send_new_user_notification_to_user', function ($status, $user) {
+            if (!get_user_meta($user->ID, 'default_password_nag')) {
+                $setting = SystemEmailService::getEmailSettingsByType('user_registration_to_user');
+                if (!$setting || Arr::get($setting, 'status', '') !== 'active') {
+                    return $status;
+                }
+                return false;
+            }
+            return $status;
+        }, 100, 2);
+
+        /*
+         * If we want to disable the email to admin when a new user is registered
+         */
+        add_filter('wp_send_new_user_notification_to_admin', function ($status, $user) {
+            $setting = SystemEmailService::getEmailSettingsByType('user_registration_to_admin');
+            if ($setting && Arr::get($setting, 'status', '') === 'disabled') {
+                return false;
+            }
+
+            return $status;
+        }, 10, 2);
+
     }
 
     public function maybeAlterPasswordResetEmail($defaults, $key, $user_login, $user_data)
