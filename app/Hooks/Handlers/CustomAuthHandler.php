@@ -781,6 +781,8 @@ class CustomAuthHandler
         }
 
         $errors = AuthService::checkUserRegDataErrors($formData['username'], $formData['email']);
+
+
         if ($errors->has_errors()) {
             wp_send_json([
                 'message' => $errors->get_error_message()

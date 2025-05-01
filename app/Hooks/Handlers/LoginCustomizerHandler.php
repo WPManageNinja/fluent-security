@@ -218,6 +218,10 @@ class LoginCustomizerHandler
 
     public function maybeInterceptRegistration(\WP_Error $errors, $sanitized_user_login, $user_email)
     {
+        if(did_action('fluent_auth/after_signup_validation')) {
+            return $errors;
+        }
+
         if ($errors->has_errors()) {
             return $errors;
         }
@@ -260,6 +264,10 @@ class LoginCustomizerHandler
 
     public function maybeIntercept2FaRegistration($sanitized_user_login, $user_email, \WP_Error $errors)
     {
+        if (did_action('fluent_auth/after_signup_validation')) {
+            return false;
+        }
+
         if ($errors->has_errors()) {
             return false; // it's an aleady error
         }
@@ -350,6 +358,10 @@ class LoginCustomizerHandler
     private function validateRegistrationData($data)
     {
         $errors = new \WP_Error();
+
+        if (!empty($data['first_name'])) {
+            $data['user_full_name'] = trim(Arr::get($data, 'first_name') . ' ' . Arr::get($data, 'last_name'));
+        }
 
         if (empty($data['user_full_name'])) {
             $errors->add('user_full_name', __('Please enter your full name.', 'fluent-security'));
