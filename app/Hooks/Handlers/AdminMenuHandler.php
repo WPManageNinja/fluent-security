@@ -129,28 +129,29 @@ class AdminMenuHandler
         }
 
         wp_localize_script('fluent_auth_app', 'fluentAuthAdmin', apply_filters('fluent_security/app_vars', [
-            'slug'          => 'fluent-security',
-            'nonce'         => wp_create_nonce('fluent-security'),
-            'rest'          => [
+            'slug'            => 'fluent-security',
+            'nonce'           => wp_create_nonce('fluent-security'),
+            'rest'            => [
                 'base_url'  => esc_url_raw(rest_url()),
                 'url'       => rest_url('fluent-auth'),
                 'nonce'     => wp_create_nonce('wp_rest'),
                 'namespace' => 'fluent-auth',
                 'version'   => '1'
             ],
-            'auth_statuses' => [
+            'auth_statuses'   => [
                 'failed'  => __('Failed', 'fluent-security'),
                 'blocked' => __('Blocked', 'fluent-security'),
                 'success' => __('Successful', 'fluent-security')
             ],
-            'auth_settings' => Helper::getAuthSettings(),
-            'asset_url'     => FLUENT_AUTH_PLUGIN_URL . 'dist/',
-            'me'            => [
+            'auth_settings'   => Helper::getAuthSettings(),
+            'asset_url'       => FLUENT_AUTH_PLUGIN_URL . 'dist/',
+            'me'              => [
                 'id'        => $currentUser->ID,
                 'full_name' => $fullName,
                 'email'     => $currentUser->user_email
             ],
-            'i18n'          => TransStrings::getStrings(),
+            'is_first_time'   => !!get_option('__fls_auth_settings'),
+            'i18n'            => TransStrings::getStrings(),
             'suggestedColors' => ['#000000', '#abb8c3', '#ffffff', '#f78da7', '#ff6900', '#fcb900', '#7bdcb5', '#00d084', '#8ed1fc', '#0693e3', '#9b51e0']
         ]));
 
