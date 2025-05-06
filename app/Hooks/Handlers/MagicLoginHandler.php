@@ -191,8 +191,15 @@ class MagicLoginHandler
         $canUseMagicLogin = apply_filters('fluent_auth/magic_login_can_use', $this->canUseMagic($user), $user);
 
         if (!$canUseMagicLogin) {
+
+            $error_message = apply_filters(
+                'fluent_auth/magic_login_error_message',
+                __('Sorry, You can not login via magic url. Please use regular login form', 'fluent-security'),
+                $user
+            );
+
             wp_send_json(array(
-                'message' => __('Sorry, You can not login via magic url. Please use regular login form', 'fluent-security')
+                'message' => $error_message
             ), 422);
         }
 
