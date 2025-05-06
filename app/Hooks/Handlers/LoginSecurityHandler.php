@@ -2,6 +2,7 @@
 
 namespace FluentAuth\App\Hooks\Handlers;
 
+use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 
 class LoginSecurityHandler
@@ -192,19 +193,36 @@ class LoginSecurityHandler
     {
         global $wpdb;
 
-        $agent = sanitize_text_field($_SERVER['HTTP_USER_AGENT']);
+        $ipAddress = Helper::getIp();
 
+        // get previous blocked row for this user in the last 1 hour
+        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - 60 * 60);
+        $prev = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked' LIMIT 1", $ipAddress, $dateTime));
+
+        if ($prev) {
+            $wpdb->update($wpdb->prefix . 'fls_auth_logs', [
+                'updated_at' => current_time('mysql'),
+                'count'      => $prev->count + 1
+            ], [
+                'id' => $prev->id
+            ]);
+            $this->failedLogged = true;
+            return;
+        }
+
+        $agent = sanitize_text_field($_SERVER['HTTP_USER_AGENT']);
         $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
+        $browserData = $browserDetection->getBrowser($agent);
 
         $data = [
             'username'    => $username,
             'created_at'  => current_time('mysql'),
             'updated_at'  => current_time('mysql'),
             'agent'       => sanitize_text_field($agent),
-            'ip'          => Helper::getIp(),
+            'ip'          => $ipAddress,
             'error_code'  => 'blocked',
-            'browser'     => $browserDetection->getBrowser($agent)['browser_name'],
-            'device_os'   => $browserDetection->getOS($agent)['os_family'],
+            'browser'     => Arr::get($browserData, 'browser_name'),
+            'device_os'   => Arr::get($browserData, 'os_family'),
             'description' => 'Blocked by Fluent Auth',
             'status'      => 'blocked',
             'count'       => 1
