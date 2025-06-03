@@ -4,6 +4,7 @@ namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\FacebookAuthService;
 use FluentAuth\App\Services\GithubAuthService;
 use FluentAuth\App\Services\GoogleAuthService;
 
@@ -22,6 +23,11 @@ class SocialAuthApiController
                 'google' => [
                     'is_available' => true,
                     'app_redirect' => GoogleAuthService::getAppRedirect(),
+                    'doc_url' => 'https://fluentauth.com/docs/google-auth-connection'
+                ],
+                'facebook' => [
+                    'is_available' => true,
+                    'app_redirect' => FacebookAuthService::getAppRedirect(),
                     'doc_url' => 'https://fluentauth.com/docs/google-auth-connection'
                 ]
             ]
@@ -47,7 +53,8 @@ class SocialAuthApiController
         $oldSettings = Helper::getSocialAuthSettings('view');
         $settings = Arr::only($settings, array_keys($oldSettings));
 
-        if ($settings['enabled'] != 'yes' || ($settings['enable_google'] != 'yes' && $settings['enable_github'] != 'yes')) {
+        if ($settings['enabled'] != 'yes' || ($settings['enable_google'] != 'yes' && $settings['enable_github'] != 'yes' &&
+                $settings['enable_facebook'] != 'yes')) {
             return [
                 'enabled'              => 'no',
                 'enable_google'        => 'no',
@@ -57,7 +64,12 @@ class SocialAuthApiController
                 'enable_github'        => 'no',
                 'github_key_method'    => 'wp_config',
                 'github_client_id'     => '',
-                'github_client_secret' => ''
+                'github_client_secret' => '',
+                'enable_facebook' => 'no',
+                'facebook_key_method' => 'wp_config',
+                'facebook_client_id' => '',
+                'facebook_client_secret' => '',
+                'facebook_api_version' => 'v12.0'
             ];
         }
 
@@ -116,6 +128,37 @@ class SocialAuthApiController
                     ],
                     'github_client_secret' => [
                         'required' => 'Github Client Secret is required'
+                    ]
+                ]);
+            }
+        }
+
+        if ($settings['enable_facebook'] != 'yes') {
+            $settings['facebook_key_method'] = 'wp_config';
+            $settings['facebook_client_id'] = '';
+            $settings['facebook_client_secret'] = '';
+            $settings['facebook_api_version'] = 'v12.0';
+        } else if ($settings['facebook_key_method'] == 'wp_config') {
+            $settings['facebook_client_id'] = '';
+            $settings['facebook_client_secret'] = '';
+            if (!defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID') || !defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) {
+                return new \WP_Error('validation_error', 'Form Validation failed', [
+                    'facebook_key_method' => [
+                        'FLUENT_AUTH_FACEBOOK_CLIENT_ID' => 'FLUENT_AUTH_FACEBOOK_CLIENT_ID constant is required in wp-config.php file',
+                        'FLUENT_AUTH_FACEBOOK_CLIENT_SECRET' => 'FLUENT_AUTH_FACEBOOK_CLIENT_SECRET constant is required in wp-config.php file',
+                    ]
+                ]);
+            }
+        } else {
+            $settings['facebook_client_id'] = sanitize_textarea_field($settings['facebook_client_id']);
+            $settings['facebook_client_secret'] = sanitize_textarea_field($settings['facebook_client_secret']);
+            if (empty($settings['facebook_client_id']) || empty($settings['facebook_client_secret'])) {
+                return new \WP_Error('validation_error', 'Form Validation failed', [
+                    'facebook_client_id' => [
+                        'required' => 'Facebook Client ID is required'
+                    ],
+                    'facebook_client_secret' => [
+                        'required' => 'Facebook Client Secret is required'
                     ]
                 ]);
             }

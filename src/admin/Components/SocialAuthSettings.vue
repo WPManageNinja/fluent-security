@@ -81,6 +81,43 @@ define('FLUENT_AUTH_GOOGLE_CLIENT_SECRET', '******');
                         </template>
                     </div>
 
+                   <div v-if="settings.enabled == 'yes'" class="fls_login_settings">
+                    <h3>{{ $t('Login with Facebook Settings') }}</h3>
+                    <el-form-item class="fls_switch">
+                      <el-switch v-model="settings.enable_facebook" active-value="yes" inactive-value="no"/>
+                      {{ $t('Enable Login with Facebook') }}
+                    </el-form-item>
+                    <template v-if="settings.enable_facebook == 'yes'">
+                      <el-form-item :label="$t('Credential Storage Method')">
+                        <el-radio-group v-model="settings.facebook_key_method">
+                          <el-radio-button value="db" :label="$t('Database')" />
+                          <el-radio-button value="wp_config" label="wp-config" />
+                        </el-radio-group>
+                      </el-form-item>
+                      <div class="fls_code_instruction" v-if="settings.facebook_key_method == 'wp_config'">
+                        <h3>{{$t('Please add the following code in your wp-config.php file (please replace the *** with your app values)')}}</h3>
+                        <textarea readonly>define('FLUENT_AUTH_FACEBOOK_CLIENT_ID', '******');
+define('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET', '******');
+                                </textarea>
+                      </div>
+                      <template v-else>
+                        <el-form-item :label="$t('Facebook App ID')">
+                          <el-input v-model="settings.facebook_client_id" type="text"
+                                    :placeholder="$t('Facebook App ID')"/>
+                        </el-form-item>
+                        <el-form-item :label="$t('Facebook App Secret')">
+                          <el-input v-model="settings.facebook_client_secret" type="password"
+                                    :placeholder="$t('Facebook App Secret')"/>
+                        </el-form-item>
+                        <el-form-item :label="$t('Facebook API Version')">
+                          <el-input v-model="settings.facebook_api_version" type="text"
+                                    :placeholder="$t('e.g. v12.0')"/>
+                        </el-form-item>
+                      </template>
+                      <p>{{$t('Please set your Facebook app Redirect URL:')}} <code>{{auth_info.facebook.app_redirect}}</code>. {{$t('For more information how to setup Facebook app for social authentication please')}} <a target="_blank" rel="noopener" :href="auth_info.facebook.doc_url">{{$t('read this documentation')}}.</a></p>
+                    </template>
+                  </div>
+
                     <el-form-item>
                         <el-button v-loading="saving" :disabled="saving" @click="saveSettings()" type="success">
                             {{ $t('Save Settings') }}
@@ -141,6 +178,15 @@ export default {
                 .finally(() => {
                     this.loading = false;
                 });
+        },
+        convertToText(error) {
+          if (typeof error === 'string') {
+            return error;
+          }
+          if (Array.isArray(error)) {
+            return error.join('<br />');
+          }
+          return JSON.stringify(error);
         }
     },
     mounted() {
