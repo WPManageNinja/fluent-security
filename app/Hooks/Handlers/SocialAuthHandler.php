@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\FacebookAuthService;
 use FluentAuth\App\Services\GithubAuthService;
 use FluentAuth\App\Services\GoogleAuthService;
 use FluentAuth\App\Helpers\Arr;
@@ -28,13 +29,23 @@ class SocialAuthHandler
 
     public function maybeSocialAuth()
     {
-
         $provider = false;
-        if (!empty($_GET['state']) && !empty($_GET['code'])) {
+
+        if (!empty($_GET['fs_auth'])) {
+            $provider = sanitize_text_field($_GET['fs_auth']);
+        }
+        elseif (!empty($_GET['state']) && !empty($_GET['code'])) {
+
             $provider = 'google';
+
+            $referrer = wp_get_referer();
+            if ($referrer && strpos($referrer, 'facebook.com') !== false) {
+                $provider = 'facebook';
+            }
         }
 
-        if (empty($_GET['fs_auth']) && !$provider) {
+
+        if (!$provider) {
             return false;
         }
 
@@ -48,19 +59,27 @@ class SocialAuthHandler
 
         $provider = Arr::get($_GET, 'fs_auth', $provider);
 
-        if ($provider === 'github') {
-            if (!$this->isEnabled('github')) {
-                return false;
-            }
-            return $this->handleGitHubActions($_REQUEST);
-        }
+        switch ($provider) {
+            case 'github':
+                if (!$this->isEnabled('github')) {
+                    return false;
+                }
+                return $this->handleGitHubActions($_REQUEST);
 
-        if ($provider === 'google') {
-            if (!$this->isEnabled('google')) {
-                return false;
-            }
-            return $this->handleGoogleActions($_REQUEST);
+            case 'google':
+                if (!$this->isEnabled('google')) {
+                    return false;
+                }
+                return $this->handleGoogleActions($_REQUEST);
+
+            case 'facebook':
+                if (!$this->isEnabled('facebook')) {
+                    return false;
+                }
+                return $this->handleFacebookActions($_REQUEST);
         }
+        return false;
+
     }
 
     private function handleGitHubActions($data)
@@ -105,6 +124,25 @@ class SocialAuthHandler
             });
         }
     }
+    private function handleFacebookActions($data){
+        $actionType = Arr::get($data, 'fs_type');
+
+        if ($actionType === 'redirect' || empty($data['code'])) {
+            return $this->redirectToFacebook();
+        }
+
+        if (isset($data['code'])) {
+            $redirectUrl = $this->handleFacebookConfirm($data);
+            if ($redirectUrl && !is_wp_error($redirectUrl)) {
+                wp_redirect($redirectUrl);
+                exit();
+            }
+
+            add_filter('wp_login_errors', function ($errors) use ($redirectUrl) {
+                return $redirectUrl;
+            });
+        }
+    }
 
     private function redirectToGithub()
     {
@@ -116,6 +154,11 @@ class SocialAuthHandler
     private function redirectToGoogle()
     {
         $url = GoogleAuthService::getAuthRedirect(AuthService::setStateToken());
+        wp_redirect($url);
+        exit();
+    }
+    private function redirectToFacebook(){
+        $url = FacebookAuthService::getAuthRedirect(AuthService::setStateToken());
         wp_redirect($url);
         exit();
     }
@@ -251,6 +294,67 @@ class SocialAuthHandler
         return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
     }
 
+    private function handleFacebookConfirm($data)
+    {
+        $state = Arr::get($data, 'state');
+        if (!$state || $state != AuthService::getStateToken()) {
+            return new \WP_Error('state_mismatch', __('Sorry! we could not authenticate you via Facebook', 'fluent-security'));
+        }
+
+        $token = FacebookAuthService::getTokenByCode(Arr::get($data, 'code'));
+        $userData = FacebookAuthService::getDataByAccessToken($token);
+
+        if (is_wp_error($userData)) {
+            return $userData;
+        }
+
+        if (is_user_logged_in()) {
+            $existingUser = get_user_by('ID', get_current_user_id());
+            if ($existingUser->user_email !== $userData['email']) {
+                return new \WP_Error('email_mismatch', __('Your Facebook email address does not match with your current account email address. Please use the same email address', 'fluent-security'));
+            }
+        }
+
+        if (empty($userData['email']) || !is_email($userData['email'])) {
+            return new \WP_Error('email_error', __('Sorry! we could not find your valid email from Facebook API', 'fluent-security'));
+        }
+
+        $existingUser = get_user_by('email', $userData['email']);
+        if ($existingUser) {
+            $twoFaHandler = new TwoFaHandler();
+            if ($redirectUrl = $twoFaHandler->sendAndGet2FaConfirmFormUrl($existingUser)) {
+                wp_redirect($redirectUrl);
+                exit();
+            }
+        }
+
+        $user = AuthService::doUserAuth($userData, 'facebook');
+
+        if (is_wp_error($user)) {
+            return $user;
+        }
+
+        $intentRedirectTo = '';
+        if (isset($_COOKIE['fs_intent_redirect'])) {
+            $redirect_to = esc_url($_COOKIE['fs_intent_redirect']);
+            $intentRedirectTo = $redirect_to;
+        } else {
+            if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
+                $redirect_to = user_admin_url();
+            } elseif (is_multisite() && !$user->has_cap('read')) {
+                $redirect_to = get_dashboard_url($user->ID);
+            } elseif (!$user->has_cap('edit_posts')) {
+                $redirect_to = $user->has_cap('read') ? admin_url('profile.php') : home_url();
+            } else {
+                $redirect_to = admin_url();
+            }
+        }
+
+        update_user_meta($user->ID, '_fls_login_facebook', $userData['email']);
+
+        return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
+    }
+
     public function pushLoginWithButtons()
     {
         if (!$this->isEnabled()) {
@@ -287,6 +391,16 @@ class SocialAuthHandler
                     'fs_type'            => 'redirect',
                     'intent_redirect_to' => urlencode($redirect_to)
                 ], wp_login_url())
+            ],
+            'facebook' => [
+                'link_class' => 'fs_auth_btn fs_auth_facebook',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#4267B2"><path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/></svg>',
+                'title' => 'Login with Facebook',
+                'url' => add_query_arg([
+                    'fs_auth' => 'facebook',
+                    'fs_type' => 'redirect',
+                    'intent_redirect_to' => urlencode($redirect_to)
+                ], wp_login_url())
             ]
         ];
 
@@ -296,6 +410,9 @@ class SocialAuthHandler
 
         if (!$this->isEnabled('github')) {
             unset($buttons['github']);
+        }
+        if (!$this->isEnabled('facebook')) {
+            unset($buttons['facebook']);
         }
 
         $this->loadButtons($buttons);
@@ -361,6 +478,16 @@ class SocialAuthHandler
                     'fs_auth' => 'github',
                     'fs_type' => 'redirect'
                 ], wp_login_url())
+            ],
+            'facebook' => [
+                'link_class' => 'fs_auth_btn fs_auth_facebook',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#4267B2"><path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/></svg>',
+                'title' => 'Login with Facebook',
+                'url' => add_query_arg([
+                    'fs_auth' => 'facebook',
+                    'fs_type' => 'redirect',
+                    'intent_redirect_to' => urlencode($redirect_to)
+                ], wp_login_url())
             ]
         ];
 
@@ -370,6 +497,9 @@ class SocialAuthHandler
 
         if (!$this->isEnabled('github')) {
             unset($buttons['github']);
+        }
+        if (!$this->isEnabled('facebook')) {
+            unset($buttons['facebook']);
         }
 
         $this->loadButtons($buttons, $selector, $display);
@@ -466,6 +596,19 @@ class SocialAuthHandler
                 background: white;
                 color: black;
             }
+            .fs_auth_btn.fs_auth_facebook {
+                background-color: #4267B2;
+                color: white;
+            }
+
+            .fs_auth_btn.fs_auth_facebook:hover {
+                background-color: #365899;
+                color: white;
+            }
+
+            .fs_auth_btn.fs_auth_facebook svg {
+                fill: white;
+            }
         </style>
         <?php
     }
@@ -510,6 +653,16 @@ class SocialAuthHandler
                     'fs_type'            => 'redirect',
                     'intent_redirect_to' => urlencode($data['redirect'])
                 ], wp_login_url())
+            ],
+            'facebook' => [
+                'link_class' => 'fs_auth_btn fs_auth_facebook',
+                'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#4267B2"><path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/></svg>',
+                'title' => 'Login with Facebook',
+                'url' => add_query_arg([
+                    'fs_auth' => 'facebook',
+                    'fs_type' => 'redirect',
+                    'intent_redirect_to' => urlencode($redirect_to)
+                ], wp_login_url())
             ]
         ];
 
@@ -519,6 +672,9 @@ class SocialAuthHandler
 
         if (!$this->isEnabled('github')) {
             unset($buttons['github']);
+        }
+        if (!$this->isEnabled('facebook')) {
+            unset($buttons['facebook']);
         }
 
         ?>

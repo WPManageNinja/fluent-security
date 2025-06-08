@@ -237,15 +237,20 @@ class Helper
         }
 
         $defaults = [
-            'enabled'              => 'no',
-            'enable_google'        => 'no',
-            'google_key_method'    => 'wp_config',
-            'google_client_id'     => '',
-            'google_client_secret' => '',
-            'enable_github'        => 'no',
-            'github_key_method'    => 'wp_config',
-            'github_client_id'     => '',
-            'github_client_secret' => ''
+            'enabled'                => 'no',
+            'enable_google'          => 'no',
+            'google_key_method'      => 'wp_config',
+            'google_client_id'       => '',
+            'google_client_secret'   => '',
+            'enable_github'          => 'no',
+            'github_key_method'      => 'wp_config',
+            'github_client_id'       => '',
+            'github_client_secret'   => '',
+            'enable_facebook'        => 'no',
+            'facebook_key_method'    => 'wp_config',
+            'facebook_client_id'     => '',
+            'facebook_client_secret' => '',
+            'facebook_api_version'   => 'v12.0'
         ];
 
         $settings = get_option('__fls_social_auth_settings');
@@ -266,6 +271,11 @@ class Helper
             if ($settings['github_key_method'] == 'wp_config') {
                 $settings['github_client_id'] = (defined('FLUENT_AUTH_GITHUB_CLIENT_ID')) ? FLUENT_AUTH_GITHUB_CLIENT_ID : '';
                 $settings['github_client_secret'] = (defined('FLUENT_AUTH_GITHUB_CLIENT_SECRET')) ? FLUENT_AUTH_GITHUB_CLIENT_SECRET : '';
+            }
+            if ($settings['facebook_key_method'] == 'wp_config') {
+                $settings['facebook_client_id'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID')) ? FLUENT_AUTH_FACEBOOK_CLIENT_ID : '';
+                $settings['facebook_client_secret'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) ? FLUENT_AUTH_FACEBOOK_CLIENT_SECRET : '';
+                $settings['facebook_api_version'] = sanitize_text_field($settings['facebook_api_version']);
             }
         }
 
