@@ -88,7 +88,7 @@ class WPSystemEmailHandler
         if (!$setting || Arr::get($setting, 'status', '') !== 'active') {
             return $defaults;
         }
-        
+
         $hasCustomPassword = false;
         // check if the user has custom password
         if (!get_user_meta($user->ID, 'default_password_nag', true)) {

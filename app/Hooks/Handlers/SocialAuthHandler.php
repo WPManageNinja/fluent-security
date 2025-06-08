@@ -302,7 +302,13 @@ class SocialAuthHandler
         }
 
         $token = FacebookAuthService::getTokenByCode(Arr::get($data, 'code'));
+
+        if(is_wp_error($token)){
+            return $token;
+        }
+
         $userData = FacebookAuthService::getDataByAccessToken($token);
+
 
         if (is_wp_error($userData)) {
             return $userData;

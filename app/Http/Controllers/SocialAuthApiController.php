@@ -28,7 +28,7 @@ class SocialAuthApiController
                 'facebook' => [
                     'is_available' => true,
                     'app_redirect' => FacebookAuthService::getAppRedirect(),
-                    'doc_url' => 'https://fluentauth.com/docs/google-auth-connection'
+                    'doc_url' => 'https://fluentauth.com/docs/facebook-auth-connection'
                 ]
             ]
         ];

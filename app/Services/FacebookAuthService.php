@@ -1,24 +1,29 @@
 <?php
+
 namespace FluentAuth\App\Services;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
-class FacebookAuthService{
+
+class FacebookAuthService
+{
+
     public static function getAuthRedirect($state = '')
     {
         $config = Helper::getSocialAuthSettings('edit');
         $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
 
         $params = [
-            'client_id' => $config['facebook_client_id'],
-            'redirect_uri' => self::getAppRedirect(),
-            'state' => $state,
+            'client_id'     => $config['facebook_client_id'],
+            'redirect_uri'  => self::getAppRedirect(),
+            'state'         => $state,
             'response_type' => 'code',
-            'scope' => 'email,public_profile',
-            'auth_type' => 'rerequest'
+            'scope'         => 'email,public_profile',
+            'auth_type'     => 'rerequest'
         ];
         return add_query_arg($params, "https://www.facebook.com/{$apiVersion}/dialog/oauth");
     }
+
     public static function getTokenByCode($code)
     {
         $config = Helper::getSocialAuthSettings('edit');
@@ -28,7 +33,7 @@ class FacebookAuthService{
         $params = self::getAuthConfirmParams($code);
 
         $response = wp_remote_post($postUrl, [
-            'body' => $params,
+            'body'    => $params,
             'headers' => [
                 'Accept' => 'application/json'
             ]
@@ -47,23 +52,25 @@ class FacebookAuthService{
 
         return $data['access_token'];
     }
+
     public static function getAuthConfirmParams($code = '')
     {
         $config = Helper::getSocialAuthSettings('edit');
 
         return [
-            'client_id' => $config['facebook_client_id'],
-            'redirect_uri' => self::getAppRedirect(),
+            'client_id'     => $config['facebook_client_id'],
+            'redirect_uri'  => self::getAppRedirect(),
             'client_secret' => $config['facebook_client_secret'],
-            'code' => $code
+            'code'          => $code
         ];
     }
+
     public static function getDataByAccessToken($token)
     {
         $config = Helper::getSocialAuthSettings('edit');
         $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
 
-        $fields = 'id,name,email,first_name,last_name';
+        $fields = 'id,name,email';
         $url = "https://graph.facebook.com/{$apiVersion}/me?fields={$fields}&access_token={$token}";
 
         $response = wp_remote_get($url, [
@@ -91,10 +98,11 @@ class FacebookAuthService{
 
         return [
             'full_name' => Arr::get($userData, 'name'),
-            'email' => Arr::get($userData, 'email'),
-            'username' => $username
+            'email'     => Arr::get($userData, 'email'),
+            'username'  => $username
         ];
     }
+
     public static function getAppRedirect()
     {
         return add_query_arg(['fs_auth' => 'facebook'], wp_login_url());

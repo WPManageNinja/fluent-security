@@ -53,7 +53,6 @@ class AuthService
 
         $setRole = apply_filters('fluent_auth/user_role', $defaultRole);
 
-
         $userId = self::registerNewUser($createUserData['username'], $createUserData['email'], $createUserData['password'], [
             'role'        => $setRole,
             'first_name'  => Arr::get($userData, 'first_name'),
@@ -61,6 +60,7 @@ class AuthService
             'user_url'    => Arr::get($userData, 'user_url'),
             'full_name'   => Arr::get($userData, 'full_name'),
             'description' => Arr::get($userData, 'description'),
+            '__validated' => true
         ]);
 
         if (is_wp_error($userId)) {
