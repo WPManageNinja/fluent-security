@@ -250,7 +250,7 @@ class AuthService
     }
 
 
-    public static function checkUserRegDataErrors($user_login, $user_email)
+    public static function checkUserRegDataErrors($user_login, $user_email, $extraArgs = [])
     {
         $errors = new \WP_Error();
         $sanitized_user_login = sanitize_user($user_login);
@@ -283,9 +283,10 @@ class AuthService
             );
         }
 
-        do_action('register_post', $sanitized_user_login, $user_email, $errors);
-
-        $errors = apply_filters('registration_errors', $errors, $sanitized_user_login, $user_email);
+        if(empty($extraArgs['__validated'])) {
+            do_action('register_post', $sanitized_user_login, $user_email, $errors);
+            $errors = apply_filters('registration_errors', $errors, $sanitized_user_login, $user_email);
+        }
 
         return $errors;
     }

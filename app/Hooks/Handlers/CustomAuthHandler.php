@@ -780,8 +780,9 @@ class CustomAuthHandler
             $formData['username'] = sanitize_user($formData['email']);
         }
 
-        $errors = AuthService::checkUserRegDataErrors($formData['username'], $formData['email']);
-
+        $errors = AuthService::checkUserRegDataErrors($formData['username'], $formData['email'], [
+            '__validated' => true
+        ]);
 
         if ($errors->has_errors()) {
             wp_send_json([
@@ -834,6 +835,7 @@ class CustomAuthHandler
             'last_name'   => Arr::get($formData, 'last_name'),
             '__validated' => true
         ]);
+
 
         if (is_wp_error($userId)) {
             wp_send_json([
