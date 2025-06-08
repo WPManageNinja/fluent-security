@@ -175,6 +175,8 @@ class LoginCustomizerHandler
     public function addExtendedRegFields()
     {
         $policyUrl = get_privacy_policy_url();
+        $policyUrl = apply_filters('fluent_auth/signup_policy_url', $policyUrl);
+
         // We will add the custom fields here
         $fullName = Arr::get($_POST, 'user_full_name', '');
         $password = Arr::get($_POST, 'user_password', '');
@@ -183,29 +185,22 @@ class LoginCustomizerHandler
         ?>
         <p class="fs_reg_item fs_reg_item_full_name">
             <label for="user_full_name"><?php _e('Your Full Name', 'fluent-security'); ?></label>
-            <input type="text" name="user_full_name" id="user_full_name" class="input"
-                   value="<?php echo esc_attr($fullName); ?>" size="100" autocomplete="name"
-                   required="required"/>
+            <input type="text" name="user_full_name" id="user_full_name" class="input" value="<?php echo esc_attr($fullName); ?>" size="100" autocomplete="name" required="required"/>
         </p>
 
         <p class="fs_reg_item fs_reg_item_password">
             <label for="user_password"><?php _e('Password', 'fluent-security'); ?></label>
-            <input type="password" name="user_password" id="user_password" class="input"
-                   value="<?php echo htmlspecialchars($password, ENT_QUOTES, 'UTF-8'); ?>" size="50"
-                   required="required"/>
+            <input type="password" name="user_password" id="user_password" class="input" value="<?php echo htmlspecialchars($password, ENT_QUOTES, 'UTF-8'); ?>" size="50" required="required"/>
         </p>
 
         <p class="fs_reg_item fs_reg_item_conf_password">
             <label for="user_confirm_password"><?php _e('Re-Enter Password', 'fluent-security'); ?></label>
-            <input type="password" name="user_confirm_password"
-                   value="<?php echo htmlspecialchars($confirmPassword, ENT_QUOTES, 'UTF-8'); ?>"
-                   id="user_confirm_password" class="input" size="50" required="required"/>
+            <input type="password" name="user_confirm_password" value="<?php echo htmlspecialchars($confirmPassword, ENT_QUOTES, 'UTF-8'); ?>" id="user_confirm_password" class="input" size="50" required="required"/>
         </p>
 
         <p class="fs_reg_item fs_reg_item_terms">
             <label for="agree_terms">
-                <input type="checkbox" <?php echo $agreeTerms ? 'checked' : ''; ?> name="agree_terms" id="agree_terms"
-                       value="agreed" size="50" required="required"/>
+                <input type="checkbox" <?php echo $agreeTerms ? 'checked' : ''; ?> name="agree_terms" id="agree_terms" value="agreed" size="50" required="required"/>
                 <?php if ($policyUrl): ?>
                     <?php printf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="' . esc_url($policyUrl) . '">' . __('terms and conditions.') . '</a>'); ?>
                 <?php else: ?>
@@ -220,6 +215,10 @@ class LoginCustomizerHandler
     {
         if(did_action('fluent_auth/after_signup_validation')) {
             return $errors;
+        }
+
+        if(!did_action('login_init')) {
+            return  $errors; // we only intercept the registration form in the wp-login.php
         }
 
         if ($errors->has_errors()) {

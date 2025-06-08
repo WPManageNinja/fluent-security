@@ -14,8 +14,8 @@ class SystemEmailService
             // User Account Management Emails
             'user_registration_to_user'                   => [
                 'name'                  => 'user_registration_to_user',
-                'title'                 => 'New User Registration Notification',
-                'description'           => 'An essential email sent to new users upon account signup.',
+                'title'                 => __('New User Registration Notification', 'fluent-security'),
+                'description'           => __('An essential email sent to new users upon account signup.', 'fluent-security'),
                 'recipient'             => 'user',
                 'hook'                  => 'wp_new_user_notification',
                 'required_smartcodes'   => [],
@@ -25,8 +25,8 @@ class SystemEmailService
             ],
             'password_reset_to_user'                      => [
                 'name'                  => 'password_reset_to_user',
-                'title'                 => 'Password Reset Request Email',
-                'description'           => 'A security-critical email sent when a user requests to reset their password, containing a unique reset link with time-limited access.',
+                'title'                 => __('Password Reset Request Email', 'fluent-security'),
+                'description'           => __('A security-critical email sent when a user requests to reset their password, containing a unique reset link with time-limited access.', 'fluent-security'),
                 'hook'                  => 'retrieve_password',
                 'recipient'             => 'user',
                 'required_smartcodes'   => [
@@ -38,8 +38,8 @@ class SystemEmailService
             ],
             'email_change_notification_to_user'           => [
                 'name'                  => 'email_change_notification_to_user',
-                'title'                 => 'Email Address Change Confirmation',
-                'description'           => 'Sent to the new email addresses to confirm and validate an email address change, providing security against unauthorized modifications.',
+                'title'                 => __('Email Address Change Confirmation', 'fluent-security'),
+                'description'           => __('Sent to the new email addresses to confirm and validate an email address change, providing security against unauthorized modifications.', 'fluent-security'),
                 'hook'                  => 'wp_email_change_notification',
                 'recipient'             => 'user',
                 'required_smartcodes'   => [
@@ -52,8 +52,8 @@ class SystemEmailService
             ],
             'email_change_notification_after_confimation' => [
                 'name'                  => 'email_change_notification_after_confimation',
-                'title'                 => 'Email Address Change Notification After Confimration',
-                'description'           => 'Send email notification to the old email address of the user after confirmation.',
+                'title'                 => __('Email Address Change Notification After Confimration', 'fluent-security'),
+                'description'           => __('Send email notification to the old email address of the user after confirmation.', 'fluent-security'),
                 'hook'                  => 'wp_email_change_notification',
                 'recipient'             => 'user',
                 'required_smartcodes'   => [],
@@ -63,8 +63,8 @@ class SystemEmailService
             ],
             'fluent_auth_welcome_email_to_user'           => [
                 'name'                => 'fluent_auth_welcome_email_to_user',
-                'title'               => 'Welcome Email after signup via FluentAuth Signup Form',
-                'description'         => 'A friendly welcome email sent to new users after registration via FluentAuth Signup Form.',
+                'title'               => __('Welcome email after sign-Up when the password is set by the user', 'fluent-security'),
+                'description'         => __('A friendly welcome email sent to new users after registering via the FluentAuth Signup Form or when the password is set.', 'fluent-security'),
                 'recipient'           => 'user',
                 'hook'                => 'fluent_auth/after_creating_user',
                 'can_disable'         => 'yes',
@@ -72,8 +72,8 @@ class SystemEmailService
             ],
             'user_registration_to_admin'                  => [
                 'name'                  => 'user_registration_to_admin',
-                'title'                 => 'New User Registration Notification',
-                'description'           => 'An essential email sent to the admin when someone signup.',
+                'title'                 => __('New User Registration Notification', 'fluent-security'),
+                'description'           => __('An essential email sent to the admin when someone signup.', 'fluent-security'),
                 'recipient'             => 'site_admin',
                 'hook'                  => 'wp_new_user_notification',
                 'can_disable'           => 'yes',
@@ -282,16 +282,13 @@ class SystemEmailService
             <p>To complete this process and verify your new email address, please click the confirmation button
                 below.</p>
             <p>&nbsp;</p>
-            <p class="align-center" style="text-align: center;" align="center"><a
-                    style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"
-                    href="##user.confirm_email_change_url##">Confirm Email Change</a></p>
+            <p class="align-center" style="text-align: center;" align="center"><a style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;" href="##user.confirm_email_change_url##">Confirm Email Change</a></p>
             <p>&nbsp;</p>
             <p>If the button above doesn't work, you can copy and paste this URL into your browser:</p>
             <blockquote>
                 <p>{{user.confirm_email_change_url}}</p>
             </blockquote>
-            <p>This confirmation link will expire in 24 hours for security reasons. If you don't confirm within this
-                timeframe, you'll need to submit a new email change request.</p>
+            <p>This confirmation link will expire in 24 hours for security reasons. If you don't confirm within this timeframe, you'll need to submit a new email change request.</p>
             <hr/>
             <p>This email has been sent to: {{user.meta._new_email}}</p>
             <p>Regards</p>
@@ -304,21 +301,16 @@ class SystemEmailService
             ob_start();
             ?>
             <p>Hello {{user.display_name}},</p>
-            <p>This is a confirmation that the email address for your account on<strong> {{site.name}}</strong> has been
-                successfully changed.</p>
+            <p>This is a confirmation that the email address for your account on<strong> {{site.name}}</strong> has been successfully changed.</p>
             <p><strong>Email Change Details:</strong></p>
             <blockquote>
-                <p><strong>Previous Email:</strong> {{user._previous_email_address_}}<br/><strong>New Email:</strong>
-                    {{user.user_email}}</p>
+                <p><strong>Previous Email:</strong> {{user._previous_email_address_}}<br/><strong>New Email:</strong> {{user.user_email}}</p>
             </blockquote>
-            <p>All future communications will be sent to your new email address. You can continue to use your account
-                with the same username and password.</p>
+            <p>All future communications will be sent to your new email address. You can continue to use your account with the same username and password.</p>
             <blockquote>
-                <p><strong>Important:</strong> If you did not authorize this change, please contact the Site
-                    Administrator immediately at {{site.admin_email}}.</p>
+                <p><strong>Important:</strong> If you did not authorize this change, please contact the Site Administrator immediately at {{site.admin_email}}.</p>
             </blockquote>
-            <p>This notification has been sent to your previous email address ({{user._previous_email_address_}}) for
-                security purposes.</p>
+            <p>This notification has been sent to your previous email address ({{user._previous_email_address_}}) for security purposes.</p>
             <p>&nbsp;</p>
             <p>Regards</p>
             <p>All at {{site.name}}<br/>{{site.url}}</p>
@@ -328,7 +320,7 @@ class SystemEmailService
             ob_start();
             ?>
             <p>Hello there,</p>
-            <p>A new user has registered on your website ({{site.name}}).</p>
+            <p>A new user has registered on your website ({{site.name}} - {{site.url}}).</p>
             <p><strong>New User Details:</strong></p>
             <blockquote>
                 <p><strong>Username: </strong>{{user.user_login}}</p>
@@ -337,8 +329,7 @@ class SystemEmailService
                 <p><strong>User Role:</strong> {{user.roles}}</p>
             </blockquote>
             <p>
-                <a style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"
-                   href="##user.profile_edit_url##">View User Profile</a></p>
+                <a style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;" href="##user.profile_edit_url##">View User Profile</a></p>
             <hr/>
             <p>This is an automated message from the fluentAuth plugin.</p>
             <?php
@@ -347,8 +338,7 @@ class SystemEmailService
             ob_start();
             ?>
             <p>Hello {{user.display_name}},</p>
-            <p>Thank you for signing up! Your account has been successfully created and is now ready to use. We're
-                excited to have you join us and look forward to giving you a great experience on our website.</p>
+            <p>Thank you for signing up! Your account has been successfully created and is now ready to use. We're excited to have you join us and look forward to giving you a great experience on our website.</p>
             <p><strong>Your Account Details:</strong></p>
             <blockquote>
                 <p>Your Login Email: {{user.user_email}}</p>
@@ -356,9 +346,7 @@ class SystemEmailService
                 <p>Login URL: {{site.login_url}}</p>
             </blockquote>
             <p>&nbsp;</p>
-            <p class="align-center" style="text-align: center;" align="center"><a
-                    style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"
-                    href="##site.url##">Visit the Website</a></p>
+            <p class="align-center" style="text-align: center;" align="center"><a style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;" href="##site.url##">Visit the Website</a></p>
             <p>&nbsp;</p>
             <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
             <p>Best regards,<br/>All at {{site.name}}<br/>{{site.url}}</p>

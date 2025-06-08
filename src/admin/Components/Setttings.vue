@@ -64,7 +64,7 @@
                         </template>
                     </div>
 
-                    <div class="fls_login_settings" v-if="settings.enable_auth_logs == 'yes'">
+                    <div class="fls_login_settings">
                         <h3>{{ $t('Extended Login Options') }}</h3>
 
                         <div class="fls_inner_group" :class="'fls_inner_group_' + settings.magic_login">

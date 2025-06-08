@@ -72,18 +72,13 @@ class SettingsController
                     'required' => 'Login Timing is required'
                 ];
             }
-
-            if ($settings['email2fa'] == 'yes' && empty($settings['email2fa_roles'])) {
-                $errors['email2fa_roles'] = [
-                    'required' => 'Two-Factor Authentication roles is required'
-                ];
-            }
-
-        } else {
-            $settings['magic_login'] = 'no';
-            $settings['email2fa'] = 'no';
         }
 
+        if ($settings['email2fa'] == 'yes' && empty($settings['email2fa_roles'])) {
+            $errors['email2fa_roles'] = [
+                'required' => 'Two-Factor Authentication roles is required'
+            ];
+        }
 
         if ($errors) {
             return new \WP_Error('validation_error', 'Form Validation failed', $errors);

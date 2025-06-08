@@ -88,13 +88,24 @@ class WPSystemEmailHandler
         if (!$setting || Arr::get($setting, 'status', '') !== 'active') {
             return $defaults;
         }
-
-        $key = get_password_reset_key($user);
-        if (is_wp_error($key)) {
-            return $defaults;
+        
+        $hasCustomPassword = false;
+        // check if the user has custom password
+        if (!get_user_meta($user->ID, 'default_password_nag', true)) {
+            $customSetting = SystemEmailService::getEmailSettingsByType('fluent_auth_welcome_email_to_user');
+            if (Arr::get($customSetting, 'status', '') !== 'system') {
+                $setting = $customSetting;
+                $hasCustomPassword = true;
+            }
         }
 
-        $user->_password_reset_key_ = $key;
+        if (!$hasCustomPassword) {
+            $key = get_password_reset_key($user);
+            if (is_wp_error($key)) {
+                return $defaults;
+            }
+            $user->_password_reset_key_ = $key;
+        }
 
         // Let's change these now
         $email = Arr::get($setting, 'email', []);
@@ -117,6 +128,7 @@ class WPSystemEmailHandler
 
         // Let's change these now
         $email = Arr::get($setting, 'email', []);
+
         $emailSubject = $this->parseCode(Arr::get($email, 'subject', ''), $wpUser);
         $newEmailBody = $this->withHtmlTemplate($this->parseCode(Arr::get($email, 'body', ''), $wpUser), null, $wpUser);
 
@@ -194,7 +206,6 @@ class WPSystemEmailHandler
     {
         $setting = SystemEmailService::getEmailSettingsByType('fluent_auth_welcome_email_to_user');
 
-
         $status = Arr::get($setting, 'status', '');
 
         if ($status === 'system') {
@@ -209,7 +220,6 @@ class WPSystemEmailHandler
         }
 
         $userObj = get_user_by('ID', $userId);
-
         // Let's change these now
         $email = Arr::get($setting, 'email', []);
         $subject = $this->parseCode(Arr::get($email, 'subject', ''), $userObj);
