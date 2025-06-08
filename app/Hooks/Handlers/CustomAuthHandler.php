@@ -685,7 +685,7 @@ class CustomAuthHandler
             $redirectUrl = wp_validate_redirect($userRedirect, $redirectUrl);
         }
 
-        if ($currentUserId = get_current_user_id()) { // user already registered
+        if ($currentUserId = get_current_user_id()) { // user already logged in
             $user = get_user_by('ID', $currentUserId);
             $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
 
@@ -978,13 +978,13 @@ class CustomAuthHandler
          * @since v1.5.7
          * @param string $mailSubject
          */
-        $mailSubject = apply_filters("fluent_auth/reset_password_mail_subject", sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
+        $mailSubject = apply_filters('fluent_auth/reset_password_mail_subject', sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
-        $message = sprintf(__('<p>Hi %s,</p>', 'fluent-security'), $user_data->first_name) .
+        $message = \sprintf(__('<p>Hi %s,</p>', 'fluent-security'), $user_data->first_name) .
             __('<p>Someone has requested a new password for the following account on WordPress:</p>', 'fluent-security') .
-            sprintf(__('<p>Username: %s</p>', 'fluent-security'), $user_login) .
-            sprintf(__('<p>%s</p>', 'fluent-security'), $resetLink) .
-            sprintf(__('<p>If you did not request to reset your password, please ignore this email.</p>', 'fluent-security'));
+            \sprintf(__('<p>Username: %s</p>', 'fluent-security'), $user_login) .
+            \sprintf(__('<p>%s</p>', 'fluent-security'), $resetLink) .
+            \sprintf(__('<p>If you did not request to reset your password, please ignore this email.</p>', 'fluent-security'));
 
         /*
          * Filter reset password email body text
@@ -1135,7 +1135,7 @@ class CustomAuthHandler
             '</form>';
 
         if ($args['echo']) {
-            echo $form;
+            echo $form; // @phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         } else {
             return $form;
         }

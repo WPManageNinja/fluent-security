@@ -14,6 +14,7 @@ Text Domain:  fluent-security
 Domain Path:  /language/
 */
 
+
 if (defined('FLUENT_AUTH_VERSION')) {
     return;
 }
