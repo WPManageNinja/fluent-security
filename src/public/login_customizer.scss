@@ -173,6 +173,11 @@
     flex-direction: row-reverse;
   }
 
+  .language-switcher {
+    text-align: left;
+    margin-top: 30px;
+  }
+
   @media all and (max-width: 767px) {
     flex-direction: column-reverse !important;
   }
