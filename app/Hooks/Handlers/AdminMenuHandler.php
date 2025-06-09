@@ -15,7 +15,6 @@ class AdminMenuHandler
     public function addMenu()
     {
         $permission = Helper::getAppPermission();
-
         if (!$permission) {
             return;
         }

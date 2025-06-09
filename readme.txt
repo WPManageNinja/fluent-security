@@ -4,7 +4,7 @@ Tags: Login limit, login redirects, xml-rpc, login logs, social logins
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.3
-Stable tag: 1.1.2
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,7 +37,7 @@ Ensure secure access to your admin panel with Two-Factor Login via email for hig
 Simplify the login process for end users like customers and subscribers. No more password resets or forgotten passwords that cause users to leave your site. With our improved flow and features, users can log in to your site simply by typing their username or email address and clicking on a secure one-time use link sent to their email.
 
 **🚀 Social Login / Register**
-Allow users to log in to your site with their GitHub or Google accounts. This feature is lightweight and easy to enable.
+Allow users to log in to your site with their GitHub, Facebook or Google accounts. This feature is lightweight and easy to enable.
 
 **🚀 Limit Login Attempts**
 Protect your site against brute force attacks by blocking excessive login attempts. Our simple yet powerful tools also improve site security and performance, and allow for customizable lockout timings.
@@ -59,6 +59,18 @@ We've built this plugin to be super-fast and simple yet powerful, using the late
 
 **🚀 Restrict /wp-admin for low level user roles**
 If you want to restrict /wp-admin access for subscribers or other low level user roles then you can easily enable that and select the user roles that you want to restrict /wp-admin access.
+
+**🚀 Customize WordPress Signup Emails**
+Customize the WordPress default signup emails with your own branding and content. This feature allows you to create a more personalized experience for your users, enhancing their engagement with your site.
+
+**🚀 Custom Login/Signup Shortcodes**
+Create custom login and signup forms using shortcodes. This feature allows you to easily integrate login and signup forms into your pages or posts, providing a seamless user experience.
+
+**🚀 Disable Admin Email Notifications on User Signup**
+Disable the default WordPress admin email notifications that are sent when a new user signs up. This feature helps you manage your email notifications more effectively, reducing clutter in your inbox.
+
+**🚀 Scan WordPress Core File Changes**
+FluentAuth includes a feature to scan WordPress core files for changes, helping you identify any unauthorized modifications. This is crucial for maintaining the integrity of your WordPress installation and ensuring that your site remains secure.
 
 == Why FluentAuth? ==
 
@@ -157,6 +169,15 @@ Absolutely not! From the very first, We were careful about this. It stores all t
 7. Social Login Settings
 
 == Changelog ==
+
+= 2.0.0 - Date: Jun 09, 2025 =
+* Introduing Login/Signup Page Customizer
+* Added Login with Facebook
+* Added Syststem Emails Custimizations
+* Introducing WordPress Core Files Integrity Check
+* Configurable: One-Click Login via Email as primary login method
+* UI & UX Improvements
+* Disable Signup on social media connection when global signup is disabled
 
 = 1.1.0 - Date: Dec 16, 2014 =
 * Added hooks for 3rd party developers

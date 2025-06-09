@@ -305,7 +305,7 @@ export default {
         applyRecommended() {
             this.settings = {
                 disable_xmlrpc: 'yes',
-                disable_app_login: 'yes',
+                disable_app_login: 'no',
                 enable_auth_logs: 'yes',
                 login_try_limit: 5,
                 login_try_timing: 30,

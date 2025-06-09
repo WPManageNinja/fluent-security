@@ -109,10 +109,6 @@ define('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET', '******');
                           <el-input v-model="settings.facebook_client_secret" type="password"
                                     :placeholder="$t('Facebook App Secret')"/>
                         </el-form-item>
-                        <el-form-item :label="$t('Facebook API Version')">
-                          <el-input v-model="settings.facebook_api_version" type="text"
-                                    :placeholder="$t('e.g. v12.0')"/>
-                        </el-form-item>
                       </template>
                       <p>{{$t('Please set your Facebook app Redirect URL:')}} <code>{{auth_info.facebook.app_redirect}}</code>. {{$t('For more information how to setup Facebook app for social authentication please')}} <a target="_blank" rel="noopener" :href="auth_info.facebook.doc_url">{{$t('read this documentation')}}.</a></p>
                     </template>

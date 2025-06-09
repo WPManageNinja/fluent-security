@@ -52,7 +52,7 @@ class Helper
 
     public static function getAppPermission()
     {
-        return 'manage_options';
+        return apply_filters('fluent_auth/app_permission', 'manage_options');
     }
 
     public static function getUserRoles($keyed = false)

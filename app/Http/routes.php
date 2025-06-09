@@ -8,7 +8,13 @@ function fluent_auth_public_route_permission($request)
     return true;
 }
 
-$permissions = ['manage_options'];
+$appPermission = \FluentAuth\App\Helpers\Helper::getAppPermission();
+
+if(!$appPermission) {
+    $appPermission = 'manage_options';
+}
+
+$permissions = [$appPermission];
 
 $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getSettings'], $permissions)
     ->post('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'updateSettings'], $permissions)
