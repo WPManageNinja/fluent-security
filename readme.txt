@@ -167,6 +167,9 @@ Absolutely not! From the very first, We were careful about this. It stores all t
 5. Dynamic Login Redirects
 6. Detailed Audit Logs
 7. Social Login Settings
+8. System Emails Customization
+9. Login/Signup Page Customizer
+10. WordPress Core Files Integrity Check
 
 == Changelog ==
 
