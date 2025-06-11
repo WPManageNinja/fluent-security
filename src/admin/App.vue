@@ -41,7 +41,7 @@ export default {
                 },
                 {
                     route: 'auth_shortcodes',
-                    title: this.$t('Login/Signip Forms')
+                    title: this.$t('Login/Signup Forms')
                 },
                 {
                     route: 'login_redirects',

@@ -10,25 +10,29 @@ div#fls_magic_login {
 }
 
 .fls_magic-or {
-  margin-bottom: 16px;
-  position: relative;
+  display: flex;
+  align-items: center;
   text-align: center;
+  white-space: nowrap;
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #E5E5E5;
+    margin: 0;
+  }
+
   span {
-    background: #fff;
+    padding: 0 10px;
     color: #777;
-    position: relative;
-    padding: 0 8px;
     text-transform: uppercase;
   }
-  &:before {
-    background: #E5E5E5;
-    content: '';
-    height: 1px;
-    position: absolute;
-    left: 0;
-    top: 50%;
-    width: 100%;
-  }
+}
+
+.fls_or_wrap {
+  margin-bottom: 16px;
+  position: relative;
 }
 
 .fls_magic_show_btn, #fls_magic_submit {

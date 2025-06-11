@@ -127,7 +127,7 @@ class BasicTasksHandler
     public function maybeInterceptRestUserResponse($response, $user, $request)
     {
         if (!empty($request['id']) && Helper::getSetting('disable_users_rest') === 'yes' && !current_user_can('edit_others_posts')) {
-            return new \WP_Error('permission_error', 'You do not have access to list users. Restriction added from fluent auth plugin');
+            return new \WP_Error('permission_error', __('You do not have access to list users. Restriction added from fluent auth plugin', 'fluent-security'));
         }
         return $response;
     }

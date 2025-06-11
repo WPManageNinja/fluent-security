@@ -3,7 +3,6 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
-use function Sodium\add;
 
 class ServerModeHandler
 {
@@ -14,13 +13,35 @@ class ServerModeHandler
             return;
         }
 
-
         add_filter('fluent_security/app_vars', function ($vars) {
             $vars['has_server_mode'] = 'yes';
             return $vars;
         });
 
+        add_filter('fluent_auth/validated_redirect', function ($validated, $location) {
+            // check if the location is a child site
+            $authSites = get_option('__fls_child_sites', []);
+            if (empty($authSites)) {
+                return $validated;
+            }
 
+            $locationSiteDomain = parse_url($location, PHP_URL_HOST);
+
+            foreach ($authSites as $authSite) {
+                $childSiteUrl = $authSite['site_url'];
+                if (!$childSiteUrl) {
+                    continue;
+                }
+
+                // child site domain
+                $childSiteDomain = parse_url($childSiteUrl, PHP_URL_HOST);
+                if ($locationSiteDomain === $childSiteDomain) {
+                    return $location;
+                }
+            }
+
+            return $validated;
+        }, 99, 2);
 
         add_action('init', [$this, 'maybeRemoteLoginInit'], 1);
 
@@ -68,7 +89,6 @@ class ServerModeHandler
     {
         // check cookie
         if (isset($_COOKIE['__fls_auth_client_id'])) {
-
             $clientId = sanitize_text_field($_COOKIE['__fls_auth_client_id']);
             $authSites = get_option('__fls_child_sites', []);
             if (!isset($authSites[$clientId])) {

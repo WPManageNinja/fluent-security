@@ -486,7 +486,7 @@ class Helper
 
         $formattedFields = [];
         foreach ($settingFields as $section => $settings) {
-            if(is_string($settings)) {
+            if (is_string($settings)) {
                 $formattedFields[$section] = sanitize_text_field($settings);
                 continue;
             }
@@ -502,5 +502,16 @@ class Helper
         }
 
         return $formattedFields;
+    }
+
+    public static function getValidatedRedirectUrl($location, $fallback = '')
+    {
+        $validated = wp_validate_redirect($location, $fallback);
+
+        if($validated !== $location) {
+            return apply_filters('fluent_auth/validated_redirect', $validated, $location, $fallback);
+        }
+
+        return $validated;
     }
 }

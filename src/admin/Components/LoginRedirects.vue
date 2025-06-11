@@ -34,7 +34,14 @@
                                     </el-form-item>
                                 </el-col>
                             </el-row>
+
+                            <p style="margin-bottom: 10px;">
+                                {{$t('Please note, If there has redirect_to query parameter in the Login Page URL, it will be used for redirection instead of these set rule.')}}
+                            </p>
                         </div>
+
+
+
                         <h3>{{$t('Advanced Redirect Rules')}}</h3>
                         <div class="fls_advanced_rules">
                             <div v-for="(rule, ruleIndex) in settings.redirect_rules" :key="ruleIndex"

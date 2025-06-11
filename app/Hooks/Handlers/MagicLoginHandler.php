@@ -19,6 +19,18 @@ class MagicLoginHandler
                 $hash = sanitize_text_field($_GET['fls_al']);
                 $this->makeLogin($hash);
             }
+
+            if (isset($_GET['redirect_to']) && !wp_doing_ajax()) {
+                if (get_current_user_id()) {
+                    return;
+                }
+
+                $redirectTo = esc_url_raw($_REQUEST['redirect_to']);
+                if (filter_var($redirectTo, FILTER_VALIDATE_URL)) {
+                    // set cookie to redirect after login
+                    setcookie('_fls_redirect_to', $redirectTo, time() + 600, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+                }
+            }
         }, 1);
 
         add_filter('login_form_bottom', [$this, 'maybeMagicFormOnLoginFunc']);
@@ -68,9 +80,12 @@ class MagicLoginHandler
         ?>
         <div style="display: none;" id="fls_magic_login">
             <div class="fls_magic_initial">
-                <div class="fls_magic-or">
-                    <span><?php _e('Or', 'fluent-security') ?></span>
+                <div class="fls_or_wrap">
+                    <div class="fls_magic-or">
+                        <span><?php _e('Or', 'fluent-security') ?></span>
+                    </div>
                 </div>
+
                 <div class="fls_magic_login_btn">
                     <button class="fls_magic_show_btn magic_btn_secondary button button-primary button-large">
                         <?php _e('Login Via Magic URL', 'fluent-security'); ?>
@@ -84,8 +99,10 @@ class MagicLoginHandler
                 <label for="fls_magic_logon">
                     <?php _e('Your Email/Username', 'fluent-security'); ?>
                 </label>
-                <input placeholder="<?php _e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon" class="fls_magic_input" type="text" name="fls_magic_logon_email"/>
-                <input id="fls_magic_logon_nonce" type="hidden" name="fls_magic_logon_nonce" value="<?php echo wp_create_nonce('fls_magic_logon_nonce'); ?>"/>
+                <input placeholder="<?php _e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon"
+                       class="fls_magic_input" type="text" name="fls_magic_logon_email"/>
+                <input id="fls_magic_logon_nonce" type="hidden" name="fls_magic_logon_nonce"
+                       value="<?php echo wp_create_nonce('fls_magic_logon_nonce'); ?>"/>
                 <div class="fls_magic_submit_wrapper">
                     <button class="button button-primary button-large" id="fls_magic_submit">
                         <?php _e('Continue', 'fluent-security'); ?>
@@ -93,8 +110,10 @@ class MagicLoginHandler
                 </div>
 
                 <div class="magic_back_regular">
-                    <div class="fls_magic-or">
-                        <span><?php _e('Or', 'fluent-security'); ?></span>
+                    <div class="fls_or_wrap">
+                        <div class="fls_magic-or">
+                            <span><?php _e('Or', 'fluent-security') ?></span>
+                        </div>
                     </div>
                     <div class="fls_magic_login_back">
                         <button class="fls_magic_show_regular magic_btn_secondary">
@@ -133,7 +152,7 @@ class MagicLoginHandler
             'success_icon' => FLUENT_AUTH_PLUGIN_URL . 'dist/images/success.png',
             'empty_text'   => __('Please provide username / email to get magic login link', 'fluent-security'),
             'wait_text'    => __('Please Wait...', 'fluent-security'),
-            'is_primary' => Helper::getSetting('magic_link_primary') === 'yes'
+            'is_primary'   => Helper::getSetting('magic_link_primary') === 'yes'
         ]);
 
         $this->assetLoaded = true;
@@ -181,7 +200,7 @@ class MagicLoginHandler
         // Let's prepare
         if (strpos($username, '@')) {
             $user = get_user_by('email', $username);
-            if(!$user) {
+            if (!$user) {
                 $user = get_user_by('login', $username);
             }
         } else {
@@ -224,7 +243,7 @@ class MagicLoginHandler
             __('If the button above does not work, paste this link into your web browser:', 'fluent-security'),
             esc_url($loginUrl),
             ' ',
-            __('If you did not make this request, you can safely ignore this email.','fluent-security')
+            __('If you did not make this request, you can safely ignore this email.', 'fluent-security')
         ];
 
         $emailBody = '';
@@ -374,7 +393,7 @@ class MagicLoginHandler
 
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
         $user = wp_signon(array(
-                'user_login' => $user->user_login,
+                'user_login'    => $user->user_login,
                 'user_password' => ''
             )
         );

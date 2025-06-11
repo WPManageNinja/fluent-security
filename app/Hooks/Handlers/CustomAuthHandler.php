@@ -37,6 +37,18 @@ class CustomAuthHandler
             return $redirect_to;
         }
 
+        // check if we have value from cookie _fls_redirect_to
+        if (isset($_COOKIE['_fls_redirect_to']) && filter_var($_COOKIE['_fls_redirect_to'], FILTER_VALIDATE_URL)) {
+            $redirect_to = sanitize_url($_COOKIE['_fls_redirect_to']);
+            $validatedRedirectUrl = Helper::getValidatedRedirectUrl($redirect_to, admin_url());
+            unset($_COOKIE['_fls_redirect_to']);
+            setcookie('_fls_redirect_to', '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN);
+            if ($validatedRedirectUrl == $redirect_to) {
+                return $redirect_to;
+            }
+
+        }
+
         if (apply_filters('fluent_auth/respect_front_login_url', true) && strpos($redirect_to, '/wp-admin') === false) {
             // it's a frontend redirect url
         } else if ($url = $this->getDefaultLoginRedirectUrl($user)) {
@@ -74,6 +86,11 @@ class CustomAuthHandler
             $message = apply_filters('fluent_auth/already_logged_in_message',
                 sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
+
+            if (!$message) {
+                return '';
+            }
+
             return '<p>' . $message . '</p>';
         }
 
@@ -88,9 +105,11 @@ class CustomAuthHandler
         }
 
         $redirect = '';
+        $requestedRedirectTo = '';
 
         if (!empty($attributes['redirect_to']) && filter_var($attributes['redirect_to'], FILTER_VALIDATE_URL)) {
             $redirect = $attributes['redirect_to'];
+            $requestedRedirectTo = $redirect;
             add_filter('fluent_auth/social_redirect_to', function ($url) use ($redirect) {
                 return $redirect;
             });
@@ -104,11 +123,12 @@ class CustomAuthHandler
          * @param array $loginArgs
          */
         $loginArgs = apply_filters('fluent_auth/login_form_args', [
-            'echo'           => false,
-            'redirect'       => $redirect,
-            'remember'       => true,
-            'value_remember' => true,
-            'action_url'     => site_url('/')
+            'echo'              => false,
+            'redirect'          => $redirect,
+            'force_redirect_to' => $requestedRedirectTo,
+            'remember'          => true,
+            'value_remember'    => true,
+            'action_url'        => site_url('/')
         ]);
 
         $return .= $this->nativeLoginForm($loginArgs);
@@ -672,6 +692,11 @@ class CustomAuthHandler
         }
 
         $data = $_REQUEST;
+        if (empty($_REQUEST['_is_fls_form'])) {
+            wp_send_json([
+                'message' => __('Invalid request', 'fluent-security')
+            ], 422);
+        }
 
         if (empty($data['pwd']) || empty($data['log'])) {
             wp_send_json([
@@ -682,13 +707,20 @@ class CustomAuthHandler
         $redirectUrl = admin_url();
         if (isset($data['redirect_to']) && filter_var($data['redirect_to'], FILTER_VALIDATE_URL)) {
             $userRedirect = sanitize_url($data['redirect_to']);
-            $redirectUrl = wp_validate_redirect($userRedirect, $redirectUrl);
+            $redirectUrl = Helper::getValidatedRedirectUrl($userRedirect, $redirectUrl);
+        }
+
+        $isForced = false;
+        if (!empty($data['force_redirect_to']) && filter_var($data['force_redirect_to'], FILTER_VALIDATE_URL)) {
+            $redirectUrl = Helper::getValidatedRedirectUrl(sanitize_url($data['force_redirect_to']), $redirectUrl);
+            $isForced = true;
         }
 
         if ($currentUserId = get_current_user_id()) { // user already logged in
             $user = get_user_by('ID', $currentUserId);
-            $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
-
+            if (!$isForced) {
+                $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
+            }
             wp_send_json([
                 'redirect' => $redirectUrl
             ], 200);
@@ -712,15 +744,21 @@ class CustomAuthHandler
             ], 422);
         }
 
+
         $user = wp_signon();
+
         if (is_wp_error($user)) {
             wp_send_json([
                 'message' => $user->get_error_message()
             ], 422);
         }
 
-        $filteredRedirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
-        $filteredRedirectUrl = apply_filters('fluent_auth/login_redirect_url', $filteredRedirectUrl, $user, $_REQUEST);
+        if (!$isForced) {
+            $filteredRedirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
+            $filteredRedirectUrl = apply_filters('fluent_auth/login_redirect_url', $filteredRedirectUrl, $user, $_REQUEST);
+        } else {
+            $filteredRedirectUrl = $redirectUrl;
+        }
 
         wp_send_json([
             'redirect' => $filteredRedirectUrl
@@ -851,7 +889,7 @@ class CustomAuthHandler
         if ($isAutoLogin) {
             $this->login($userId);
             $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
-            $redirectUrl = wp_validate_redirect($redirectUrl, admin_url());
+            $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
             $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
             $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
             $message = __('Successfully registered to the site.', 'fluent-security');
@@ -1090,6 +1128,10 @@ class CustomAuthHandler
 
         if (isset($args['action_url'])) {
             $actionUrl = esc_url($args['action_url']);
+        }
+
+        if (!empty($args['force_redirect_to'])) {
+            $login_form_top .= '<input type="hidden" name="force_redirect_to" value="' . esc_url($args['force_redirect_to']) . '" />';
         }
 
         $form = \sprintf(

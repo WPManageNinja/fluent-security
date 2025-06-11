@@ -94,7 +94,7 @@ class TwoFaHandler
         $hash .= $user->ID . '-' . time();
 
         $redirectIntend = '';
-        if (isset($_GET['redirect_to'])) {
+        if (isset($_REQUEST['redirect_to'])) {
             $redirectIntend = esc_url($_GET['redirect_to']);
         }
 
