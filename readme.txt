@@ -27,6 +27,11 @@ Boost Your Website's Security with Login/Signup Security, Two-Factor Email Authe
 - Super Fast Solution
 - Restrict /wp-admin for low level user roles
 
+**What's new in version 2.0**
+
+[youtube https://www.youtube.com/watch?v=P_vREW7s2B4]
+
+
 [youtube https://www.youtube.com/watch?v=5t_8rvtrkk4]
 
 
