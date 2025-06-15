@@ -178,16 +178,24 @@ class LoginCustomizerHandler
         $policyUrl = apply_filters('fluent_auth/signup_policy_url', $policyUrl);
 
         // We will add the custom fields here
-        $fullName = Arr::get($_POST, 'user_full_name', '');
+        $firstName = Arr::get($_POST, 'first_name', '');
+        $lastName = Arr::get($_POST, 'last_name', '');
         $password = Arr::get($_POST, 'user_password', '');
         $confirmPassword = Arr::get($_POST, 'user_confirm_password', '');
         $agreeTerms = Arr::get($_POST, 'agree_terms', '');
         ?>
-        <p class="fs_reg_item fs_reg_item_full_name">
-            <label for="user_full_name"><?php _e('Your Full Name', 'fluent-security'); ?></label>
-            <input type="text" name="user_full_name" id="user_full_name" class="input" value="<?php echo esc_attr($fullName); ?>" size="100" autocomplete="name" required="required"/>
+        <p class="fs_reg_item fs_reg_item_first_name">
+            <label for="first_name"><?php _e('First Name', 'fluent-security'); ?></label>
+            <input type="text" name="first_name" id="first_name" class="input"
+                   value="<?php echo esc_attr($firstName) ?>"
+                   size="50" autocomplete="given-name" required="required" />
         </p>
-
+        <p class="fs_reg_item fs_reg_item_last_name">
+            <label for="last_name"><?php _e('Last Name', 'fluent-security'); ?></label>
+            <input type="text" name="last_name" id="last_name" class="input"
+                   value="<?php echo esc_attr($lastName) ?>"
+                   size="50" autocomplete="family-name" required="required" />
+        </p>
         <p class="fs_reg_item fs_reg_item_password">
             <label for="user_password"><?php _e('Password', 'fluent-security'); ?></label>
             <input type="password" name="user_password" id="user_password" class="input" value="<?php echo htmlspecialchars($password, ENT_QUOTES, 'UTF-8'); ?>" size="50" required="required"/>
@@ -237,11 +245,8 @@ class LoginCustomizerHandler
 
         $errors->add('confirm_token', sprintf(__('A verification code has been sent to %s. Please provide the code below:', 'fluent-security'), $user_email));
 
-        $fullName = Arr::get($_POST, 'user_full_name', '');
-
-        $nameArr = explode(' ', $fullName);
-        $firstName = array_shift($nameArr);
-        $lastName = implode(' ', $nameArr);
+        $firstName = Arr::get($_POST, 'first_name', '');
+        $lastName = Arr::get($_POST, 'last_name', '');
 
         $formData = [
             'email'      => $user_email,
@@ -297,10 +302,8 @@ class LoginCustomizerHandler
             return false;
         }
 
-        $fullName = Arr::get($_POST, 'user_full_name', '');
-        $fullNameArr = explode(' ', $fullName);
-        $firstName = array_shift($fullNameArr);
-        $lastName = implode(' ', $fullNameArr);
+        $firstName = Arr::get($_POST, 'first_name', '');
+        $lastName = Arr::get($_POST, 'last_name', '');
 
         $formData = [
             'username'   => $sanitized_user_login,
@@ -358,26 +361,20 @@ class LoginCustomizerHandler
     {
         $errors = new \WP_Error();
 
-        if (!empty($data['first_name'])) {
-            $data['user_full_name'] = trim(Arr::get($data, 'first_name') . ' ' . Arr::get($data, 'last_name'));
+        $firstName = trim(Arr::get($data, 'first_name', ''));
+
+        if (empty($firstName)) {
+            $errors->add('first_name', __('Please enter your first name.', 'fluent-security'));
+        } elseif (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $firstName)) {
+            $errors->add('first_name', __('Invalid characters in first name.', 'fluent-security'));
         }
 
-        if (empty($data['user_full_name'])) {
-            $errors->add('user_full_name', __('Please enter your full name.', 'fluent-security'));
-        }
-
-        $fullName = Arr::get($data, 'user_full_name', '');
-
-        // check if the name is valid
-        // Consider if there has any special characters like +, -, *, /, etc
-        // only check the +,-,*,$,/,=,%,!,@,#,^,&,*,(,),_,{,},[,],:,;,',",<,>,?,|,`,~,,
-        if (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $fullName)) {
-            $errors->add('user_full_name', __('Please provide a full name.', 'fluent-security'));
-        }
-
-        // check if there has any http or https
-        if (preg_match('/http|https/', $fullName)) {
-            $errors->add('user_full_name', __('Please provide a valid name.', 'fluent-security'));
+        // Validate last name
+        $lastName = trim(Arr::get($data, 'last_name', ''));
+        if (empty($lastName)) {
+            $errors->add('last_name', __('Please enter your last name.', 'fluent-security'));
+        } elseif (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $lastName)) {
+            $errors->add('last_name', __('Invalid characters in last name.', 'fluent-security'));
         }
 
         if (empty($data['user_password'])) {
