@@ -277,7 +277,9 @@ class SecurityScanController
         $globalSettings = IntegrityHelper::getSettings();
 
         $globalSettings['auto_scan'] = $enabled ? 'yes' : 'no';
-        $globalSettings['scan_interval'] = $interval == 'houlry' ? 'hourly' : 'daily';
+
+        $validIntervals = ['hourly', 'daily', 'weekly', 'monthly'];
+        $globalSettings['scan_interval'] = in_array($interval, $validIntervals) ? $interval : 'daily';
 
         IntegrityHelper::saveSettings($globalSettings);
 

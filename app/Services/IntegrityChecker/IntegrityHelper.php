@@ -67,10 +67,21 @@ class IntegrityHelper
 
         $scanInterval = $settings['scan_interval'];
 
-        if ($scanInterval == 'hourly') {
-            $interval = 3600;
-        } else {
-            $interval = 84600; // 23.5 hours
+        // Updated to handle weekly and monthly intervals
+        switch ($scanInterval) {
+            case 'hourly':
+                $interval = 3600; // 1 hour
+                break;
+            case 'weekly':
+                $interval = 604800; // 7 days
+                break;
+            case 'monthly':
+                $interval = 2592000; // 30 days
+                break;
+            case 'daily':
+            default:
+                $interval = 86400; // 24 hours (fixed from 84600)
+                break;
         }
 
         if ($settings['last_report_sent'] && (time() - strtotime($settings['last_report_sent'])) < $interval) {
