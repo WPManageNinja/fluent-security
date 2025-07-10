@@ -223,8 +223,8 @@ class AuthService
 
         $user_id = wp_insert_user($data);
         if (!$user_id || is_wp_error($user_id)) {
-            $errors->add('registerfail', __('<strong>Error</strong>: Could not register you. Please contact the site admin!', 'fluent-security')
-            );
+            $errors = new \WP_Error();
+            $errors->add('registerfail', __('<strong>Error</strong>: Could not register you. Please contact the site admin!', 'fluent-security'));
             return $errors;
         }
 

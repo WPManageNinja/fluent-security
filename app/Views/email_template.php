@@ -99,14 +99,11 @@ defined('ABSPATH') || exit;
 </head>
 <body>
 <div class="body_wrap">
-    <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation"
-           style="margin-left:auto;margin-right:auto;padding-top:32px;padding-bottom:32px;padding-left:16px;padding-right:16px;max-width:600px">
+    <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin-left:auto;margin-right:auto;padding-top:32px;padding-bottom:32px;padding-left:16px;padding-right:16px;max-width:600px">
         <tbody>
         <tr style="width:100%">
             <td>
-                <table class="content_wrap" align="center" width="100%" border="0" cellpadding="0" cellspacing="0"
-                       role="presentation"
-                       style="border-radius:8px;padding:32px;box-shadow:0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgb(0,0,0,0.05)">
+                <table class="content_wrap" align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="border-radius:8px;padding:32px;box-shadow:0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgb(0,0,0,0.05)">
                     <tbody>
                     <tr>
                         <td>
@@ -116,8 +113,7 @@ defined('ABSPATH') || exit;
                     </tbody>
                 </table>
                 <?php if (!empty($footer)): ?>
-                    <table class="footer_table" align="center" width="100%" border="0" cellpadding="0" cellspacing="0"
-                           role="presentation" style="margin-top:32px;text-align:center;">
+                    <table class="footer_table" align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:32px;text-align:center;">
                         <tbody>
                         <tr>
                             <td class="footer_text">

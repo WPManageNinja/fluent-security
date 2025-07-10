@@ -316,7 +316,8 @@ class SystemEmailService
             <p>All at {{site.name}}<br/>{{site.url}}</p>
             <?php
             return ob_get_clean();
-        } else if ($type == 'user_registration_to_admin') {
+        }
+        else if ($type == 'user_registration_to_admin') {
             ob_start();
             ?>
             <p>Hello there,</p>

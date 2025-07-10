@@ -46,7 +46,6 @@
             </el-popover>
         </template>
     </el-input>
-
 </template>
 
 <script type="text/babel">
@@ -116,9 +115,6 @@ export default {
         }
     },
     methods: {
-        selectEmoji(imoji) {
-            this.insertShortcode(imoji.data);
-        },
         insertShortcode(code) {
             // Try multiple ways to get the input element
             let inputEl;
