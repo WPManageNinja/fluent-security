@@ -283,7 +283,7 @@ class AuthService
             );
         }
 
-        if(empty($extraArgs['__validated'])) {
+        if (empty($extraArgs['__validated'])) {
             do_action('register_post', $sanitized_user_login, $user_email, $errors);
             $errors = apply_filters('registration_errors', $errors, $sanitized_user_login, $user_email);
         }

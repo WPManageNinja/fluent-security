@@ -1053,11 +1053,11 @@ class CustomAuthHandler
             'headers' => array('Content-Type: text/html; charset=UTF-8')
         );
 
-        $notification_email = apply_filters( 'retrieve_password_notification_email', $defaults, $resetKey, $user_login, $user_data );
+        $notification_email = apply_filters('retrieve_password_notification_email', $defaults, $resetKey, $user_login, $user_data);
 
-        if ( is_array( $notification_email ) ) {
+        if (is_array($notification_email)) {
             // Force key order and merge defaults in case any value is missing in the filtered array.
-            $notification_email = array_merge( $defaults, $notification_email );
+            $notification_email = array_merge($defaults, $notification_email);
         } else {
             $notification_email = $defaults;
         }
@@ -1084,6 +1084,13 @@ class CustomAuthHandler
                 if (!is_email(Arr::get($data, $fieldName))) {
                     $errors[$fieldName] = sprintf(__('Provided %s is not a valid email', 'fluent-security'), esc_html(strtolower($field['label'])));
                 }
+            }
+        }
+
+        if (isset($fields['password']) && apply_filters('fluent_auth/validate_password_length', true)) {
+            $givenPassword = (string)Arr::get($data, 'password', '');
+            if (empty($givenPassword) || strlen($givenPassword) < 6) {
+                $errors['password'] = __('Password must be at least 6 characters long', 'fluent-security');
             }
         }
 
@@ -1209,7 +1216,7 @@ class CustomAuthHandler
             $verifcationCode = mt_rand(100123, 900987);
         }
 
-        $verifcationCode = (string) $verifcationCode;
+        $verifcationCode = (string)$verifcationCode;
 
         $ipAddress = Helper::getIp();
 
