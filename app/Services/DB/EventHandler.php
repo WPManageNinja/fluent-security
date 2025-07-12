@@ -40,7 +40,7 @@ class EventHandler
     /**
      * @param          $event
      * @param string   $table
-     * @param callable $action
+     * @param \Closure $action
      *
      * @return void
      */
@@ -63,7 +63,7 @@ class EventHandler
     }
 
     /**
-     * @param \FluentAuth\App\Services\DB\src\QueryBuilder\QueryBuilderHandler $queryBuilder
+     * @param \FluentAuth\App\Services\DB\QueryBuilder\QueryBuilderHandler $queryBuilder
      * @param                     $event
      * @return mixed
      */

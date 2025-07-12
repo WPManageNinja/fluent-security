@@ -43,7 +43,7 @@ class Connection
 
     /**
      * @param                $wpdb
-     * @param array          $adapterConfig
+     * @param array          $config
      * @param null|string    $alias
      * @param null|Container $container
      */

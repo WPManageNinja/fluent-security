@@ -1204,10 +1204,12 @@ class CustomAuthHandler
     public function sendSignupEmailVerificationHtml($formData)
     {
         try {
-            $verifcationCode = str_pad(random_int(100123, 900987), 6, 0, STR_PAD_LEFT);
+            $verifcationCode = random_int(100123, 900987);
         } catch (\Exception $e) {
-            $verifcationCode = str_pad(mt_rand(100123, 900987), 6, 0, STR_PAD_LEFT);
+            $verifcationCode = mt_rand(100123, 900987);
         }
+
+        $verifcationCode = (string) $verifcationCode;
 
         $ipAddress = Helper::getIp();
 

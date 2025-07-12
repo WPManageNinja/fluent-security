@@ -103,7 +103,7 @@ class SmartCodeParser
                 $value = apply_filters('fluent_auth/smartcode_group_callback_' . $dataKey, $matches[0], $valueKey, $defaultValue, $user);
         }
 
-        if ($transformer && is_string($transformer) && $value) {
+        if ($transformer && $value) {
             switch ($transformer) {
                 case 'trim':
                     return trim($value);
@@ -226,7 +226,7 @@ class SmartCodeParser
                 return $defaultValue;
             }
 
-            if (!is_array($value) || !is_object($value)) {
+            if (!is_array($value) && !is_object($value)) {
                 return $value;
             }
 
@@ -241,7 +241,7 @@ class SmartCodeParser
                 return $defaultValue;
             }
 
-            if (!is_array($metaValue) || !is_object($metaValue)) {
+            if (!is_array($metaValue) && !is_object($metaValue)) {
                 return $metaValue;
             }
 

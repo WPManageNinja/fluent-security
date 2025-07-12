@@ -24,6 +24,10 @@ Super Simple Auth Security Plugin for WordPress
 **Build for WP Org**
 - `sh build.sh --loco --node-build`
 
+**Running PHPStan**
+- `composer install`
+- `composer phpstan`
+
 **Libraries Used**
 - Vue3
 - Element Plus

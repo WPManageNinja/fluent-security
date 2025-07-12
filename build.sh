@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Usage: ./build.sh --node-build --loco
+
 # Function to handle copying
 copy_items() {
   local source_dir="$1"

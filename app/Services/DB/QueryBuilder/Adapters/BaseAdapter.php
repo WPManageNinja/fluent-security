@@ -16,6 +16,12 @@ abstract class BaseAdapter
      */
     protected $container;
 
+
+    /**
+     * @var string
+     */
+    protected $sanitizer = '`';
+
     public function __construct(Connection $connection)
     {
         $this->connection = $connection;
@@ -287,7 +293,7 @@ abstract class BaseAdapter
      * @param $statements
      *
      * @return array
-     * @throws \FluentAuth\App\Services\DB\src\Exception
+     * @throws \FluentAuth\App\Services\DB\Exception
      */
     public function delete($statements)
     {
@@ -449,14 +455,16 @@ abstract class BaseAdapter
      *
      * @param $value
      *
-     * @return string
+     * @return string|\Closure
      */
     public function wrapSanitizer($value)
     {
         // Its a raw query, just cast as string, object has __toString()
         if ($value instanceof Raw) {
             return (string) $value;
-        } elseif ($value instanceof \Closure) {
+        }
+
+        if ($value instanceof \Closure) {
             return $value;
         }
 

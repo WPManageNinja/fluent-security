@@ -13,7 +13,7 @@ class LoginCustomizerHandler
     {
         add_action('login_head', function () {
             if (!$this->isSecureSignupForm()) {
-                return false;
+                return;
             }
             ?>
             <style>
@@ -34,7 +34,7 @@ class LoginCustomizerHandler
 
         add_action('register_form', function () {
             if (!$this->isSecureSignupForm()) {
-                return false;
+                return;
             }
             $this->addExtendedRegFields();
         });
@@ -98,7 +98,7 @@ class LoginCustomizerHandler
             $formSettings['banner']['description'] = $smartCodeParse->parse($loginForm['banner']['description'], null);
         }
 
-        add_action('login_enqueue_scripts', function () use ($formType, $formSettings) {
+        add_action('login_enqueue_scripts', function () use ($formSettings) {
             wp_enqueue_style(
                 'fls-login-customizer',
                 FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_customizer.css',

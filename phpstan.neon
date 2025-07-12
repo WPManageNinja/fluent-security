@@ -1,0 +1,24 @@
+parameters:
+    level: 5
+    paths:
+        - fluent-security.php
+        - app
+    excludePaths:
+        - app/Services/Libs/Emogrifier
+    bootstrapFiles:
+        - phpstan-bootstrap.php
+    ignoreErrors:
+        -
+            message: "#^Call to method emogrify\\(\\) on an unknown class FluentAuth\\\\App\\\\Services\\\\Libs\\\\Emogrifier\\\\Emogrifier\\.$#"
+            path: app/Services/SystemEmailService.php
+        -
+            message: "#^Instantiated class FluentAuth\\\\App\\\\Services\\\\Libs\\\\Emogrifier\\\\Emogrifier not found\\.$#"
+            path: app/Services/SystemEmailService.php
+        -
+            message: "#^Call to method .* on an unknown class FluentAuth\\\\App\\\\Helpers\\\\BrowserDetection\\.$#"
+        -
+            message: "#^Function flsDb not found\\.$#"
+        -
+            message: "#^Path in require_once\\(\\) \".*wp-admin/.*\\.php\" is not a file or it does not exist\\.$#"
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false

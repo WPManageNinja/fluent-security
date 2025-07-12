@@ -21,7 +21,7 @@ class LoginSecurityHandler
      * @param $user \WP_User | \WP_Error
      * @param $username
      * @param $password
-     * @return bool|mixed|\WP_Error
+     * @return bool|mixed|\WP_Error|\WP_User
      */
     public function maybeCheckLoginAttempts($user, $username, $password)
     {
@@ -273,11 +273,6 @@ class LoginSecurityHandler
         return new \WP_Error('login_error', sprintf(__('You are trying too much. Please try after %d minutes', 'fluent-security'), $minutes));
     }
 
-    private function getUserLoginPassCode($user)
-    {
-        return apply_filters('fluent_auth/user_login_passcode', get_user_meta($user->ID, '__login_passcode', true), $user);
-    }
-
     /**
      * @param $user \WP_User
      * @return bool
@@ -345,7 +340,7 @@ class LoginSecurityHandler
     /**
      * @param $user \WP_User | \WP_Error
      * @param $userName string
-     * @return void
+     * @return bool
      */
     private function maybeSendBlockedEmail($user, $userName)
     {
@@ -369,7 +364,7 @@ class LoginSecurityHandler
             return false;
         }
 
-        update_option('fls_last_blocked_email_send_time', time(), 'no');
+        update_option('fls_last_blocked_email_send_time', time(), false);
 
         $agent = sanitize_text_field($_SERVER['HTTP_USER_AGENT']);
         $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();

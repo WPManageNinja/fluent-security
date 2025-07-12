@@ -1,9 +1,9 @@
 <?php
 defined('ABSPATH') || exit;
 /**
- * @var $template_config array
- * @var $body string
- * @var $footer string
+ * @var array $template_config
+ * @var string $body
+ * @var string $footer
  **/
 ?>
 <!DOCTYPE html>

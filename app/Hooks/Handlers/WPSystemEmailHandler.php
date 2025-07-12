@@ -17,7 +17,7 @@ class WPSystemEmailHandler
     {
         add_filter('fluent_auth/parse_smartcode', function ($code, $user) {
             return (new SmartCodeParser())->parse($code, $user);
-        });
+        }, 10, 2);
 
         add_filter('wp_new_user_notification_email', [$this, 'maybeAlterUserRegistrationEmail'], 99, 3);
         add_filter('retrieve_password_notification_email', [$this, 'maybeAlterPasswordResetEmail'], 99, 4);
@@ -153,6 +153,8 @@ class WPSystemEmailHandler
         }
 
         $userObj = new \WP_User($oldUserData['ID']);
+
+        // @phpstan-ignore property.notFound
         $userObj->_previous_email_address_ = $oldUserData['user_email'];
 
         // Let's change these now

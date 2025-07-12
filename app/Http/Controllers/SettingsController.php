@@ -24,7 +24,7 @@ class SettingsController
             return $settings;
         }
 
-        update_option('__fls_auth_settings', $settings);
+        update_option('__fls_auth_settings', $settings, false);
 
         return [
             'settings' => $settings,
@@ -104,10 +104,10 @@ class SettingsController
     public static function saveAuthFormSettings(\WP_REST_Request $request)
     {
         $oldSettings = Helper::getAuthFormsSettings();
-        $settings = $request->get_param('settings');
+        $settings = (array) $request->get_param('settings');
 
         if (!$settings) {
-            $settings = $request->get_param('redirect_settings');
+            $settings = (array) $request->get_param('redirect_settings');
 
             $oldSettings['login_redirects'] = sanitize_text_field($settings['login_redirects']);
 
@@ -152,7 +152,7 @@ class SettingsController
             $oldSettings['enabled'] = sanitize_text_field($settings['enabled']);
         }
 
-        update_option('__fls_auth_forms_settings', $oldSettings, 'no');
+        update_option('__fls_auth_forms_settings', $oldSettings, false);
 
         return [
             'message'  => __('Settings has been updated', 'fluent-security'),
@@ -170,9 +170,9 @@ class SettingsController
 
     public static function saveAuthCustomizerSetting(\WP_REST_Request $request)
     {
-        $settings = $request->get_param('settings');
+        $settings = (array) $request->get_param('settings');
         $settings = Helper::formatAuthCustomizerSettings($settings);
-        update_option('__fls_auth_customizer_settings', $settings, 'no');
+        update_option('__fls_auth_customizer_settings', $settings, false);
 
         return [
             'message'  => __('Settings has been updated', 'fluent-security'),
@@ -191,7 +191,7 @@ class SettingsController
         $checked = wp_check_filetype_and_ext(
             $file['tmp_name'],
             $file['name'],
-            false // we’ll supply our own list of allowed types below
+            null // we’ll supply our own list of allowed types below
         );
         $ext = $checked['ext'];
         $type = $checked['type'];
@@ -249,7 +249,7 @@ class SettingsController
                 return $site['site_url'] !== $url;
             });
 
-            update_option('__fls_child_sites', $prevSettings, 'no');
+            update_option('__fls_child_sites', $prevSettings, false);
 
             return [
                 'message' => __('Site has been removed successfully', 'fluent-security')
@@ -309,7 +309,7 @@ class SettingsController
         $fomattedData['secret_key'] = wp_generate_password(32, false);
         $previousSites[$fomattedData['site_id']] = $fomattedData;
 
-        update_option('__fls_child_sites', $previousSites, 'no');
+        update_option('__fls_child_sites', $previousSites, false);
 
         $serverConfig = json_encode([
             'server_token' => $fomattedData['secret_key'],
@@ -373,7 +373,7 @@ class SettingsController
 
         $userToken = explode('___', $data['user_token']);
 
-        $userId = Arr::get($userToken, 1, null);
+        $userId = Arr::get($userToken, '1', null);
 
         if (!$userId) {
             return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'));

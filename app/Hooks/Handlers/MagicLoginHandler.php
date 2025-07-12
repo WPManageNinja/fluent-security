@@ -397,11 +397,14 @@ class MagicLoginHandler
                 'user_password' => ''
             )
         );
-        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);
+        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
 
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);
-            if (is_user_logged_in()) {
+
+            $user = wp_get_current_user();
+
+            if ( $user && $user->exists() ) {
                 flsDb()->table('fls_login_hashes')
                     ->where('id', $row->id)
                     ->update([

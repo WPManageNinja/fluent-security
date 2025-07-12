@@ -1,4 +1,11 @@
-<?php defined('ABSPATH') || exit; ?>
+<?php defined('ABSPATH') || exit;
+
+/**
+ * @var string $body
+ * @var string $pre_header
+ * @var bool $show_footer
+ */
+?>
 <!doctype html>
 <html>
 <head>
