@@ -132,7 +132,7 @@ class LoginCustomizerHandler
 
         add_action('login_header', function () use ($formSettings, $formType) {
 
-            $extraCssClass = apply_filters('fluent_auth/extra_ogin_page_wrap_css_class', '');
+            $extraCssClass = apply_filters('fluent_auth/extra_login_page_wrap_css_class', '');
             $extraCssClass .= 'fls_layout_banner_' . Arr::get($formSettings, 'banner.position');
 
             ?>
