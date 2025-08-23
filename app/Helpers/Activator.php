@@ -6,7 +6,7 @@ class Activator
 {
     public static function activate($network_wide)
     {
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
         global $wpdb;
         if ($network_wide) {
@@ -113,7 +113,7 @@ class Activator
             }
         }
 
-        update_option('__fluent_security_db_version', '1.0.0', 'no');
+        update_option('__fluent_security_db_version', '1.0.0', false);
     }
 
 }

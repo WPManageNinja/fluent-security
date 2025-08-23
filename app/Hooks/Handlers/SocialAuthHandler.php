@@ -187,10 +187,6 @@ class SocialAuthHandler
             }
         }
 
-        if (is_wp_error($userData)) {
-            return $userData;
-        }
-
         if (empty($userData['email']) || !is_email($userData['email'])) {
             return new \WP_Error('email_error', __('Sorry! we could not find your valid email via github', 'fluent-security'));
         }

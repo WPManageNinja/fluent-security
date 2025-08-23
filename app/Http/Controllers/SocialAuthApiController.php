@@ -41,7 +41,7 @@ class SocialAuthApiController
             return $settings;
         }
 
-        update_option('__fls_social_auth_settings', $settings, 'no');
+        update_option('__fls_social_auth_settings', $settings, false);
 
         return [
             'message' => 'Social login settings has been updated'

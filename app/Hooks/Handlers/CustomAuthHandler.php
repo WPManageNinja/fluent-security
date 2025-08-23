@@ -1004,9 +1004,11 @@ class CustomAuthHandler
          */
         $linkText = apply_filters("fluent_auth/reset_password_link", sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
+        $resetKey = get_password_reset_key($user_data);
+
         $resetUrl = add_query_arg([
             'action' => 'rp',
-            'key'    => get_password_reset_key($user_data),
+            'key'    => $resetKey,
             'login'  => rawurlencode($user_data->user_login)
         ], wp_login_url());
 
@@ -1044,9 +1046,23 @@ class CustomAuthHandler
 
         $message = Helper::loadView('notification', $data);
 
-        $headers = array('Content-Type: text/html; charset=UTF-8');
+        $defaults = array(
+            'to'      => $user_data->user_email,
+            'subject' => $mailSubject,
+            'message' => $message,
+            'headers' => array('Content-Type: text/html; charset=UTF-8')
+        );
 
-        \wp_mail($user_data->user_email, $mailSubject, $message, $headers);
+        $notification_email = apply_filters('retrieve_password_notification_email', $defaults, $resetKey, $user_login, $user_data);
+
+        if (is_array($notification_email)) {
+            // Force key order and merge defaults in case any value is missing in the filtered array.
+            $notification_email = array_merge($defaults, $notification_email);
+        } else {
+            $notification_email = $defaults;
+        }
+
+        \wp_mail($user_data->user_email, $notification_email['subject'], $notification_email['message'], $notification_email['headers']);
 
         wp_send_json([
             'message' => __('Please check your email for the reset link', 'fluent-security')
@@ -1068,6 +1084,13 @@ class CustomAuthHandler
                 if (!is_email(Arr::get($data, $fieldName))) {
                     $errors[$fieldName] = sprintf(__('Provided %s is not a valid email', 'fluent-security'), esc_html(strtolower($field['label'])));
                 }
+            }
+        }
+
+        if (isset($fields['password']) && apply_filters('fluent_auth/validate_password_length', true)) {
+            $givenPassword = (string)Arr::get($data, 'password', '');
+            if (empty($givenPassword) || strlen($givenPassword) < 6) {
+                $errors['password'] = __('Password must be at least 6 characters long', 'fluent-security');
             }
         }
 
@@ -1188,10 +1211,12 @@ class CustomAuthHandler
     public function sendSignupEmailVerificationHtml($formData)
     {
         try {
-            $verifcationCode = str_pad(random_int(100123, 900987), 6, 0, STR_PAD_LEFT);
+            $verifcationCode = random_int(100123, 900987);
         } catch (\Exception $e) {
-            $verifcationCode = str_pad(mt_rand(100123, 900987), 6, 0, STR_PAD_LEFT);
+            $verifcationCode = mt_rand(100123, 900987);
         }
+
+        $verifcationCode = (string)$verifcationCode;
 
         $ipAddress = Helper::getIp();
 

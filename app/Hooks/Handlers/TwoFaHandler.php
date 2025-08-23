@@ -44,7 +44,7 @@ class TwoFaHandler
             return;
         }
 
-        login_header(__('Provide Login Code'), '', false);
+        login_header(__('Provide Login Code', 'fluent-security'), '', null);
         do_action('fls_load_login_helper');
         echo $this->get2FaFormHtml($_REQUEST); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         login_footer();
@@ -83,10 +83,12 @@ class TwoFaHandler
         }
 
         try {
-            $twoFaCode = str_pad(random_int(100123, 900987), 6, 0, STR_PAD_LEFT);
+            $twoFaCode = random_int(100123, 900987);
         } catch (\Exception $e) {
-            $twoFaCode = str_pad(mt_rand(100123, 900987), 6, 0, STR_PAD_LEFT);
+            $twoFaCode = mt_rand(100123, 900987);
         }
+
+        $twoFaCode = (string) $twoFaCode;
 
         $string = $user->ID . '-' . wp_generate_uuid4() . mt_rand(1, 99999999);
         $hash = wp_hash_password($string);
@@ -206,7 +208,7 @@ class TwoFaHandler
             )
         );
 
-        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);
+        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
 
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);

@@ -34,7 +34,7 @@ class IntegrityHelper
 
     public static function saveSettings($settings)
     {
-        return update_option('__fls_integrity_settings', $settings);
+        return update_option('__fls_integrity_settings', $settings, false);
     }
 
     public static function getIgnoreLists()
@@ -55,7 +55,7 @@ class IntegrityHelper
 
     public static function updateIgnoreLists($ignoreLists)
     {
-        return update_option('__fls_integrity_ignore_lists', $ignoreLists);
+        return update_option('__fls_integrity_ignore_lists', $ignoreLists, false);
     }
 
     public static function maybeSendScanReport()
@@ -92,7 +92,7 @@ class IntegrityHelper
         $settings['is_ok'] = (!$modifiedFolders && !$modifiedFiles) ? 'yes' : 'no';
         self::saveSettings($settings);
 
-        if (!$settings['is_ok'] === 'yes') {
+        if ($settings['is_ok'] === 'yes') {
             return false;
         }
 

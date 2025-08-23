@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FluentAuth - Auth Security Plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-11 12:29+0000\n"
+"POT-Creation-Date: 2025-07-12 06:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -16,53 +16,53 @@ msgstr ""
 "X-Loco-Version: 2.7.2; wp-6.8.1\n"
 "X-Domain: fluent-security"
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:677
+#: app/Hooks/Handlers/SocialAuthHandler.php:673
 #, php-format
 msgid "%s Facebook"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:667
+#: app/Hooks/Handlers/SocialAuthHandler.php:663
 #, php-format
 msgid "%s Github"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:657
+#: app/Hooks/Handlers/SocialAuthHandler.php:653
 #, php-format
 msgid "%s Google"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1064
+#: app/Hooks/Handlers/CustomAuthHandler.php:1080
 #, php-format
 msgid "%s is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1257
+#: app/Hooks/Handlers/CustomAuthHandler.php:1275
 msgid "2FA Code"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1026
+#: app/Hooks/Handlers/CustomAuthHandler.php:1028
 #, php-format
 msgid "<p>%s</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1023
+#: app/Hooks/Handlers/CustomAuthHandler.php:1025
 #, php-format
 msgid "<p>Hi %s,</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1027
+#: app/Hooks/Handlers/CustomAuthHandler.php:1029
 msgid ""
 "<p>If you did not request to reset your password, please ignore this email."
 "</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1024
+#: app/Hooks/Handlers/CustomAuthHandler.php:1026
 msgid ""
 "<p>Someone has requested a new password for the following account on "
 "WordPress:</p>"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1025
+#: app/Hooks/Handlers/CustomAuthHandler.php:1027
 #, php-format
 msgid "<p>Username: %s</p>"
 msgstr ""
@@ -73,7 +73,7 @@ msgid ""
 "login or try reset password"
 msgstr ""
 
-#: app/Services/AuthService.php:226
+#: app/Services/AuthService.php:227
 msgid ""
 "<strong>Error</strong>: Could not register you. Please contact the site "
 "admin!"
@@ -146,7 +146,7 @@ msgstr ""
 msgid "A verification code has been sent to %s. Please provide the code below:"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1251
+#: app/Hooks/Handlers/CustomAuthHandler.php:1269
 #, php-format
 msgid ""
 "A verification code has been sent to %s. Please provide the code below: "
@@ -160,7 +160,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1237
+#: app/Hooks/Handlers/CustomAuthHandler.php:1255
 msgid "Activate your account"
 msgstr ""
 
@@ -334,7 +334,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1271
+#: app/Hooks/Handlers/CustomAuthHandler.php:1289
 msgid "Complete Signup"
 msgstr ""
 
@@ -354,7 +354,7 @@ msgstr ""
 msgid "Confirm Email Change URL"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:645
+#: app/Hooks/Handlers/SocialAuthHandler.php:641
 msgid "Connect with"
 msgstr ""
 
@@ -549,7 +549,7 @@ msgstr ""
 msgid "Email Body"
 msgstr ""
 
-#: app/Http/Controllers/SystemEmailsController.php:157
+#: app/Http/Controllers/SystemEmailsController.php:156
 msgid "Email body is not valid. Please check the smartcodes."
 msgstr ""
 
@@ -559,14 +559,14 @@ msgstr ""
 
 #: app/Http/Controllers/SystemEmailsController.php:30
 #: app/Http/Controllers/SystemEmailsController.php:72
-#: app/Http/Controllers/SystemEmailsController.php:97
-#: app/Http/Controllers/SystemEmailsController.php:137
+#: app/Http/Controllers/SystemEmailsController.php:96
+#: app/Http/Controllers/SystemEmailsController.php:136
 msgid "Email ID is invalid"
 msgstr ""
 
 #: app/Http/Controllers/SystemEmailsController.php:24
-#: app/Http/Controllers/SystemEmailsController.php:91
-#: app/Http/Controllers/SystemEmailsController.php:131
+#: app/Http/Controllers/SystemEmailsController.php:90
+#: app/Http/Controllers/SystemEmailsController.php:130
 msgid "Email ID is required"
 msgstr ""
 
@@ -574,7 +574,7 @@ msgstr ""
 msgid "Email or Password is not valid. Please try again"
 msgstr ""
 
-#: app/Http/Controllers/SystemEmailsController.php:180
+#: app/Http/Controllers/SystemEmailsController.php:179
 msgid "Email settings has been succcesfully updated"
 msgstr ""
 
@@ -582,12 +582,12 @@ msgstr ""
 msgid "Email Subject"
 msgstr ""
 
-#: app/Http/Controllers/SystemEmailsController.php:103
-#: app/Http/Controllers/SystemEmailsController.php:151
+#: app/Http/Controllers/SystemEmailsController.php:102
+#: app/Http/Controllers/SystemEmailsController.php:150
 msgid "Email subject and body are required"
 msgstr ""
 
-#: app/Http/Controllers/SystemEmailsController.php:254
+#: app/Http/Controllers/SystemEmailsController.php:253
 msgid "Email template settings has been succcesfully updated"
 msgstr ""
 
@@ -795,7 +795,7 @@ msgstr ""
 msgid "Found changes"
 msgstr ""
 
-#: app/Http/Controllers/SystemEmailsController.php:231
+#: app/Http/Controllers/SystemEmailsController.php:230
 msgid "From email is not valid"
 msgstr ""
 
@@ -825,8 +825,8 @@ msgstr ""
 msgid "Google Client Secret"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1227
-#: app/Hooks/Handlers/TwoFaHandler.php:248
+#: app/Hooks/Handlers/CustomAuthHandler.php:1245
+#: app/Hooks/Handlers/TwoFaHandler.php:250
 #: app/Hooks/Handlers/MagicLoginHandler.php:232
 #, php-format
 msgid "Hello %s,"
@@ -879,7 +879,7 @@ msgid ""
 "If the button above does not work, paste this link into your web browser:"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:271
+#: app/Hooks/Handlers/TwoFaHandler.php:273
 #: app/Hooks/Handlers/MagicLoginHandler.php:246
 msgid "If you did not make this request, you can safely ignore this email."
 msgstr ""
@@ -1009,7 +1009,7 @@ msgstr ""
 msgid "Log has been deleted"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1109
+#: app/Hooks/Handlers/CustomAuthHandler.php:1125
 msgid "Log In"
 msgstr ""
 
@@ -1019,11 +1019,11 @@ msgstr ""
 
 #: app/Services/TransStrings.php:141
 #: app/Hooks/Handlers/CustomAuthHandler.php:217
-#: app/Hooks/Handlers/TwoFaHandler.php:347
+#: app/Hooks/Handlers/TwoFaHandler.php:349
 msgid "Login"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:338
+#: app/Hooks/Handlers/TwoFaHandler.php:340
 msgid "Login Code"
 msgstr ""
 
@@ -1035,7 +1035,7 @@ msgstr ""
 msgid "Login Notifications"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:644
+#: app/Hooks/Handlers/SocialAuthHandler.php:640
 msgid "Login or Signup"
 msgstr ""
 
@@ -1085,7 +1085,7 @@ msgstr ""
 msgid "Login via URL is not activated"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:407
+#: app/Hooks/Handlers/SocialAuthHandler.php:403
 msgid "Login with Facebook"
 msgstr ""
 
@@ -1093,7 +1093,7 @@ msgstr ""
 msgid "Login with Facebook Settings"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:397
+#: app/Hooks/Handlers/SocialAuthHandler.php:393
 msgid "Login with Github"
 msgstr ""
 
@@ -1101,7 +1101,7 @@ msgstr ""
 msgid "Login with Github Settings"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:387
+#: app/Hooks/Handlers/SocialAuthHandler.php:383
 msgid "Login with Google"
 msgstr ""
 
@@ -1216,7 +1216,7 @@ msgstr ""
 #: app/Hooks/Handlers/CustomAuthHandler.php:449
 #: app/Hooks/Handlers/CustomAuthHandler.php:451
 #: app/Hooks/Handlers/CustomAuthHandler.php:562
-#: app/Hooks/Handlers/CustomAuthHandler.php:1107
+#: app/Hooks/Handlers/CustomAuthHandler.php:1123
 msgid "Password"
 msgstr ""
 
@@ -1251,11 +1251,11 @@ msgstr ""
 msgid "Please agree to the terms and conditions."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1052
+#: app/Hooks/Handlers/CustomAuthHandler.php:1068
 msgid "Please check your email for the reset link"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:335
+#: app/Hooks/Handlers/TwoFaHandler.php:337
 msgid ""
 "Please check your email inbox and get the 2 factor Authentication code and "
 "Provide here to login"
@@ -1312,7 +1312,7 @@ msgstr ""
 msgid "Please provide a valid interval."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:157
+#: app/Hooks/Handlers/TwoFaHandler.php:159
 msgid "Please provide a valid login code"
 msgstr ""
 
@@ -1382,7 +1382,11 @@ msgstr ""
 msgid "Provide API Key"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1069
+#: app/Hooks/Handlers/TwoFaHandler.php:47
+msgid "Provide Login Code"
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:1085
 #, php-format
 msgid "Provided %s is not a valid email"
 msgstr ""
@@ -1411,7 +1415,7 @@ msgstr ""
 msgid "Registration has been completed. Please login now"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1108
+#: app/Hooks/Handlers/CustomAuthHandler.php:1124
 msgid "Remember Me"
 msgstr ""
 
@@ -1433,7 +1437,7 @@ msgstr ""
 msgid "Reply to email (optional)"
 msgstr ""
 
-#: app/Http/Controllers/SystemEmailsController.php:241
+#: app/Http/Controllers/SystemEmailsController.php:240
 msgid "Reply to email is not valid"
 msgstr ""
 
@@ -1448,7 +1452,7 @@ msgid "Reset Password"
 msgstr ""
 
 #: app/Hooks/Handlers/CustomAuthHandler.php:1005
-#: app/Hooks/Handlers/CustomAuthHandler.php:1021
+#: app/Hooks/Handlers/CustomAuthHandler.php:1023
 #, php-format
 msgid "Reset your password for %s"
 msgstr ""
@@ -1611,7 +1615,7 @@ msgstr ""
 msgid "Show Preview"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:263
+#: app/Hooks/Handlers/TwoFaHandler.php:265
 #: app/Hooks/Handlers/MagicLoginHandler.php:229
 #: app/Hooks/Handlers/MagicLoginHandler.php:238
 #, php-format
@@ -1626,15 +1630,15 @@ msgstr ""
 msgid "Signup"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:494
+#: app/Hooks/Handlers/SocialAuthHandler.php:490
 msgid "Signup with Facebook"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:485
+#: app/Hooks/Handlers/SocialAuthHandler.php:481
 msgid "Signup with Github"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:476
+#: app/Hooks/Handlers/SocialAuthHandler.php:472
 msgid "Signup with Google"
 msgstr ""
 
@@ -1670,7 +1674,7 @@ msgstr ""
 msgid "Social Login/Signup Settings"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:249
+#: app/Hooks/Handlers/TwoFaHandler.php:251
 #, php-format
 msgid ""
 "Someone requested to login to %s and here is the Login code that you can use "
@@ -1709,7 +1713,7 @@ msgid ""
 "Please try again"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:304
+#: app/Hooks/Handlers/SocialAuthHandler.php:300
 msgid "Sorry! we could not authenticate you via Facebook"
 msgstr ""
 
@@ -1717,19 +1721,19 @@ msgstr ""
 msgid "Sorry! we could not authenticate you via github"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:238
+#: app/Hooks/Handlers/SocialAuthHandler.php:234
 msgid "Sorry! we could not authenticate you via google"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:328
+#: app/Hooks/Handlers/SocialAuthHandler.php:324
 msgid "Sorry! we could not find your valid email from Facebook API"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:261
+#: app/Hooks/Handlers/SocialAuthHandler.php:257
 msgid "Sorry! we could not find your valid email from Google API"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:195
+#: app/Hooks/Handlers/SocialAuthHandler.php:191
 msgid "Sorry! we could not find your valid email via github"
 msgstr ""
 
@@ -1745,7 +1749,7 @@ msgstr ""
 msgid "Sorry, You can not login via magic url. Please use regular login form"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:189
+#: app/Hooks/Handlers/TwoFaHandler.php:191
 msgid "Sorry, You can not use this verification method"
 msgstr ""
 
@@ -1753,7 +1757,7 @@ msgstr ""
 msgid "Sorry, you can only upload JPG, PNG, GIF, WebP, BMP or SVG files."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:195
+#: app/Hooks/Handlers/TwoFaHandler.php:197
 msgid "Sorry, your login code has been expired. Please try to login again"
 msgstr ""
 
@@ -1822,7 +1826,7 @@ msgid ""
 "to enable enhanced security of your site"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1228
+#: app/Hooks/Handlers/CustomAuthHandler.php:1246
 msgid ""
 "Thank you for registering with us! To complete the setup of your account, "
 "please enter the verification code below on the registration page."
@@ -1856,21 +1860,21 @@ msgstr ""
 msgid "then"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:237
+#: app/Hooks/Handlers/TwoFaHandler.php:239
 msgid "There has an error when log you in. Please try to login again"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1231
+#: app/Hooks/Handlers/CustomAuthHandler.php:1249
 msgid ""
 "This code is valid for 10 minutes and is meant to ensure the security of "
 "your account. If you did not initiate this request, please ignore this email."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:252
+#: app/Hooks/Handlers/TwoFaHandler.php:254
 msgid "This code will expire in %d minutes and can only be used once."
 msgstr ""
 
-#: app/Views/notification.php:138
+#: app/Views/notification.php:145
 #, php-format
 msgid "This email has been sent from FluentAuth Security Plugin. Site: %s"
 msgstr ""
@@ -1941,11 +1945,11 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1205
+#: app/Hooks/Handlers/CustomAuthHandler.php:1223
 msgid "Too many requests. Please try again later"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:336
+#: app/Hooks/Handlers/TwoFaHandler.php:338
 msgid "Two-Factor Authentication Code"
 msgstr ""
 
@@ -2017,7 +2021,7 @@ msgstr ""
 msgid "Username or Email"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1106
+#: app/Hooks/Handlers/CustomAuthHandler.php:1122
 msgid "Username or Email Address"
 msgstr ""
 
@@ -2025,11 +2029,11 @@ msgstr ""
 msgid "Username or email is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1254
+#: app/Hooks/Handlers/CustomAuthHandler.php:1272
 msgid "Verification Code"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1229
+#: app/Hooks/Handlers/CustomAuthHandler.php:1247
 #, php-format
 msgid "Verification Code: %s"
 msgstr ""
@@ -2079,7 +2083,7 @@ msgstr ""
 msgid "You are trying too much. Please try after %d minutes"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:261
+#: app/Hooks/Handlers/TwoFaHandler.php:263
 msgid "You can also login by clicking the following button"
 msgstr ""
 
@@ -2126,7 +2130,7 @@ msgstr ""
 msgid "Your Email/Username"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:323
+#: app/Hooks/Handlers/SocialAuthHandler.php:319
 msgid ""
 "Your Facebook email address does not match with your current account email "
 "address. Please use the same email address"
@@ -2143,18 +2147,18 @@ msgid ""
 "address. Please use the same email address"
 msgstr ""
 
-#: app/Hooks/Handlers/SocialAuthHandler.php:256
+#: app/Hooks/Handlers/SocialAuthHandler.php:252
 msgid ""
 "Your Google email address does not match with your current account email "
 "address. Please use the same email address"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:245
+#: app/Hooks/Handlers/TwoFaHandler.php:247
 #, php-format
 msgid "Your Login code for %1s - %d"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:250
+#: app/Hooks/Handlers/TwoFaHandler.php:252
 msgid "Your Login Code: "
 msgstr ""
 
@@ -2162,15 +2166,15 @@ msgstr ""
 msgid "Your Name"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:181
+#: app/Hooks/Handlers/TwoFaHandler.php:183
 msgid "Your provided code is not valid. Please try again"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:169
+#: app/Hooks/Handlers/TwoFaHandler.php:171
 msgid "Your provided code or url is not valid"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1223
+#: app/Hooks/Handlers/CustomAuthHandler.php:1241
 #, php-format
 msgid "Your registration verification code for %s"
 msgstr ""
