@@ -3,6 +3,7 @@
 use FluentAuth\App\Services\DB\Connection;
 use FluentAuth\App\Services\DB\Exception;
 
+/** @phpstan-consistent-constructor */
 class QueryBuilderHandler
 {
 
@@ -104,7 +105,7 @@ class QueryBuilderHandler
     {
         var_dump('need to implement this'); die();
 
-        return $this->setFetchMode(\PDO::FETCH_CLASS, $className, $constructorArgs);
+//        return $this->setFetchMode(\PDO::FETCH_CLASS, $className, $constructorArgs);
     }
 
     /**
@@ -1001,7 +1002,7 @@ class QueryBuilderHandler
                 $target = &$key;
             }
 
-            if (! $tableFieldMix || ($tableFieldMix && strpos($target, '.') !== false)) {
+            if (! $tableFieldMix || (strpos($target, '.') !== false)) {
                 $target = $this->tablePrefix . $target;
             }
 
@@ -1043,7 +1044,7 @@ class QueryBuilderHandler
     /**
      * @param          $event
      * @param string   $table
-     * @param callable $action
+     * @param \Closure $action
      *
      * @return void
      */

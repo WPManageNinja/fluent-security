@@ -1,0 +1,15 @@
+{
+    "scripts": {
+        "phpstan": "phpstan analyse --memory-limit=1G --error-format=table > phpstan-errors.md"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "szepeviktor/phpstan-wordpress": "^2.0",
+        "phpstan/extension-installer": "^1.4"
+    },
+    "config": {
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}

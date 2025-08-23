@@ -69,7 +69,7 @@ class BasicTasksHandler
         add_action('admin_init', function () {
 
             if (Helper::getSetting('disable_admin_bar') !== 'yes' || wp_doing_ajax()) {
-                return false;
+                return;
             }
 
             $roles = Helper::getSetting('disable_bar_roles');
@@ -77,7 +77,7 @@ class BasicTasksHandler
             $user = get_user_by('ID', get_current_user_id());
 
             if (!$user || !$roles) {
-                return false;
+                return;
             }
 
             if (array_intersect($roles, array_values($user->roles)) && !current_user_can('publish_posts')) {
@@ -193,7 +193,7 @@ class BasicTasksHandler
         }
 
         $counts = flsDb()->table('fls_auth_logs')
-            ->select('status', flsDb()->raw('count(*) as total'))
+            ->select(['status', flsDb()->raw('count(*) as total')])
             ->where('created_at', '>=', $lastSent)
             ->groupBy('status')
             ->get();
@@ -271,7 +271,7 @@ class BasicTasksHandler
 
         \wp_mail($adminEmail, $subject, $body, $headers);
 
-        update_option('_fls_last_digest_sent', current_time('mysql'), 'no');
+        update_option('_fls_last_digest_sent', current_time('mysql'), false);
     }
 
 }

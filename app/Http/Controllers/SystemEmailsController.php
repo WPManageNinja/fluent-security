@@ -18,7 +18,7 @@ class SystemEmailsController
 
     public static function findEmail(\WP_REST_Request $request)
     {
-        $remailId = $request->get_param('email_id', null);
+        $remailId = $request->get_param('email_id');
 
         if (!$remailId) {
             return new \WP_Error('invalid_email_id', __('Email ID is required', 'fluent-security'), ['status' => 400]);
@@ -77,15 +77,14 @@ class SystemEmailsController
         return [
             'email'           => $targetEmail,
             'settings'        => $emailSettings['emails'][$remailId],
-            'smartcodes'      => array_values($editorCodes),
+            'smartcodes'      => $editorCodes,
             'default_content' => Arr::get($defaultEmails, $remailId),
         ];
     }
 
     public static function previewEmail(\WP_REST_Request $request)
     {
-        $emailId = $request->get_param('email_id');
-        $remailId = $request->get_param('email_id', null);
+        $remailId = $request->get_param('email_id');
 
         if (!$remailId) {
             return new \WP_Error('invalid_email_id', __('Email ID is required', 'fluent-security'), ['status' => 400]);
@@ -97,7 +96,7 @@ class SystemEmailsController
             return new \WP_Error('invalid_email_id', __('Email ID is invalid', 'fluent-security'), ['status' => 400]);
         }
 
-        $emailData = $request->get_param('email_data');
+        $emailData = (array) $request->get_param('email_data');
 
         if (empty($emailData['body']) || empty($emailData['body'])) {
             return new \WP_Error('invalid_email_settings', __('Email subject and body are required', 'fluent-security'), ['status' => 400]);
@@ -125,7 +124,7 @@ class SystemEmailsController
 
     public static function saveEmailSettings(\WP_REST_Request $request)
     {
-        $emailId = $request->get_param('email_id', null);
+        $emailId = $request->get_param('email_id');
 
         if (!$emailId) {
             return new \WP_Error('invalid_email_id', __('Email ID is required', 'fluent-security'), ['status' => 400]);
@@ -139,7 +138,7 @@ class SystemEmailsController
 
         $allEmailSettings = SystemEmailService::getGlobalSettings();
 
-        $settings = $request->get_param('settings', []);
+        $settings = (array) $request->get_param('settings');
 
         if ($settings['status'] == 'active') {
             $allEmailSettings['emails'][$emailId]['status'] = 'active';
@@ -174,7 +173,7 @@ class SystemEmailsController
             unset($allEmailSettings['emails'][$emailId]);
         }
 
-        update_option('fa_system_email_settings', $allEmailSettings, 'no');
+        update_option('fa_system_email_settings', $allEmailSettings, false);
 
         return [
             'message' => __('Email settings has been succcesfully updated', 'fluent-security')
@@ -218,7 +217,7 @@ class SystemEmailsController
 
     public static function saveTemplateSettings(\WP_REST_Request $request)
     {
-        $newSettings = $request->get_param('settings');
+        $newSettings = (array) $request->get_param('settings');
 
         $globalSettings = SystemEmailService::getGlobalSettings();
         $settings = Arr::get($globalSettings, 'template_settings', []);
@@ -248,7 +247,7 @@ class SystemEmailsController
 
         $globalSettings['template_settings'] = $newSettings;
 
-        update_option('fa_system_email_settings', $globalSettings, 'no');
+        update_option('fa_system_email_settings', $globalSettings, false);
 
         return [
             'message' => __('Email template settings has been succcesfully updated', 'fluent-security')
