@@ -160,7 +160,8 @@ class LoginSecurityHandler
 
         global $wpdb;
 
-        $agent = sanitize_text_field($_SERVER['HTTP_USER_AGENT']);
+        // Check if HTTP_USER_AGENT exists before accessing it
+        $agent = !empty($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field($_SERVER['HTTP_USER_AGENT']) : 'Unknown User Agent';
 
         $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
 

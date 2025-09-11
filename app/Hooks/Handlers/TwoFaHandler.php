@@ -97,7 +97,7 @@ class TwoFaHandler
 
         $redirectIntend = '';
         if (isset($_REQUEST['redirect_to'])) {
-            $redirectIntend = esc_url($_GET['redirect_to']);
+            $redirectIntend = esc_url($_REQUEST['redirect_to']);
         }
 
         if (isset($_REQUEST['rememberme'])) {
