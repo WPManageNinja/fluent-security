@@ -1025,7 +1025,7 @@ class CustomAuthHandler
         $message = \sprintf(__('<p>Hi %s,</p>', 'fluent-security'), $user_data->first_name) .
             __('<p>Someone has requested a new password for the following account on WordPress:</p>', 'fluent-security') .
             \sprintf(__('<p>Username: %s</p>', 'fluent-security'), $user_login) .
-            \sprintf(__('<p>%s</p>', 'fluent-security'), $resetLink) .
+            \sprintf('<p>%s</p>', $resetLink) .
             \sprintf(__('<p>If you did not request to reset your password, please ignore this email.</p>', 'fluent-security'));
 
         /*
