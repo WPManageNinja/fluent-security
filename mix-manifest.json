@@ -6,5 +6,7 @@
     "/dist/images/logo.png": "/dist/images/logo.png",
     "/dist/images/logo.svg": "/dist/images/logo.svg",
     "/dist/images/success.png": "/dist/images/success.png",
-    "/dist/libs/diff.js": "/dist/libs/diff.js"
+    "/dist/libs/diff.js": "/dist/libs/diff.js",
+    "/dist/admin/mode-css.js": "/dist/admin/mode-css.js",
+    "/dist/admin/theme-monokai.js": "/dist/admin/theme-monokai.js"
 }

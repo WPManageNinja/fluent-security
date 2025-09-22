@@ -210,6 +210,21 @@
 
                     </div>
 
+                    <div class="fls_login_settings">
+                        <h3>{{ $t('Custom CSS') }}</h3>
+                        <div>
+                            <v-ace-editor
+                                v-model:value="settings.custom_css"
+                                @init="editorInit"
+                                lang="css"
+                                theme="monokai"
+                                style="height: 350px" />
+                        </div>
+                        <p style="color: #666; font-size: 13px; margin: 10px 0;">
+                            {{ $t('Add your custom CSS here. This will be applied to the login pages. Don\'t add the <style> tag') }}
+                        </p>
+                    </div>
+
                     <el-form-item>
                         <el-button size="large" @click="saveSettings()" :disabled="saving" v-loading="saving"
                                    type="success">
@@ -235,12 +250,15 @@
 
 <script type="text/babel">
 import {InfoFilled} from '@element-plus/icons-vue'
+import { VAceEditor } from 'vue3-ace-editor';
 
 export default {
     name: 'Settings',
     components: {
-        InfoFilled
+        InfoFilled,
+        VAceEditor
     },
+
     data() {
         return {
             settings: false,
@@ -266,11 +284,29 @@ export default {
         }
     },
     methods: {
+        editorInit(editor) {
+            editor.setOptions({
+                fontSize: "13px",
+                showLineNumbers: true,
+                tabSize: 2
+            });
+            
+            editor.session.setMode("ace/mode/css");
+            
+            if (this.settings && this.settings.custom_css) {
+                editor.session.setValue(this.settings.custom_css);
+            }
+
+            editor.session.on('change', () => {
+                if (this.settings) {
+                    this.settings.custom_css = editor.session.getValue();
+                }
+            });
+        },
         fetchSettings() {
             this.loading = true;
             this.$get('settings')
                 .then(response => {
-                    console.log(response);
                     this.settings = response.settings;
                     this.user_roles = response.user_roles;
                     this.low_level_roles = response.low_level_roles;
@@ -281,6 +317,7 @@ export default {
                 })
                 .finally(() => {
                     this.loading = false;
+                    console.log(this.settings);
                 });
         },
         saveSettings() {

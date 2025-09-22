@@ -36,4 +36,8 @@ mix
     .js('src/public/login_helper.js', 'dist/public/login_helper.js')
     .sass('src/public/login_customizer.scss', 'dist/public/login_customizer.css')
     .copy('src/images', 'dist/images')
-    .copy('src/libs', 'dist/libs');
+    .copy('src/libs', 'dist/libs')
+    .copy([
+        'node_modules/ace-builds/src-min-noconflict/mode-css.js',
+        'node_modules/ace-builds/src-min-noconflict/theme-monokai.js'
+    ], 'dist/admin/');
