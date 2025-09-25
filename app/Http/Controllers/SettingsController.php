@@ -50,6 +50,8 @@ class SettingsController
         foreach ($settings as $settingKey => $setting) {
             if (in_array($settingKey, $numericTypes)) {
                 $settings[$settingKey] = (int)$setting;
+            } else if ($settingKey === 'custom_css') {
+                $settings[$settingKey] = wp_strip_all_tags($setting);
             } else {
                 if (is_array($setting)) {
                     $settings[$settingKey] = map_deep($setting, 'sanitize_text_field');
@@ -85,7 +87,6 @@ class SettingsController
         }
 
         return $settings;
-
     }
 
 
@@ -147,7 +148,6 @@ class SettingsController
             }
 
             $oldSettings['redirect_rules'] = $sanitizedRules;
-
         } else {
             $oldSettings['enabled'] = sanitize_text_field($settings['enabled']);
         }

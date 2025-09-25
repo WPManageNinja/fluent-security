@@ -34,7 +34,8 @@ class Helper
             'disable_admin_bar'       => 'no',
             'disable_bar_roles'       => [
                 'subscriber'
-            ]
+            ],
+            'custom_css'              => '' 
         ];
 
         $settings = get_option('__fls_auth_settings');
