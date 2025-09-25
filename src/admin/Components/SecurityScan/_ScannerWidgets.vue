@@ -28,6 +28,8 @@
                                             <el-select v-model="scheduling.scan_interval" :placeholder="$t('Select Interval')">
                                                 <el-option :label="$t('Every Hour')" value="hourly"></el-option>
                                                 <el-option :label="$t('Daily')" value="daily"></el-option>
+                                                <el-option :label="$t('Weekly')" value="weekly"></el-option>
+                                                <el-option :label="$t('Monthly')" value="monthly"></el-option>
                                             </el-select>
                                         </el-form-item>
                                         <el-form-item>
@@ -45,7 +47,7 @@
                                 {{ $t('You will get email alerts if there has any un-authorized file changes.') }}
                             </p>
                             <p>
-                                <b>{{ $t('Scanning Interval') }}:</b> {{ scheduling.scan_interval }} <br/>
+                                <b>{{ $t('Scanning Interval') }}:</b> {{ scheduling.scan_interval.charAt(0).toUpperCase() + scheduling.scan_interval.slice(1) }} <br/>
                                 <b>{{ $t('Notification Email') }}:</b> {{ settings.account_email_id }}
                             </p>
                             <el-button v-loading="saving" :disabled="saving" style="margin-bottom: 15px;"
