@@ -317,7 +317,6 @@ export default {
                 })
                 .finally(() => {
                     this.loading = false;
-                    console.log(this.settings);
                 });
         },
         saveSettings() {
@@ -340,6 +339,8 @@ export default {
                 });
         },
         applyRecommended() {
+            const customCss = this.settings.custom_css;
+            
             this.settings = {
                 disable_xmlrpc: 'yes',
                 disable_app_login: 'no',
@@ -358,7 +359,8 @@ export default {
                 email2fa: 'yes',
                 email2fa_roles: ['administrator', 'editor', 'author'],
                 disable_admin_bar: 'yes',
-                disable_bar_roles: ['subscriber']
+                disable_bar_roles: ['subscriber'],
+                custom_css: customCss 
             }
             this.$notify.success('Recommended settings has been applied. Please review and save the settings');
         }
