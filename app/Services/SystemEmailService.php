@@ -238,11 +238,11 @@ class SystemEmailService
         if ($type == 'password_reset_to_user') {
             ob_start();
             ?>
-            <p>Hello<strong>{{user.display_name}}</strong>,</p>
+            <p>Hello <strong>{{user.display_name}}</strong>,</p>
             <p>A password reset has been requested for the following administrator account:</p>
             <blockquote>
-                <p>Your Account Username: {{user.username}}</p>
-                <p>Your Account Email: {{user.email}}</p>
+                <p>Your Account Username: {{user.user_login}}</p>
+                <p>Your Account Email: {{user.user_email}}</p>
             </blockquote>
             <p>If you did not request this password reset, please disregard this email and no changes will be made to
                 your account.</p>
