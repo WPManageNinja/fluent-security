@@ -165,6 +165,7 @@ class AuthService
     {
         $user_email = apply_filters('user_registration_email', $user_email);
 
+        $errors = new \WP_Error();
         if (empty($extraData['__validated'])) {
             $errors = self::checkUserRegDataErrors($user_login, $user_email);
             if ($errors->has_errors()) {
@@ -223,7 +224,6 @@ class AuthService
 
         $user_id = wp_insert_user($data);
         if (!$user_id || is_wp_error($user_id)) {
-            $errors = new \WP_Error();
             $errors->add('registerfail', __('<strong>Error</strong>: Could not register you. Please contact the site admin!', 'fluent-security'));
             return $errors;
         }
