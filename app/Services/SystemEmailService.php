@@ -162,7 +162,7 @@ class SystemEmailService
             'user_registration_to_user'                   => [
                 'status' => 'system',
                 'email'  => [
-                    'subject' => '[{site.title}] - Set Up Your Password',
+                    'subject' => '[{{site.title}}] - Set Up Your Password',
                     'body'    => self::getDefaultEmailBody('user_registration_to_user')
                 ]
             ],
@@ -210,12 +210,12 @@ class SystemEmailService
             ob_start();
             ?>
             <p>Hello<strong> {{user.display_name}}</strong>,</p>
-            <p>Your account has been created on<strong>{{site.title}}</strong>. To set up your password and complete
+            <p>Your account has been created on <strong>{{site.title}}</strong>. To set up your password and complete
                 your registration, please click the button below:</p>
             <p>&nbsp;</p>
             <p class="align-center" style="text-align: center;" align="center"><a
                     style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"
-                    href="#user.password_set_url#">Set Your Password</a></p>
+                    href="##user.password_set_url##">Set Your Password</a></p>
             <p>&nbsp;</p>
             <p>If the button above doesn't work, you can copy and paste this URL into your browser:</p>
             <p>##user.password_set_url##</p>
@@ -238,11 +238,11 @@ class SystemEmailService
         if ($type == 'password_reset_to_user') {
             ob_start();
             ?>
-            <p>Hello<strong>{{user.display_name}}</strong>,</p>
+            <p>Hello <strong>{{user.display_name}}</strong>,</p>
             <p>A password reset has been requested for the following administrator account:</p>
             <blockquote>
-                <p>Your Account Username: {{user.username}}</p>
-                <p>Your Account Email: {{user.email}}</p>
+                <p>Your Account Username: {{user.user_login}}</p>
+                <p>Your Account Email: {{user.user_email}}</p>
             </blockquote>
             <p>If you did not request this password reset, please disregard this email and no changes will be made to
                 your account.</p>
