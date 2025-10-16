@@ -4,7 +4,7 @@ Tags: Login limit, login redirects, xml-rpc, login logs, social logins
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.3
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -177,6 +177,10 @@ Absolutely not! From the very first, We were careful about this. It stores all t
 10. WordPress Core Files Integrity Check
 
 == Changelog ==
+
+= 2.0.3 - Date: Jun 11, 2025 =
+* Typo and Smartcode fixed on Custom Emails
+* WP_Error Notice fixed
 
 = 2.0.2 - Date: Jun 11, 2025 =
 * Fixed: Login Redirect Issue

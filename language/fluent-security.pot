@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FluentAuth - Auth Security Plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-12 06:44+0000\n"
+"POT-Creation-Date: 2025-10-16 08:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -13,7 +13,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Loco https://localise.biz/\n"
-"X-Loco-Version: 2.7.2; wp-6.8.1\n"
+"X-Loco-Version: 2.7.2; wp-6.8.2\n"
 "X-Domain: fluent-security"
 
 #: app/Hooks/Handlers/SocialAuthHandler.php:673
@@ -36,13 +36,8 @@ msgstr ""
 msgid "%s is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1275
+#: app/Hooks/Handlers/CustomAuthHandler.php:1282
 msgid "2FA Code"
-msgstr ""
-
-#: app/Hooks/Handlers/CustomAuthHandler.php:1028
-#, php-format
-msgid "<p>%s</p>"
 msgstr ""
 
 #: app/Hooks/Handlers/CustomAuthHandler.php:1025
@@ -146,7 +141,7 @@ msgstr ""
 msgid "A verification code has been sent to %s. Please provide the code below:"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1269
+#: app/Hooks/Handlers/CustomAuthHandler.php:1276
 #, php-format
 msgid ""
 "A verification code has been sent to %s. Please provide the code below: "
@@ -160,7 +155,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1255
+#: app/Hooks/Handlers/CustomAuthHandler.php:1262
 msgid "Activate your account"
 msgstr ""
 
@@ -334,7 +329,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1289
+#: app/Hooks/Handlers/CustomAuthHandler.php:1296
 msgid "Complete Signup"
 msgstr ""
 
@@ -825,7 +820,7 @@ msgstr ""
 msgid "Google Client Secret"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1245
+#: app/Hooks/Handlers/CustomAuthHandler.php:1252
 #: app/Hooks/Handlers/TwoFaHandler.php:250
 #: app/Hooks/Handlers/MagicLoginHandler.php:232
 #, php-format
@@ -1009,7 +1004,7 @@ msgstr ""
 msgid "Log has been deleted"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1125
+#: app/Hooks/Handlers/CustomAuthHandler.php:1132
 msgid "Log In"
 msgstr ""
 
@@ -1216,12 +1211,16 @@ msgstr ""
 #: app/Hooks/Handlers/CustomAuthHandler.php:449
 #: app/Hooks/Handlers/CustomAuthHandler.php:451
 #: app/Hooks/Handlers/CustomAuthHandler.php:562
-#: app/Hooks/Handlers/CustomAuthHandler.php:1123
+#: app/Hooks/Handlers/CustomAuthHandler.php:1130
 msgid "Password"
 msgstr ""
 
 #: app/Hooks/Handlers/LoginCustomizerHandler.php:388
 msgid "Password and Confirm password need to be matched"
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:1093
+msgid "Password must be at least 6 characters long"
 msgstr ""
 
 #: app/Services/TransStrings.php:170
@@ -1415,7 +1414,7 @@ msgstr ""
 msgid "Registration has been completed. Please login now"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1124
+#: app/Hooks/Handlers/CustomAuthHandler.php:1131
 msgid "Remember Me"
 msgstr ""
 
@@ -1826,7 +1825,7 @@ msgid ""
 "to enable enhanced security of your site"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1246
+#: app/Hooks/Handlers/CustomAuthHandler.php:1253
 msgid ""
 "Thank you for registering with us! To complete the setup of your account, "
 "please enter the verification code below on the registration page."
@@ -1864,7 +1863,7 @@ msgstr ""
 msgid "There has an error when log you in. Please try to login again"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1249
+#: app/Hooks/Handlers/CustomAuthHandler.php:1256
 msgid ""
 "This code is valid for 10 minutes and is meant to ensure the security of "
 "your account. If you did not initiate this request, please ignore this email."
@@ -1945,7 +1944,7 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1223
+#: app/Hooks/Handlers/CustomAuthHandler.php:1230
 msgid "Too many requests. Please try again later"
 msgstr ""
 
@@ -2021,7 +2020,7 @@ msgstr ""
 msgid "Username or Email"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1122
+#: app/Hooks/Handlers/CustomAuthHandler.php:1129
 msgid "Username or Email Address"
 msgstr ""
 
@@ -2029,11 +2028,11 @@ msgstr ""
 msgid "Username or email is required"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1272
+#: app/Hooks/Handlers/CustomAuthHandler.php:1279
 msgid "Verification Code"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1247
+#: app/Hooks/Handlers/CustomAuthHandler.php:1254
 #, php-format
 msgid "Verification Code: %s"
 msgstr ""
@@ -2078,7 +2077,7 @@ msgstr ""
 msgid "You are already logged in. <a href=\"%s\">Go to Home Page</a>"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:273
+#: app/Hooks/Handlers/LoginSecurityHandler.php:274
 #: app/Hooks/Handlers/MagicLoginHandler.php:186
 msgid "You are trying too much. Please try after %d minutes"
 msgstr ""
@@ -2174,7 +2173,7 @@ msgstr ""
 msgid "Your provided code or url is not valid"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1241
+#: app/Hooks/Handlers/CustomAuthHandler.php:1248
 #, php-format
 msgid "Your registration verification code for %s"
 msgstr ""
