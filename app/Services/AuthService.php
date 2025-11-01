@@ -85,17 +85,6 @@ class AuthService
         }
 
         if (!$user->first_name || !$user->last_name) {
-            if (!empty($userData['full_name'])) {
-                // extract the names
-                $fullNameArray = explode(' ', $userData['full_name']);
-                $updateData['first_name'] = array_shift($fullNameArray);
-                if ($fullNameArray) {
-                    $updateData['last_name'] = implode(' ', $fullNameArray);
-                } else {
-                    $updateData['last_name'] = '';
-                }
-            }
-
             if (!empty($userData['first_name'])) {
                 $updateData['first_name'] = $userData['first_name'];
             }
@@ -193,18 +182,6 @@ class AuthService
 
         if (!empty($extraData['last_name'])) {
             $data['last_name'] = sanitize_text_field($extraData['last_name']);
-        }
-
-        if (!empty($extraData['full_name']) && empty($extraData['first_name']) && empty($extraData['last_name'])) {
-            $extraData['full_name'] = sanitize_text_field($extraData['full_name']);
-            // extract the names
-            $fullNameArray = explode(' ', $extraData['full_name']);
-            $data['first_name'] = array_shift($fullNameArray);
-            if ($fullNameArray) {
-                $data['last_name'] = implode(' ', $fullNameArray);
-            } else {
-                $data['last_name'] = '';
-            }
         }
 
         if (!empty($extraData['description'])) {
