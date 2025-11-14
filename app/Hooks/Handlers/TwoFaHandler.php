@@ -131,6 +131,8 @@ class TwoFaHandler
 
         $this->send2FaEmail($data, $user, $autoLoginUrl);
 
+        do_action('fls_send_2fa_code', $data, $user, $autoLoginUrl);
+
         if ($return === 'url') {
             return add_query_arg([
                 'fls_2fa'    => 'email',
