@@ -419,15 +419,15 @@ class CustomAuthHandler
             'first_name' => [
                 'required'    => true,
                 'type'        => 'text',
-                'label'       => __('First name', 'fluent-security'),
+                'label'       => __('First Name', 'fluent-security'),
                 'id'          => 'fls_first_name',
-                'placeholder' => __('First name', 'fluent-security')
+                'placeholder' => __('First Name', 'fluent-security')
             ],
             'last_name'  => [
                 'type'        => 'text',
                 'label'       => __('Last Name', 'fluent-security'),
                 'id'          => 'fls_last_name',
-                'placeholder' => __('Last name', 'fluent-security')
+                'placeholder' => __('Last Name', 'fluent-security')
             ],
             'username'   => [
                 'required'    => true,
