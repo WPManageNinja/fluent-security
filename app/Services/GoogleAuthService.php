@@ -49,6 +49,37 @@ class GoogleAuthService
         return Arr::get($data, 'id_token');
     }
 
+
+    public static function verifyClientToken($idToken)
+    {
+        $postUrl = 'https://oauth2.googleapis.com/tokeninfo';
+
+        $response = wp_remote_post($postUrl, [
+            'body'    => [
+                'id_token' => $idToken
+            ],
+            'headers' => [
+                'Accept' => 'application/json'
+            ]
+        ]);
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        $config = Helper::getSocialAuthSettings('edit');
+
+        if ($config['google_client_id'] != Arr::get($data, 'aud')) {
+            return new \WP_Error('token_error', __('Sorry! Invalid token audience for google authentication. Please try again', 'fluent-security'));
+        }
+
+        return $data;
+    }
+
+
     public static function getAuthConfirmParams($code = '')
     {
         $config = Helper::getSocialAuthSettings('edit');
@@ -87,6 +118,11 @@ class GoogleAuthService
 
     public static function getAppRedirect()
     {
+
+        if (defined('FLUENT_AUTH_SOCIAL_REDIRECT_URL') && FLUENT_AUTH_SOCIAL_REDIRECT_URL) {
+            return FLUENT_AUTH_SOCIAL_REDIRECT_URL;
+        }
+
         return wp_login_url();
     }
 }
