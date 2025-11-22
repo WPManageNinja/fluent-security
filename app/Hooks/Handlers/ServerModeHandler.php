@@ -79,6 +79,7 @@ class ServerModeHandler
         $redirectTo = add_query_arg($tokenData, $siteConfig['callback_url']);
 
         if ($redirect) {
+            // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
             wp_redirect($redirectTo);
             exit();
         }

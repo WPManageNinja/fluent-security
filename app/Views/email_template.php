@@ -107,7 +107,10 @@ defined('ABSPATH') || exit;
                     <tbody>
                     <tr>
                         <td>
-                            <?php echo $body; ?>
+                            <?php
+                            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                            echo $body;
+                            ?>
                         </td>
                     </tr>
                     </tbody>
@@ -117,7 +120,7 @@ defined('ABSPATH') || exit;
                         <tbody>
                         <tr>
                             <td class="footer_text">
-                                <?php echo $footer; ?>
+                                <?php echo wp_kses_post($footer); ?>
                             </td>
                         </tr>
                         </tbody>

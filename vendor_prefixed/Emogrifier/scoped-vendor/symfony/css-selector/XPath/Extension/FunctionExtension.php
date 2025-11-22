@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:ignoreFile
 
 /*
  * This file is part of the Symfony package.

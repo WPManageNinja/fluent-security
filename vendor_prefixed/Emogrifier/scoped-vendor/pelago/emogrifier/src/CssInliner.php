@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:ignoreFile
 
 declare (strict_types=1);
 namespace FluentEmogrifier\Vendor\Pelago\Emogrifier;

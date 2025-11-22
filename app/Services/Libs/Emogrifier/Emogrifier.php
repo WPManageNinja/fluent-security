@@ -1,4 +1,4 @@
-<?php
+<?php // phpcs:ignoreFile
 
 namespace FluentAuth\App\Services\Libs\Emogrifier;
 
@@ -28,14 +28,14 @@ class Emogrifier
         }
 
         if (!class_exists('\FluentEmogrifier\Vendor\Pelago\Emogrifier\CssInliner')) {
-            require_once __DIR__ . '/scoped-vendor/autoload.php';
+            require_once FLUENT_AUTH_PLUGIN_PATH . '/vendor-prefixed/Emogrifier/scoped-vendor/autoload.php';
         }
 
+        // check if css inlines is available or not
         if (!class_exists('\FluentEmogrifier\Vendor\Pelago\Emogrifier\CssInliner')) {
             return $this->handleLegacy();
         }
 
-        // check if css inlines is available or not
         return \FluentEmogrifier\Vendor\Pelago\Emogrifier\CssInliner::fromHtml($this->html)
             ->inlineCss()
             ->render();

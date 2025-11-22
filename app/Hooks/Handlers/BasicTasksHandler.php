@@ -142,8 +142,9 @@ class BasicTasksHandler
 
         ?>
         <div style="padding-bottom: 10px;" class="notice notice-warning">
-            <p><?php echo sprintf(__('Thank you for installing %s Plugin. Please configure the security settings to enable enhanced security of your site', 'fluent-security'), '<b>FluentAuth</b>'); ?></p>
-            <a href="<?php echo esc_url($url); ?>"><?php _e('Configure Fluent Auth', 'fluent-security'); ?></a>
+            <?php /* translators: %s: Plugin Name  */ ?>
+            <p><?php echo wp_kses_post(sprintf(__('Thank you for installing %s Plugin. Please configure the security settings to enable enhanced security of your site', 'fluent-security'), '<b>FluentAuth</b>')); ?></p>
+            <a href="<?php echo esc_url($url); ?>"><?php esc_html_e('Configure Fluent Auth', 'fluent-security'); ?></a>
         </div>
         <?php
     }

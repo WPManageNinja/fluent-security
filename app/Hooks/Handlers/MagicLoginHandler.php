@@ -85,42 +85,42 @@ class MagicLoginHandler
             <div class="fls_magic_initial">
                 <div class="fls_or_wrap">
                     <div class="fls_magic-or">
-                        <span><?php _e('Or', 'fluent-security') ?></span>
+                        <span><?php esc_html_e('Or', 'fluent-security') ?></span>
                     </div>
                 </div>
 
                 <div class="fls_magic_login_btn">
                     <button class="fls_magic_show_btn magic_btn_secondary button button-primary button-large">
-                        <?php _e('Login Via Magic URL', 'fluent-security'); ?>
+                        <?php esc_html_e('Login Via Magic URL', 'fluent-security'); ?>
                     </button>
                 </div>
             </div>
             <div style="display: none" class="fls_magic_login_form">
                 <p class="fls_magic_text">
-                    <?php _e('Enter the email address or username associated with your account, and we\'ll send a magic link to your inbox.', 'fluent-security'); ?>
+                    <?php esc_html_e('Enter the email address or username associated with your account, and we\'ll send a magic link to your inbox.', 'fluent-security'); ?>
                 </p>
                 <label for="fls_magic_logon">
-                    <?php _e('Your Email/Username', 'fluent-security'); ?>
+                    <?php esc_html_e('Your Email/Username', 'fluent-security'); ?>
                 </label>
-                <input placeholder="<?php _e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon"
+                <input placeholder="<?php esc_html_e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon"
                        class="fls_magic_input" type="text" name="fls_magic_logon_email"/>
                 <input id="fls_magic_logon_nonce" type="hidden" name="fls_magic_logon_nonce"
-                       value="<?php echo wp_create_nonce('fls_magic_logon_nonce'); ?>"/>
+                       value="<?php echo esc_attr(wp_create_nonce('fls_magic_logon_nonce')); ?>"/>
                 <div class="fls_magic_submit_wrapper">
                     <button class="button button-primary button-large" id="fls_magic_submit">
-                        <?php _e('Continue', 'fluent-security'); ?>
+                        <?php esc_html_e('Continue', 'fluent-security'); ?>
                     </button>
                 </div>
 
                 <div class="magic_back_regular">
                     <div class="fls_or_wrap">
                         <div class="fls_magic-or">
-                            <span><?php _e('Or', 'fluent-security') ?></span>
+                            <span><?php esc_html_e('Or', 'fluent-security') ?></span>
                         </div>
                     </div>
                     <div class="fls_magic_login_back">
                         <button class="fls_magic_show_regular magic_btn_secondary">
-                            <?php _e('Use Regular Login form', 'fluent-security'); ?>
+                            <?php esc_html_e('Use Regular Login form', 'fluent-security'); ?>
                         </button>
                     </div>
                 </div>
@@ -186,6 +186,7 @@ class MagicLoginHandler
 
         if ($existingCount > $loginLimit) {
             wp_send_json([
+                /* translators: %d: Minite  */
                 'message' => sprintf(__('You are trying too much. Please try after %d minutes', 'fluent-security'), $timingMinutes)
             ], 422);
         }
@@ -239,15 +240,20 @@ class MagicLoginHandler
 
         $emailData = $this->getCustomizedEmailSubjectBody($user, $loginUrl);
         if (empty($emailData['subject']) || empty($emailData['body'])) {
+            /* translators: %s: Site Name  */
             $emailSubject = sprintf(__('Sign in to %s', 'fluent-security'), get_bloginfo('name'));
 
             $emailLines = [
+                /* translators: %s: user's display name  */
                 sprintf(__('Hello %s,', 'fluent-security'), $user->display_name),
+                /* translators: %s: Site Name  */
                 sprintf(__('Click the link below to sign in to your %s account', 'fluent-security'), get_bloginfo('name')),
+                /* translators: %d: Minute  */
                 sprintf(__('This link will expire in %d minutes and can only be used once.', 'fluent-security'), $validity)
             ];
 
             $callToAction = [
+                /* translators: %s: Site Name  */
                 'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), get_bloginfo('name')),
                 'url'      => $loginUrl
             ];
@@ -286,6 +292,7 @@ class MagicLoginHandler
 
         $message = __('We just emailed a login link to your registered email. Click the link to sign in.', 'fluent-security');
         if (is_email($username)) {
+            /* translators: %s: User Email  */
             $message = sprintf(__('We just emailed a magic link to %s. Click the link to sign in.', 'fluent-security'), $user->user_email);
         }
 

@@ -184,27 +184,30 @@ class LoginCustomizerHandler
         $agreeTerms = Arr::get($_POST, 'agree_terms', '');
         ?>
         <p class="fs_reg_item fs_reg_item_full_name">
-            <label for="user_full_name"><?php _e('Your Full Name', 'fluent-security'); ?></label>
+            <label for="user_full_name"><?php esc_html_e('Your Full Name', 'fluent-security'); ?></label>
             <input type="text" name="user_full_name" id="user_full_name" class="input" value="<?php echo esc_attr($fullName); ?>" size="100" autocomplete="name" required="required"/>
         </p>
 
         <p class="fs_reg_item fs_reg_item_password">
-            <label for="user_password"><?php _e('Password', 'fluent-security'); ?></label>
-            <input type="password" name="user_password" id="user_password" class="input" value="<?php echo htmlspecialchars($password, ENT_QUOTES, 'UTF-8'); ?>" size="50" required="required"/>
+            <label for="user_password"><?php esc_html_e('Password', 'fluent-security'); ?></label>
+            <input type="password" name="user_password" id="user_password" class="input" value="<?php echo esc_html(htmlspecialchars($password, ENT_QUOTES, 'UTF-8')); ?>" size="50" required="required"/>
         </p>
 
         <p class="fs_reg_item fs_reg_item_conf_password">
-            <label for="user_confirm_password"><?php _e('Re-Enter Password', 'fluent-security'); ?></label>
-            <input type="password" name="user_confirm_password" value="<?php echo htmlspecialchars($confirmPassword, ENT_QUOTES, 'UTF-8'); ?>" id="user_confirm_password" class="input" size="50" required="required"/>
+            <label for="user_confirm_password"><?php esc_html_e('Re-Enter Password', 'fluent-security'); ?></label>
+            <input type="password" name="user_confirm_password" value="<?php echo esc_html(htmlspecialchars($confirmPassword, ENT_QUOTES, 'UTF-8')); ?>" id="user_confirm_password" class="input" size="50" required="required"/>
         </p>
 
         <p class="fs_reg_item fs_reg_item_terms">
             <label for="agree_terms">
                 <input type="checkbox" <?php echo $agreeTerms ? 'checked' : ''; ?> name="agree_terms" id="agree_terms" value="agreed" size="50" required="required"/>
                 <?php if ($policyUrl): ?>
-                    <?php printf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="' . esc_url($policyUrl) . '">' . __('terms and conditions.') . '</a>'); ?>
+                    <?php
+                    /* translators: %s: Terms & Conditions Link */
+                    echo wp_kses_post(sprintf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="' . esc_url($policyUrl) . '">' . __('terms and conditions.', 'fluent-security') . '</a>'));
+                    ?>
                 <?php else: ?>
-                    <?php _e('I agree to the terms and conditions', 'fluent-security'); ?>
+                    <?php esc_html_e('I agree to the terms and conditions', 'fluent-security'); ?>
                 <?php endif; ?>
             </label>
         </p>
@@ -235,6 +238,7 @@ class LoginCustomizerHandler
             return $registrationValidation;
         }
 
+        /* translators: %s: User Email */
         $errors->add('confirm_token', sprintf(__('A verification code has been sent to %s. Please provide the code below:', 'fluent-security'), $user_email));
 
         $fullName = Arr::get($_POST, 'user_full_name', '');
@@ -250,7 +254,7 @@ class LoginCustomizerHandler
         ];
 
         add_action('register_form', function () use ($formData) {
-            echo (new CustomAuthHandler())->sendSignupEmailVerificationHtml($formData);
+            (new CustomAuthHandler())->sendSignupEmailVerificationHtml($formData, true);
         });
 
         add_action('login_body_class', function ($classes) {
@@ -350,7 +354,7 @@ class LoginCustomizerHandler
 
         $redirectUrl = apply_filters('login_redirect', $redirectUrl, $intendedRedirectUrl, $user);
 
-        wp_redirect($redirectUrl);
+        wp_safe_redirect($redirectUrl);
         exit();
     }
 

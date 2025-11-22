@@ -96,7 +96,8 @@ class LoginSecurityHandler
             return $errors;
         }
 
-        return new \WP_Error('blocked', sprintf(__('You are blocked for next %d minutes. Please try after that time'), $minutes));
+        /* translators: %d: munites */
+        return new \WP_Error('blocked', sprintf(__('You are blocked for next %d minutes. Please try after that time', 'fluent-security'), $minutes));
     }
 
     /**
@@ -271,6 +272,7 @@ class LoginSecurityHandler
             }
         }
 
+        /* translators: %d: munites */
         return new \WP_Error('login_error', sprintf(__('You are trying too much. Please try after %d minutes', 'fluent-security'), $minutes));
     }
 

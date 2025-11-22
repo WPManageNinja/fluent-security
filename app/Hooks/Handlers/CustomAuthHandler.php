@@ -84,6 +84,7 @@ class CustomAuthHandler
 
         if (get_current_user_id()) {
             $message = apply_filters('fluent_auth/already_logged_in_message',
+                /* translators: %s: Site URL */
                 sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
 
@@ -165,11 +166,13 @@ class CustomAuthHandler
         }
 
         if (!get_option('users_can_register')) {
+            /* translators: %s: Site URL */
             return '<p>' . sprintf(__('User registration is not enabled. <a href="%s">Go to Home Page</a>', 'fluent-security'), esc_url(site_url())) . '</p>';
         }
 
         if (get_current_user_id()) {
             $message = apply_filters('fluent_auth/already_logged_in_message',
+                /* translators: %s: Site URL */
                 sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
             return '<p>' . $message . '</p>';
@@ -231,6 +234,7 @@ class CustomAuthHandler
 
         if (get_current_user_id()) {
             $message = apply_filters('fluent_auth/already_logged_in_message',
+                /* translators: %s: Site URL */
                 sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
             return '<p>' . $message . '</p>';
@@ -286,6 +290,7 @@ class CustomAuthHandler
 
         if (get_current_user_id()) {
             $message = apply_filters('fluent_auth/already_logged_in_message',
+                /* translators: %s: Site URL */
                 sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
             return '<p>' . $message . '</p>';
@@ -316,6 +321,7 @@ class CustomAuthHandler
 
         if (get_current_user_id()) {
             $message = apply_filters('fluent_auth/already_logged_in_message',
+                /* translators: %s: Site URL */
                 sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
             return '<p>' . $message . '</p>';
@@ -335,18 +341,17 @@ class CustomAuthHandler
                     </div>
                 <?php endif; ?>
                 <label for="fls_magic_logon">
-                    <?php _e('Your Email/Username', 'fluent-security'); ?>
+                    <?php esc_html_e('Your Email/Username', 'fluent-security'); ?>
                 </label>
-                <input placeholder="<?php _e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon"
+                <input placeholder="<?php esc_attr_e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon"
                        class="fls_magic_input" type="text"/>
-                <input id="fls_magic_logon_nonce" type="hidden"
-                       value="<?php echo wp_create_nonce('fls_magic_logon_nonce'); ?>"/>
+                <input id="fls_magic_logon_nonce" type="hidden" value="<?php echo esc_attr(wp_create_nonce('fls_magic_logon_nonce')); ?>"/>
                 <?php if (!empty($atts['redirect_to'])): ?>
                     <input type="hidden" value="<?php echo esc_url($atts['redirect_to']); ?>" name="redirect_to"/>
                 <?php endif; ?>
                 <div class="fls_magic_submit_wrapper">
                     <button class="button button-primary button-large" id="fls_magic_submit">
-                        <?php _e('Continue', 'fluent-security'); ?>
+                        <?php esc_html_e('Continue', 'fluent-security'); ?>
                     </button>
                 </div>
             </div>
@@ -1002,6 +1007,7 @@ class CustomAuthHandler
          * @since v1.5.7
          * @param string $linkText
          */
+        /* translators: %s: Site Name */
         $linkText = apply_filters("fluent_auth/reset_password_link", sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
         $resetKey = get_password_reset_key($user_data);
@@ -1020,13 +1026,16 @@ class CustomAuthHandler
          * @since v1.5.7
          * @param string $mailSubject
          */
+        /* translators: %s: Site Name */
         $mailSubject = apply_filters('fluent_auth/reset_password_mail_subject', sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
-        $message = \sprintf(__('<p>Hi %s,</p>', 'fluent-security'), $user_data->first_name) .
-            __('<p>Someone has requested a new password for the following account on WordPress:</p>', 'fluent-security') .
-            \sprintf(__('<p>Username: %s</p>', 'fluent-security'), $user_login) .
+        /* translators: %s: User's first name */
+        $message = '<p>'.\sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) .'</p>'.
+            '<p>'.__('Someone has requested a new password for the following account on WordPress:', 'fluent-security') .'</p>' .
+            /* translators: %s: User's Login */
+            '<p>'.\sprintf(__('Username: %s', 'fluent-security'), $user_login) .'</p>'.
             \sprintf('<p>%s</p>', $resetLink) .
-            \sprintf(__('<p>If you did not request to reset your password, please ignore this email.</p>', 'fluent-security'));
+            '<p>'.\sprintf(__('If you did not request to reset your password, please ignore this email.', 'fluent-security')).'</p>';
 
         /*
          * Filter reset password email body text
@@ -1077,11 +1086,13 @@ class CustomAuthHandler
 
         foreach ($fields as $fieldName => $field) {
             if (!empty($field['required']) && empty($data[$fieldName])) {
+                /* translators: %s: Form Field Label */
                 $errors[$fieldName] = sprintf(__('%s is required', 'fluent-security'), esc_html($field['label']));
             }
 
             if ($field['type'] === 'email') {
                 if (!is_email(Arr::get($data, $fieldName))) {
+                    /* translators: %s: Form Field Label */
                     $errors[$fieldName] = sprintf(__('Provided %s is not a valid email', 'fluent-security'), esc_html(strtolower($field['label'])));
                 }
             }
@@ -1208,7 +1219,7 @@ class CustomAuthHandler
         }
     }
 
-    public function sendSignupEmailVerificationHtml($formData)
+    public function sendSignupEmailVerificationHtml($formData, $echo = false)
     {
         try {
             $verifcationCode = random_int(100123, 900987);
@@ -1245,12 +1256,15 @@ class CustomAuthHandler
         flsDb()->table('fls_login_hashes')
             ->insert($data);
 
+        /* translators: %s: Site Name */
         $mailSubject = apply_filters("fluent_auth/signup_verification_mail_subject", sprintf(__('Your registration verification code for %s', 'fluent-security'), get_bloginfo('name')));
 
         $pStart = '<p style="font-family: Arial, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;">';
 
+        /* translators: %s: First Name */
         $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), Arr::get($formData, 'first_name')) . '</p>' .
             $pStart . __('Thank you for registering with us! To complete the setup of your account, please enter the verification code below on the registration page.', 'fluent-security') . '</p>' .
+            /* translators: %s: Verification code */
             $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
             '<br />' .
             $pStart . __('This code is valid for 10 minutes and is meant to ensure the security of your account. If you did not initiate this request, please ignore this email.', 'fluent-security') . '</p>';
@@ -1268,18 +1282,21 @@ class CustomAuthHandler
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
 
-        ob_start();
+        if(!$echo) {
+            ob_start();
+        }
         ?>
 
         <div class="fls_signup_verification">
             <div class="fls_field_group fls_field_verification">
+                <?php /* translators: %s: Email */ ?>
                 <p class="fls_2fa_instruction"><?php echo esc_html(\sprintf(__('A verification code has been sent to %s. Please provide the code below: ', 'fluent-security'), $formData['email'])) ?></p>
                 <input type="hidden" name="_email_verification_hash" value="<?php echo esc_attr($hash); ?>"/>
                 <div class="fls_field_label is-required"><label
-                        for="fls_field_verification"><?php _e('Verification Code', 'fluent-security'); ?></label></div>
+                        for="fls_field_verification"><?php esc_html_e('Verification Code', 'fluent-security'); ?></label></div>
                 <div class="fs_input_wrap">
                     <input type="text" id="fls_field_verification" class="input"
-                           placeholder="<?php _e('2FA Code', 'fluent-security'); ?>" name="_email_verification_token"
+                           placeholder="<?php esc_attr_e('2FA Code', 'fluent-security'); ?>" name="_email_verification_token"
                            required></div>
             </div>
             <p class="submit">
@@ -1293,12 +1310,15 @@ class CustomAuthHandler
                                           to="360 25 25" dur="0.6s" repeatCount="indefinite"></animateTransform>
                     </path>
                 </svg>
-                    <span><?php _e('Complete Signup', 'fluent-security'); ?></span>
+                    <span><?php esc_html_e('Complete Signup', 'fluent-security'); ?></span>
                 </button>
             </p>
         </div>
         <?php
-        return ob_get_clean();
+        if(!$echo) {
+            return ob_get_clean();
+        }
+        return '';
     }
 
 }

@@ -1,5 +1,5 @@
 <?php
-
+// phpcs:ignoreFile
 namespace FluentAuth\App\Services\Libs\Emogrifier;
 /**
  * This class provides functions for converting CSS styles into inline style attributes in your HTML code.
