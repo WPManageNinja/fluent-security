@@ -1,6 +1,7 @@
 {
     "/dist/admin/app.js": "/dist/admin/app.js",
     "/dist/public/fls_login.js": "/dist/public/fls_login.js",
+    "/dist/public/one_tap.js": "/dist/public/one_tap.js",
     "/dist/public/login_helper.js": "/dist/public/login_helper.js",
     "/dist/public/login_customizer.css": "/dist/public/login_customizer.css",
     "/dist/images/index.php": "/dist/images/index.php",

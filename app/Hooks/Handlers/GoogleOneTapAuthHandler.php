@@ -12,6 +12,13 @@ class GoogleOneTapAuthHandler
         add_action('fluent_auth/init_google_popup_auth', [$this, 'initGooglePopupAuth']);
         //do_action('fluent_auth/init_google_popup_auth', []);
 
+        add_action('login_enqueue_scripts', function () {
+            $this->fluentAuthOneTabloadAssets([
+                'type'  => 'inline',
+                'delay' => 0
+            ]);
+        });
+
         add_shortcode('fluent_auth_google_one_tap', function ($atts) {
             if (!$this->isEnabled()) {
                 return '';
@@ -29,7 +36,7 @@ class GoogleOneTapAuthHandler
             $this->initGooglePopupAuth($atts);
 
             if ($atts['type'] === 'inline') {
-                return '<div class="g_id_signin"></div>';
+                return '<div id="fluent-google-one-tap-button"></div>';
             }
 
             return '';
@@ -76,46 +83,16 @@ class GoogleOneTapAuthHandler
             'in_footer' => true
         ]);
 
-        $dataConfig = [
+        wp_enqueue_script('fluent-auth-google-one-tap', FLUENT_AUTH_PLUGIN_URL . 'dist/public/one_tap.js', ['google-one-tap-client-js'], FLUENT_AUTH_VERSION, [
+            'in_footer' => true
+        ]);
+
+        wp_localize_script('fluent-auth-google-one-tap', 'fluentOneTapConfig', [
+            'type'      => $args['type'],
+            'delay'     => intval($args['delay']),
             'client_id' => $config['google_client_id'],
-            'callback'  => 'handleFluentGAuthOneTapResponse'
-        ];
-
-        $initScript = '';
-
-        if ($args['type'] === 'global') {
-            $initScript = "
-            function initFluentAuthOneTap() {
-                google.accounts.id.initialize(" . wp_json_encode($dataConfig) . ");
-                google.accounts.id.prompt();
-            }; 
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    initFluentAuthOneTap();
-                }, 2 * 1000);
-            });";
-        }
-
-        wp_add_inline_script('google-one-tap-client-js', "function handleFluentGAuthOneTapResponse(response) {
-                console.log(response);
-            } " . $initScript, 'after'
-        );
-
-        if ($initScript) {
-            return;
-        }
-
-        add_action('wp_footer', function () use ($config) {
-            ?>
-            <!-- g_id_onload contains Google Identity Services settings -->
-            <div
-                id="g_id_onload"
-                data-auto_prompt="false"
-                data-callback="handleFluentGAuthOneTapResponse"
-                data-client_id="<?php echo esc_attr($config['google_client_id']); ?>"
-            ></div>
-            <?php
-        }, 9999);
+            'ajax_url'  => admin_url('admin-ajax.php')
+        ]);
     }
 
     private function isEnabled($config = null)

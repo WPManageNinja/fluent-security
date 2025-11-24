@@ -385,7 +385,8 @@ class SocialAuthHandler
                     'fs_auth'            => 'google',
                     'fs_type'            => 'redirect',
                     'intent_redirect_to' => urlencode($redirect_to)
-                ], wp_login_url())
+                ], wp_login_url()),
+                'wrapper_class' => 'fs_auth_google_wrapper'
             ],
             'github'   => [
                 'link_class' => 'fs_auth_btn fs_auth_github',
@@ -473,7 +474,8 @@ class SocialAuthHandler
                 'url'        => add_query_arg([
                     'fs_auth' => 'google',
                     'fs_type' => 'redirect'
-                ], wp_login_url())
+                ], wp_login_url()),
+                'wrapper_class' => 'fs_auth_google_wrapper'
             ],
             'github'   => [
                 'link_class' => 'fs_auth_btn fs_auth_github',
@@ -518,11 +520,21 @@ class SocialAuthHandler
              class="fm_login_with">
             <div class="fm_buttons_wrap">
                 <?php foreach ($buttons as $button): ?>
+                    <?php
+                    $wrapperClass = Arr::get($button, 'wrapper_class');
+                    if($wrapperClass) {
+                        echo '<div class="' . esc_attr($wrapperClass) . '">';
+                    }
+                    ?>
+
                     <a class="<?php echo esc_attr($button['link_class']); ?>"
                        href="<?php echo esc_url($button['url']); ?>">
                         <?php echo Arr::get($button, 'icon'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                         <?php echo $button['title']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                     </a>
+
+                <?php if($wrapperClass) { echo '</div>'; } ?>
+
                 <?php endforeach; ?>
             </div>
         </div>
@@ -656,7 +668,8 @@ class SocialAuthHandler
                     'fs_auth'            => 'google',
                     'fs_type'            => 'redirect',
                     'intent_redirect_to' => urlencode($data['redirect'])
-                ], wp_login_url())
+                ], wp_login_url()),
+                'wrapper_class' => 'fs_auth_google_wrapper'
             ],
             'github'   => [
                 'link_class' => 'fs_auth_btn fs_auth_github',
@@ -693,6 +706,8 @@ class SocialAuthHandler
             unset($buttons['facebook']);
         }
 
+        ob_start();
+
         ?>
 
         <div class="fm_login_wrapper">
@@ -702,11 +717,18 @@ class SocialAuthHandler
             <?php echo wp_kses_post($content); ?>
             <div class="fm_buttons_wrap">
                 <?php foreach ($buttons as $button): ?>
+                    <?php
+                    $wrapperClass = Arr::get($button, 'wrapper_class');
+                    if($wrapperClass) {
+                        echo '<div class="' . esc_attr($wrapperClass) . '">';
+                    }
+                    ?>
                     <a class="<?php echo esc_attr($button['link_class']); ?>"
                        href="<?php echo esc_url($button['url']); ?>">
                         <?php echo Arr::get($button, 'icon'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped  ?>
                         <?php echo esc_html($button['title']); ?>
                     </a>
+                    <?php if($wrapperClass) { echo '</div>'; } ?>
                 <?php endforeach; ?>
             </div>
         </div>
@@ -795,6 +817,8 @@ class SocialAuthHandler
         </style>
 
         <?php
+
+        return ob_get_clean();
     }
 
     private function isEnabled($module = '')

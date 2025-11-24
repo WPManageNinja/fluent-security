@@ -33,6 +33,7 @@ mix.webpackConfig({
 mix
     .js('src/admin/app.js', 'dist/admin/app.js').vue({ version: 3 })
     .js('src/public/magic_url.js', 'dist/public/fls_login.js')
+    .js('src/public/one_tap.js', 'dist/public/one_tap.js')
     .js('src/public/login_helper.js', 'dist/public/login_helper.js')
     .sass('src/public/login_customizer.scss', 'dist/public/login_customizer.css')
     .copy('src/images', 'dist/images')
