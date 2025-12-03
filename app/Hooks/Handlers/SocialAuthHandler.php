@@ -287,6 +287,7 @@ class SocialAuthHandler
                 $cookieRedirect = admin_url();
             }
             $intentRedirectTo = $cookieRedirect;
+            $redirect_to = $cookieRedirect;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();
