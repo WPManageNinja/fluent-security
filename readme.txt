@@ -4,7 +4,7 @@ Tags: Login limit, login redirects, xml-rpc, login logs, social logins
 Requires at least: 5.0
 Tested up to: 6.9
 Requires PHP: 7.3
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -179,7 +179,7 @@ Absolutely not! From the very first, We were careful about this. It stores all t
 
 == Changelog ==
 
-= 2.1.0 - Date: Dec 03, 2025 =
+= 2.1.1 - Date: Dec 03, 2025 =
 * Introducing One-Tap Login via Google Social Auth Connection
 * Improved Translation & Localization
 * Security: Improved Data Security and Sanitization and compitable with latest WordPress security standards
