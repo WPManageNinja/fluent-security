@@ -241,6 +241,7 @@ class Helper
             'enable_google'          => 'no',
             'google_key_method'      => 'wp_config',
             'google_client_id'       => '',
+            'google_one_tap'         => 'no',
             'google_client_secret'   => '',
             'enable_github'          => 'no',
             'github_key_method'      => 'wp_config',
@@ -509,7 +510,7 @@ class Helper
     {
         $validated = wp_validate_redirect($location, $fallback);
 
-        if($validated !== $location) {
+        if ($validated !== $location) {
             return apply_filters('fluent_auth/validated_redirect', $validated, $location, $fallback);
         }
 

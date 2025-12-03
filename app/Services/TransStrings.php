@@ -78,6 +78,7 @@ class TransStrings
             'Enable Auto Scanning' => __('Enable Auto Scanning', 'fluent-security'),
             'Enable Custom Login / Signup Shortcodes' => __('Enable Custom Login / Signup Shortcodes', 'fluent-security'),
             'Enable Custom Login Redirects' => __('Enable Custom Login Redirects', 'fluent-security'),
+            'Enable Google One-Tap Login/Signup' => __('Enable Google One-Tap Login/Signup', 'fluent-security'),
             'Enable Login Security and Login Limit (recommended)' => __('Enable Login Security and Login Limit (recommended)', 'fluent-security'),
             'Enable Login with Facebook' => __('Enable Login with Facebook', 'fluent-security'),
             'Enable Login with Github' => __('Enable Login with Github', 'fluent-security'),

@@ -2,6 +2,7 @@
 
 namespace FluentAuth\App\Hooks\Handlers;
 
+use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 
 class GoogleOneTapAuthHandler
@@ -10,9 +11,26 @@ class GoogleOneTapAuthHandler
     public function register()
     {
         add_action('fluent_auth/init_google_popup_auth', [$this, 'initGooglePopupAuth']);
-        //do_action('fluent_auth/init_google_popup_auth', []);
+
+        add_action('fluent_auth/social/rendering_button_google', function () {
+            if (!$this->isOnetapEnabled()) {
+                return;
+            }
+            $this->initGooglePopupAuth([
+                'type'  => 'inline',
+                'delay' => 0
+            ]);
+        });
+
+        add_filter('fluent_auth/is_google_one_tap_enabled', function () {
+            return $this->isOnetapEnabled();
+        });
 
         add_action('login_enqueue_scripts', function () {
+            if (!$this->isOnetapEnabled()) {
+                return;
+            }
+
             $this->fluentAuthOneTabloadAssets([
                 'type'  => 'inline',
                 'delay' => 0
@@ -20,11 +38,7 @@ class GoogleOneTapAuthHandler
         });
 
         add_shortcode('fluent_auth_google_one_tap', function ($atts) {
-            if (!$this->isEnabled()) {
-                return '';
-            }
-
-            if (is_user_logged_in()) {
+            if (!$this->isOnetapEnabled() || is_user_logged_in()) {
                 return '';
             }
 
@@ -41,17 +55,11 @@ class GoogleOneTapAuthHandler
 
             return '';
         });
-
     }
 
     public function initGooglePopupAuth($args = [])
     {
-
-        if (is_user_logged_in()) {
-            return '';
-        }
-
-        if (!$this->isEnabled()) {
+        if (is_user_logged_in() || !$this->isOnetapEnabled()) {
             return '';
         }
 
@@ -97,16 +105,23 @@ class GoogleOneTapAuthHandler
 
     private function isEnabled($config = null)
     {
+
+        return (new SocialAuthHandler())->isEnabled('google');
+
+
+    }
+
+    private function isOnetapEnabled($config = null)
+    {
+        if (!$this->isEnabled()) {
+            return false;
+        }
+
         if (!$config) {
             $config = Helper::getSocialAuthSettings('edit');
         }
 
-        if ($config['enabled'] !== 'yes' || $config['enable_google'] != 'yes' || empty($config['google_client_id'])) {
-            return;
-        }
-
-        return true;
-
+        return Arr::get($config, 'google_one_tap') === 'yes';
     }
 
 }

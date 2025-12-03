@@ -15,20 +15,20 @@ class SocialAuthApiController
         return [
             'settings'  => Helper::getSocialAuthSettings('view'),
             'auth_info' => [
-                'github' => [
+                'github'   => [
                     'is_available' => true,
                     'app_redirect' => GithubAuthService::getAppRedirect(),
-                    'doc_url' => 'https://fluentauth.com/docs/github-auth-connection'
+                    'doc_url'      => 'https://fluentauth.com/docs/github-auth-connection'
                 ],
-                'google' => [
+                'google'   => [
                     'is_available' => true,
                     'app_redirect' => GoogleAuthService::getAppRedirect(),
-                    'doc_url' => 'https://fluentauth.com/docs/google-auth-connection'
+                    'doc_url'      => 'https://fluentauth.com/docs/google-auth-connection'
                 ],
                 'facebook' => [
                     'is_available' => true,
                     'app_redirect' => FacebookAuthService::getAppRedirect(),
-                    'doc_url' => 'https://fluentauth.com/docs/facebook-auth-connection'
+                    'doc_url'      => 'https://fluentauth.com/docs/facebook-auth-connection'
                 ]
             ]
         ];
@@ -56,20 +56,21 @@ class SocialAuthApiController
         if ($settings['enabled'] != 'yes' || ($settings['enable_google'] != 'yes' && $settings['enable_github'] != 'yes' &&
                 $settings['enable_facebook'] != 'yes')) {
             return [
-                'enabled'              => 'no',
-                'enable_google'        => 'no',
-                'google_key_method'    => 'wp_config',
-                'google_client_id'     => '',
-                'google_client_secret' => '',
-                'enable_github'        => 'no',
-                'github_key_method'    => 'wp_config',
-                'github_client_id'     => '',
-                'github_client_secret' => '',
-                'enable_facebook' => 'no',
-                'facebook_key_method' => 'wp_config',
-                'facebook_client_id' => '',
+                'enabled'                => 'no',
+                'enable_google'          => 'no',
+                'google_one_tap'         => 'no',
+                'google_key_method'      => 'wp_config',
+                'google_client_id'       => '',
+                'google_client_secret'   => '',
+                'enable_github'          => 'no',
+                'github_key_method'      => 'wp_config',
+                'github_client_id'       => '',
+                'github_client_secret'   => '',
+                'enable_facebook'        => 'no',
+                'facebook_key_method'    => 'wp_config',
+                'facebook_client_id'     => '',
                 'facebook_client_secret' => '',
-                'facebook_api_version' => 'v12.0'
+                'facebook_api_version'   => 'v12.0'
             ];
         }
 
@@ -144,7 +145,7 @@ class SocialAuthApiController
             if (!defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID') || !defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) {
                 return new \WP_Error('validation_error', 'Form Validation failed', [
                     'facebook_key_method' => [
-                        'FLUENT_AUTH_FACEBOOK_CLIENT_ID' => 'FLUENT_AUTH_FACEBOOK_CLIENT_ID constant is required in wp-config.php file',
+                        'FLUENT_AUTH_FACEBOOK_CLIENT_ID'     => 'FLUENT_AUTH_FACEBOOK_CLIENT_ID constant is required in wp-config.php file',
                         'FLUENT_AUTH_FACEBOOK_CLIENT_SECRET' => 'FLUENT_AUTH_FACEBOOK_CLIENT_SECRET constant is required in wp-config.php file',
                     ]
                 ]);
@@ -154,7 +155,7 @@ class SocialAuthApiController
             $settings['facebook_client_secret'] = sanitize_textarea_field($settings['facebook_client_secret']);
             if (empty($settings['facebook_client_id']) || empty($settings['facebook_client_secret'])) {
                 return new \WP_Error('validation_error', 'Form Validation failed', [
-                    'facebook_client_id' => [
+                    'facebook_client_id'     => [
                         'required' => 'Facebook Client ID is required'
                     ],
                     'facebook_client_secret' => [

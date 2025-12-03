@@ -235,7 +235,7 @@ class CustomAuthHandler
         if (get_current_user_id()) {
             $message = apply_filters('fluent_auth/already_logged_in_message',
                 /* translators: %s: Site URL */
-                sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
+                \sprintf(__('You are already logged in. <a href="%s">Go to Home Page</a>', 'fluent-security'), site_url())
             );
             return '<p>' . $message . '</p>';
         }
@@ -266,7 +266,7 @@ class CustomAuthHandler
             $resetPasswordForm .= $this->renderField($fieldName, $resetPasswordField);
         }
 
-        $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . $attributes['redirect_to'] . '">';
+        $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . esc_attr($attributes['redirect_to']) . '">';
         $resetPasswordForm .= '<input type="hidden" name="_fls_reset_pass_nonce" value="' . wp_create_nonce('fluent_auth_reset_pass_nonce') . '">';
         $resetPasswordForm .= '<button type="submit" id="fls_reset_pass">' . $this->submitBtnLoadingSvg() . '<span>' . __('Reset Password', 'fluent-security') . '</span></button>';
 
@@ -345,7 +345,8 @@ class CustomAuthHandler
                 </label>
                 <input placeholder="<?php esc_attr_e('Your Email/Username', 'fluent-security'); ?>" id="fls_magic_logon"
                        class="fls_magic_input" type="text"/>
-                <input id="fls_magic_logon_nonce" type="hidden" value="<?php echo esc_attr(wp_create_nonce('fls_magic_logon_nonce')); ?>"/>
+                <input id="fls_magic_logon_nonce" type="hidden"
+                       value="<?php echo esc_attr(wp_create_nonce('fls_magic_logon_nonce')); ?>"/>
                 <?php if (!empty($atts['redirect_to'])): ?>
                     <input type="hidden" value="<?php echo esc_url($atts['redirect_to']); ?>" name="redirect_to"/>
                 <?php endif; ?>
@@ -519,9 +520,16 @@ class CustomAuthHandler
             'show-reset-password' => false,
         ]);
 
-        if (Arr::get($attributes, 'redirect_to') == 'self') {
+        $redirectTo = Arr::get($attributes, 'redirect_to');
+
+        if ($redirectTo == 'self') {
             $redirectTo = home_url(Arr::get($_SERVER, 'REQUEST_URI'));
             $attributes['redirect_to'] = $redirectTo;
+        } else if ($redirectTo) {
+            // Validate URL
+            if (!filter_var($redirectTo, FILTER_VALIDATE_URL)) {
+                $attributes['redirect_to'] = '';
+            }
         }
 
         return shortcode_atts($shortCodeDefaults, $attributes);
@@ -532,7 +540,6 @@ class CustomAuthHandler
         if (get_current_user_id() && !wp_is_json_request() && is_singular()) {
             if ($attributes['auto-redirect'] === 'true') {
                 $redirect = $attributes['redirect_to'];
-
                 if (!$redirect) {
                     return;
                 }
@@ -1030,12 +1037,12 @@ class CustomAuthHandler
         $mailSubject = apply_filters('fluent_auth/reset_password_mail_subject', sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
         /* translators: %s: User's first name */
-        $message = '<p>'.\sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) .'</p>'.
-            '<p>'.__('Someone has requested a new password for the following account on WordPress:', 'fluent-security') .'</p>' .
+        $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) . '</p>' .
+            '<p>' . __('Someone has requested a new password for the following account on WordPress:', 'fluent-security') . '</p>' .
             /* translators: %s: User's Login */
-            '<p>'.\sprintf(__('Username: %s', 'fluent-security'), $user_login) .'</p>'.
+            '<p>' . \sprintf(__('Username: %s', 'fluent-security'), $user_login) . '</p>' .
             \sprintf('<p>%s</p>', $resetLink) .
-            '<p>'.\sprintf(__('If you did not request to reset your password, please ignore this email.', 'fluent-security')).'</p>';
+            '<p>' . \sprintf(__('If you did not request to reset your password, please ignore this email.', 'fluent-security')) . '</p>';
 
         /*
          * Filter reset password email body text
@@ -1282,7 +1289,7 @@ class CustomAuthHandler
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
 
-        if(!$echo) {
+        if (!$echo) {
             ob_start();
         }
         ?>
@@ -1293,10 +1300,12 @@ class CustomAuthHandler
                 <p class="fls_2fa_instruction"><?php echo esc_html(\sprintf(__('A verification code has been sent to %s. Please provide the code below: ', 'fluent-security'), $formData['email'])) ?></p>
                 <input type="hidden" name="_email_verification_hash" value="<?php echo esc_attr($hash); ?>"/>
                 <div class="fls_field_label is-required"><label
-                        for="fls_field_verification"><?php esc_html_e('Verification Code', 'fluent-security'); ?></label></div>
+                        for="fls_field_verification"><?php esc_html_e('Verification Code', 'fluent-security'); ?></label>
+                </div>
                 <div class="fs_input_wrap">
                     <input type="text" id="fls_field_verification" class="input"
-                           placeholder="<?php esc_attr_e('2FA Code', 'fluent-security'); ?>" name="_email_verification_token"
+                           placeholder="<?php esc_attr_e('2FA Code', 'fluent-security'); ?>"
+                           name="_email_verification_token"
                            required></div>
             </div>
             <p class="submit">
@@ -1315,7 +1324,7 @@ class CustomAuthHandler
             </p>
         </div>
         <?php
-        if(!$echo) {
+        if (!$echo) {
             return ob_get_clean();
         }
         return '';
