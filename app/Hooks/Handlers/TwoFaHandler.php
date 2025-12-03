@@ -253,8 +253,8 @@ class TwoFaHandler
         if (empty($emailData['subject']) || empty($emailData['body'])) {
             $blogName = html_entity_decode(get_bloginfo('name'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-            /* translators: %1$1s: Site Name, %$d: verification code */
-            $emailSubject = sprintf(__('Your Login code for %1$1s - %$d', 'fluent-security'), $blogName, $data['two_fa_code']);
+            /* translators: %1$1s: Site Name, %2$d: verification code */
+            $emailSubject = sprintf(__('Your Login code for %1$1s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
 
             $emailLines = [
                 /* translators: %s: User's Display Name  */
