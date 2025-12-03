@@ -28,7 +28,7 @@ class Emogrifier
         }
 
         if (!class_exists('\FluentEmogrifier\Vendor\Pelago\Emogrifier\CssInliner')) {
-            require_once FLUENT_AUTH_PLUGIN_PATH . '/vendor-prefixed/Emogrifier/scoped-vendor/autoload.php';
+            require_once FLUENT_AUTH_PLUGIN_PATH . 'vendor_prefixed/Emogrifier/scoped-vendor/autoload.php';
         }
 
         // check if css inlines is available or not
