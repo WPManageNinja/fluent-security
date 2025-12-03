@@ -4,6 +4,8 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\GoogleAuthService;
 
 class GoogleOneTapAuthHandler
 {
@@ -55,6 +57,119 @@ class GoogleOneTapAuthHandler
 
             return '';
         });
+
+        add_action('wp_ajax_fluent_security_google_one_tap_login', [$this, 'handleGoogleOneTapLogin']);
+        add_action('wp_ajax_nopriv_fluent_security_google_one_tap_login', [$this, 'handleGoogleOneTapLogin']);
+    }
+
+    public function handleGoogleOneTapLogin()
+    {
+        if (is_user_logged_in()) {
+            $redirectUrl = admin_url();
+            if ($_POST['mode'] !== 'inline') {
+                $providedUrl = isset($_POST['current_url']) ? $_POST['current_url'] : '';
+                if (filter_var($providedUrl, FILTER_VALIDATE_URL)) {
+                    $redirectUrl = esc_url_raw($providedUrl);
+                }
+            }
+
+            wp_send_json([
+                'message'      => __('You are already logged in.', 'fluent-security'),
+                'redirect_url' => $redirectUrl
+            ]);
+        }
+
+        $crednetial = isset($_POST['credential']) ? sanitize_text_field($_POST['credential']) : '';
+
+        $redirectUrl = $this->handleGoogleTokenConfirm($crednetial);
+
+        if (is_wp_error($redirectUrl)) {
+            wp_send_json([
+                'message' => $redirectUrl->get_error_message()
+            ], 422);
+        }
+
+        if (is_user_logged_in() && $_POST['mode'] !== 'inline') {
+            $providedUrl = isset($_POST['current_url']) ? $_POST['current_url'] : '';
+            if (filter_var($providedUrl, FILTER_VALIDATE_URL)) {
+                $redirectUrl = esc_url_raw($providedUrl);
+            }
+        }
+
+        wp_send_json([
+            'redirect_url' => $redirectUrl
+        ]);
+    }
+
+    private function handleGoogleTokenConfirm($crednetial)
+    {
+        $tokenData = \FluentAuth\App\Services\GoogleAuthService::verifyClientToken($crednetial);
+
+        if (is_wp_error($tokenData)) {
+            return $tokenData;
+        }
+
+        $username = Arr::get($tokenData, 'email');
+        $emailArray = explode('@', $username);
+        if (count($emailArray)) {
+            $username = $emailArray[0];
+        }
+
+        $userData = [
+            'full_name' => Arr::get($tokenData, 'name'),
+            'email'     => Arr::get($tokenData, 'email'),
+            'username'  => $username,
+            'photo'     => Arr::get($tokenData, 'picture')
+        ];
+
+        if (is_user_logged_in()) {
+            $existingUser = get_user_by('ID', get_current_user_id());
+            if ($existingUser->user_email !== $userData['email']) {
+                return new \WP_Error('email_mismatch', __('Your Google email address does not match with your current account email address. Please use the same email address', 'fluent-security'));
+            }
+        }
+
+        if (empty($userData['email']) || !is_email($userData['email'])) {
+            return new \WP_Error('email_error', __('Sorry! we could not find your valid email from Google API', 'fluent-security'));
+        }
+
+        $existingUser = get_user_by('email', $userData['email']);
+        if ($existingUser) {
+            $twoFaHandler = new TwoFaHandler();
+            if ($redirectUrl = $twoFaHandler->sendAndGet2FaConfirmFormUrl($existingUser)) {
+                return $redirectUrl;
+            }
+        }
+
+        $user = AuthService::doUserAuth($userData, 'google');
+
+        if (is_wp_error($user)) {
+            return $user;
+        }
+
+        $intentRedirectTo = '';
+        if (isset($_COOKIE['fs_intent_redirect'])) {
+            $cookieRedirect = $_COOKIE['fs_intent_redirect'];
+            if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
+                $cookieRedirect = admin_url();
+                $intentRedirectTo = '';
+            }
+            $redirect_to = $cookieRedirect;
+        } else {
+            if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
+                $redirect_to = user_admin_url();
+            } elseif (is_multisite() && !$user->has_cap('read')) {
+                $redirect_to = get_dashboard_url($user->ID);
+            } elseif (!$user->has_cap('edit_posts')) {
+                $redirect_to = $user->has_cap('read') ? admin_url('profile.php') : home_url();
+            } else {
+                $redirect_to = admin_url();
+            }
+        }
+
+        update_user_meta($user->ID, '_fls_login_google', $userData['email']);
+
+        return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
     }
 
     public function initGooglePopupAuth($args = [])
@@ -83,9 +198,6 @@ class GoogleOneTapAuthHandler
     public function fluentAuthOneTabloadAssets($args = [])
     {
         $config = Helper::getSocialAuthSettings('edit');
-        if ($config['enabled'] !== 'yes' || $config['enable_google'] != 'yes' || empty($config['google_client_id'])) {
-            return;
-        }
 
         wp_enqueue_script('google-one-tap-client-js', 'https://accounts.google.com/gsi/client', [], '', [
             'in_footer' => true

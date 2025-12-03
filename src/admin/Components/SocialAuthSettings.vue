@@ -65,6 +65,9 @@ define('FLUENT_AUTH_GITHUB_CLIENT_SECRET', '******');
                                 <el-switch v-model="settings.google_one_tap" active-value="yes" inactive-value="no"/>
                                 {{ $t('Enable Google One-Tap Login/Signup') }}
                             </el-form-item>
+                            <p v-if="settings.google_one_tap == 'yes'">
+                                {{$t('To use Google One-Tap feature, you need to add your website domain in the Authorized JavaScript origins section of your Google app settings.')}}
+                            </p>
 
                             <el-form-item :label="$t('Credential Storage Method')">
                                 <el-radio-group v-model="settings.google_key_method">

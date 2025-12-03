@@ -45,5 +45,6 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('upload-image', ['\FluentAuth\App\Http\Controllers\SettingsController', 'uploadImage'], $permissions)
     ->post('child-sites',['\FluentAuth\App\Http\Controllers\SettingsController', 'saveChildSite'], $permissions)
     ->get('child-sites',['\FluentAuth\App\Http\Controllers\SettingsController', 'getChildSites'], $permissions)
-    ->post('child-sites/validate-token', ['\FluentAuth\App\Http\Controllers\SettingsController', 'validateChildSiteToken'], 'fluent_auth_public_route_permission');
+    ->post('child-sites/validate-token', ['\FluentAuth\App\Http\Controllers\SettingsController', 'validateChildSiteToken'], 'fluent_auth_public_route_permission')
+    ->post('install-plugin', ['\FluentAuth\App\Http\Controllers\SettingsController', 'installPlugin'], $permissions);
 

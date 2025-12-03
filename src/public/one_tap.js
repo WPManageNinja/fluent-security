@@ -14,14 +14,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 200) {
                     const res = JSON.parse(xhr.responseText);
-                    if (res.success) {
-                        // Redirect or reload the page on successful login
-                        window.location.href = res.redirect_url || window.location.href;
-                    } else {
-                        console.error('Login failed:', res.data.message);
-                    }
+                    window.location.href = res.redirect_url || window.location.href;
                 } else {
-                    console.error('AJAX request failed with status:', xhr.status);
+                    let message = 'An error occurred during the login process. Please try again.';
+                    const res = JSON.parse(xhr.responseText);
+                    if (res && res.message) {
+                        message = res.message;
+                    }
+                    alert(message);
                 }
             }
         };
@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const params = new URLSearchParams();
         params.append('action', 'fluent_security_google_one_tap_login');
         params.append('mode', config.mode);
+        params.append('current_url', window.location.href);
         params.append('credential', response.credential);
         xhr.send(params.toString());
     }
@@ -46,10 +47,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let buttonWrappers = document.querySelectorAll('.fs_auth_google_wrapper');
 
-    if(buttonWrappers.length) {
+    if (buttonWrappers.length) {
         buttonWrappers.forEach(function (wrapper) {
             // Create a container for the button if it doesn't exist
-           // wrapper.innerHTML = ''; // Clear any existing button
+            // wrapper.innerHTML = ''; // Clear any existing button
             window.google.accounts.id.renderButton(
                 wrapper,
                 {
