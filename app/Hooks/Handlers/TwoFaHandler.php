@@ -394,7 +394,7 @@ class TwoFaHandler
                 <label for="login_passcode"><?php esc_html_e('Two-Factor Authentication Code', 'fluent-security'); ?></label>
                 <div class="wp-pwd">
                     <input style="font-size: 14px;" placeholder="<?php esc_html_e('Login Code', 'fluent-security'); ?>"
-                           type="text"
+                           type="number"
                            value="<?php echo (isset($data['auto_code'])) ? esc_attr($data['auto_code']) : ''; ?>"
                            name="login_passcode" id="login_passcode" class="input" size="20"/>
                 </div>

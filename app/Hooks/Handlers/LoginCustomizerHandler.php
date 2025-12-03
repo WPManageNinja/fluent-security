@@ -204,7 +204,7 @@ class LoginCustomizerHandler
                 <?php if ($policyUrl): ?>
                     <?php
                     /* translators: %s: Terms & Conditions Link */
-                    echo wp_kses_post(sprintf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="' . esc_url($policyUrl) . '">' . __('terms and conditions.', 'fluent-security') . '</a>'));
+                    echo wp_kses_post(\sprintf(__('I agree to the %s', 'fluent-security'), '<a target="_blank" rel="noopener" href="' . esc_url($policyUrl) . '">' . __('terms and conditions.', 'fluent-security') . '</a>'));
                     ?>
                 <?php else: ?>
                     <?php esc_html_e('I agree to the terms and conditions', 'fluent-security'); ?>
