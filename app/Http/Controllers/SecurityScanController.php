@@ -208,9 +208,33 @@ class SecurityScanController
             return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400, 'data' => $file]);
         }
 
-        $sensitiveFiles = ['wp-config.php', 'wp-config-sample.php', '.htaccess', '.env'];
-        if (in_array($file, $sensitiveFiles)) {
-            return new \WP_Error('invalid_data', __('This file could not be viewed.', 'fluent-security'), ['status' => 400, 'data' => $file]);
+        $sensitivePatterns = [
+            'wp-config',
+            '.htaccess',
+            '.env',
+            'debug.log',
+            'error_log',
+            'php_errorlog',
+            '.user.ini',
+            '.php.ini',
+            'php.ini',
+            '.ftpconfig',
+            '.ssh',
+        ];
+
+        $backupExtensions = ['.bak', '.back', '.backup', '.old', '.orig', '.save', '.swp', '.tmp', '.copy', '~'];
+
+        $fileLower = strtolower($file);
+        foreach ($sensitivePatterns as $pattern) {
+            if (strpos($fileLower, $pattern) !== false) {
+                return new \WP_Error('invalid_data', __('This file could not be viewed.', 'fluent-security'), ['status' => 400, 'data' => $file]);
+            }
+        }
+
+        foreach ($backupExtensions as $ext) {
+            if (substr($fileLower, -strlen($ext)) === $ext) {
+                return new \WP_Error('invalid_data', __('This file could not be viewed.', 'fluent-security'), ['status' => 400, 'data' => $file]);
+            }
         }
 
         if (!file_exists($filePath)) {

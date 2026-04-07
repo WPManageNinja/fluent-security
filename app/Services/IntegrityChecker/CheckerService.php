@@ -264,6 +264,7 @@ class CheckerService
             'wp-config.php',
             'wp-config-sample.php',
             '.htaccess',
+            '.env',
             WPINC,
             'wp-content',
             basename(WP_CONTENT_DIR)
@@ -271,11 +272,27 @@ class CheckerService
 
         $rootFiles = array_diff($rootFiles, $ignores);
 
+        $backupExtensions = ['.bak', '.back', '.backup', '.old', '.orig', '.save', '.swp', '.tmp', '.copy', '~'];
+
         $files = [];
         $extraFolders = [];
         foreach ($rootFiles as $file) {
             if (preg_match('/^(file-manager-|adminer-).*\.php$|\.conf$/i', $file)) {
                 continue; // we are ignoring known useful files
+            }
+
+            $fileLower = strtolower($file);
+
+            // Skip backup/temp files
+            $isBackup = false;
+            foreach ($backupExtensions as $ext) {
+                if (substr($fileLower, -strlen($ext)) === $ext) {
+                    $isBackup = true;
+                    break;
+                }
+            }
+            if ($isBackup) {
+                continue;
             }
 
             if (is_file($rootFolder . '/' . $file)) {
