@@ -5,3 +5,4 @@ builds
 tests/vendor
 .phpunit.result.cache
 .phpunit.result.cache
+_docs/security-audit-2026-04-07.md

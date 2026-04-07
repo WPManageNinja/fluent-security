@@ -224,6 +224,22 @@ class SystemEmailsController
         $newSettings = Arr::only($newSettings, array_keys($settings));
         $newSettings['footer_text'] = wp_kses_post($newSettings['footer_text']);
 
+        // Sanitize color fields
+        $colorFields = ['body_bg', 'content_bg', 'content_color', 'footer_content_color', 'highlight_bg', 'highlight_color'];
+        foreach ($colorFields as $field) {
+            if (!empty($newSettings[$field])) {
+                $newSettings[$field] = self::sanitizeColorValue($newSettings[$field]);
+            }
+        }
+
+        // Sanitize remaining text fields
+        $textFields = ['font_family', 'template', 'logo', 'email_footer'];
+        foreach ($textFields as $field) {
+            if (isset($newSettings[$field])) {
+                $newSettings[$field] = sanitize_text_field($newSettings[$field]);
+            }
+        }
+
         // Validate the data
         if (!empty($newSettings['from_email'])) {
             if (!is_email($newSettings['from_email'])) {
@@ -252,6 +268,23 @@ class SystemEmailsController
         return [
             'message' => __('Email template settings has been succcesfully updated', 'fluent-security')
         ];
+    }
+
+    private static function sanitizeColorValue($value)
+    {
+        $value = trim($value);
+
+        // Allow hex colors: #fff, #ffffff, #ffffffff
+        if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $value)) {
+            return $value;
+        }
+
+        // Allow rgb/rgba: rgb(0, 0, 0) or rgba(0, 0, 0, 0.5)
+        if (preg_match('/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+))?\s*\)$/', $value)) {
+            return $value;
+        }
+
+        return '';
     }
 
     private static function validateEmailBody($emailBody, $smartCodes = [])

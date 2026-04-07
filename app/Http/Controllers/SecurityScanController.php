@@ -193,30 +193,24 @@ class SecurityScanController
             $folder = WPINC;
         }
 
+        $file = basename($file);
+
         if ($folder) {
             $filePath = ABSPATH . $folder . '/' . $file;
-            if (realpath($filePath) != $filePath) {
-                return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400, 'data' => $file]);
-            }
         } else {
-            $ignoredFiles = [
-                '.git',
-                '.gitignore',
-                '.DS_Store',
-                '.idea',
-                'wp-admin',
-                'wp-includes',
-                'wp-config.php',
-                'wp-config-sample.php',
-                '.htaccess',
-            ];
-
-            $file = basename($file);
-
-            if (in_array($file, $ignoredFiles)) {
-                return new \WP_Error('invalid_data', __('This file could not be viewed.', 'fluent-security'), ['status' => 400, 'data' => $file]);
-            }
             $filePath = ABSPATH . $file;
+        }
+
+        $realPath = realpath($filePath);
+        $expectedDir = $folder ? rtrim(ABSPATH . $folder, '/') : rtrim(ABSPATH, '/');
+
+        if (!$realPath || strpos($realPath, $expectedDir) !== 0) {
+            return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400, 'data' => $file]);
+        }
+
+        $sensitiveFiles = ['wp-config.php', 'wp-config-sample.php', '.htaccess', '.env'];
+        if (in_array($file, $sensitiveFiles)) {
+            return new \WP_Error('invalid_data', __('This file could not be viewed.', 'fluent-security'), ['status' => 400, 'data' => $file]);
         }
 
         if (!file_exists($filePath)) {

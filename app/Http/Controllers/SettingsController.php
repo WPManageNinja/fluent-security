@@ -203,7 +203,6 @@ class SettingsController
             'gif'          => 'image/gif',
             'webp'         => 'image/webp',
             'bmp'          => 'image/bmp',
-            'svg'          => 'image/svg+xml',
         ];
 
         if (!in_array($type, $allowed_mimes, true)) {
@@ -344,7 +343,6 @@ class SettingsController
 
         return [
             'sites' => $formattedSites,
-            'raw'   => $sites
         ];
     }
 
@@ -367,7 +365,7 @@ class SettingsController
             return new \WP_Error('invalid_request', __('Invalid Site ID', 'fluent-security'));
         }
 
-        if ($site['secret_key'] !== $data['server_token']) {
+        if (!hash_equals($site['secret_key'], $data['server_token'])) {
             return new \WP_Error('invalid_request', __('Invalid server token', 'fluent-security'));
         }
 
@@ -382,11 +380,11 @@ class SettingsController
         $user = get_user_by('ID', $userId);
         $userMeta = get_user_meta($userId, '__flsc_temp_token', true);
 
-        if (empty($user) || empty($userMeta) || $userMeta !== $data['user_token']) {
+        if (empty($user) || empty($userMeta) || !hash_equals($userMeta, $data['user_token'])) {
             return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'));
         }
 
-        //   update_user_meta($userId, '__flsc_temp_token', '', true);// we are making it empty to avoid re-login
+        update_user_meta($userId, '__flsc_temp_token', '');
 
         // now we will prepare the data for the user
         $data = apply_filters('fluent_auth/remote_auth_response_data', [

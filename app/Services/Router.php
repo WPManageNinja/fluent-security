@@ -25,19 +25,19 @@ class Router
                 return rest_ensure_response( $result );
             },
             'permission_callback' => function($request) use ($permissions) {
-                if(is_array($permissions)) {
-                    if(count($permissions)) {
-                        foreach ($permissions as $permission) {
-                            if(current_user_can($permission)) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    }
-                    return true;
+                if(is_callable($permissions)) {
+                    return call_user_func($permissions, $request);
                 }
 
-                return call_user_func($permissions, $request);
+                if(is_array($permissions) && count($permissions)) {
+                    foreach ($permissions as $permission) {
+                        if(current_user_can($permission)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
             }
         ));
 

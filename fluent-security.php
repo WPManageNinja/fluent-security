@@ -63,11 +63,7 @@ class FluentAuthPlugin
                 $class
             );
 
-            $filePath = FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
-
-            if (file_exists($filePath)) {
-                require $filePath;
-            }
+            require FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
         });
 
         require_once FLUENT_AUTH_PLUGIN_PATH . 'app/Services/DB/wpfluent.php';
