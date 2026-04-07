@@ -2,5 +2,6 @@ node_modules
 dist
 svn
 builds
-vendor
+tests/vendor
+.phpunit.result.cache
 .phpunit.result.cache

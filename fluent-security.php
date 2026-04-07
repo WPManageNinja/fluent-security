@@ -5,7 +5,7 @@ defined('ABSPATH') or die;
 Plugin Name:  FluentAuth - Auth Security Plugin
 Plugin URI:   https://fluentauth.com
 Description:  Super Simple Login / Signup Security and Social Login Plugin for WordPress
-Version:      2.1.1
+Version:      2.1.2
 Author:       Fluent Auth Team
 Author URI:   https://fluentauth.com
 License:      GPLv2 or later
@@ -22,7 +22,7 @@ if (defined('FLUENT_AUTH_VERSION')) {
 
 define('FLUENT_AUTH_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('FLUENT_AUTH_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('FLUENT_AUTH_VERSION', '2.1.1');
+define('FLUENT_AUTH_VERSION', '2.1.2');
 
 class FluentAuthPlugin
 {
@@ -53,21 +53,21 @@ class FluentAuthPlugin
     private function autoLoad()
     {
         spl_autoload_register(function ($class) {
-            $match = 'FluentAuth';
-
-            if (!preg_match("/\b{$match}\b/", $class)) {
+            if (strpos($class, 'FluentAuth\\') !== 0) {
                 return;
             }
 
-            $path = plugin_dir_path(__FILE__);
-
             $file = str_replace(
-                ['FluentAuth', '\\', '/App/'],
-                ['', DIRECTORY_SEPARATOR, 'app/'],
+                ['FluentAuth\\App\\', '\\'],
+                ['app' . DIRECTORY_SEPARATOR, DIRECTORY_SEPARATOR],
                 $class
             );
 
-            require(trailingslashit($path) . trim($file, '/') . '.php');
+            $filePath = FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
+
+            if (file_exists($filePath)) {
+                require $filePath;
+            }
         });
 
         require_once FLUENT_AUTH_PLUGIN_PATH . 'app/Services/DB/wpfluent.php';

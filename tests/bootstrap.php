@@ -6,13 +6,13 @@
  */
 
 // Composer autoloader
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 // Locate the WordPress test library
 $_tests_dir = getenv('WP_TESTS_DIR');
 
 if (!$_tests_dir) {
-    $_tests_dir = rtrim(sys_get_temp_dir(), '/\\') . '/wordpress-tests-lib';
+    $_tests_dir = __DIR__ . '/vendor/wordpress-tests-lib';
 }
 
 if (!file_exists($_tests_dir . '/includes/functions.php')) {

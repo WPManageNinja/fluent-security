@@ -77,16 +77,16 @@ if "$withLoco"; then
   echo -e "\nExtracting Loco Translations\n"
   # shellcheck disable=SC2164
   wp loco extract fluent-security
-  echo -e "\Syncing Loco Translations\n"
+  echo -e "\nSyncing Loco Translations\n"
   wp loco sync fluent-security
     # shellcheck disable=SC2164
   echo -e "\nLoco Translations synced\n"
 fi
 
-# Copy Fluent Boards
-copy_items "." "builds/fluent-security" "app" "dist" "language" "fluent-security.php" "index.php" "readme.txt"
+# Copy Fluent Security
+copy_items "." "builds/fluent-security" "app" "dist" "language" "vendor_prefixed" "fluent-security.php" "index.php" "readme.txt"
 
-# Compress Fluent Boards
+# Compress Fluent Security
 compress_items "builds/fluent-security"
 
 exit 0

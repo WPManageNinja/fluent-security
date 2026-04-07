@@ -19,6 +19,7 @@
         }
     },
     "config": {
+        "vendor-dir": "tests/vendor",
         "allow-plugins": {
             "phpstan/extension-installer": true
         }

@@ -47,19 +47,19 @@ if (!file_exists($testPath)) {
 }
 
 // Check if composer is installed
-if (!file_exists('vendor/autoload.php')) {
+if (!file_exists('tests/vendor/autoload.php')) {
     echo "Error: Composer dependencies not found.\n";
     echo "Please run: composer install --dev\n";
     exit(1);
 }
 
 // Load composer autoloader
-require_once 'vendor/autoload.php';
+require_once 'tests/vendor/autoload.php';
 
 // Build PHPUnit command
 $command = [
     'php',
-    'vendor/bin/phpunit',
+    'tests/vendor/bin/phpunit',
     '--configuration', 'phpunit.xml',
     '--colors',
     '--verbose',

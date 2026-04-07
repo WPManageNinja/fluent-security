@@ -47,52 +47,52 @@ This comprehensive testing suite provides 100% code coverage for the FluentAuth 
 php run-tests.php
 
 # Or using PHPUnit directly
-./vendor/bin/phpunit
+./tests/vendor/bin/phpunit
 ```
 
 ### Run Specific Test Files
 
 ```bash
 # Run Arr helper tests
-./vendor/bin/phpunit tests/Unit/ArrTest.php
+./tests/vendor/bin/phpunit tests/Unit/ArrTest.php
 
 # Run Helper tests
-./vendor/bin/phpunit tests/Unit/HelperTest.php
+./tests/vendor/bin/phpunit tests/Unit/HelperTest.php
 
 # Run AuthService tests
-./vendor/bin/phpunit tests/Unit/AuthServiceTest.php
+./tests/vendor/bin/phpunit tests/Unit/AuthServiceTest.php
 
 # Run SettingsController tests
-./vendor/bin/phpunit tests/Unit/SettingsControllerTest.php
+./tests/vendor/bin/phpunit tests/Unit/SettingsControllerTest.php
 
 # Run Activator tests
-./vendor/bin/phpunit tests/Unit/ActivatorTest.php
+./tests/vendor/bin/phpunit tests/Unit/ActivatorTest.php
 
 # Run integration tests
-./vendor/bin/phpunit tests/Integration/
+./tests/vendor/bin/phpunit tests/Integration/
 ```
 
 ### Run Tests with Coverage Report
 
 ```bash
 # Generate HTML coverage report
-./vendor/bin/phpunit --coverage-html coverage-report
+./tests/vendor/bin/phpunit --coverage-html coverage-report
 
 # Generate XML coverage report (for CI/CD)
-./vendor/bin/phpunit --coverage-clover coverage.xml
+./tests/vendor/bin/phpunit --coverage-clover coverage.xml
 ```
 
 ### Run Tests with Specific Configuration
 
 ```bash
 # Run tests with verbose output
-./vendor/bin/phpunit --verbose
+./tests/vendor/bin/phpunit --verbose
 
 # Run tests and stop on first failure
-./vendor/bin/phpunit --stop-on-failure
+./tests/vendor/bin/phpunit --stop-on-failure
 
 # Run tests with filter
-./vendor/bin/phpunit --filter "testGetAuthSettings"
+./tests/vendor/bin/phpunit --filter "testGetAuthSettings"
 ```
 
 ## Test Structure
@@ -247,7 +247,7 @@ jobs:
       run: composer install --dev
     
     - name: Run tests
-      run: ./vendor/bin/phpunit --coverage-clover coverage.xml
+      run: ./tests/vendor/bin/phpunit --coverage-clover coverage.xml
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -262,7 +262,7 @@ For local development, you can run tests automatically on file changes:
 composer require --dev spatie/phpunit-watcher
 
 # Run tests on file changes
-./vendor/bin/phpunit-watcher watch
+./tests/vendor/bin/phpunit-watcher watch
 ```
 
 ## Troubleshooting
@@ -302,7 +302,7 @@ echo "Running test: " . $this->getName() . "\n";
 3. **Extend TestCase**: `use PHPUnit\Framework\TestCase;`
 4. **Mock WordPress functions** in `setUp()` method
 5. **Write test methods** following naming convention `test*()`
-6. **Run the test**: `./vendor/bin/phpunit tests/Unit/YourTest.php`
+6. **Run the test**: `./tests/vendor/bin/phpunit tests/Unit/YourTest.php`
 
 ## Contributing
 

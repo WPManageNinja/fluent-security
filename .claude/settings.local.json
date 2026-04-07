@@ -3,7 +3,7 @@
     "allow": [
       "Bash(find:*)",
       "Bash(ls:*)",
-      "Bash(./vendor/bin/phpunit:*)",
+      "Bash(./tests/vendor/bin/phpunit:*)",
       "WebSearch",
       "WebFetch(domain:developer.wordpress.org)",
       "WebFetch(domain:github.com)",

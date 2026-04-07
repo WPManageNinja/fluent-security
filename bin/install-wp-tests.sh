@@ -12,10 +12,13 @@ DB_HOST=${4-localhost}
 WP_VERSION=${5-latest}
 SKIP_DB_CREATE=${6-false}
 
+PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TESTS_VENDOR_DIR="$PLUGIN_DIR/tests/vendor"
+
 TMPDIR=${TMPDIR-/tmp}
 TMPDIR=$(echo $TMPDIR | sed -e "s/\/$//")
-WP_TESTS_DIR=${WP_TESTS_DIR-$TMPDIR/wordpress-tests-lib}
-WP_CORE_DIR=${WP_CORE_DIR-$TMPDIR/wordpress/}
+WP_TESTS_DIR=${WP_TESTS_DIR-$TESTS_VENDOR_DIR/wordpress-tests-lib}
+WP_CORE_DIR=${WP_CORE_DIR-$TESTS_VENDOR_DIR/wordpress/}
 
 download() {
     if [ `which curl` ]; then

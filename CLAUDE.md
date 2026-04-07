@@ -11,8 +11,8 @@ FluentAuth (fluent-security) is a WordPress security plugin providing login secu
 ```bash
 # PHP tests
 composer test                          # Run PHPUnit suite
-./vendor/bin/phpunit tests/Unit/HelperTest.php  # Single test file
-./vendor/bin/phpunit --filter "testMethodName"   # Single test method
+./tests/vendor/bin/phpunit tests/Unit/HelperTest.php  # Single test file
+./tests/vendor/bin/phpunit --filter "testMethodName"   # Single test method
 composer test-coverage                 # HTML coverage report
 
 # Static analysis
