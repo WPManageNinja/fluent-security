@@ -32,9 +32,8 @@ class LogsController
         $logs = $query->paginate();
 
         $wpTimestamp = current_time('timestamp');
-        $utcOffset = $wpTimestamp - time();
         foreach ($logs['data'] as $log) {
-            $log->human_time_diff = human_time_diff(strtotime($log->created_at) + $utcOffset, $wpTimestamp) . ' ago';
+            $log->human_time_diff = human_time_diff(strtotime($log->created_at), $wpTimestamp) . ' ago';
         }
 
         return [

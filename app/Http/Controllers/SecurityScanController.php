@@ -101,7 +101,7 @@ class SecurityScanController
     public static function scanSite(\WP_REST_Request $request)
     {
         $settings = IntegrityHelper::getSettings();
-        $settings['last_checked'] = date('Y-m-d H:i:s');
+        $settings['last_checked'] = current_time('mysql');
         $settings['is_ok'] = 'yes';
         IntegrityHelper::saveSettings($settings);
 
@@ -115,7 +115,7 @@ class SecurityScanController
         $activeChanges = $checkerService->getScanResults(true);
 
         $hasIssues = array_filter($activeChanges);
-        $settings['last_checked'] = date('Y-m-d H:i:s');
+        $settings['last_checked'] = current_time('mysql');
         if ($hasIssues) {
             $settings['is_ok'] = 'no';
         }
@@ -193,18 +193,20 @@ class SecurityScanController
             $folder = WPINC;
         }
 
-        $file = basename($file);
-
         if ($folder) {
+            // Allow nested paths for wp-admin/wp-includes, realpath() ensures containment
             $filePath = ABSPATH . $folder . '/' . $file;
+            $expectedDir = realpath(ABSPATH . $folder);
         } else {
+            // Root folder: strip directory components to prevent traversal
+            $file = basename($file);
             $filePath = ABSPATH . $file;
+            $expectedDir = realpath(ABSPATH);
         }
 
         $realPath = realpath($filePath);
-        $expectedDir = $folder ? rtrim(ABSPATH . $folder, '/') : rtrim(ABSPATH, '/');
 
-        if (!$realPath || strpos($realPath, $expectedDir) !== 0) {
+        if (!$realPath || !$expectedDir || strpos($realPath, $expectedDir . DIRECTORY_SEPARATOR) !== 0) {
             return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400, 'data' => $file]);
         }
 

@@ -282,12 +282,12 @@ class SocialAuthHandler
 
         $intentRedirectTo = '';
         if (isset($_COOKIE['fs_intent_redirect'])) {
-            $cookieRedirect = $_COOKIE['fs_intent_redirect'];
+            $cookieRedirect = sanitize_url($_COOKIE['fs_intent_redirect']);
             if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
                 $cookieRedirect = admin_url();
             }
-            $intentRedirectTo = $cookieRedirect;
             $redirect_to = $cookieRedirect;
+            $intentRedirectTo = $redirect_to;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();
@@ -352,11 +352,11 @@ class SocialAuthHandler
 
         $intentRedirectTo = '';
         if (isset($_COOKIE['fs_intent_redirect'])) {
-            $cookieRedirect = $_COOKIE['fs_intent_redirect'];
+            $cookieRedirect = sanitize_url($_COOKIE['fs_intent_redirect']);
             if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
                 $cookieRedirect = admin_url();
             }
-            $redirect_to = esc_url($cookieRedirect);
+            $redirect_to = $cookieRedirect;
             $intentRedirectTo = $redirect_to;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {

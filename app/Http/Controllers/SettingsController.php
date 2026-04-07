@@ -208,7 +208,7 @@ class SettingsController
         if (!in_array($type, $allowed_mimes, true)) {
             return new \WP_Error(
                 'invalid_file_type',
-                __('Sorry, you can only upload JPG, PNG, GIF, WebP, BMP or SVG files.', 'fluent-security')
+                __('Sorry, you can only upload JPG, PNG, GIF, WebP or BMP files.', 'fluent-security')
             );
         }
 
@@ -354,6 +354,10 @@ class SettingsController
             'server_token' => $request->get_param('server_token'),
             'site_id'      => $request->get_param('site_id'),
         ];
+
+        if (!is_string($data['user_token']) || !is_string($data['server_token']) || !is_string($data['site_id'])) {
+            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'));
+        }
 
         if (empty($data['user_token']) || empty($data['server_token']) || empty($data['site_id'])) {
             return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'));
