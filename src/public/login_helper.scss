@@ -22,7 +22,6 @@
     form#loginform .input, #fls_2fa_form .input, .fls_magic_input {
         padding: 10px;
         width: 100%;
-        margin-top: 10px;
     }
 
     form#loginform, #fls_2fa_form {
@@ -39,6 +38,70 @@
         color: white;
         border: 0;
         border-radius: 5px;
+    }
+}
+
+.fls_password_wrap {
+    display: block;
+    position: relative;
+
+    input {
+        padding-right: 44px !important;
+    }
+
+    .fls_password_toggle {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        border-radius: 3px;
+        box-shadow: none;
+        color: #646970;
+        cursor: pointer;
+        display: flex;
+        height: 34px;
+        justify-content: center;
+        line-height: 1;
+        margin: 0;
+        padding: 0;
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 34px;
+
+        &:hover {
+            color: #2271b1;
+        }
+
+        &:focus {
+            box-shadow: 0 0 0 1px #2271b1;
+            outline: 2px solid transparent;
+        }
+
+        &.is-visible {
+            .fls_password_slash {
+                opacity: 1;
+            }
+        }
+    }
+
+    .fls_password_toggle_icon {
+        display: block;
+        fill: none;
+        height: 20px;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+        width: 20px;
+    }
+
+    .fls_password_pupil {
+        fill: currentColor;
+    }
+
+    .fls_password_slash {
+        opacity: 0;
     }
 }
 
@@ -71,7 +134,6 @@
         input {
             padding: 10px;
             width: 100%;
-            margin-top: 10px;
         }
 
         #fls_submit,#fls_verification_submit {
@@ -148,7 +210,6 @@
         input {
             padding: 10px;
             width: 100%;
-            margin-top: 10px;
         }
 
         #fls_reset_pass {

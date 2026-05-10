@@ -19,6 +19,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setPlaceHolders();
 
+    function initPasswordReveal() {
+        const wrappers = document.querySelectorAll('.fls_login_wrapper .fls_password_wrap, .fls_registration_wrapper .fls_password_wrap, .fls_auth_wrapper .fls_password_wrap');
+
+        wrappers.forEach((wrapper) => {
+            const input = wrapper.querySelector('input[type="password"], input[type="text"]');
+            const button = wrapper.querySelector('.fls_password_toggle');
+
+            if (!input || !button || button.dataset.flsPasswordToggleBound === 'yes') {
+                return;
+            }
+
+            button.dataset.flsPasswordToggleBound = 'yes';
+
+            button.addEventListener('click', () => {
+                const shouldShow = input.type === 'password';
+                input.type = shouldShow ? 'text' : 'password';
+                button.setAttribute('aria-pressed', shouldShow ? 'true' : 'false');
+                button.setAttribute('aria-label', shouldShow ? button.dataset.hideLabel : button.dataset.showLabel);
+                button.classList.toggle('is-visible', shouldShow);
+            });
+
+            const form = wrapper.closest('form');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    input.type = 'password';
+                    button.setAttribute('aria-pressed', 'false');
+                    button.setAttribute('aria-label', button.dataset.showLabel);
+                    button.classList.remove('is-visible');
+                });
+            }
+        });
+    }
+
+    initPasswordReveal();
+
 
     function toggleLoading(submitBtn) {
         if(submitBtn) {
@@ -105,8 +140,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const submitBtn = document.getElementById(submitBtnId);
         toggleLoading(submitBtn);
 
-        document.querySelectorAll('.error.text-danger').forEach(e => {
-            e.parentNode.parentNode.classList.remove('is-error');
+        form.querySelectorAll('.error.text-danger').forEach(e => {
+            const fieldGroup = e.closest('.fls_field_group');
+            if (fieldGroup) {
+                fieldGroup.classList.remove('is-error');
+            }
             e.remove();
         });
 
@@ -132,33 +170,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 handleSuccess(this.response, form);
             } else {
-                let genericError = this.response.error;
-                if (!genericError && this.response.message) {
-                    genericError = this.response.message;
-                } else if (genericError && this.response.data.status === 403) {
-                    genericError = this.response.message;
+                const response = this.response || {};
+                const hasFieldErrors = response.errors && renderFieldErrors(response.errors, form);
+                let genericError = response.error;
+
+                if (!genericError && !hasFieldErrors && response.message) {
+                    genericError = response.message;
+                } else if (genericError && response.data && response.data.status === 403) {
+                    genericError = response.message;
                 }
 
                 if (genericError) {
-                    let el = document.createElement("div");
-                    el.classList.add('error', 'text-danger');
-                    el.innerHTML = genericError;
-                    form.appendChild(el);
-                } else {
-                    for (const property in this.response) {
-                        const field = document.getElementById('flt_' + property);
-                        if (field) {
-                            let el = document.createElement("div");
-                            el.classList.add('error', 'text-danger');
-                            el.innerHTML = Object.values(this.response[property])[0];
-                            field.parentNode.insertBefore(el, field.nextSibling);
-                            field.parentNode.parentNode.classList.add('is-error');
-                        }
-                    }
+                    renderFormError(genericError, form);
                 }
 
                 if(errorCallback) {
-                    errorCallback(this.response);
+                    errorCallback(response);
                 }
             }
         };
@@ -166,11 +193,72 @@ document.addEventListener('DOMContentLoaded', () => {
         request.send(data);
     }
 
+    function renderFieldErrors(errors, form) {
+        let hasRenderedError = false;
+
+        Object.keys(errors).forEach((property) => {
+            const field = getFieldByErrorKey(property, form);
+
+            if (!field) {
+                return;
+            }
+
+            let el = document.createElement("div");
+            el.classList.add('error', 'text-danger');
+            el.innerHTML = getErrorMessage(errors[property]);
+
+            const inputWrap = field.closest('.fs_input_wrap') || field.parentNode;
+            inputWrap.parentNode.insertBefore(el, inputWrap.nextSibling);
+
+            const fieldGroup = field.closest('.fls_field_group');
+            if (fieldGroup) {
+                fieldGroup.classList.add('is-error');
+            }
+
+            hasRenderedError = true;
+        });
+
+        return hasRenderedError;
+    }
+
+    function getFieldByErrorKey(property, form) {
+        const fieldIds = {
+            first_name: 'fls_first_name',
+            last_name: 'fls_last_name',
+            username: 'fls_reg_username',
+            email: 'fls_reg_email',
+            password: 'fls_reg_password',
+            user_login: 'fls_email',
+        };
+
+        return form.querySelector('#' + (fieldIds[property] || 'flt_' + property));
+    }
+
+    function getErrorMessage(error) {
+        if (Array.isArray(error)) {
+            return error[0];
+        }
+
+        if (error && typeof error === 'object') {
+            return Object.values(error)[0];
+        }
+
+        return error;
+    }
+
+    function renderFormError(message, form) {
+        let el = document.createElement("div");
+        el.classList.add('error', 'text-danger');
+        el.innerHTML = message;
+        form.appendChild(el);
+    }
+
     function handleSuccess(response, form) {
         if (response.load_2fa) {
             document.getElementById('fls_login_form').innerHTML = response.two_fa_form;
             setTimeout(() => {
                 init2FaForm();
+                initPasswordReveal();
             }, 200);
         } else if (response.redirect) {
             window.location.href = response.redirect;
