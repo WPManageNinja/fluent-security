@@ -56,7 +56,7 @@
                                     <el-form-item :label="$t('Time limit for login try in minutes')">
                                         <el-input type="number" v-model="settings.login_try_timing"/>
                                         <p>
-                                            {{$t('If a user fails to log in %1s times within %2s minutes minutes, the system will block the user for %3s minutes.', settings.login_try_limit, settings.login_try_timing, settings.login_try_timing)}}
+                                            {{$t('__login_try_limit_desc__', settings.login_try_limit, settings.login_try_timing, settings.login_try_timing)}}
                                         </p>
                                     </el-form-item>
                                 </el-col>
@@ -252,15 +252,15 @@ export default {
             user_roles: [],
             low_level_roles: {},
             digest_items: {
-                daily: 'Daily',
-                sun: 'Every Sunday',
-                mon: 'Every Monday',
-                tue: 'Every Tuesday',
-                wed: 'Every Wednesday',
-                thu: 'Every Thursday',
-                fri: 'Every Friday',
-                sat: 'Every Saturday',
-                monthly: 'Every Month (1st day of every month)'
+                daily: this.$t('Daily'),
+                sun: this.$t('Every Sunday'),
+                mon: this.$t('Every Monday'),
+                tue: this.$t('Every Tuesday'),
+                wed: this.$t('Every Wednesday'),
+                thu: this.$t('Every Thursday'),
+                fri: this.$t('Every Friday'),
+                sat: this.$t('Every Saturday'),
+                monthly: this.$t('Every Month (1st day of every month)')
             },
             app_ready: false
         }
@@ -323,7 +323,7 @@ export default {
                 disable_admin_bar: 'yes',
                 disable_bar_roles: ['subscriber']
             }
-            this.$notify.success('Recommended settings has been applied. Please review and save the settings');
+            this.$notify.success(this.$t('Recommended settings have been applied. Please review and save the settings.'));
         }
     },
     mounted() {

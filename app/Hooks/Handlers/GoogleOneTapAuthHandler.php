@@ -89,7 +89,7 @@ class GoogleOneTapAuthHandler
             ], 422);
         }
 
-        if (is_user_logged_in() && $_POST['mode'] !== 'inline') {
+        if (isset($_POST['mode']) && $_POST['mode'] !== 'inline') {
             $providedUrl = isset($_POST['current_url']) ? $_POST['current_url'] : '';
             if (filter_var($providedUrl, FILTER_VALIDATE_URL)) {
                 $redirectUrl = esc_url_raw($providedUrl);
@@ -211,7 +211,10 @@ class GoogleOneTapAuthHandler
             'type'      => $args['type'],
             'delay'     => intval($args['delay']),
             'client_id' => $config['google_client_id'],
-            'ajax_url'  => admin_url('admin-ajax.php')
+            'ajax_url'  => admin_url('admin-ajax.php'),
+            'i18n'      => [
+                'login_error' => __('An error occurred during the login process. Please try again.', 'fluent-security')
+            ]
         ]);
     }
 

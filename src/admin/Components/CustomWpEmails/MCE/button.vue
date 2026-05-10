@@ -108,9 +108,9 @@ export default {
                     type: 'checkboxes',
                     value: [],
                     options: {
-                        bold: 'Bold',
-                        italic: 'Italic',
-                        underline: 'Underline'
+                        bold: this.$t('Bold'),
+                        italic: this.$t('Italic'),
+                        underline: this.$t('Underline')
                     }
                 }
             },
@@ -132,7 +132,7 @@ export default {
         },
         insert() {
             if (!this.controls.button_url.value || !this.controls.button_text.value) {
-                this.$notify.error('Button Text and URL is required');
+                this.$notify.error(this.$t('Button Text and URL are required.'));
                 return;
             }
             const html = `<a  style="${this.style}" href="${this.controls.button_url.value}">${this.controls.button_text.value}</a>`;

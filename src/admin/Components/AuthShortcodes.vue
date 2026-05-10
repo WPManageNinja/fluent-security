@@ -42,7 +42,7 @@
 
                         <div class="fls_shortcode_section">
                             <h3>{{$t('Magic Login Form Shortcode')}}</h3>
-                            <textarea readonly>[fluent_auth_magic_login]<h3>Type your email address to get login</h3>[/fluent_auth_magic_login]</textarea>
+                            <textarea readonly>[fluent_auth_magic_login]<h3>Type your email address to log in</h3>[/fluent_auth_magic_login]</textarea>
                             <p class="help">{{$t('You may remove the h3 content or change it. If you want to define customized redirect URL then use shortcode:')}} <code>[fluent_auth_magic_login redirect_to="your_URL"]</code></p>
                         </div>
                     </div>

@@ -18,7 +18,7 @@
                     <p v-if="error_message" style="color: red;">{{error_message}}</p>
 
                     <p style="color: red;" v-else-if="settings.is_ok == 'no' && !scanStatus">
-                        Your last scan found some file changes <b>{{settings.last_checked_human}} ago</b>. Please run a check now to view the un-authorized changes.
+                        <span v-html="$t('__last_scan_warning__', settings.last_checked_human)"></span>
                     </p>
                 </div>
             </div>
@@ -28,7 +28,7 @@
                     {{ $t('Scan Result') }}
                 </div>
                 <div class="box_body" style="padding: 10px 30px 30px;">
-                    <el-alert title="Awesome! All looks good!" type="success" :closable="false" show-icon/>
+                    <el-alert :title="$t('Awesome! Everything looks good!')" type="success" :closable="false" show-icon/>
                     <p>{{$t('FluentAuth has scanned your site and found no unauthorized changes in WordPress core files.')}}</p>
                     <el-button @click="startScanning" size="large" type="primary">
                         {{ $t('Scan Again') }}
@@ -38,14 +38,14 @@
 
             <div v-else-if="hasIssues" class="box dashboard_box">
                 <template v-if="willAlert">
-                    <el-alert title="ALERT: Please review the file changes!" type="error" :closable="false" show-icon/>
+                    <el-alert :title="$t('Alert: Please review the file changes!')" type="error" :closable="false" show-icon/>
                     <p style="font-size: 16px;">
                         {{$t('__file_change_detected__')}}
                     </p>
                 </template>
                 <template v-else>
-                    <el-alert :title="$t('FluentAuth found some file changes but you marked them as ignored them previously')"
-                              type="warnning" :closable="false" show-icon/>
+                    <el-alert :title="$t('FluentAuth found some file changes, but you previously marked them as ignored.')"
+                              type="warning" :closable="false" show-icon/>
                     <p>
                         {{$t('__scanner_result_dec_normal__')}}
                     </p>

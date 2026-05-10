@@ -283,7 +283,7 @@ class Arr
     public static function isTrue($array, $key)
     {
         $value = self::get($array, $key);
-        $isFalse = !$value || (is_string($value) && ($value === 'false' || $value === '0'));
+        $isFalse = !$value || (is_string($value) && $value === 'false');
 
         return !$isFalse;
     }

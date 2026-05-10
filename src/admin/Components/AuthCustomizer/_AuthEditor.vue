@@ -45,16 +45,16 @@
                         </div>
                         <el-form-item>
                             <el-button :style="buttonStyles(settings.form)">
-                                <span v-if="currentTab == 'login'">Login</span>
-                                <span v-else>Register</span>
+                                <span v-if="currentTab == 'login'">{{ $t('Login') }}</span>
+                                <span v-else>{{ $t('Register') }}</span>
                             </el-button>
                         </el-form-item>
                     </el-form>
 
                     <div style="margin-top: 40px; display: block;" class="fs_form_extra">
-                        <p v-if="currentTab == 'login'">Register | Lost your password?</p>
-                        <p v-else>Log in | Lost your password?</p>
-                        <p>← Go to Website</p>
+                        <p v-if="currentTab == 'login'">{{ $t('Register | Lost your password?') }}</p>
+                        <p v-else>{{ $t('Log in | Lost your password?') }}</p>
+                        <p>{{ $t('← Go to Website') }}</p>
                     </div>
                 </div>
             </div>
@@ -131,27 +131,27 @@ export default {
                 return [
                     {
                         type: 'text',
-                        label: 'Username'
+                        label: this.$t('Username')
                     },
                     {
                         type: 'email',
-                        label: 'Email Address'
+                        label: this.$t('Email Address')
                     },
                     {
                         type: 'text',
-                        label: 'Your Full Name'
+                        label: this.$t('Your Full Name')
                     },
                     {
                         type: 'password',
-                        label: 'Password'
+                        label: this.$t('Password')
                     },
                     {
                         type: 'password',
-                        label: 'Re-Enter Password'
+                        label: this.$t('Re-Enter Password')
                     },
                     {
                         type: 'inline_checkbox',
-                        inline_label: 'I agree to the terms and conditions',
+                        inline_label: this.$t('I agree to the terms and conditions'),
                         disabled: false
                     }
                 ]
@@ -160,15 +160,15 @@ export default {
             return [
                 {
                     type: 'text',
-                    label: 'Username or Email Address'
+                    label: this.$t('Username or Email Address')
                 },
                 {
                     type: 'password',
-                    label: 'Password'
+                    label: this.$t('Password')
                 },
                 {
                     type: 'inline_checkbox',
-                    inline_label: 'Remember Me',
+                    inline_label: this.$t('Remember Me'),
                     disabled: false
                 }
             ];

@@ -199,11 +199,16 @@ class Helper
         extract($data, EXTR_OVERWRITE);
 
         $template = sanitize_file_name($template);
-
         $template = str_replace('.', DIRECTORY_SEPARATOR, $template);
 
+        $path = FLUENT_AUTH_PLUGIN_PATH . 'app/Views/' . $template . '.php';
+
+        if (!file_exists($path)) {
+            return '';
+        }
+
         ob_start();
-        include FLUENT_AUTH_PLUGIN_PATH . 'app/Views/' . $template . '.php';
+        include $path;
         return ob_get_clean();
     }
 

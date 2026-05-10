@@ -89,21 +89,19 @@
                         </div>
                         <div class="box_body">
                             <p style="font-size: 16px;">
-                                🚀 Send WordPress emails reliably with FluentSMTP – 100% Free!<br/>
-                                Stop losing emails in spam or never being delivered. FluentSMTP connects WordPress to
-                                your favorite email service (Gmail, Outlook, Amazon SES, SendGrid, Mailgun, etc.) in
-                                just 60 seconds – no more headaches with wp_mail().
+                                🚀 {{ $t('Send WordPress emails reliably with FluentSMTP – 100% Free!') }}<br/>
+                                {{ $t('__fluentsmtp_promo_desc__') }}
                             </p>
                             <ul style="font-size: 16px;">
-                                <li>✓ Completely Free – No premium version needed</li>
-                                <li>✓ Detailed email logs & resend option</li>
-                                <li>✓ Works perfectly with all WordPress plugins</li>
-                                <li>✓ loved by 400,000+ WordPress sites</li>
+                                <li>✓ {{ $t('Completely free — no premium version needed') }}</li>
+                                <li>✓ {{ $t('Detailed email logs & resend option') }}</li>
+                                <li>✓ {{ $t('Works perfectly with all WordPress plugins') }}</li>
+                                <li>✓ {{ $t('Loved by 400,000+ WordPress sites') }}</li>
                             </ul>
                             <el-button :loading="intalling" @click="installPlugin('fluent-smtp')"
                                        size="large"
                                        type="primary">
-                                Install FluentSMTP Now – It’s Free!
+                                {{ $t('Install FluentSMTP Now – It’s Free!') }}
                             </el-button>
                         </div>
                     </div>

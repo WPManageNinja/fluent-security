@@ -23,7 +23,7 @@
                                 <Warning v-else-if="file.status == 'modified'"/>
                                 <DocumentDelete v-else-if="file.status == 'deleted'"/>
                             </el-icon>
-                            <span>{{ file.status }}</span>
+                            <span>{{ $t(file.status) }}</span>
                         </el-tag>
                         <el-tag v-if="file.isIgnored" size="small" type="info" class="fls_file_icon">
                             <MuteNotification/>
@@ -37,7 +37,7 @@
                         </el-button>
                     </div>
                     <div v-loading="workingFile == file.file" class="fls_file_status">
-                        <span title="Modified at (UTC)" style="font-size: 70%; opacity: 0.5;">{{file.modifiedAt}}</span>
+                        <span :title="$t('Modified at (UTC)')" style="font-size: 70%; opacity: 0.5;">{{file.modifiedAt}}</span>
                         <el-dropdown @command="handleCommand" trigger="click">
                             <el-button text class="el-dropdown-link">
                                 <el-icon>

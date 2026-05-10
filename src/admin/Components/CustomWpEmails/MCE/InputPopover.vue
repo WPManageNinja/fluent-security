@@ -22,7 +22,7 @@
                         </ul>
 
                         <div v-if="doc_url" class="pop_doc">
-                            <a :href="doc_url" target="_blank" rel="noopener">Learn More</a>
+                            <a :href="doc_url" target="_blank" rel="noopener">{{ $t('Learn More') }}</a>
                         </div>
                     </div>
                     <div class="el_pop_data_body">

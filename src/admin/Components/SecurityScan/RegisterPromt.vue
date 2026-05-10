@@ -28,17 +28,15 @@
                             {{ $t('Continue & Set API Key') }}
                         </el-button>
                     </el-form-item>
-                    <p style="margin-top: 40px; font-size: 12px;">Provide a valid email to receive your free API key and
-                        security notifications. By submitting, you agree to our <a target="_blank" rel="noopener"
-                                                                                   style="color:#3c434a;"
-                                                                                   href="https://fluentauth.com/privacy-policy/">privacy
-                            policy and terms and conditions</a>. Your email will only be used for API key generation and
-                        security updates.</p>
+                    <p style="margin-top: 40px; font-size: 12px;">
+                        <span v-html="$t('__api_key_form_consent__', `<a target=&quot;_blank&quot; rel=&quot;noopener&quot; style=&quot;color:#3c434a;&quot; href=&quot;https://fluentauth.com/privacy-policy/&quot;>` + $t('privacy policy and terms and conditions') + `</a>`)"></span>
+                    </p>
                 </template>
                 <template v-else>
                     <h3>{{$t('The Last Step!')}}</h3>
-                    <p>We just sent you an email with API key. Please check your <b>email
-                        ({{ settings.account_email_id }}) inbox</b> and provide the API key</p>
+                    <p>
+                        <span v-html="$t('__api_key_email_sent__', settings.account_email_id)"></span>
+                    </p>
                     <el-form-item>
                         <el-input size="large" :placeholder="$t('Provide API Key')" v-model="onboardForm.api_key"/>
                     </el-form-item>
@@ -49,17 +47,19 @@
                         </el-button>
                     </el-form-item>
                     <p style="margin-top: 40px; font-size: 12px;">
-                        You should get the API key in your email. If you don't see it, please check your spam folder. If
-                        you still don't see it, please <a href="#" @click.prevent="startOver()">start
-                        over with a different email address.</a>.
+                        {{ $t('__api_key_spam_check__') }}
+                        <a href="#" @click.prevent="startOver()">{{ $t('start over with a different email address') }}</a>.
                     </p>
                 </template>
             </el-form>
 
             <template v-if="is_main">
                 <hr style="margin-top: 20px"/>
-                <p>Or if you don't want to automatic scan with API service, <a
-                    @click.prevent="processRegularScanService()" href="#">click here</a> to use regular scan service.</p>
+                <p>
+                    {{ $t('Or if you don\'t want automatic scanning with the API service,') }}
+                    <a @click.prevent="processRegularScanService()" href="#">{{ $t('click here') }}</a>
+                    {{ $t('to use the regular scan service.') }}
+                </p>
             </template>
         </div>
         <div v-else-if="loading">

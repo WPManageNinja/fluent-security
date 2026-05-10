@@ -68,7 +68,7 @@
                     </el-form-item>
 
                     <el-form-item :label="$t('Description')">
-                        <el-input type="textarea" :rows="4" placeholder="Description"
+                        <el-input type="textarea" :rows="4" :placeholder="$t('Description')"
                                   v-model="editingField.description"/>
                     </el-form-item>
                 </el-form>

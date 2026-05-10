@@ -13,7 +13,7 @@
         <slot name="trigger">
             <slot name="default">
                 <el-image :alt="$t('Image Preview')" v-if="imageUrl" :src="imageUrl"/>
-                <el-button v-else class="fcom_btn_upload" text>{{ button_text }}</el-button>
+                <el-button v-else class="fcom_btn_upload" text>{{ button_text || $t('Upload Image') }}</el-button>
             </slot>
         </slot>
     </el-upload>
@@ -33,7 +33,7 @@ export default {
         },
         button_text: {
             type: String,
-            default: 'Upload Image'
+            default: ''
         },
         can_remove: {
             type: Boolean,

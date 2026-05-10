@@ -4,7 +4,7 @@ Tags: Login limit, login redirects, xml-rpc, login logs, social logins
 Requires at least: 5.0
 Tested up to: 6.9
 Requires PHP: 7.3
-Stable tag: 2.1.1
+Stable tag: 2.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -178,6 +178,18 @@ Absolutely not! From the very first, We were careful about this. It stores all t
 10. WordPress Core Files Integrity Check
 
 == Changelog ==
+
+= 2.1.2 - Date: Apr 28, 2026 =
+* Hardened Security Scan and Settings endpoints with stricter input validation and sanitization
+* Sanitized social auth redirect cookie to prevent storing untrusted values
+* Added client token verification in Google One-Tap login for stronger identity checks
+* Fixed: Magic Login rate limiter incorrectly using days instead of minutes
+* Fixed: Login issue with GitHub social authentication
+* Fixed: Timezone mismatch in dashboard quick stats and audit log time differences
+* Fixed: canLogin filter ignoring falsy return values (now respects developer overrides)
+* Fixed: Sprintf positional argument syntax in digest email and removed a duplicate filter
+* Improved: Translation readiness — wrapped previously hard-coded admin UI strings with the translation helper and fixed typos / awkward phrasing across the dashboard, settings, security scan, server mode, and email customization screens
+* Improved: Internal test coverage and codebase reliability
 
 = 2.1.1 - Date: Dec 03, 2025 =
 * Introducing One-Tap Login via Google Social Auth Connection

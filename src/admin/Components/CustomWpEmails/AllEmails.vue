@@ -5,7 +5,7 @@
                 <div style="padding-top: 5px;" class="box_head">
                     {{ $t('Customize Default WordPress System Emails') }}
                     <p style="font-weight: 500; margin: 10px 0 0;">
-                        {{$t('Custimize your default system emails sent by WordPress. Make it beautiful, use your own contents.')}}
+                        {{$t('Customize your default system emails sent by WordPress. Make it beautiful and use your own content.')}}
                     </p>
                 </div>
                 <div style="display: flex;" class="box_actions">

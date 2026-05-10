@@ -97,7 +97,7 @@
                                 </el-form-item>
                             </el-col>
                             <el-col :md="12" :sm="12" :xs="24">
-                                <el-form-item :label="$t('Send from name (optional)')">
+                                <el-form-item :label="$t('Reply to name (optional)')">
                                     <el-input type="text" v-model="settings.reply_to_name"
                                               :placeholder="$t('Enter reply to name')"></el-input>
                                 </el-form-item>

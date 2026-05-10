@@ -1,7 +1,7 @@
 <template>
     <h3>{{ filePath }}</h3>
 
-    <div v-loading="loading" element-loading-text="loading file....">
+    <div v-loading="loading" :element-loading-text="$t('Loading file…')">
         <div v-if="error">
             <pre>{{error}}</pre>
         </div>

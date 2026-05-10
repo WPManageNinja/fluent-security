@@ -13,7 +13,7 @@
                             </p>
                             <p>
                                 {{
-                                    $t('Enable auto-scanning of your Core WordPress files and get emails if there has any un-authorized file changes.')
+                                    $t('__autoscan_promo__')
                                 }}
                             </p>
                             <template v-if="settings.status == 'active'">
@@ -42,7 +42,7 @@
                         <div v-else>
                             <p style="font-weight: bold;">{{ $t('Scheduled scanning is currently enabled') }}</p>
                             <p>
-                                {{ $t('You will get email alerts if there has any un-authorized file changes.') }}
+                                {{ $t('__autoscan_active_desc__') }}
                             </p>
                             <p>
                                 <b>{{ $t('Scanning Interval') }}:</b> {{ scheduling.scan_interval }} <br/>

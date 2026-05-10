@@ -55,6 +55,11 @@ for arg in "$@"; do
   esac
 done
 
+# Always regenerate the JS i18n string map before bundling — TransStrings.php
+# is part of the shipped runtime, and stale entries would lose translations.
+echo -e "\nRegenerating translation string map\n"
+node i18n.node.js
+
 # Execute build steps if required
 if "$nodeBuild"; then
   echo -e "\nBuilding Main App\n"
@@ -73,7 +78,6 @@ for arg in "$@"; do
 done
 
 if "$withLoco"; then
-  node i18n.node.js
   echo -e "\nExtracting Loco Translations\n"
   # shellcheck disable=SC2164
   wp loco extract fluent-security
@@ -85,6 +89,9 @@ fi
 
 # Copy Fluent Security
 copy_items "." "builds/fluent-security" "app" "dist" "language" "vendor_prefixed" "fluent-security.php" "index.php" "readme.txt"
+
+# Strip macOS metadata files from the staged directory so the unzipped build is clean.
+find "builds/fluent-security" -name '.DS_Store' -type f -delete
 
 # Compress Fluent Security
 compress_items "builds/fluent-security"

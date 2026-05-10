@@ -1,7 +1,7 @@
 <template>
     <div class="fls_rule">
         <div class="fls_rule_items">
-            <div class="fls_rule_item">If</div>
+            <div class="fls_rule_item">{{ $t('If') }}</div>
             <div style="min-width: 150px;" class="fls_rule_item">
                 <el-select @change="resetValue()" v-model="rule.condition">
                     <el-option v-for="(provider, providerIndex) in providers"
@@ -49,7 +49,7 @@ export default {
     props: ['rule', 'providers', 'roles', 'capabilities'],
     data() {
         return {
-            dummy_value: 'Select Condition'
+            dummy_value: this.$t('Select Condition')
         }
     },
     computed: {

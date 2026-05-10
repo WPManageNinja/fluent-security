@@ -866,7 +866,7 @@ class CustomAuthHandler
             } else {
                 $token = $formData['_email_verification_token'];
                 $verificationHash = $formData['_email_verification_hash'];
-                $isTokenValidated = AuthService::verifyTokenHash($verificationHash, $token);
+                $isTokenValidated = AuthService::verifyTokenHash($verificationHash, $token, $formData['email']);
 
                 if (is_wp_error($isTokenValidated)) {
                     wp_send_json([
@@ -1254,7 +1254,7 @@ class CustomAuthHandler
             'status'           => 'issued',
             'ip_address'       => Helper::getIp(),
             'use_type'         => 'signup_verification',
-            'two_fa_code_hash' => wp_hash_password($verifcationCode),
+            'two_fa_code_hash' => wp_hash_password($verifcationCode . '|' . strtolower(trim($formData['email']))),
             'valid_till'       => date('Y-m-d H:i:s', current_time('timestamp') + 10 * 60),
             'created_at'       => current_time('mysql'),
             'updated_at'       => current_time('mysql')

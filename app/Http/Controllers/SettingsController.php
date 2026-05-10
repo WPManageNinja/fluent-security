@@ -504,6 +504,10 @@ class SettingsController
                         throw new \Exception($plugin_information->get_error_message());
                     }
 
+                    if (!is_object($plugin_information) || empty($plugin_information->download_link)) {
+                        throw new \Exception(__('Could not retrieve plugin download link.', 'fluent-security'));
+                    }
+
                     $package = $plugin_information->download_link;
                     $download = $upgrader->download_package($package);
 

@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const res = JSON.parse(xhr.responseText);
                     window.location.href = res.redirect_url || window.location.href;
                 } else {
-                    let message = 'An error occurred during the login process. Please try again.';
+                    let message = (config.i18n && config.i18n.login_error) || 'An error occurred during the login process. Please try again.';
                     const res = JSON.parse(xhr.responseText);
                     if (res && res.message) {
                         message = res.message;

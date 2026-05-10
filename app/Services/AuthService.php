@@ -295,7 +295,7 @@ class AuthService
         return $errors;
     }
 
-    public static function verifyTokenHash($verificationHash, $token)
+    public static function verifyTokenHash($verificationHash, $token, $email = '')
     {
         $logHash = flsDb()->table('fls_login_hashes')
             ->where('login_hash', $verificationHash)
@@ -312,7 +312,11 @@ class AuthService
             return new \WP_Error('verification_code_expired', __('Your verification code has beeen expired. Please try again', 'fluent-security'));
         }
 
-        if (!wp_check_password($token, $logHash->two_fa_code_hash)) {
+        // Bind verification to the email the code was sent to. The hash commits
+        // to (code, email), so submitting a different email at signup fails here.
+        $checkValue = $email ? $token . '|' . strtolower(trim($email)) : $token;
+
+        if (!wp_check_password($checkValue, $logHash->two_fa_code_hash)) {
             flsDb()->table('fls_login_hashes')->where('id', $logHash->id)
                 ->update([
                     'used_count' => $logHash->used_count + 1

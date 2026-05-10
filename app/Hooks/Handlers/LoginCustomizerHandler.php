@@ -285,7 +285,7 @@ class LoginCustomizerHandler
         }
 
         $token = Arr::get($_POST, '_email_verification_token', '');
-        $isTokenValidated = AuthService::verifyTokenHash($verficationHash, $token);
+        $isTokenValidated = AuthService::verifyTokenHash($verficationHash, $token, $user_email);
         if (is_wp_error($isTokenValidated)) {
             $errors->add('confirm_token', $isTokenValidated->get_error_message());
             return false;

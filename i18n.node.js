@@ -106,13 +106,19 @@ function writeResults(strings) {
         }
     }
 
+    // Escape strings for safe interpolation into PHP single-quoted literals.
+    // Source-extracted strings may contain pre-escaped sequences (e.g. \'), while
+    // reserved18n.json values are plain English. Normalize, then escape uniformly.
+    const phpEscape = s => s
+        .replace(/\\(['"])/g, '$1')   // unescape any \' or \"
+        .replace(/\\/g, '\\\\')       // escape remaining backslashes
+        .replace(/'/g, "\\'");        // escape single quotes
+
     const sortedStrings = strings.sort(); // Sort strings in ascending order
     const formattedStrings = sortedStrings.map((str) => {
-        if(reservedWords[str]) {
-            return `            '${str}' => __('${reservedWords[str]}', '${namespace}')`;
-        }
-
-        return `            '${str}' => __('${str}', '${namespace}')`;
+        const key = phpEscape(str);
+        const value = reservedWords[str] ? phpEscape(reservedWords[str]) : key;
+        return `            '${key}' => __('${value}', '${namespace}')`;
     }).join(",\n");
 
 
