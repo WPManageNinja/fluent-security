@@ -140,8 +140,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const submitBtn = document.getElementById(submitBtnId);
         toggleLoading(submitBtn);
 
-        document.querySelectorAll('.error.text-danger').forEach(e => {
-            e.parentNode.parentNode.classList.remove('is-error');
+        form.querySelectorAll('.error.text-danger').forEach(e => {
+            const fieldGroup = e.closest('.fls_field_group');
+            if (fieldGroup) {
+                fieldGroup.classList.remove('is-error');
+            }
             e.remove();
         });
 
@@ -167,38 +170,87 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 handleSuccess(this.response, form);
             } else {
-                let genericError = this.response.error;
-                if (!genericError && this.response.message) {
-                    genericError = this.response.message;
-                } else if (genericError && this.response.data.status === 403) {
-                    genericError = this.response.message;
+                const response = this.response || {};
+                const hasFieldErrors = response.errors && renderFieldErrors(response.errors, form);
+                let genericError = response.error;
+
+                if (!genericError && !hasFieldErrors && response.message) {
+                    genericError = response.message;
+                } else if (genericError && response.data && response.data.status === 403) {
+                    genericError = response.message;
                 }
 
                 if (genericError) {
-                    let el = document.createElement("div");
-                    el.classList.add('error', 'text-danger');
-                    el.innerHTML = genericError;
-                    form.appendChild(el);
-                } else {
-                    for (const property in this.response) {
-                        const field = document.getElementById('flt_' + property);
-                        if (field) {
-                            let el = document.createElement("div");
-                            el.classList.add('error', 'text-danger');
-                            el.innerHTML = Object.values(this.response[property])[0];
-                            field.parentNode.insertBefore(el, field.nextSibling);
-                            field.parentNode.parentNode.classList.add('is-error');
-                        }
-                    }
+                    renderFormError(genericError, form);
                 }
 
                 if(errorCallback) {
-                    errorCallback(this.response);
+                    errorCallback(response);
                 }
             }
         };
 
         request.send(data);
+    }
+
+    function renderFieldErrors(errors, form) {
+        let hasRenderedError = false;
+
+        Object.keys(errors).forEach((property) => {
+            const field = getFieldByErrorKey(property, form);
+
+            if (!field) {
+                return;
+            }
+
+            let el = document.createElement("div");
+            el.classList.add('error', 'text-danger');
+            el.innerHTML = getErrorMessage(errors[property]);
+
+            const inputWrap = field.closest('.fs_input_wrap') || field.parentNode;
+            inputWrap.parentNode.insertBefore(el, inputWrap.nextSibling);
+
+            const fieldGroup = field.closest('.fls_field_group');
+            if (fieldGroup) {
+                fieldGroup.classList.add('is-error');
+            }
+
+            hasRenderedError = true;
+        });
+
+        return hasRenderedError;
+    }
+
+    function getFieldByErrorKey(property, form) {
+        const fieldIds = {
+            first_name: 'fls_first_name',
+            last_name: 'fls_last_name',
+            username: 'fls_reg_username',
+            email: 'fls_reg_email',
+            password: 'fls_reg_password',
+            user_login: 'fls_email',
+        };
+
+        return form.querySelector('#' + (fieldIds[property] || 'flt_' + property));
+    }
+
+    function getErrorMessage(error) {
+        if (Array.isArray(error)) {
+            return error[0];
+        }
+
+        if (error && typeof error === 'object') {
+            return Object.values(error)[0];
+        }
+
+        return error;
+    }
+
+    function renderFormError(message, form) {
+        let el = document.createElement("div");
+        el.classList.add('error', 'text-danger');
+        el.innerHTML = message;
+        form.appendChild(el);
     }
 
     function handleSuccess(response, form) {

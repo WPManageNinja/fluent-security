@@ -849,22 +849,6 @@ class CustomAuthHandler
             ], 422);
         }
 
-        // let's validate the name field
-        $fullName = trim(Arr::get($formData, 'first_name') . ' ' . Arr::get($formData, 'last_name'));
-        if (!empty($fullName)) {
-            // check if the name is valid
-            // Consider if there has any special characters like +, -, *, /, etc
-            // only check the +,-,*,$,/,=,%,!,@,#,^,&,*,(,),_,{,},[,],:,;,',",<,>,?,|,`,~,,
-            if (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $fullName)) {
-                return __('Please provide a valid name', 'fluent-security');
-            }
-
-            // check if there has any http or https
-            if (preg_match('/http|https/', $fullName)) {
-                return __('Please provide a valid name', 'fluent-security');
-            }
-        }
-
         if (apply_filters('fluent_auth/verify_signup_email', true, $formData)) {
             // Let's check for email verification token
             if (empty($formData['_email_verification_token'])) {
@@ -1118,6 +1102,19 @@ class CustomAuthHandler
             $givenPassword = (string)Arr::get($data, 'password', '');
             if (empty($givenPassword) || strlen($givenPassword) < 6) {
                 $errors['password'] = __('Password must be at least 6 characters long', 'fluent-security');
+            }
+        }
+
+        foreach (['first_name', 'last_name'] as $nameField) {
+            $name = trim((string)Arr::get($data, $nameField, ''));
+
+            if (!$name) {
+                continue;
+            }
+
+            // Reject URL-like content and common special characters in name fields.
+            if (preg_match('/https?/i', $name) || preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $name)) {
+                $errors[$nameField] = __('Please provide a valid name', 'fluent-security');
             }
         }
 
