@@ -222,6 +222,75 @@ class AuthServiceTest extends BaseTestCase
         $this->assertInstanceOf(\WP_Error::class, $result);
     }
 
+    public function testVerifyTokenHashSuccessWithEmail()
+    {
+        global $wpdb;
+        $token = '534212';
+        $email = 'verified@example.com';
+        $hash = wp_hash_password($token . '|' . strtolower(trim($email)));
+        $loginHash = wp_generate_password(32, false);
+
+        $wpdb->insert($wpdb->prefix . 'fls_login_hashes', [
+            'login_hash' => $loginHash,
+            'status' => 'issued',
+            'use_type' => 'signup_verification',
+            'used_count' => 0,
+            'two_fa_code_hash' => $hash,
+            'valid_till' => date('Y-m-d H:i:s', strtotime('+1 hour')),
+            'created_at' => current_time('mysql'),
+        ]);
+
+        $result = AuthService::verifyTokenHash($loginHash, $token, $email);
+
+        $this->assertTrue($result);
+    }
+
+    public function testVerifyTokenHashRejectsMismatchedEmail()
+    {
+        global $wpdb;
+        $token = '534212';
+        $issuedFor = 'attacker@evil.com';
+        $hash = wp_hash_password($token . '|' . strtolower(trim($issuedFor)));
+        $loginHash = wp_generate_password(32, false);
+
+        $wpdb->insert($wpdb->prefix . 'fls_login_hashes', [
+            'login_hash' => $loginHash,
+            'status' => 'issued',
+            'use_type' => 'signup_verification',
+            'used_count' => 0,
+            'two_fa_code_hash' => $hash,
+            'valid_till' => date('Y-m-d H:i:s', strtotime('+1 hour')),
+            'created_at' => current_time('mysql'),
+        ]);
+
+        $result = AuthService::verifyTokenHash($loginHash, $token, 'victim@example.com');
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertEquals('invalid_verification_code', $result->get_error_code());
+    }
+
+    public function testVerifyTokenHashEmailIsCaseAndWhitespaceInsensitive()
+    {
+        global $wpdb;
+        $token = '534212';
+        $hash = wp_hash_password($token . '|' . strtolower(trim('User@Example.com')));
+        $loginHash = wp_generate_password(32, false);
+
+        $wpdb->insert($wpdb->prefix . 'fls_login_hashes', [
+            'login_hash' => $loginHash,
+            'status' => 'issued',
+            'use_type' => 'signup_verification',
+            'used_count' => 0,
+            'two_fa_code_hash' => $hash,
+            'valid_till' => date('Y-m-d H:i:s', strtotime('+1 hour')),
+            'created_at' => current_time('mysql'),
+        ]);
+
+        $result = AuthService::verifyTokenHash($loginHash, $token, '  user@example.com  ');
+
+        $this->assertTrue($result);
+    }
+
     public function testDoUserAuthWithProvider()
     {
         wp_set_current_user(0);
