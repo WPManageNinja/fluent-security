@@ -19,6 +19,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setPlaceHolders();
 
+    function initPasswordReveal() {
+        const wrappers = document.querySelectorAll('.fls_login_wrapper .fls_password_wrap, .fls_registration_wrapper .fls_password_wrap, .fls_auth_wrapper .fls_password_wrap');
+
+        wrappers.forEach((wrapper) => {
+            const input = wrapper.querySelector('input[type="password"], input[type="text"]');
+            const button = wrapper.querySelector('.fls_password_toggle');
+
+            if (!input || !button || button.dataset.flsPasswordToggleBound === 'yes') {
+                return;
+            }
+
+            button.dataset.flsPasswordToggleBound = 'yes';
+
+            button.addEventListener('click', () => {
+                const shouldShow = input.type === 'password';
+                input.type = shouldShow ? 'text' : 'password';
+                button.setAttribute('aria-pressed', shouldShow ? 'true' : 'false');
+                button.setAttribute('aria-label', shouldShow ? button.dataset.hideLabel : button.dataset.showLabel);
+                button.classList.toggle('is-visible', shouldShow);
+            });
+
+            const form = wrapper.closest('form');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    input.type = 'password';
+                    button.setAttribute('aria-pressed', 'false');
+                    button.setAttribute('aria-label', button.dataset.showLabel);
+                    button.classList.remove('is-visible');
+                });
+            }
+        });
+    }
+
+    initPasswordReveal();
+
 
     function toggleLoading(submitBtn) {
         if(submitBtn) {
@@ -171,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('fls_login_form').innerHTML = response.two_fa_form;
             setTimeout(() => {
                 init2FaForm();
+                initPasswordReveal();
             }, 200);
         } else if (response.redirect) {
             window.location.href = response.redirect;

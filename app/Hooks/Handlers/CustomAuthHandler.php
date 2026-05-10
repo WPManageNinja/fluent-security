@@ -400,7 +400,11 @@ class CustomAuthHandler
                 $atts .= 'required';
             }
 
-            $html .= '<div class="fs_input_wrap"><input ' . $atts . '/></div>';
+            if ($fieldType == 'password') {
+                $html .= '<div class="fs_input_wrap fls_password_wrap"><input ' . $atts . '/>' . $this->passwordRevealButton() . '</div>';
+            } else {
+                $html .= '<div class="fs_input_wrap"><input ' . $atts . '/></div>';
+            }
         } else {
             return '';
         }
@@ -501,6 +505,11 @@ class CustomAuthHandler
          * @param string $loadingIcon this accepts html element
          */
         return apply_filters('fluent_auth/signup_loading_icon', $loadingIcon);
+    }
+
+    protected function passwordRevealButton()
+    {
+        return '<button type="button" class="fls_password_toggle" aria-label="' . esc_attr__('Show password', 'fluent-security') . '" aria-pressed="false" data-show-label="' . esc_attr__('Show password', 'fluent-security') . '" data-hide-label="' . esc_attr__('Hide password', 'fluent-security') . '"><svg class="fls_password_toggle_icon" aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24"><path class="fls_password_eye" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle class="fls_password_pupil" cx="12" cy="12" r="3"></circle><path class="fls_password_slash" d="M4 4l16 16"></path></svg></button>';
     }
 
     protected function getShortcodes($attributes)
@@ -1193,10 +1202,11 @@ class CustomAuthHandler
             \sprintf(
                 '<p class="login-password">
 				<label for="%1$s">%2$s</label>
-				<input type="password" name="pwd" id="%1$s" autocomplete="current-password" class="input" value="" size="20" />
+				<span class="fls_password_wrap"><input type="password" name="pwd" id="%1$s" autocomplete="current-password" class="input" value="" size="20" />%3$s</span>
 			</p>',
                 esc_attr($args['id_password']),
-                esc_html($args['label_password'])
+                esc_html($args['label_password']),
+                $this->passwordRevealButton()
             ) .
             $login_form_middle .
             ($args['remember'] ?
