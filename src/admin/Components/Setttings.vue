@@ -130,7 +130,7 @@
                             </el-col>
                             <el-col :sm="24" :md="12">
                                 <el-form-item
-                                    v-if="settings.notification_user_roles.length || settings.notify_on_blocked == 'yes' || settings.digest_summary">
+                                    v-if="settings.notification_user_roles.length || settings.notify_on_blocked == 'yes' || (settings.digest_summary && settings.digest_summary != 'none')">
                                     <template #label>
                                         {{ $t('Notification Send to Email Address') }}
                                         <el-tooltip
@@ -159,7 +159,7 @@
                                 </el-form-item>
                                 <el-form-item :label="$t('Send Digest Email Report Summary')">
                                     <el-select v-model="settings.digest_summary">
-                                        <el-option value="" :label="$t('Do not send digest email summary')"></el-option>
+                                        <el-option value="none" :label="$t('Do not send digest email summary')"></el-option>
                                         <el-option v-for="(day, dayName) in digest_items" :value="dayName" :label="day"></el-option>
                                     </el-select>
                                 </el-form-item>
@@ -272,6 +272,9 @@ export default {
                 .then(response => {
                     console.log(response);
                     this.settings = response.settings;
+                    if (!this.settings.digest_summary) {
+                        this.settings.digest_summary = 'none';
+                    }
                     this.user_roles = response.user_roles;
                     this.low_level_roles = response.low_level_roles;
                     this.app_ready = true;
@@ -292,6 +295,9 @@ export default {
                 .then(response => {
                     this.$notify.success(response.message);
                     this.settings = response.settings;
+                    if (!this.settings.digest_summary) {
+                        this.settings.digest_summary = 'none';
+                    }
                     this.appVars.auth_settings = response.settings;
                 })
                 .catch((errors) => {
