@@ -92,8 +92,9 @@ class SystemEmailService
                     'user.two_fa_code'
                 ],
                 'additional_smartcodes' => [
-                    '##user.two_fa_code##'       => __('Two-Factor Authentication Code', 'fluent-security'),
-                    '##user.secure_signin_url##' => __('Secure Signin URL', 'fluent-security'),
+                    '##user.two_fa_code##'               => __('Two-Factor Authentication Code', 'fluent-security'),
+                    '##user.secure_signin_url##'         => __('Secure Signin URL', 'fluent-security'),
+                    '##user.two_fa_expiration_minutes##' => __('Two-Factor Authentication Code Expiration Minutes', 'fluent-security'),
                 ]
             ],
             'magic_email_to_user'                         => [
@@ -415,7 +416,7 @@ class SystemEmailService
             <p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">
                 {{user.two_fa_code}}
             </p>
-            <p>This code will expire in 10 minutes and can only be used once</p>
+            <p>This code will expire in {{user.two_fa_expiration_minutes}} minutes and can only be used once</p>
             <p>&nbsp;</p>
             <hr/>
             <p>You can also login by clicking the following button</p>
