@@ -151,7 +151,7 @@ class BasicTasksHandler
         $frequency = Helper::getSetting('digest_summary');
         $adminEmail = Helper::getSetting('notification_email');
 
-        if (!$frequency || !$adminEmail) {
+        if (!$frequency || $frequency == 'none' || !$adminEmail) {
             return false;
         }
 
@@ -160,34 +160,53 @@ class BasicTasksHandler
             return false;
         }
 
-        if ($frequency == 'monthly' && date('d') != '01') {
-            return false;
-        }
-
-        if ($frequency == 'weekly' && date('D') != 'Mon') {
-            return false;
-        }
-
-        $cutOuts = [
-            'daily'   => 23 * HOUR_IN_SECONDS,
-            'weekly'  => 6 * DAY_IN_SECONDS,
-            'monthly' => 27 * DAY_IN_SECONDS
+        $currentTimestamp = current_time('timestamp');
+        $weekDays = [
+            'sun' => 0,
+            'mon' => 1,
+            'tue' => 2,
+            'wed' => 3,
+            'thu' => 4,
+            'fri' => 5,
+            'sat' => 6,
         ];
 
-        $cutOut = (isset($cutOuts[$frequency])) ? $cutOuts[$frequency] : 0;
+        if ($frequency == 'daily') {
+            $cutOut = 23 * HOUR_IN_SECONDS;
+            $period = 'daily';
+        } else if ($frequency == 'monthly') {
+            if (date('d', $currentTimestamp) != '01') {
+                return false;
+            }
 
-        if (!$cutOut) {
+            $cutOut = 27 * DAY_IN_SECONDS;
+            $period = 'monthly';
+        } else if ($frequency == 'weekly') {
+            if ((int)date('w', $currentTimestamp) !== 1) {
+                return false;
+            }
+
+            $cutOut = 6 * DAY_IN_SECONDS;
+            $period = 'weekly';
+        } else if (isset($weekDays[$frequency])) {
+            if ((int)date('w', $currentTimestamp) !== $weekDays[$frequency]) {
+                return false;
+            }
+
+            $cutOut = 6 * DAY_IN_SECONDS;
+            $period = 'weekly';
+        } else {
             return false;
         }
 
         $lastSent = get_option('_fls_last_digest_sent', 0);
 
-        if ($lastSent && (current_time('timestamp') - strtotime($lastSent)) < $cutOut) {
+        if ($lastSent && ($currentTimestamp - strtotime($lastSent)) < $cutOut) {
             return false;
         }
 
         if (!$lastSent) {
-            $lastSent = date('Y-m-d H:i:s', current_time('timestamp') - $cutOut);
+            $lastSent = date('Y-m-d H:i:s', $currentTimestamp - $cutOut);
         }
 
         $counts = flsDb()->table('fls_auth_logs')
@@ -237,12 +256,6 @@ class BasicTasksHandler
 
         if (!$validItems) {
             return false;
-        }
-
-        $period = $frequency;
-
-        if (!in_array($frequency, ['monthly', 'weekly'])) {
-            $period = 'daily';
         }
 
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
