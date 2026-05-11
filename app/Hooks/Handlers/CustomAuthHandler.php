@@ -1256,13 +1256,16 @@ class CustomAuthHandler
         }
 
         $hash = wp_hash_password($formData['email']) . time();
+        $expirationSeconds = $this->getSignupVerificationExpirationSeconds($formData);
+        $expirationMinutes = (int)ceil($expirationSeconds / 60);
+
         $data = array(
             'login_hash'       => $hash,
             'status'           => 'issued',
             'ip_address'       => Helper::getIp(),
             'use_type'         => 'signup_verification',
             'two_fa_code_hash' => wp_hash_password($verifcationCode),
-            'valid_till'       => date('Y-m-d H:i:s', current_time('timestamp') + 10 * 60),
+            'valid_till'       => date('Y-m-d H:i:s', current_time('timestamp') + $expirationSeconds),
             'created_at'       => current_time('mysql'),
             'updated_at'       => current_time('mysql')
         );
@@ -1281,9 +1284,10 @@ class CustomAuthHandler
             /* translators: %s: Verification code */
             $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
             '<br />' .
-            $pStart . __('This code is valid for 10 minutes and is meant to ensure the security of your account. If you did not initiate this request, please ignore this email.', 'fluent-security') . '</p>';
+            /* translators: %d: Verification code expiration time in minutes */
+            $pStart . sprintf(__('This code is valid for %d minutes and is meant to ensure the security of your account. If you did not initiate this request, please ignore this email.', 'fluent-security'), $expirationMinutes) . '</p>';
 
-        $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData);
+        $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData, $expirationMinutes);
 
         $data = [
             'body'        => $message,
@@ -1335,6 +1339,19 @@ class CustomAuthHandler
             return ob_get_clean();
         }
         return '';
+    }
+
+    private function getSignupVerificationExpirationSeconds($formData = [])
+    {
+        /*
+         * Filter the signup verification code expiration time in seconds.
+         *
+         * @param int   $expiration Expiration time in seconds.
+         * @param array $formData   Signup form data.
+         */
+        $expiration = (int)apply_filters('fluent_auth/signup_verification_code_expiration_seconds', 10 * 60, $formData);
+
+        return max(60, $expiration);
     }
 
 }
