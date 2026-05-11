@@ -67,6 +67,12 @@ class MagicLoginHandler
 
             return $this->generateHash($user, $minutes);
         }, 10, 3);
+        add_filter('wordfence_ls_require_captcha', function($isRequired) {
+            if (isset($_GET['fls_al'])) {
+                return false;
+            }
+            return $isRequired;
+        });
     }
 
     public function maybePushMagicForm()
@@ -229,11 +235,15 @@ class MagicLoginHandler
         // Now we have a valid user and let's send the email
         $validity = apply_filters('fluent_auth/default_token_validity', 10, $user);
 
-        if (!empty($_REQUEST['redirect_to']) && filter_var($_REQUEST['redirect_to'], FILTER_VALIDATE_URL)) {
-            $redirect_to = sanitize_url($_REQUEST['redirect_to']);
-        } else {
-            $redirect_to = $this->getLoginRedirect($user);
-        }
+	if (!empty($_REQUEST['redirect_to']) && filter_var($_REQUEST['redirect_to'], FILTER_VALIDATE_URL)) {
+	    $redirect_to = sanitize_url($_REQUEST['redirect_to']);
+	    // If redirect destination is wp-admin and user is not an admin, ignore it
+	    if (strpos($redirect_to, '/wp-admin') !== false && !user_can($user, 'manage_options')) {
+	        $redirect_to = home_url('/');
+	    }
+	} else {
+	    $redirect_to = $this->getLoginRedirect($user);
+	}
 
         $loginUrl = esc_url($this->getMagicLoginUrl($user, $validity, false, $redirect_to));
 
@@ -340,9 +350,8 @@ class MagicLoginHandler
     private function getMagicLoginUrl($user, $validity = 5, $baseUrl = false, $redirectIntend = '')
     {
         if (!$baseUrl) {
-            $baseUrl = site_url('index.php');
-        }
-
+	$baseUrl = site_url('/');
+	}
         if (!$redirectIntend && isset($_GET['redirect_to'])) {
             $redirectIntend = esc_url($_GET['redirect_to']);
         }
@@ -475,12 +484,8 @@ class MagicLoginHandler
 
                 if (!wp_doing_ajax()) {
                     if (isset($_GET['force_redirect']) && $_GET['force_redirect'] == 'yes') {
-                        if ($row->redirect_intend) {
-                            wp_safe_redirect($row->redirect_intend);
-                        } else {
-                            wp_safe_redirect($this->getLoginRedirect($user));
-                        }
-                        exit();
+                       wp_safe_redirect($this->getLoginRedirect($user));
+                       exit();
                     }
                 }
 
