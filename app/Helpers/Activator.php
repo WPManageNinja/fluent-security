@@ -31,6 +31,7 @@ class Activator
     {
         self::migrateLogsTable();
         self::migrateHashesTable();
+        self::migratePasskeysTable();
 
         if (!wp_next_scheduled('fluent_auth_daily_tasks')) {
             wp_schedule_event(time(), 'daily', 'fluent_auth_daily_tasks');
@@ -114,6 +115,11 @@ class Activator
         }
 
         update_option('__fluent_security_db_version', '1.0.0', false);
+    }
+
+    private static function migratePasskeysTable()
+    {
+        \FluentAuth\App\Services\PasskeyCredentialRepository::maybeCreateTable();
     }
 
 }

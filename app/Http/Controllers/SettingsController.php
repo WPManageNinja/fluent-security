@@ -80,6 +80,10 @@ class SettingsController
             ];
         }
 
+        if (!in_array($settings['passkey_user_verification'], ['required', 'preferred', 'discouraged'], true)) {
+            $settings['passkey_user_verification'] = 'preferred';
+        }
+
         if ($errors) {
             return new \WP_Error('validation_error', 'Form Validation failed', $errors);
         }
