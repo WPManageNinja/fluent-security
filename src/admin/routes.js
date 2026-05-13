@@ -1,7 +1,6 @@
 import Dashboard from './Components/Dashboard.vue';
 import Logs from './Components/Logs.vue';
 import Settings from './Components/Setttings.vue';
-import SocialAuthSettings from './Components/SocialAuthSettings.vue';
 import AuthShortcodes from './Components/AuthShortcodes.vue';
 import LoginRedirects from './Components/LoginRedirects.vue';
 
@@ -39,15 +38,6 @@ export var routes = [
         meta: {
             active: 'settings',
             title: 'Settings'
-        }
-    },
-    {
-        path: '/social-login-settings',
-        name: 'social_auth_settings',
-        component: SocialAuthSettings,
-        meta: {
-            active: 'social_auth_settings',
-            title: 'Social Login Settings'
         }
     },
     {
