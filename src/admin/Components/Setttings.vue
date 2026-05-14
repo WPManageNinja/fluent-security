@@ -92,6 +92,32 @@
                             </template>
                         </div>
 
+                        <div class="fls_inner_group" :class="'fls_inner_group_' + settings.passkeys">
+                            <el-form-item>
+                                <el-checkbox v-model="settings.passkeys" true-label="yes" false-label="no">
+                                    {{ $t('Enable Passkey Login') }}
+                                </el-checkbox>
+                            </el-form-item>
+                            <template v-if="settings.passkeys == 'yes'">
+                                <el-form-item>
+                                    <el-checkbox v-model="settings.passkey_login_button" true-label="yes" false-label="no">
+                                        {{ $t('Show passkey login button on login forms') }}
+                                    </el-checkbox>
+                                </el-form-item>
+                                <el-form-item style="background: white; padding: 10px 20px;">
+                                    <template #label>
+                                        {{ $t('Passkey user verification') }}
+                                    </template>
+                                    <el-select v-model="settings.passkey_user_verification">
+                                        <el-option :label="$t('Preferred')" value="preferred"></el-option>
+                                        <el-option :label="$t('Required')" value="required"></el-option>
+                                        <el-option :label="$t('Discouraged')" value="discouraged"></el-option>
+                                    </el-select>
+                                    <p>{{ $t('Passkeys require HTTPS or localhost. Required verification asks the authenticator for PIN, biometric, or equivalent device verification.') }}</p>
+                                </el-form-item>
+                            </template>
+                        </div>
+
                         <div class="fls_inner_group" :class="'fls_inner_group_' + settings.email2fa">
                             <el-form-item>
                                 <el-checkbox v-model="settings.email2fa" true-label="yes" false-label="no">
@@ -318,6 +344,9 @@ export default {
                 magic_login: 'no',
                 magic_restricted_roles: [],
                 magic_link_primary: 'no',
+                passkeys: 'no',
+                passkey_login_button: 'yes',
+                passkey_user_verification: 'preferred',
                 email2fa: 'yes',
                 email2fa_roles: ['administrator', 'editor', 'author'],
                 disable_admin_bar: 'yes',
