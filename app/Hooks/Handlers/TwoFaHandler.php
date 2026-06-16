@@ -106,6 +106,8 @@ class TwoFaHandler
             $hash .= '-auth';
         }
 
+        $expirationSeconds = $this->getCodeExpirationSeconds($user);
+
         $data = array(
             'login_hash'       => $hash,
             'user_id'          => $user->ID,
@@ -114,7 +116,7 @@ class TwoFaHandler
             'redirect_intend'  => $redirectIntend,
             'use_type'         => 'email_2_fa',
             'two_fa_code_hash' => wp_hash_password($twoFaCode),
-            'valid_till'       => date('Y-m-d H:i:s', current_time('timestamp') + 10 * 60),
+            'valid_till'       => date('Y-m-d H:i:s', current_time('timestamp') + $expirationSeconds),
             'created_at'       => current_time('mysql'),
             'updated_at'       => current_time('mysql')
         );
@@ -196,7 +198,11 @@ class TwoFaHandler
             ], 422);
         }
 
-        if (strtotime($logHash->created_at) < current_time('timestamp') - 600 || !$user || $logHash->status != 'issued' || $logHash->used_count > 5) {
+        $expiresAt = !empty($logHash->valid_till)
+            ? strtotime($logHash->valid_till)
+            : strtotime($logHash->created_at) + $this->getCodeExpirationSeconds($user);
+
+        if ($expiresAt < current_time('timestamp') || !$user || $logHash->status != 'issued' || $logHash->used_count > 5) {
             wp_send_json([
                 'message' => __('Sorry, your login code has been expired. Please try to login again', 'fluent-security')
             ], 422);
@@ -252,6 +258,7 @@ class TwoFaHandler
 
         if (empty($emailData['subject']) || empty($emailData['body'])) {
             $blogName = html_entity_decode(get_bloginfo('name'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $expirationMinutes = (int)ceil($this->getCodeExpirationSeconds($user) / 60);
 
             /* translators: %1$1s: Site Name, %2$d: verification code */
             $emailSubject = sprintf(__('Your Login code for %1$1s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
@@ -264,7 +271,7 @@ class TwoFaHandler
                 '<b>' . __('Your Login Code: ', 'fluent-security') . '</b>',
                 '<p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">' . $data['two_fa_code'] . '</p>',
                 /* translators: %d: Minute  */
-                sprintf(__('This code will expire in %d minutes and can only be used once.', 'fluent-security'), 10),
+                sprintf(__('This code will expire in %d minutes and can only be used once.', 'fluent-security'), $expirationMinutes),
                 ' ',
                 '<hr />'
             ];
@@ -316,6 +323,19 @@ class TwoFaHandler
         ));
     }
 
+    private function getCodeExpirationSeconds($user = false)
+    {
+        /*
+         * Filter the email 2FA login code expiration time in seconds.
+         *
+         * @param int            $expiration Expiration time in seconds.
+         * @param \WP_User|false $user       User receiving or verifying the 2FA code.
+         */
+        $expiration = (int)apply_filters('fluent_auth/login_2fa_code_expiration_seconds', 10 * 60, $user);
+
+        return max(60, $expiration);
+    }
+
 
     private function getCustomizedEmailSubjectBody($data, $user, $autoLoginUrl = false)
     {
@@ -331,12 +351,15 @@ class TwoFaHandler
         $subject = Arr::get($customSetting, 'email.subject', '');
         $body = Arr::get($customSetting, 'email.body', '');
 
+        $expirationMinutes = (int)ceil($this->getCodeExpirationSeconds($user) / 60);
 
         $replaces = [
-            '{{user.two_fa_code}}'  => $data['two_fa_code'],
-            '##user.two_fa_code##'  => $data['two_fa_code'],
-            '##user.secure_signin_url##' => $autoLoginUrl,
-            '{{user.secure_signin_url}}' => $autoLoginUrl,
+            '{{user.two_fa_code}}'               => $data['two_fa_code'],
+            '##user.two_fa_code##'               => $data['two_fa_code'],
+            '##user.secure_signin_url##'         => $autoLoginUrl,
+            '{{user.secure_signin_url}}'         => $autoLoginUrl,
+            '{{user.two_fa_expiration_minutes}}' => $expirationMinutes,
+            '##user.two_fa_expiration_minutes##' => $expirationMinutes,
         ];
 
         $subject = strtr($subject, $replaces);
