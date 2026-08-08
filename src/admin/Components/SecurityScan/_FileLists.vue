@@ -13,7 +13,7 @@
                          'fls_file_list_status_' + file.status,
                           (file.isIgnored) ? 'fls_file_ignored' : ''
                      ]"
-                     :key="file"
+                     :key="file.file"
                 >
                     <div class="fls_file_title">
                         <el-tag size="small" type="info" :class="'fls_file_icon_type_' + file.status"
@@ -97,7 +97,14 @@ export default {
             type: String,
             default: ''
         },
-        folderType: ''
+        folderType: {
+            type: String,
+            default: ''
+        },
+        relativeBasePath: {
+            type: String,
+            default: ''
+        }
     },
     data() {
         return {
@@ -169,9 +176,14 @@ export default {
                 });
         },
         viewFile(file) {
+            let filePath = file.relativeName;
+            if (this.relativeBasePath) {
+                filePath = this.relativeBasePath.replace(/^\/+|\/+$/g, '') + '/' + filePath;
+            }
+
             this.viewing = true;
             this.viewingFile = {
-                file: file.relativeName,
+                file: filePath,
                 folder: this.folderType,
                 status: file.status,
             };

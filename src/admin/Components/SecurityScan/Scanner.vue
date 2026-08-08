@@ -55,17 +55,14 @@
                     <folder-lists :ignored-files="ignores.folders" root-path="/" :files="scan_results.folders"/>
                 </div>
 
-                <div v-if="scan_results.files.root">
-                    <file-lists folderType="" :ignored-files="ignores.files" :files="scan_results.files.root" root-path="/"/>
-                </div>
-
-                <div v-if="scan_results.files['wp-admin']">
-                    <file-lists folderType="wp-admin" :ignored-files="ignores.files" :files="scan_results.files['wp-admin']" root-path="/wp-admin/"/>
-                </div>
-
-                <div v-if="scan_results.files['wp-includes']">
-                    <file-lists folderType="wp-includes" :ignored-files="ignores.files" :files="scan_results.files['wp-includes']"
-                                root-path="/wp-includes/"/>
+                <div v-for="fileGroup in fileGroups" :key="fileGroup.name">
+                    <file-lists
+                        :folder-type="fileGroup.folderType"
+                        :ignored-files="ignores.files"
+                        :files="fileGroup.files"
+                        :relative-base-path="fileGroup.relativeBasePath"
+                        :root-path="fileGroup.rootPath"
+                    />
                 </div>
 
                 <el-button :disabled="scanStatus == 'scanning'" :loading="scanStatus == 'scanning'" @click="startScanning" size="large" type="primary">
@@ -83,7 +80,6 @@
 <script type="text/babel">
 import FileLists from "./_FileLists.vue";
 import FolderLists from "./_FolderLists.vue";
-import each from "lodash/each";
 import ScannerWidgets from "./_ScannerWidgets.vue";
 
 export default {
@@ -101,6 +97,35 @@ export default {
             error_message: '',
             hasIssues: true,
             willAlert: false
+        }
+    },
+    computed: {
+        fileGroups() {
+            if (!this.scan_results || !this.scan_results.files) {
+                return [];
+            }
+
+            return Object.keys(this.scan_results.files).map((groupName) => {
+                let normalizedGroup = groupName == 'root' ? '' : groupName.replace(/^\/+|\/+$/g, '');
+                let folderType = '';
+                let relativeBasePath = '';
+
+                if (normalizedGroup == 'wp-admin' || normalizedGroup.indexOf('wp-admin/') == 0) {
+                    folderType = 'wp-admin';
+                    relativeBasePath = normalizedGroup.replace(/^wp-admin\/?/, '');
+                } else if (normalizedGroup == 'wp-includes' || normalizedGroup.indexOf('wp-includes/') == 0) {
+                    folderType = 'wp-includes';
+                    relativeBasePath = normalizedGroup.replace(/^wp-includes\/?/, '');
+                }
+
+                return {
+                    name: groupName,
+                    folderType,
+                    files: this.scan_results.files[groupName],
+                    relativeBasePath,
+                    rootPath: normalizedGroup ? '/' + normalizedGroup + '/' : '/'
+                };
+            });
         }
     },
     methods: {
