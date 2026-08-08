@@ -221,6 +221,10 @@ class SmartCodeParser
 
         $valueKeys = explode('.', $valueKey);
         if (count($valueKeys) == 1) {
+            if (isset($wpUser->{$valueKey}) && !is_array($wpUser->{$valueKey}) && !is_object($wpUser->{$valueKey})) {
+                return $wpUser->{$valueKey};
+            }
+
             $value = $wpUser->get($valueKey);
             if (!$value) {
                 return $defaultValue;

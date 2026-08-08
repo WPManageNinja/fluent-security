@@ -45,6 +45,12 @@
                             <textarea readonly>[fluent_auth_magic_login]<h3>Type your email address to log in</h3>[/fluent_auth_magic_login]</textarea>
                             <p class="help">{{$t('You may remove the h3 content or change it. If you want to define customized redirect URL then use shortcode:')}} <code>[fluent_auth_magic_login redirect_to="your_URL"]</code></p>
                         </div>
+
+                        <div class="fls_shortcode_section">
+                            <h3>{{$t('Passkey Management Shortcode')}}</h3>
+                            <textarea readonly>[fluent_auth_passkeys]</textarea>
+                            <p class="help">{{$t('Use this shortcode on an account page so logged-in users can add or remove their passkeys.')}}</p>
+                        </div>
                     </div>
 
                     <el-form-item>

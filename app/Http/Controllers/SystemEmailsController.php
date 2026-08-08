@@ -110,6 +110,13 @@ class SystemEmailsController
         }
 
         $wpUser = get_user_by('ID', get_current_user_id());
+        if (in_array($remailId, ['passkey_registered_to_user', 'passkey_removed_to_user'], true) && $wpUser) {
+            $wpUser->passkey_name = __('Example Passkey', 'fluent-security');
+            $wpUser->ip_address = '127.0.0.1';
+            $wpUser->browser = __('Current browser', 'fluent-security');
+            $wpUser->event_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), current_time('timestamp'));
+        }
+
         $subject = (new SmartCodeParser())->parse($subject, $wpUser);
         $body = (new SmartCodeParser())->parse($emailBody, $wpUser);
         $body = SystemEmailService::withHtmlTemplate($body, null, $wpUser);

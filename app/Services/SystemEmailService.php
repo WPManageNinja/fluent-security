@@ -109,6 +109,36 @@ class SystemEmailService
                     '##user.secure_signin_url##' => __('Secure Signin URL', 'fluent-security'),
                 ]
             ],
+            'passkey_registered_to_user'                  => [
+                'name'                  => 'passkey_registered_to_user',
+                'title'                 => __('Passkey Added Notification', 'fluent-security'),
+                'description'           => __('Sent to users when a new passkey is added to their account.', 'fluent-security'),
+                'recipient'             => 'user',
+                'hook'                  => 'fluent_auth/passkey_registered',
+                'can_disable'           => 'yes',
+                'required_smartcodes'   => [],
+                'additional_smartcodes' => [
+                    '{{user.passkey_name}}' => __('Passkey Name', 'fluent-security'),
+                    '{{user.ip_address}}'   => __('IP Address', 'fluent-security'),
+                    '{{user.browser}}'      => __('Browser', 'fluent-security'),
+                    '{{user.event_time}}'   => __('Event Time', 'fluent-security'),
+                ]
+            ],
+            'passkey_removed_to_user'                     => [
+                'name'                  => 'passkey_removed_to_user',
+                'title'                 => __('Passkey Removed Notification', 'fluent-security'),
+                'description'           => __('Sent to users when a passkey is removed from their account.', 'fluent-security'),
+                'recipient'             => 'user',
+                'hook'                  => 'fluent_auth/passkey_removed',
+                'can_disable'           => 'yes',
+                'required_smartcodes'   => [],
+                'additional_smartcodes' => [
+                    '{{user.passkey_name}}' => __('Passkey Name', 'fluent-security'),
+                    '{{user.ip_address}}'   => __('IP Address', 'fluent-security'),
+                    '{{user.browser}}'      => __('Browser', 'fluent-security'),
+                    '{{user.event_time}}'   => __('Event Time', 'fluent-security'),
+                ]
+            ],
         ];
 
         $globalSettings = self::getGlobalSettings();
@@ -240,6 +270,20 @@ class SystemEmailService
                 'email'  => [
                     'subject' => 'Sign in to {{site.name}}',
                     'body'    => self::getDefaultEmailBody('magic_email_to_user'),
+                ]
+            ],
+            'passkey_registered_to_user'                  => [
+                'status' => 'system',
+                'email'  => [
+                    'subject' => '[{{site.name}}] Passkey added to your account',
+                    'body'    => self::getDefaultEmailBody('passkey_registered_to_user'),
+                ]
+            ],
+            'passkey_removed_to_user'                     => [
+                'status' => 'system',
+                'email'  => [
+                    'subject' => '[{{site.name}}] Passkey removed from your account',
+                    'body'    => self::getDefaultEmailBody('passkey_removed_to_user'),
                 ]
             ]
         ];
@@ -442,6 +486,42 @@ class SystemEmailService
             {{user.secure_signin_url}}
             <p>&nbsp;</p>
             <p>If you did not make this request, you can safely ignore this email.</p>
+            <?php
+            return ob_get_clean();
+        } else if ($type == 'passkey_registered_to_user') {
+            ob_start();
+            ?>
+            <p>Hello {{user.display_name}},</p>
+            <p>A new passkey was added to your account on <strong>{{site.name}}</strong>.</p>
+            <blockquote>
+                <p><strong>Passkey:</strong> {{user.passkey_name}}</p>
+                <p><strong>IP Address:</strong> {{user.ip_address}}</p>
+                <p><strong>Browser:</strong> {{user.browser}}</p>
+                <p><strong>Time:</strong> {{user.event_time}}</p>
+            </blockquote>
+            <p>If this was you, no action is needed.</p>
+            <p>If this was not you, remove the passkey immediately and change your password.</p>
+            <p>&nbsp;</p>
+            <p>Regards</p>
+            <p>All at {{site.name}}<br/>{{site.url}}</p>
+            <?php
+            return ob_get_clean();
+        } else if ($type == 'passkey_removed_to_user') {
+            ob_start();
+            ?>
+            <p>Hello {{user.display_name}},</p>
+            <p>A passkey was removed from your account on <strong>{{site.name}}</strong>.</p>
+            <blockquote>
+                <p><strong>Passkey:</strong> {{user.passkey_name}}</p>
+                <p><strong>IP Address:</strong> {{user.ip_address}}</p>
+                <p><strong>Browser:</strong> {{user.browser}}</p>
+                <p><strong>Time:</strong> {{user.event_time}}</p>
+            </blockquote>
+            <p>If this was you, no action is needed.</p>
+            <p>If this was not you, review your account security immediately.</p>
+            <p>&nbsp;</p>
+            <p>Regards</p>
+            <p>All at {{site.name}}<br/>{{site.url}}</p>
             <?php
             return ob_get_clean();
         }

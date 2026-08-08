@@ -35,6 +35,7 @@ mix
     .js('src/public/magic_url.js', 'dist/public/fls_login.js')
     .js('src/public/one_tap.js', 'dist/public/one_tap.js')
     .js('src/public/login_helper.js', 'dist/public/login_helper.js')
+    .js('src/public/passkey.js', 'dist/public/passkey.js')
     .sass('src/public/login_customizer.scss', 'dist/public/login_customizer.css')
     .copy('src/images', 'dist/images')
     .copy('src/libs', 'dist/libs');
