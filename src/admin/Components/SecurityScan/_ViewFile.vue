@@ -10,6 +10,7 @@
 export default {
     name: 'ViewFile',
     props: ['viewing_file'],
+    emits: ['restored'],
     data() {
         return {
             filePath: '',
@@ -17,7 +18,20 @@ export default {
             originalFileContent: '',
             hasDiff: false,
             loading: true,
+            restoring: false,
+            restored: false,
             error: ''
+        }
+    },
+    computed: {
+        /*
+         * Only ever offered next to the changes it would undo. A file the scan calls "new"
+         * has no original to go back to - and the button that would deal with one of those
+         * deletes it, which is a different decision than this one and does not belong behind
+         * the same label.
+         */
+        canRestore() {
+            return this.hasDiff && !this.restored && this.viewing_file.status === 'modified';
         }
     },
     methods: {
@@ -45,6 +59,36 @@ export default {
                 .finally(() => {
                     this.loading = false;
                 });
+        },
+        restore() {
+            this.$confirm(this.$t('__restore_file_confirm__'), this.$t('Put this file back?'), {
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonText: this.$t('Cancel'),
+                confirmButtonText: this.$t('Yes, restore it')
+            }).then(() => {
+                this.restoring = true;
+
+                this.$post('security-scan-settings/scan/restore-file', {viewing_file: this.viewing_file})
+                    .then(response => {
+                        this.$notify.success(response.message);
+                        this.restored = true;
+                        /*
+                         * Re-read rather than assumed. The file on disk is the only thing that
+                         * settles whether this worked, and the panel should now be showing it.
+                         */
+                        this.getFileContent();
+                        this.$emit('restored', this.viewing_file);
+                    })
+                    .catch(errors => {
+                        this.$handleError(errors);
+                    })
+                    .finally(() => {
+                        this.restoring = false;
+                    });
+            }).catch(() => {
+                // Dismissed - nothing to do.
+            });
         },
         renderDiff() {
             const target = this.$refs.fls_diff_viewer;
@@ -83,7 +127,15 @@ export default {
 
 <template>
     <div v-loading="loading" :element-loading-text="$t('Loading file…')">
-        <p class="fls_file_view_path">{{ filePath }}</p>
+        <div class="fls_file_view_head">
+            <p class="fls_file_view_path">{{ filePath }}</p>
+
+            <el-button v-if="canRestore" type="primary" size="small"
+                       :loading="restoring" @click="restore">
+                {{ $t('Restore this file') }}
+            </el-button>
+            <span v-else-if="restored" class="fls_tag is_success">{{ $t('Restored') }}</span>
+        </div>
 
         <pre v-if="error" class="fls_code">{{ error }}</pre>
 

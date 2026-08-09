@@ -347,8 +347,47 @@ class SecurityScanController
             return self::viewExtensionFileDiff($fileConfig);
         }
 
+        $resolved = self::resolveCoreFile($fileConfig);
+
+        if (is_wp_error($resolved)) {
+            return $resolved;
+        }
+
+        $fileContent = self::readFileContents($resolved['path']);
+
+        $remoteContent = '';
+
+        if ($fileConfig['status'] == 'modified') {
+            $remoteContent = Api::getFileContentFromGithub($resolved['remote_path']);
+
+            if (is_wp_error($remoteContent)) {
+                return new \WP_Error('invalid_data', __('Sorry, we could not compare the changes via Github API.', 'fluent-security'), ['status' => 400]);
+            }
+        }
+
+        return [
+            'filePath'            => str_replace(ABSPATH, '/', $resolved['path']),
+            'fileContent'         => $fileContent,
+            'hasDiff'             => !!$remoteContent,
+            'originalFileContent' => $remoteContent,
+        ];
+
+    }
+
+    /**
+     * Where a core file the browser has named actually is, if it is anywhere allowed.
+     *
+     * Its own method because two things now act on the answer - the viewer and the restore -
+     * and they must not be able to disagree about it. A restore that resolved paths through
+     * its own copy of these rules would be one refactor away from writing somewhere the
+     * viewer would never have read from.
+     *
+     * @param array $fileConfig
+     * @return array|\WP_Error
+     */
+    protected static function resolveCoreFile($fileConfig)
+    {
         $file = $fileConfig['file'];
-        $status = $fileConfig['status'];
         $folder = $fileConfig['folder'];
 
         $validFolders = ['', 'wp-admin', 'wp-includes', WPINC];
@@ -380,35 +419,23 @@ class SecurityScanController
             return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400, 'data' => $file]);
         }
 
-        $viewable = self::assertViewableFile($filePath, $file);
+        $viewable = self::assertViewableFile($realPath, $file);
 
         if (is_wp_error($viewable)) {
             return $viewable;
         }
 
-        $fileContent = self::readFileContents($filePath);
+        $remotePath = str_replace(ABSPATH, '', $realPath);
 
-        $remoteContent = '';
-        if ($status == 'modified') {
-            $originalRelativePath = str_replace(ABSPATH, '', $filePath);
-            if ($isInc) {
-                $originalRelativePath = str_replace(WPINC, 'wp-includes', $originalRelativePath);
-            }
-
-            $remoteContent = Api::getFileContentFromGithub($originalRelativePath);
-
-            if (is_wp_error($remoteContent)) {
-                return new \WP_Error('invalid_data', __('Sorry, we could not compare the changes via Github API.', 'fluent-security'), ['status' => 400]);
-            }
+        if ($isInc) {
+            $remotePath = str_replace(WPINC, 'wp-includes', $remotePath);
         }
 
         return [
-            'filePath'            => str_replace(ABSPATH, '/', $filePath),
-            'fileContent'         => $fileContent,
-            'hasDiff'             => !!$remoteContent,
-            'originalFileContent' => $remoteContent,
+            'path'        => $realPath,
+            'remote_path' => $remotePath,
+            'display'     => str_replace(ABSPATH, '/', $realPath)
         ];
-
     }
 
     /*
@@ -421,10 +448,52 @@ class SecurityScanController
      */
     protected static function viewExtensionFileDiff($fileConfig)
     {
+        $resolved = self::resolveExtensionFile($fileConfig);
+
+        if (is_wp_error($resolved)) {
+            return $resolved;
+        }
+
+        $target = $resolved['target'];
+        $remoteContent = '';
+
+        if (Arr::get($fileConfig, 'status') === 'modified') {
+            $remoteContent = Api::getExtensionFileContent(
+                $target['type'],
+                $target['slug'],
+                $target['version'],
+                $resolved['file']
+            );
+
+            if (is_wp_error($remoteContent)) {
+                return new \WP_Error('invalid_data', __('Sorry, we could not fetch the original file from WordPress.org.', 'fluent-security'), ['status' => 400]);
+            }
+        }
+
+        return [
+            'filePath'            => $resolved['display'],
+            'fileContent'         => self::readFileContents($resolved['path']),
+            'hasDiff'             => !!$remoteContent,
+            'originalFileContent' => $remoteContent
+        ];
+    }
+
+    /**
+     * Where a file inside an installed plugin or theme is, if it is inside one.
+     *
+     * The directory comes from the inventory rather than from the request, so the caller only
+     * ever controls a path *within* an installed extension - and realpath() containment
+     * settles whether it really is within one. Shared with the restore for the same reason
+     * resolveCoreFile() is.
+     *
+     * @param array $fileConfig
+     * @return array|\WP_Error
+     */
+    protected static function resolveExtensionFile($fileConfig)
+    {
         $type = Arr::get($fileConfig, 'type') === 'theme' ? 'theme' : 'plugin';
         $key = Arr::get($fileConfig, 'key');
         $file = Arr::get($fileConfig, 'file');
-        $status = Arr::get($fileConfig, 'status');
 
         if (!is_string($key) || !$key) {
             return new \WP_Error('invalid_data', __('Please provide the plugin or theme to view.', 'fluent-security'), ['status' => 400]);
@@ -463,21 +532,108 @@ class SecurityScanController
             return $viewable;
         }
 
-        $remoteContent = '';
+        return [
+            'path'    => $realPath,
+            'file'    => $file,
+            'target'  => $target,
+            'display' => '/' . trim($target['rel_path'], '/') . '/' . $file
+        ];
+    }
 
-        if ($status === 'modified') {
-            $remoteContent = Api::getExtensionFileContent($type, $target['slug'], $target['version'], $file);
+    /**
+     * Put one file back to what WordPress.org published.
+     *
+     * One file, and only ever one that was modified. A file the scan calls "new" has no
+     * original to be put back to - restoring it would mean deleting it, which is a different
+     * decision with a different consequence, and it is not going to be made by a button
+     * labelled the same as this one.
+     *
+     * The official copy is fetched before anything is touched, and the result is verified by
+     * reading the file back afterwards. A write that the filesystem accepted and did not
+     * perform, or performed partially, must not report success - this is somebody repairing a
+     * compromised site, and "restored" has to mean it.
+     *
+     * @param \WP_REST_Request $request
+     * @return array|\WP_Error
+     */
+    public static function restoreFile(\WP_REST_Request $request)
+    {
+        $fileConfig = $request->get_param('viewing_file');
 
-            if (is_wp_error($remoteContent)) {
-                return new \WP_Error('invalid_data', __('Sorry, we could not fetch the original file from WordPress.org.', 'fluent-security'), ['status' => 400]);
-            }
+        if (!$fileConfig || empty($fileConfig['file']) || empty($fileConfig['status'])) {
+            return new \WP_Error('invalid_data', __('Please provide a valid file name and status.', 'fluent-security'), ['status' => 400]);
+        }
+
+        if (Arr::get($fileConfig, 'status') !== 'modified') {
+            return new \WP_Error(
+                'not_restorable',
+                __('This file is not part of the official release, so there is no original to put back. Look at it and decide whether it belongs there.', 'fluent-security'),
+                ['status' => 422]
+            );
+        }
+
+        $isExtension = Arr::get($fileConfig, 'scope') === 'extension';
+
+        $resolved = $isExtension
+            ? self::resolveExtensionFile($fileConfig)
+            : self::resolveCoreFile($fileConfig);
+
+        if (is_wp_error($resolved)) {
+            return $resolved;
+        }
+
+        if ($isExtension) {
+            $target = $resolved['target'];
+            $original = Api::getExtensionFileContent(
+                $target['type'],
+                $target['slug'],
+                $target['version'],
+                $resolved['file']
+            );
+        } else {
+            $original = Api::getFileContentFromGithub($resolved['remote_path']);
+        }
+
+        if (is_wp_error($original) || !is_string($original)) {
+            return new \WP_Error(
+                'no_original',
+                __('The official copy of this file could not be fetched, so nothing has been changed.', 'fluent-security'),
+                ['status' => 422]
+            );
+        }
+
+        if (!is_writable($resolved['path'])) {
+            return new \WP_Error(
+                'not_writable',
+                __('This file cannot be written to from here. Your host or your file permissions will need to allow it.', 'fluent-security'),
+                ['status' => 422]
+            );
+        }
+
+        $written = @file_put_contents($resolved['path'], $original);
+
+        clearstatcache(true, $resolved['path']);
+
+        /*
+         * Verified by reading it back rather than trusting the return value: a short write is
+         * reported as a byte count, not as a failure, and a file left half replaced is worse
+         * than one left alone.
+         */
+        if ($written === false || md5_file($resolved['path']) !== md5($original)) {
+            return new \WP_Error(
+                'restore_failed',
+                __('The file could not be replaced properly. Check it before relying on this site.', 'fluent-security'),
+                ['status' => 500]
+            );
         }
 
         return [
-            'filePath'            => '/' . trim($target['rel_path'], '/') . '/' . $file,
-            'fileContent'         => self::readFileContents($realPath),
-            'hasDiff'             => !!$remoteContent,
-            'originalFileContent' => $remoteContent
+            'message' => sprintf(
+                /* translators: %s: a file path */
+                __('%s has been put back to the official version.', 'fluent-security'),
+                $resolved['display']
+            ),
+            'path'    => $resolved['display']
         ];
     }
 

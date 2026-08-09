@@ -415,6 +415,7 @@ class TransStrings
             '__baseline_when_clean__' => __('Your last scan came back clean, which makes now a good moment to take one.', 'fluent-security'),
             '__baseline_when_unclean__' => __('Best taken just after a scan comes back clean. A snapshot of a site that has already been tampered with records the tampering as normal.', 'fluent-security'),
             '__recovery_logged__' => __('Everything on this page is written to your auth log with your name and the time, so there is a record of what was done and when.', 'fluent-security'),
+            '__restore_file_confirm__' => __('This overwrites the file on your site with the official version, and the changes shown here will be gone. If you or a developer edited this file on purpose, that edit will be lost.', 'fluent-security'),
             '__recovery_secure_confirm__' => __('Everyone signed in to this site will be signed out, and anything using an application password will stop working until it is given a new one. Nothing is deleted, and you will stay signed in here.', 'fluent-security'),
             '__recovery_secure_desc__' => __('Signs out everyone on the site and revokes every application password. Nothing is deleted, nobody is emailed, and you stay signed in here — people simply sign in again. Start with this if you are not sure what else to do.', 'fluent-security'),
             '__scanner_result_dec_normal__' => __('All these file changes were previously marked as ignored. You can review them and decide whether to keep them on the ignore list.', 'fluent-security'),

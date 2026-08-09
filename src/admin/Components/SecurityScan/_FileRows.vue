@@ -49,7 +49,9 @@ export default {
             icons,
             workingFile: '',
             viewing: false,
-            viewingFile: null
+            viewingFile: null,
+            /* Files put back during this visit, so the rows can say so before the next scan. */
+            restoredFiles: []
         }
     },
     computed: {
@@ -134,6 +136,22 @@ export default {
         closeViewer() {
             this.viewing = false;
             this.viewingFile = null;
+        },
+        /*
+         * Marked here rather than removed from the list. The row is a finding from the last
+         * scan, and the last scan did find it - what has changed is what the file is now, and
+         * saying so is honest in a way that quietly dropping the row would not be. The next
+         * scan is what makes the list itself right again.
+         */
+        onRestored(viewingFile) {
+            /*
+             * Keyed on the name the viewer was opened with, which is the row's relativeName in
+             * both the core and the extension case - not its full path, which is what the row
+             * itself is keyed on.
+             */
+            if (!this.restoredFiles.includes(viewingFile.file)) {
+                this.restoredFiles.push(viewingFile.file);
+            }
         }
     }
 }
@@ -149,6 +167,9 @@ export default {
                     {{ statusLabel(file.status) }}
                 </span>
                 <span v-if="file.isIgnored" class="fls_tag is_neutral">{{ $t('Ignored') }}</span>
+                <span v-if="restoredFiles.includes(file.relativeName)" class="fls_tag is_success">
+                    {{ $t('Restored') }}
+                </span>
                 <span class="fls_scan_file_name" :title="file.file">{{ file.relativeName }}</span>
             </div>
 
@@ -185,6 +206,6 @@ export default {
 
     <el-dialog :title="$t('View File')" v-model="viewing" width="70%" :append-to-body="true"
                :before-close="(done) => { closeViewer(); done(); }" :close-on-click-modal="false">
-        <view-file v-if="viewingFile" :viewing_file="viewingFile"/>
+        <view-file v-if="viewingFile" :viewing_file="viewingFile" @restored="onRestored"/>
     </el-dialog>
 </template>
