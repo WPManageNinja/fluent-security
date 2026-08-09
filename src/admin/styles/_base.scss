@@ -1,0 +1,82 @@
+/*
+ * The ground the app stands on: how it sits inside wp-admin, and the two or three things
+ * that are true of every element in it.
+ *
+ * Nothing here is a component. If a rule needs a class of its own it belongs in _ui.scss
+ * or with the screen that uses it.
+ */
+
+/* --------------------------------------------------------------- wp-admin fit */
+
+/*
+ * wp-admin reserves a 65px strip under the content for its footer. That strip is where a
+ * pinned sidebar comes unstuck: the column it sits in ends 65px before the document does,
+ * so at the very bottom of a long page the sidebar slides up by exactly that much.
+ * FluentCart never sees this because it covers the footer with a full-screen pane;
+ * reclaiming the strip gets the same result without taking over the screen.
+ *
+ * Deliberately unscoped - it has to reach wp-admin's own elements - but narrowed to this
+ * plugin's screen by the body class WordPress puts there.
+ */
+body.toplevel_page_fluent-auth {
+    /*
+     * FluentCart's page background, copied from its `--body-bg` rather than approximated -
+     * wp-admin's own grey is #f0f0f1, a warmer and flatter one, and the difference is plain
+     * when the two plugins sit next to each other in the same menu.
+     */
+    background-color: var(--fls-body-bg);
+
+    #wpbody-content {
+        padding-bottom: 0;
+    }
+
+    #wpfooter {
+        display: none;
+    }
+}
+
+/* ------------------------------------------------------------------ app root */
+
+#fluent_auth_app {
+    /* How wide the settings column is allowed to get, cards and header alike. */
+    --fls-content-width: 1040px;
+
+    /*
+     * Anything the app draws that nobody thought to colour. Without this those elements
+     * inherit wp-admin's own #3c434a, which is invisible on a dark card. Set on the root so
+     * it is inherited, and so it loses to every rule that does have an opinion - including
+     * the ones that colour a heading red or amber on purpose.
+     */
+    color: var(--fls-text);
+
+    /*
+     * Tailwind's preflight normally sets the box model, but preflight is off here because
+     * it would restyle the whole of wp-admin. Without it these elements inherit wp-admin's
+     * content-box, which makes every `min-h-*` and `h-*` utility add its padding on top of
+     * the height instead of inside it - a 36px nav link with 8px padding rendered at 52px.
+     */
+    &,
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    /*
+     * wp-admin draws a blue ring on any focused link, which on a nav is left behind after
+     * every click and reads as a second selection. Keyboard users still need it, so it moves
+     * to :focus-visible and is recoloured rather than removed.
+     */
+    .fls_app_bar a,
+    .fls_settings_nav a {
+        &:focus {
+            box-shadow: none;
+            outline: none;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: -1px;
+        }
+    }
+}

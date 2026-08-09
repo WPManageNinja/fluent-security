@@ -1,0 +1,176 @@
+/*
+ * The small parts, shared.
+ *
+ * Everything here is used by more than one screen. That is the bar for being in this file
+ * - a part used once belongs with the screen that uses it, where it can be read next to
+ * the markup it describes. Nothing here positions anything; these are things you put
+ * inside a layout, not the layout.
+ */
+
+/* ------------------------------------------------------------------ captions */
+
+/*
+ * The small grey capital above a value: a field name in a fact list, the word "Preview"
+ * over a preview. It is a caption, not a heading, which is why it is quiet and why it is
+ * the same size wherever it appears - the four places it is used were three different
+ * sizes and two different weights before they shared a class.
+ *
+ * `font-style` is set because some of these are `<em>`, which is the right element for
+ * the label of a value but comes italic by default.
+ */
+.fls_eyebrow {
+    @apply block text-ink-light;
+
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------- statuses */
+
+/*
+ * A status, as a word. Shared by the dashboard's log lists, the logs table, the enrollment
+ * table, the two-factor cards and the proxy panel - which is why it lives here rather than
+ * with any one of them.
+ *
+ * The logs table used to tint the whole row instead - a pink row for blocked, yellow for
+ * failed. Three coloured bands across a full-width table is a lot of colour for a fact that
+ * fits in one word, and it left no way to colour anything else in the row.
+ *
+ * The auth statuses come straight off the log row's `status`, so those three keep their own
+ * names; the rest are named after the colour they carry, for the tables whose statuses are
+ * not log statuses.
+ */
+.fls_tag {
+    @apply inline-block flex-none rounded-xs text-xs font-medium;
+
+    padding: 1px 7px;
+    line-height: 18px;
+    white-space: nowrap;
+
+    &.is_blocked {
+        @apply bg-danger-bg text-danger-fg;
+    }
+
+    &.is_failed,
+    &.is_warning {
+        @apply bg-caution-bg text-caution-fg;
+    }
+
+    &.is_success {
+        @apply bg-ok-bg text-ok-fg;
+    }
+
+    /* Nothing is wrong and nothing has happened - it should not draw the eye either way. */
+    &.is_neutral {
+        @apply bg-surface-raised text-ink-mid;
+    }
+
+    /*
+     * Beside a heading rather than in a table cell, where a rounded end reads as a badge on
+     * the title instead of a cell full of colour.
+     */
+    &.is_round {
+        @apply rounded-full align-middle;
+
+        padding: 1px 9px;
+    }
+}
+
+/* ---------------------------------------------------------------- code */
+
+/* Something to copy out: a block for several lines, inline for one value. */
+.fls_code,
+.fls_code_inline {
+    @apply bg-surface-sunk text-ink border border-solid border-hairline rounded;
+
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+    user-select: all;
+}
+
+.fls_code {
+    @apply block m-0 p-3;
+
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.fls_code_inline {
+    @apply inline-block;
+
+    padding: 3px 8px;
+    word-break: break-all;
+}
+
+/* ------------------------------------------------------------ prose and lists */
+
+.fls_note {
+    @apply text-xs text-ink-light;
+
+    margin: 16px 0;
+}
+
+/*
+ * A control with a sentence beside it saying what it is for: an opt-in link, a button that
+ * fills a field in for you, a link out to another screen. The sentence is quieter than the
+ * control and shares its line until the line runs out.
+ */
+.fls_action_note {
+    @apply flex flex-wrap items-center;
+
+    gap: 10px;
+    margin: 0;
+
+    a {
+        @apply font-semibold no-underline;
+
+        white-space: nowrap;
+    }
+
+    span {
+        @apply text-xs text-ink-light;
+    }
+}
+
+/*
+ * An empty panel says what would be here, quietly, at the height of a full one - so a card
+ * with nothing in it yet is still a card rather than a collapsed line. Used by the
+ * dashboard's panels, the auth log and the enrollment table.
+ */
+.fls_empty {
+    @apply flex flex-col items-center justify-center text-center text-xs text-ink-light;
+
+    min-height: 180px;
+    padding: 20px;
+
+    svg {
+        @apply text-ink-light;
+
+        width: 28px;
+        height: 28px;
+        margin-bottom: 10px;
+    }
+}
+
+/* What went wrong when a form was saved. */
+.fls_errors {
+    @apply bg-caution-bg text-caution-fg;
+
+    padding: 10px;
+
+    ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+}
+
+/* A table sits flush inside its card - the card already draws the frame. */
+.fls_table {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}

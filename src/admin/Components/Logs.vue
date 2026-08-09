@@ -348,7 +348,7 @@ export default {
                         </el-table-column>
 
                         <template #empty>
-                            <div class="fls_dash_empty">
+                            <div class="fls_empty">
                                 <span v-html="icons.empty"></span>
                                 {{ search ? $t('Nothing matches that search') : $t('No login activity has been recorded yet') }}
                             </div>

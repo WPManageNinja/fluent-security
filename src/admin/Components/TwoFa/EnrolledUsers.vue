@@ -218,7 +218,7 @@ export default {
                 on - so the screen says which it is and where to go.
             -->
             <div v-if="loaded && !anythingEnabled" class="fls_list_card">
-                <div class="fls_dash_empty fls_2fa_prompt">
+                <div class="fls_empty fls_2fa_prompt">
                     <span v-html="icons.twoFa"></span>
                     <h3>{{ $t('No second factor is switched on') }}</h3>
                     <p>
@@ -368,7 +368,7 @@ export default {
                         </el-table-column>
 
                         <template #empty>
-                            <div class="fls_dash_empty">
+                            <div class="fls_empty">
                                 <span v-html="icons.empty"></span>
                                 {{ search ? $t('Nothing matches that search') : $t('No users match this filter') }}
                             </div>
@@ -389,28 +389,3 @@ export default {
         </div>
     </div>
 </template>
-
-<style lang="scss">
-/* The empty state that stands in for the table, which needs more room than one line. */
-.fls_2fa_prompt {
-    min-height: 260px;
-
-    h3 {
-        @apply text-sm font-medium text-ink m-0;
-
-        margin-top: 4px;
-    }
-
-    p {
-        @apply text-xs text-ink-light;
-
-        max-width: 420px;
-        margin: 6px 0 16px;
-        line-height: 1.6;
-    }
-
-    a {
-        box-shadow: none;
-    }
-}
-</style>

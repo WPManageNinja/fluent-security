@@ -188,16 +188,3 @@ export default {
         </div>
     </div>
 </template>
-
-<style lang="scss">
-.fls_shortcode {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-
-    code {
-        flex: 1 1 auto;
-    }
-}
-</style>

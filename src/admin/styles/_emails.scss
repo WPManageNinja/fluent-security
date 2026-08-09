@@ -1,0 +1,320 @@
+/*
+ * The system emails screens: the list of them, the one being edited, and the design shared
+ * by all of them.
+ *
+ * The editor is WordPress's own TinyMCE with a shortcode picker bolted to the corner, so a
+ * fair amount of this is fitting a Vue component around markup that wp-admin prints.
+ */
+
+/* ------------------------------------------------------------------- the list */
+
+/* An email in the table: what it is, then what it is for. */
+.fls_email_name {
+    margin: 0;
+    padding: 0;
+
+    p {
+        margin: 0;
+        padding: 0;
+    }
+
+    .fls_email_title {
+        @apply text-base font-medium;
+
+        margin-bottom: 5px;
+    }
+}
+
+/* ------------------------------------------------------------------- design */
+
+/*
+ * Colours on the left, the thing they colour on the right. They were stacked before, one
+ * full-width row per colour, which pushed the preview a screen and a half below the
+ * controls - so the one moment the preview matters, while a colour is being chosen, was the
+ * one moment it could not be seen.
+ */
+.fls_design {
+    @apply flex items-start;
+
+    gap: 32px;
+    padding: 20px 0;
+
+    .fls_design_controls {
+        flex: 0 0 300px;
+        max-width: 300px;
+    }
+
+    /*
+     * Deliberately not sticky. The preview is the taller of the two columns, so it is what
+     * gives the row its height - which leaves a sticky preview no range to travel and makes
+     * the rule inert. Sizing it to the viewport instead means the controls and the preview
+     * are on screen together without scrolling at all, which is the thing that actually
+     * matters while a colour is being chosen.
+     */
+    .fls_design_preview {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+}
+
+.fls_swatch_group {
+    margin-bottom: 20px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    .fls_swatch_group_note {
+        @apply text-ink-light;
+
+        font-size: 11px;
+        line-height: 1.4;
+        margin: -2px 0 6px;
+    }
+}
+
+/* The colour, what it is called, what it is for, and its value. */
+.fls_swatch {
+    @apply flex items-center;
+
+    gap: 10px;
+    padding: 6px 0;
+
+    .fls_swatch_text {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .fls_swatch_label {
+        @apply block text-sm font-medium;
+
+        line-height: 1.3;
+    }
+
+    .fls_swatch_hint {
+        @apply block text-ink-light;
+
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    .fls_swatch_value {
+        @apply flex-none text-ink-light uppercase;
+
+        font-size: 11px;
+        background: none;
+        padding: 0;
+    }
+
+    .el-color-picker__trigger {
+        border-radius: 4px;
+    }
+}
+
+.fls_email_frame iframe {
+    @apply block;
+
+    width: 100%;
+
+    /*
+     * Tall enough to show the shape of the email, short enough that the card still fits a
+     * laptop screen alongside the controls. The middle term is the viewport less the admin
+     * bar, app bar, settings header and this card's own framing.
+     */
+    height: clamp(380px, calc(100vh - 330px), 620px);
+    border-radius: 4px;
+    border: 1px solid var(--fls-border);
+
+    /*
+     * White in both themes, deliberately. This is a preview of an email as its recipient
+     * will see it, and their inbox is not running this plugin's dark theme.
+     */
+    background: #fff;
+}
+
+/*
+ * Below this the two columns are narrower than either of them is useful, so the preview
+ * goes back under the controls it belongs to.
+ */
+@media (max-width: 1100px) {
+    .fls_design {
+        display: block;
+
+        .fls_design_controls {
+            max-width: none;
+            margin-bottom: 24px;
+        }
+    }
+}
+
+/* --------------------------------------------------------------- the editor */
+
+.fls_required_codes {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 12px;
+}
+
+.wp_vue_editor {
+    width: 100%;
+    min-height: 100px;
+}
+
+.wp_vue_editor_wrapper {
+    position: relative;
+    width: 100%;
+
+    /* Pinned to the corner of the editor, over wp-admin's own row of buttons. */
+    .popover-wrapper {
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 2;
+
+        /* Without TinyMCE there is no button row to sit in, so it sits above one. */
+        &-plaintext {
+            top: -32px;
+        }
+    }
+
+    .wp-media-buttons .insert-media {
+        vertical-align: middle;
+    }
+
+    .wp-editor-tabs {
+        float: left;
+    }
+}
+
+/* The shortcode button TinyMCE prints into its own toolbar. */
+.mce-fluentcrm_editor_btn {
+    button {
+        font-size: 10px !important;
+        border: 1px solid gray;
+        margin-top: 3px;
+    }
+
+    &:hover {
+        border: 1px solid transparent !important;
+    }
+}
+
+/* --------------------------------------------------------- shortcode picker */
+
+/*
+ * Teleported to <body> as a popper, so it is styled here rather than beside the component.
+ * Groups down the left, the codes in the chosen group on the right.
+ */
+.fcrm-smartcodes-popover {
+    padding: 0;
+    border-radius: 8px;
+
+    .el_pop_data_group {
+        @apply flex overflow-hidden;
+    }
+
+    .el_pop_data_headings {
+        @apply relative bg-surface-sunk rounded;
+
+        width: 190px;
+        padding: 10px;
+
+        ul {
+            margin: 10px 0 0;
+            padding: 0;
+        }
+
+        li {
+            @apply relative cursor-pointer text-ink rounded-xs;
+
+            font-size: 13px;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            transition: background-color .2s ease, color .2s ease;
+
+            &.active_item_selected {
+                background: var(--fls-text);
+                color: var(--fls-surface);
+            }
+        }
+    }
+
+    .el_pop_data_body {
+        @apply bg-surface;
+
+        width: 370px;
+        height: 400px;
+        padding: 14px 20px 0;
+        overflow: auto;
+        border-radius: 0 10px 10px 0;
+
+        ul {
+            margin: 0;
+            padding: 0;
+        }
+
+        li {
+            @apply block cursor-pointer text-ink text-left border-0 border-b border-solid border-hairline;
+
+            padding: 12px 10px;
+            margin-bottom: 0;
+
+            &:first-child {
+                padding-top: 0;
+            }
+
+            &:last-child {
+                @apply border-b-0;
+            }
+
+            /* What the code expands to, under the code itself. */
+            span {
+                @apply block text-ink-light;
+
+                font-size: 11px;
+                margin-top: 2px;
+            }
+        }
+    }
+
+    .pop_doc a {
+        @apply block text-center bg-surface-raised text-ink rounded-xs;
+
+        padding: 4px 5px;
+        transition: background-color .2s ease, color .2s ease;
+
+        &:hover {
+            background: var(--fls-text);
+            color: var(--fls-surface);
+        }
+    }
+}
+
+/* ------------------------------------------------------------ button designer */
+
+/* The dialog TinyMCE opens to build a button: the controls, then what they make. */
+.fluentcrm_preview_mce {
+    /*
+     * The colour pickers and sliders in here are wider than their labels, and Element Plus's
+     * default flex row crops them. Scoped to this dialog - it was global, which quietly
+     * restacked every other form in the app.
+     */
+    .el-form-item__content {
+        display: block;
+    }
+
+    .fluentcrm_button_preview {
+        @apply flex flex-col text-center border border-solid border-hairline rounded-xs;
+
+        height: 100%;
+
+        .preview_header {
+            @apply bg-surface-sunk text-ink-mid;
+        }
+
+        .preview_body {
+            height: 100%;
+            padding: 150px 0;
+        }
+    }
+}

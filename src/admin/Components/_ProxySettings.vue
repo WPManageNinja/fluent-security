@@ -28,6 +28,19 @@ export default {
             return this.detection.status || 'none';
         },
         /*
+         * A proxy that is there and declared is good news; one that is there and not is a
+         * problem. Everything else - no sign of one, or a hint that is not evidence - is
+         * neither, and is coloured as neither.
+         */
+        stateTone() {
+            const tones = {
+                cloudflare: 'is_success',
+                detected: 'is_warning'
+            };
+
+            return tones[this.status] || 'is_neutral';
+        },
+        /*
          * Cloudflare needs nothing configured, and a site with no sign of a proxy
          * needs nothing either - but "no evidence" is not proof, and a proxy that
          * strips its own headers would look exactly like this. So the fields are
@@ -103,7 +116,7 @@ export default {
 <template>
     <div class="fls_proxy">
         <p class="fls_proxy_headline">
-            <span class="fls_proxy_state" :class="'fls_proxy_state_' + status">{{ headline }}</span>
+            <span class="fls_tag is_round" :class="stateTone">{{ headline }}</span>
         </p>
 
         <p style="margin-bottom: 15px;">{{ summary }}</p>
@@ -116,21 +129,21 @@ export default {
 
         <div class="fls_proxy_facts">
             <span>
-                <em>{{ $t('Connection from') }}</em>
+                <em class="fls_eyebrow">{{ $t('Connection from') }}</em>
                 <code>{{ detection.remote_addr || '—' }}</code>
             </span>
             <span>
-                <em>{{ $t('Recorded as your IP') }}</em>
+                <em class="fls_eyebrow">{{ $t('Recorded as your IP') }}</em>
                 <code>{{ detection.resolved_ip || '—' }}</code>
             </span>
             <span v-if="detection.vendor">
-                <em>{{ $t('Looks like') }}</em>
+                <em class="fls_eyebrow">{{ $t('Looks like') }}</em>
                 <code>{{ detection.vendor }}</code>
             </span>
         </div>
 
         <div v-if="detection.headers && detection.headers.length" class="fls_proxy_headers">
-            <em>{{ $t('Forwarding headers on this request') }}</em>
+            <em class="fls_eyebrow">{{ $t('Forwarding headers on this request') }}</em>
             <ul>
                 <li v-for="header in detection.headers" :key="header.header">
                     <code>{{ header.header }}</code>: {{ header.value }}
@@ -138,7 +151,7 @@ export default {
             </ul>
         </div>
 
-        <p v-if="collapsed" class="fls_proxy_reveal">
+        <p v-if="collapsed" class="fls_action_note">
             <a href="#" @click.prevent="revealed = true">{{ $t('Configure a reverse proxy anyway') }}</a>
             <span>{{ $t('Only needed if you know one is there and it is not being detected.') }}</span>
         </p>
@@ -148,7 +161,7 @@ export default {
                 {{ $t('These values are defined in wp-config.php and take precedence over the fields below.') }}
             </el-alert>
 
-            <p v-if="canSuggest" class="fls_proxy_suggest">
+            <p v-if="canSuggest" class="fls_action_note">
                 <el-button size="small" type="primary" plain @click="applySuggestion()">
                     {{ $t('Use %s', detection.suggested_proxy) }}
                 </el-button>
@@ -168,94 +181,3 @@ export default {
         </template>
     </div>
 </template>
-
-<style lang="scss">
-.fls_proxy_state {
-    display: inline-block;
-    margin-left: 10px;
-    padding: 2px 10px;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: normal;
-    vertical-align: middle;
-    background: var(--fls-surface-sunk);
-    color: var(--fls-text-mid);
-
-    &.fls_proxy_state_detected {
-        background: var(--fls-warning-bg);
-        color: var(--fls-warning-fg);
-    }
-
-    &.fls_proxy_state_cloudflare {
-        background: var(--fls-success-bg);
-        color: var(--fls-success-fg);
-    }
-}
-
-.fls_proxy_facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 30px;
-    margin-bottom: 12px;
-
-    em {
-        display: block;
-        font-style: normal;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--fls-text-light);
-    }
-
-    code {
-        background: var(--fls-surface);
-        border: 1px solid var(--fls-border);
-        border-radius: 3px;
-        padding: 1px 6px;
-    }
-}
-
-.fls_proxy_headers {
-    margin-bottom: 12px;
-
-    em {
-        font-style: normal;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--fls-text-light);
-    }
-
-    ul {
-        margin: 4px 0 0;
-        padding: 0;
-        list-style: none;
-        font-size: 12px;
-        color: var(--fls-text-mid);
-        word-break: break-all;
-    }
-}
-
-.fls_proxy_reveal {
-    a {
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    span {
-        margin-left: 10px;
-        color: var(--fls-text-light);
-        font-size: 12px;
-    }
-}
-
-.fls_proxy_suggest {
-    margin: 15px 0 !important;
-
-    span {
-        margin-left: 10px;
-        color: var(--fls-text-light);
-        font-size: 12px;
-    }
-}
-</style>

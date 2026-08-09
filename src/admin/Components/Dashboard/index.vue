@@ -227,7 +227,7 @@ export default {
                                         </el-button>
                                     </li>
                                 </ul>
-                                <div v-else class="fls_dash_empty">
+                                <div v-else class="fls_empty">
                                     <span v-html="icons.empty"></span>
                                     {{ $t('No failed or blocked attempts in this period') }}
                                 </div>
@@ -271,7 +271,7 @@ export default {
                                         </div>
                                     </div>
                                 </div>
-                                <div v-else class="fls_dash_empty">
+                                <div v-else class="fls_empty">
                                     <span v-html="icons.empty"></span>
                                     {{ $t('No sign-ins to break down yet') }}
                                 </div>

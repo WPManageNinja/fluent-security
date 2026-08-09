@@ -1,0 +1,411 @@
+/*
+ * The login page designer: a full-screen editor with the controls down one side and a live
+ * preview of the login form filling the rest.
+ *
+ * The `fcom_` prefix and the markup are FluentCommunity's, carried over with the component
+ * rather than renamed, so the two stay comparable if either one changes. Anything the
+ * carried-over stylesheet described but this plugin never renders has been dropped.
+ *
+ * The preview deliberately stays light while the editor around it goes dark - it is a
+ * picture of what a visitor will see, and a visitor is not running this admin theme. That
+ * is arranged in _theme.scss, on `.fcom_auth_wrap`.
+ *
+ * The selectors that reach into Element Plus are written out in full rather than nested.
+ * They need the length: each one is beating a rule that Element Plus ships, and shortening
+ * it would quietly hand the argument back.
+ */
+
+/* ------------------------------------------------------------------ the shell */
+
+.fcom_full_editor {
+    @apply bg-surface;
+
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+}
+
+.fcom_full_editor_header_wrap {
+    @apply border-0 border-b border-solid border-hairline;
+}
+
+.fcom_full_editor_header {
+    @apply flex items-center justify-between;
+
+    padding: 10px 20px;
+
+    .full_editor_actions {
+        @apply flex items-center;
+    }
+}
+
+.fcom_full_editor_container {
+    padding: 0;
+}
+
+/* Popups opened from inside the editor have to clear the editor itself. */
+.fcom_full_editor_body {
+    .el-popover,
+    .el-notification,
+    .el-color-picker__panel.el-popper {
+        z-index: 999999999 !important;
+    }
+}
+
+/* The tab strip in the header - which page of the login flow is being designed. */
+.object_menu {
+    @apply flex items-center justify-between;
+
+    padding: 0;
+    gap: 4px;
+
+    ul {
+        @apply list-none flex items-center;
+
+        margin: 0;
+        padding: 0;
+        gap: 4px;
+
+        li {
+            margin: 0;
+            padding: 0;
+        }
+
+        a {
+            @apply flex no-underline cursor-pointer rounded text-ink-mid;
+
+            padding: 6px 12px;
+
+            &:hover,
+            &.router-link-exact-active {
+                @apply bg-surface-sunk text-ink;
+            }
+        }
+    }
+}
+
+/* ----------------------------------------------------------- editor and canvas */
+
+.fcom_editor_content {
+    @apply flex rounded;
+
+    background: var(--fls-body-bg);
+    min-height: calc(100vh - 125px);
+}
+
+.fcom_full_editor_side {
+    @apply bg-surface-sunk border-0 border-r border-solid border-hairline;
+
+    padding: 20px;
+
+    &.lockscreen_editor {
+        width: 350px;
+        max-height: calc(100vh - 60px);
+        background: var(--fls-body-bg);
+    }
+}
+
+.fcom_full_editor_main {
+    padding-top: 0;
+    height: calc(100vh - 60px);
+    background: var(--fls-body-bg);
+
+    &.lockscreen_editor {
+        padding: 2rem;
+    }
+}
+
+/* The preview itself: the login form, on whatever background has been chosen for it. */
+.fcom_auth_wrap {
+    @apply flex flex-1 items-center;
+
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: multiply;
+
+    .fcom_auth_content {
+        padding: 20px;
+        margin: 0 auto;
+        min-width: 400px;
+        max-width: 600px;
+        text-align: center;
+
+        /* A form is read left to right, whatever the heading above it is doing. */
+        &.form_content {
+            text-align: left;
+        }
+    }
+
+    .fcom_auth_image img {
+        max-height: 120px;
+        width: auto;
+    }
+
+    .fcom_auth_title h2 {
+        margin: 15px 0;
+        font-size: 28px;
+    }
+
+    .fcom_auth_description {
+        font-size: 16px;
+    }
+
+    .fcom_auth_form .el-form-item__label {
+        margin-bottom: 5px;
+    }
+}
+
+/* ------------------------------------------------------------- the side panel */
+
+.fcom_edit_title {
+    @apply flex items-center;
+
+    gap: 4px;
+
+    p {
+        margin: 10px 0;
+    }
+
+    .el-icon {
+        cursor: pointer;
+    }
+}
+
+/* One group of controls, ruled off from the next. */
+.fcom_meta_section {
+    @apply border-0 border-b border-solid border-hairline;
+
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+
+    &:last-child {
+        @apply border-b-0;
+    }
+
+    .fcom_meta_label {
+        @apply font-medium text-ink-mid;
+
+        margin-bottom: 5px;
+    }
+
+    &.lockscreen_meta {
+        @apply border-b-0;
+
+        margin-bottom: 1rem;
+        padding-bottom: .25rem;
+
+        .fcom_meta_label {
+            @apply font-semibold;
+
+            font-size: 1.125rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .fcom_meta_content {
+            margin-top: 1rem;
+        }
+    }
+}
+
+/* --------------------------------------------------------------- block list */
+
+/*
+ * The parts of the login page, in the order they are stacked. Each can be hidden, and the
+ * arrows that reorder them appear on the row's bottom edge on hover so they do not take up
+ * a column of their own in a 350px panel.
+ */
+.fcom_meta_block {
+    @apply flex flex-col list-none;
+
+    gap: .5rem;
+    margin: 0;
+    padding: 0;
+}
+
+.fcom_block_list {
+    @apply relative flex items-center justify-between cursor-pointer border border-solid border-hairline;
+
+    border-radius: 6px;
+    padding: 6px 12px;
+
+    .fcom_block_label {
+        @apply flex items-center;
+
+        gap: 8px;
+
+        p {
+            margin: 0;
+        }
+    }
+
+    .fcom_block_action {
+        @apply flex invisible;
+
+        gap: 8px;
+    }
+
+    .fcom_meta_sorting {
+        @apply absolute flex items-center;
+
+        gap: 4px;
+        left: 50%;
+        bottom: -8px;
+        transform: translateX(-50%) scale(0);
+        transition: transform .3s ease;
+
+        i {
+            @apply flex items-center justify-center cursor-pointer bg-surface-raised border border-solid border-hairline;
+
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            font-size: 10px;
+            text-align: center;
+            transition: border-color .3s ease;
+
+            &:hover {
+                border-color: var(--fls-text);
+            }
+        }
+    }
+
+    &:hover {
+        .fcom_block_action {
+            @apply visible;
+        }
+
+        .fcom_meta_sorting {
+            transform: translateX(-50%) scale(1);
+        }
+    }
+
+    /* Still in the list and still reorderable, just not drawn on the page. */
+    &.block_hidden {
+        @apply bg-surface-raised;
+
+        opacity: .6;
+    }
+}
+
+/* ------------------------------------------------------------------- colours */
+
+.fcom_lockscreen_meta {
+    .fcom_description {
+        @apply bg-surface-sunk text-ink rounded;
+
+        padding: 1rem;
+        font-size: 16px;
+        margin: 14px 0 1.5rem;
+
+        p {
+            margin: 0;
+        }
+    }
+
+    .fcom_color_item {
+        @apply flex items-center border-0 border-b border-solid border-hairline;
+
+        column-gap: 10px;
+        margin: 0 -10px;
+        padding: 10px;
+
+        .fcom_color_label {
+            @apply text-ink font-bold;
+
+            font-size: 14px;
+            line-height: 22px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        /* Only worth reading when you are on the row it belongs to. */
+        .fcom_tip {
+            opacity: .2;
+        }
+
+        &:hover .fcom_tip {
+            opacity: 1;
+        }
+    }
+}
+
+/* A swatch is the colour, not a box with the colour inside it. */
+.fcom_lockscreen_meta .fcom_color_item .el-color-picker__trigger,
+.fcom_lockscreen_meta .fcom_color_item .el-color-picker__color {
+    border: none;
+}
+
+.fcom_lockscreen_meta .fcom_color_item .el-color-picker__color-inner {
+    border: 1px solid var(--fls-border);
+    border-radius: 0;
+}
+
+/* ------------------------------------------------------ background image field */
+
+.fcom_bg_image .fcom_bg_upload {
+    position: relative;
+    width: 95%;
+
+    .el-upload {
+        width: 100%;
+    }
+
+    .el-image {
+        width: 100%;
+    }
+
+    .el-image img {
+        width: 100%;
+        height: 100px;
+        object-fit: contain;
+    }
+
+    .fcom_btn_upload {
+        @apply border border-solid border-hairline;
+
+        width: 100%;
+        padding: 1.5rem;
+    }
+}
+
+/* Sits on the corner of the image it removes. */
+.fcom_bg_image .fcom_bg_remove {
+    @apply absolute flex items-center justify-center cursor-pointer bg-accent text-accent-on;
+
+    top: -8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 11px;
+    line-height: 1;
+}
+
+/* --------------------------------------------------- element plus, in the panel */
+
+/* The tab strip picks up the app's text colour rather than Element Plus's blue. */
+.fcom_edit_content .el-tabs__item.is-active,
+.fcom_edit_content .el-tabs__item:hover {
+    color: var(--fls-text);
+}
+
+.fcom_edit_content .el-tabs__active-bar {
+    background-color: var(--fls-text);
+}
+
+.fcom_edit_content .el-collapse-item__header {
+    font-size: 15px;
+}
+
+.fcom_edit_content .el-form-item__label {
+    color: var(--fls-text);
+}
+
+.fcom_edit_content .el-input__wrapper,
+.fcom_edit_content .el-textarea__inner {
+    padding: 8px 12px;
+    border-radius: 8px;
+}

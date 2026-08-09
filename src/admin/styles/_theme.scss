@@ -206,18 +206,6 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
     --fls-tile-two-fa-fg: #8C71F6;
 }
 
-/*
- * Anything the app draws that nobody thought to colour.
- *
- * Without this those elements inherit wp-admin's own #3c434a, which is invisible on a dark
- * card - a heading inside a panel is the usual way to find one. Set on the app root rather
- * than on the elements themselves so it is inherited and loses to every rule that does have
- * an opinion, including the ones that colour a heading red or amber on purpose.
- */
-#fluent_auth_app {
-    color: var(--fls-text);
-}
-
 /* ------------------------------------------------------------- element plus */
 
 /*

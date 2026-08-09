@@ -1,0 +1,103 @@
+/*
+ * Element Plus: the stylesheets it needs, and the shape this app gives it.
+ *
+ * Its colours are deliberately not here. Those are set in _theme.scss, through Element
+ * Plus's own CSS variables, so a shade has one place to change rather than two. What is
+ * here is structure - and mostly it is undoing wp-admin, which styles every input on the
+ * page from underneath and does not know these are components.
+ *
+ * ElementPlusResolver auto-imports the CSS for anything written as a tag in a template.
+ * The four below are not covered by that: three are created from JS (`$notify`,
+ * `ElMessageBox`, the `v-loading` directive), and the slider only appears inside a dialog
+ * TinyMCE opens. Their CSS is asked for by hand.
+ */
+@import "~element-plus/theme-chalk/el-notification.css";
+@import "~element-plus/theme-chalk/el-loading.css";
+@import "~element-plus/theme-chalk/el-message-box.css";
+@import "~element-plus/theme-chalk/el-slider.css";
+
+/* ------------------------------------------------------------------- inputs */
+
+/*
+ * wp-admin gives every `input` in its content area a border, a box shadow and a focus
+ * ring of its own. Element Plus draws all three on the wrapper around the input, so left
+ * alone you get two borders and two focus rings, one inside the other.
+ *
+ * The fix is the same in both places: the inner element is stripped back to nothing and
+ * the wrapper is left to do the drawing.
+ */
+.el-input__inner {
+    border: 0 !important;
+    min-height: inherit;
+    padding: inherit;
+
+    &:focus {
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+}
+
+.el-form-item {
+    .el-input__inner {
+        width: 100%;
+        flex-grow: 1;
+        height: var(--el-input-inner-height);
+        line-height: var(--el-input-inner-height);
+        min-height: auto;
+        padding: 0;
+        border: none;
+        outline: 0;
+        background: 0 0;
+        -webkit-appearance: none;
+        color: var(--el-input-text-color, var(--el-text-color-regular));
+        font-size: inherit;
+
+        --el-input-inner-height: calc(var(--el-input-height, 32px) - 2px);
+
+        &:focus {
+            border-color: inherit;
+            box-shadow: none;
+            outline: inherit;
+        }
+    }
+
+    label.el-form-item__label,
+    &--label-top .el-form-item__label {
+        font-weight: 500;
+        color: var(--fls-text);
+    }
+}
+
+/* A select fills the space it is given; the input inside it is a display, not a field. */
+.el-select {
+    width: 100%;
+
+    .el-input__inner {
+        cursor: pointer;
+    }
+
+    input {
+        background: transparent;
+        box-shadow: none;
+    }
+}
+
+/* ---------------------------------------------------------------- teleported */
+
+/*
+ * Popovers and notifications are teleported to <body>, outside the app root, where
+ * wp-admin's own stacked panels can end up on top of them.
+ */
+.el-popper.is-light.el-popover {
+    z-index: 99999999999 !important;
+}
+
+.el-notification__content {
+    text-align: left !important;
+}
+
+/* Notifications stack up from the bottom rather than down from under the admin bar. */
+.el-notification.right {
+    top: auto !important;
+    bottom: 10px;
+}

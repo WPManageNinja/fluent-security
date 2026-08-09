@@ -55,7 +55,7 @@ export default {
         </li>
     </ul>
 
-    <div v-else class="fls_dash_empty">
+    <div v-else class="fls_empty">
         <span v-html="icons.empty"></span>
         {{ emptyText }}
     </div>

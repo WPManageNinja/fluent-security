@@ -183,34 +183,3 @@ export default {
         </div>
     </div>
 </template>
-
-<style lang="scss">
-.fls_rule {
-    border: 1px solid var(--el-border-color-lighter, var(--fls-border));
-    border-radius: 4px;
-    padding: 16px;
-    margin: 16px 0;
-
-    &:last-child {
-        margin-bottom: 4px;
-    }
-
-    .fls_rule_head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-    }
-
-    .fls_rule_number {
-        font-size: 13px;
-        font-weight: 500;
-    }
-
-    .fls_then {
-        font-size: 12px;
-        color: var(--fls-text-light);
-        margin: 12px 0;
-    }
-}
-</style>

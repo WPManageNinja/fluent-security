@@ -190,11 +190,3 @@ export default {
         </el-dialog>
     </div>
 </template>
-
-<style lang="scss">
-.fls_required_codes {
-    margin: 6px 0 0;
-    padding-left: 18px;
-    font-size: 12px;
-}
-</style>

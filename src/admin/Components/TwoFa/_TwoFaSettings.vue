@@ -59,7 +59,7 @@ export default {
             <div class="fls_2fa_method_head">
                 <div>
                     <strong>{{ $t('Authenticator App') }}</strong>
-                    <span class="fls_2fa_tag fls_2fa_tag_strong">{{ $t('Strongest') }}</span>
+                    <span class="fls_tag is_round is_success">{{ $t('Strongest') }}</span>
                     <p>
                         {{ $t('A rotating code from an app on the user\'s phone. It proves a device, which neither an inbox nor a social account ever does, so it is asked for however the user signed in - including magic login and Google.') }}
                     </p>
@@ -118,7 +118,7 @@ export default {
                     <p>{{ $t('Any signed in user can set up an authenticator app here without entering the admin area. Send it to members who are kept out of wp-admin.') }}</p>
                 </el-form-item>
 
-                <p class="fls_2fa_link">
+                <p class="fls_action_note">
                     <router-link :to="{name: 'settings_two_fa_enrollment'}">
                         {{ $t('See who has set one up') }} &rarr;
                     </router-link>
@@ -133,7 +133,7 @@ export default {
             <div class="fls_2fa_method_head">
                 <div>
                     <strong>{{ $t('Email Code') }}</strong>
-                    <span class="fls_2fa_tag">{{ $t('Fallback') }}</span>
+                    <span class="fls_tag is_round is_neutral">{{ $t('Fallback') }}</span>
                     <p>
                         {{ $t('A one-time code sent to the account address. It proves the mailbox, so it is skipped after a magic link or a social login, which already proved the same thing. It is also the code sent when an account comes under attack.') }}
                     </p>
@@ -162,73 +162,3 @@ export default {
         </p>
     </div>
 </template>
-
-<style lang="scss">
-.fls_2fa_method {
-    background: var(--fls-surface);
-    border: 1px solid var(--fls-border);
-    border-radius: 5px;
-    padding: 16px 20px;
-    margin-bottom: 15px;
-    transition: border-color .3s;
-
-    &.fls_2fa_method_on {
-        border-color: var(--fls-success-fg);
-    }
-
-    .fls_2fa_method_head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 20px;
-
-        p {
-            margin: 6px 0 0;
-            color: var(--fls-text-mid);
-            max-width: 720px;
-        }
-    }
-
-    .fls_2fa_method_body {
-        margin-top: 15px;
-        padding-top: 5px;
-        border-top: 1px solid var(--fls-surface-sunk);
-    }
-}
-
-.fls_2fa_tag {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 1px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    background: var(--fls-surface-sunk);
-    color: var(--fls-text-mid);
-    vertical-align: middle;
-
-    &.fls_2fa_tag_strong {
-        background: var(--fls-success-bg);
-        color: var(--fls-success-fg);
-    }
-}
-
-.fls_2fa_none {
-    color: var(--fls-danger-fg);
-}
-
-.fls_2fa_link {
-    margin-top: 14px !important;
-
-    a {
-        font-weight: 600;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    span {
-        margin-left: 10px;
-        color: var(--fls-text-light);
-        font-size: 12px;
-    }
-}
-</style>

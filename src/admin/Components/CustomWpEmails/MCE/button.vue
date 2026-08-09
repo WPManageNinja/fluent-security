@@ -159,28 +159,3 @@ export default {
     }
 }
 </script>
-
-<style lang="scss">
-.fluentcrm_button_preview {
-    border: 1px solid #dde6ed !important;
-    border-radius: .3rem !important;
-    display: flex;
-    height: 100% !important;
-    flex-direction: column !important;
-    text-align: center;
-
-    .preview_header {
-        background-color: #f2f5f9 !important;
-        color: #53657a !important;
-    }
-
-    .preview_body {
-        align-items: center !important;
-        height: 100%;
-        padding: 150px 0px;
-    }
-}
-.el-form-item__content {
-    display: block !important;
-}
-</style>

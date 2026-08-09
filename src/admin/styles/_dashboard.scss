@@ -200,8 +200,7 @@
             color: var(--fls-text);
         }
 
-        a,
-        .fls_dcard_link {
+        a {
             @apply no-underline cursor-pointer;
 
             font-size: 13px;
@@ -244,22 +243,6 @@
 
     .fls_dcard {
         margin-bottom: 0;
-    }
-}
-
-/* An empty panel says what would be here, quietly, at the height of a full one. */
-.fls_dash_empty {
-    @apply flex flex-col items-center justify-center text-center text-xs text-ink-light;
-
-    min-height: 180px;
-    padding: 20px;
-
-    svg {
-        @apply text-ink-light;
-
-        width: 28px;
-        height: 28px;
-        margin-bottom: 10px;
     }
 }
 

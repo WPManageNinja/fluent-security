@@ -146,13 +146,6 @@
         @apply text-danger-fg;
     }
 
-    .fls_scan_state_actions {
-        @apply flex flex-wrap items-center justify-center;
-
-        gap: 12px;
-        margin-top: 20px;
-    }
-
     /* Nothing is wrong, and the panel should say so before it says anything else. */
     &.is_clean .fls_scan_state_icon {
         @apply bg-ok-bg text-ok-fg;
@@ -258,19 +251,6 @@
             height: 13px;
         }
     }
-}
-
-/* -------------------------------------------------------------- file lists */
-
-/*
- * One card per place the scanner looked, so a long list of changes still reads as "these
- * three are in wp-includes" rather than as one wall of paths.
- */
-.fls_scan_group_path {
-    @apply font-medium;
-
-    font-family: Menlo, Consolas, monospace;
-    font-size: 13px;
 }
 
 /* ------------------------------------------------------- summaries and detail */

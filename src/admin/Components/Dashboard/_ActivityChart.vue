@@ -197,7 +197,7 @@ export default {
             </div>
         </div>
 
-        <div v-else class="fls_dash_empty">
+        <div v-else class="fls_empty">
             <span v-html="icons.empty"></span>
             {{ $t('No login activity in this period yet') }}
         </div>
