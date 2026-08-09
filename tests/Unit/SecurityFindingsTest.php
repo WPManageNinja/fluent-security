@@ -34,12 +34,37 @@ class SecurityFindingsTest extends BaseTestCase
         Helper::resetStatics();
         Registry::reset();
         delete_option('__fls_integrity_settings');
+
+        /*
+         * The uploads check asks the web server a question. Answered here so the registry is
+         * the same on every run - these tests are about how findings are assembled, and a real
+         * request would make them depend on what the machine running them can reach.
+         */
+        add_filter('pre_http_request', function () {
+            return ['response' => ['code' => 403], 'body' => 'Forbidden'];
+        });
     }
 
     public function tearDown(): void
     {
+        remove_all_filters('pre_http_request');
         Registry::reset();
         parent::tearDown();
+    }
+
+    /**
+     * @param string $key
+     * @param string $value
+     * @return void
+     */
+    private function setSetting($key, $value)
+    {
+        update_option('__fls_auth_settings', array_merge(
+            get_option('__fls_auth_settings'),
+            [$key => $value]
+        ));
+
+        Helper::resetStatics();
     }
 
     /**
@@ -77,11 +102,7 @@ class SecurityFindingsTest extends BaseTestCase
         $summary = Registry::summary();
         $this->assertNotEmpty($this->finding($summary, 'settings_disable_xmlrpc'));
 
-        update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
-            ['disable_xmlrpc' => 'yes']
-        ));
-        Helper::resetStatics();
+        $this->setSetting('disable_xmlrpc', 'yes');
 
         $summary = Registry::summary();
         $this->assertEmpty($this->finding($summary, 'settings_disable_xmlrpc'));
@@ -143,26 +164,93 @@ class SecurityFindingsTest extends BaseTestCase
 
     /**
      * Only what the plugin recommends for every site counts, so the score stays reachable.
+     *
+     * Asserted as movement rather than as totals: the denominator is every scored check in the
+     * registry, and pinning it to a number would mean this test failing every time the plugin
+     * learns to check something new - which is not what it is here to catch.
      */
-    public function test_the_score_counts_scored_recommendations_only()
+    public function test_turning_on_a_scored_recommendation_moves_the_score()
     {
-        $summary = Registry::summary();
+        $before = Registry::summary()['score'];
 
-        $this->assertEquals(0, $summary['score']['done']);
-        $this->assertEquals(5, $summary['score']['total']);
-        $this->assertEquals(0, $summary['score']['percent']);
+        $this->setSetting('disable_xmlrpc', 'yes');
+        $this->setSetting('disable_users_rest', 'yes');
 
-        update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
-            ['disable_xmlrpc' => 'yes', 'disable_users_rest' => 'yes']
-        ));
-        Helper::resetStatics();
+        $after = Registry::summary()['score'];
 
-        $summary = Registry::summary();
+        $this->assertEquals($before['done'] + 2, $after['done']);
+        $this->assertEquals($before['total'], $after['total']);
+    }
 
-        $this->assertEquals(2, $summary['score']['done']);
-        $this->assertEquals(5, $summary['score']['total']);
-        $this->assertEquals(40, $summary['score']['percent']);
+    /**
+     * The rule the score rests on. Application passwords are deliberately not recommended for
+     * every site - see Helper::getRecommendedSettings() - so blocking them must not earn a
+     * point, or the score stops meaning "this site follows the recommendations".
+     */
+    public function test_turning_on_an_unscored_recommendation_does_not_move_the_score()
+    {
+        $before = Registry::summary()['score'];
+
+        $this->setSetting('disable_app_login', 'yes');
+
+        $this->assertEquals($before['done'], Registry::summary()['score']['done']);
+    }
+
+    /**
+     * Every button a row draws has to be backed by something.
+     *
+     * A finding that offers a fix or a dismissal its check never implemented reaches the
+     * reader as an error message from a button they were invited to press - and the check
+     * author has no way of noticing, because the row looks right. Asserted by reflection so
+     * this costs nothing and mutates nothing.
+     */
+    public function test_no_finding_offers_a_button_its_check_cannot_honour()
+    {
+        /*
+         * Seeded so the file checks have something to say - the contract is only worth
+         * asserting over rows that exist, and an empty install produces none of theirs.
+         */
+        $muDir = defined('WPMU_PLUGIN_DIR') ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
+
+        if (!is_dir($muDir)) {
+            mkdir($muDir, 0755, true);
+        }
+
+        file_put_contents($muDir . '/fls-contract-test.php', '<?php // seeded');
+
+        $checks = Registry::checks();
+        $findings = Registry::summary()['findings'];
+
+        unlink($muDir . '/fls-contract-test.php');
+
+        $this->assertNotEmpty(array_filter($findings, function ($finding) {
+            return $finding['group'] === 'files';
+        }), 'The file checks produced nothing, so this asserted nothing about them');
+
+        foreach ($findings as $finding) {
+            $check = $checks[$finding['check']];
+
+            if ($finding['action'] === 'fix') {
+                $this->assertNotEquals(
+                    Check::class,
+                    (new \ReflectionMethod($check, 'fix'))->getDeclaringClass()->getName(),
+                    $finding['id'] . ' offers a fix its check does not implement'
+                );
+            }
+
+            if ($finding['dismiss']) {
+                $this->assertNotEquals(
+                    Check::class,
+                    (new \ReflectionMethod($check, 'accept'))->getDeclaringClass()->getName(),
+                    $finding['id'] . ' offers a dismissal its check does not implement'
+                );
+            }
+
+            /* A row that navigates has to have somewhere to send them. */
+            if ($finding['action'] === 'navigate') {
+                $this->assertNotEmpty($finding['route'], $finding['id'] . ' navigates nowhere');
+            }
+        }
     }
 
     public function test_findings_are_ordered_worst_first()
@@ -181,16 +269,16 @@ class SecurityFindingsTest extends BaseTestCase
 
     public function test_passing_checks_are_counted_rather_than_listed()
     {
-        update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
-            ['disable_xmlrpc' => 'yes']
-        ));
-        Helper::resetStatics();
+        $before = Registry::summary();
 
-        $summary = Registry::summary();
+        $this->setSetting('disable_xmlrpc', 'yes');
 
-        $this->assertEquals(1, $summary['counts']['passed']);
-        $this->assertEquals(count($summary['findings']), $summary['counts']['open']);
+        $after = Registry::summary();
+
+        /* It left the list and joined the tally, rather than doing either alone. */
+        $this->assertEquals($before['counts']['passed'] + 1, $after['counts']['passed']);
+        $this->assertEquals($before['counts']['open'] - 1, $after['counts']['open']);
+        $this->assertEquals(count($after['findings']), $after['counts']['open']);
     }
 
     public function test_a_fix_turns_the_setting_on()

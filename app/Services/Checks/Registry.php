@@ -25,7 +25,11 @@ class Registry
         }
 
         $checks = [
-            new SettingsCheck()
+            new SettingsCheck(),
+            new Files\MuPluginsCheck(),
+            new Files\DropInsCheck(),
+            new Files\UploadsExecutionCheck(),
+            new Files\ConfigPermissionsCheck()
         ];
 
         /*
