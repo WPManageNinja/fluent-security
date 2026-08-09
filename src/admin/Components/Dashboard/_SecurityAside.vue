@@ -7,46 +7,49 @@ import icons from './icons';
  * Deliberately not a second set of counters. The main column is what happened over a date
  * range; this is the site's standing configuration, which does not change when the range
  * does - so the two never say the same thing twice.
+ *
+ * The checklist that used to live here was its own list, built from settings alone, with its
+ * own score and its own buttons. It is now the top of the security screen's list, fetched
+ * from the same endpoint that screen uses. That is the point of the change rather than a
+ * side effect of it: two lists of what is wrong with a site will eventually disagree about
+ * it, and a security tool that contradicts itself has spent the only thing it has. There is
+ * one list, shown in full in one place and previewed here.
+ *
+ * Fetched here rather than carried on the dashboard's own payload, so that the reader is not
+ * waiting on the checks to see their logins, and so the numbers cannot drift from the ones
+ * the security screen shows.
  */
 export default {
     name: 'SecurityAside',
     props: {
-        checklist: {
-            type: Object,
-            required: true
-        },
         protection: {
             type: Object,
             required: true
         }
     },
-    emits: ['applied'],
     data() {
         return {
             icons,
+            loading: true,
             installing: false,
-            /* Which check is mid-request, so only its own button spins. */
-            applying: ''
+            findings: [],
+            counts: {open: 0, to_fix: 0, look: 0, passed: 0, accepted: 0},
+            score: {done: 0, total: 0, percent: 100}
         }
     },
     computed: {
-        score() {
-            if (!this.checklist.total) {
-                return 0;
-            }
-
-            return Math.round((this.checklist.done / this.checklist.total) * 100);
+        percent() {
+            return this.score.total ? this.score.percent : 100;
         },
         /*
-         * Only the recommendations that apply to every site are scored. The rest are shown
-         * under their own heading, because a site can be configured exactly right and still
-         * not want them - and a score you cannot reach is a score you stop reading.
+         * Three, and never the fourth. This is a preview of a list that lives elsewhere, and
+         * a preview long enough to work down is just the list again in the wrong place.
          */
-        scoredItems() {
-            return this.checklist.items.filter(item => item.scored);
+        preview() {
+            return this.findings.slice(0, 3);
         },
-        unscoredItems() {
-            return this.checklist.items.filter(item => !item.scored);
+        remaining() {
+            return Math.max(0, this.findings.length - this.preview.length);
         },
         /*
          * A handful of standing facts, each with the same shape: a label, an answer, and
@@ -97,47 +100,18 @@ export default {
         }
     },
     methods: {
-        /*
-         * A checklist row is a link to the setting that would tick it. The section is a
-         * query parameter rather than a hash: the settings pane scrolls its own body, so
-         * the browser's own fragment scrolling cannot reach it, and the layout reads this
-         * on arrival instead (see SettingsLayout).
-         */
-        target(item) {
-            const target = {name: item.route};
-
-            if (item.section) {
-                target.query = {section: item.section};
-            }
-
-            return target;
-        },
-        /*
-         * The button label says what will happen, because these differ in kind: one writes
-         * a setting from here, the other can only take you to where the work is done.
-         */
-        actionLabel(item) {
-            return item.action === 'enable' ? this.$t('Enable') : this.$t('Set up');
-        },
-        applyCheck(item) {
-            this.applying = item.key;
-
-            this.$post('security-checks/' + item.key + '/apply')
+        getFindings() {
+            this.$get('security-findings')
                 .then(response => {
-                    this.$notify.success(response.message);
-                    /*
-                     * The response carries the recalculated checklist, so the score and any
-                     * evidence that moved with it come from the server rather than being
-                     * guessed at here.
-                     */
-                    this.appVars.auth_settings = response.settings;
-                    this.$emit('applied', response.checklist);
+                    this.findings = response.findings || [];
+                    this.counts = response.counts || this.counts;
+                    this.score = response.score || this.score;
                 })
-                .catch(errors => {
-                    this.$handleError(errors);
+                .catch(() => {
+                    /* The dashboard is worth showing without this; not worth a banner over. */
                 })
                 .finally(() => {
-                    this.applying = '';
+                    this.loading = false;
                 });
         },
         installPlugin(plugin) {
@@ -152,6 +126,9 @@ export default {
                     this.installing = false;
                 });
         }
+    },
+    mounted() {
+        this.getFindings();
     }
 }
 </script>
@@ -160,67 +137,44 @@ export default {
     <aside class="fls_page_aside">
         <div class="fls_aside_block">
             <h3>
-                {{ $t('Security Checklist') }}
-                <small>{{ $t('%1s of %2s', checklist.done, checklist.total) }}</small>
+                {{ $t('Security Score') }}
+                <small v-if="!loading">{{ $t('%1s of %2s', score.done, score.total) }}</small>
             </h3>
 
-            <div class="fls_dash_score">
-                <div class="fls_dash_score_track">
-                    <div class="fls_dash_score_fill" :style="{width: score + '%'}"></div>
+            <el-skeleton v-if="loading" :animated="true" :rows="3"/>
+
+            <template v-else>
+                <div class="fls_dash_score">
+                    <div class="fls_dash_score_track">
+                        <div class="fls_dash_score_fill" :style="{width: percent + '%'}"></div>
+                    </div>
                 </div>
-            </div>
 
-            <ul class="fls_dash_checklist">
-                <li v-for="item in scoredItems" :key="item.key" :class="'is_' + item.state">
-                    <div class="fls_dash_check">
-                        <span class="fls_dash_check_mark">
-                            <span v-if="item.state === 'done'" v-html="icons.tick"></span>
-                        </span>
-                        <div class="fls_dash_check_body">
-                            <router-link class="fls_dash_check_title" :to="target(item)">
-                                {{ item.title }}
-                            </router-link>
-                            <p v-if="item.note" class="fls_dash_check_note">{{ item.note }}</p>
-                        </div>
-                        <el-button v-if="item.state === 'todo'" class="fls_dash_check_action"
-                                   size="small" :loading="applying === item.key"
-                                   @click="applyCheck(item)">
-                            {{ actionLabel(item) }}
-                        </el-button>
-                    </div>
-                </li>
-            </ul>
-        </div>
+                <!--
+                    A preview of the security screen's list, not a second copy of it - so the
+                    rows are links to where the work is done rather than buttons that do it.
+                    One place to act on a finding, and it is the place that shows all of them.
+                -->
+                <ul v-if="preview.length" class="fls_dash_findings">
+                    <li v-for="finding in preview" :key="finding.id"
+                        :class="finding.severity === 'fix' ? 'is_fix' : 'is_look'">
+                        <router-link :to="{name: 'security_findings'}">{{ finding.title }}</router-link>
+                    </li>
+                </ul>
 
-        <!--
-            Everything the plugin will not recommend for every site: it either depends on
-            what this site connects to, or it needs setting up somewhere else. Shown, with
-            whatever is known about this site, but never counted against it.
-        -->
-        <div v-if="unscoredItems.length" class="fls_aside_block">
-            <h3>{{ $t('Worth a Look') }}</h3>
+                <p v-else class="fls_note">
+                    {{ $t('Nothing on this site needs your attention right now.') }}
+                </p>
 
-            <ul class="fls_dash_checklist">
-                <li v-for="item in unscoredItems" :key="item.key" :class="'is_' + item.state">
-                    <div class="fls_dash_check">
-                        <span class="fls_dash_check_mark">
-                            <span v-if="item.state === 'done'" v-html="icons.tick"></span>
-                            <span v-else-if="item.state === 'in_use'" class="fls_dash_check_dot"></span>
-                        </span>
-                        <div class="fls_dash_check_body">
-                            <router-link class="fls_dash_check_title" :to="target(item)">
-                                {{ item.title }}
-                            </router-link>
-                            <p v-if="item.note" class="fls_dash_check_note">{{ item.note }}</p>
-                        </div>
-                        <el-button v-if="item.state === 'todo'" class="fls_dash_check_action"
-                                   size="small" :loading="applying === item.key"
-                                   @click="item.action === 'enable' ? applyCheck(item) : $router.push(target(item))">
-                            {{ actionLabel(item) }}
-                        </el-button>
-                    </div>
-                </li>
-            </ul>
+                <div class="fls_scan_aside_actions">
+                    <el-button size="small" @click="$router.push({name: 'security_findings'})">
+                        <template v-if="remaining">
+                            {{ $_n('See 1 more', 'See %s more', remaining) }}
+                        </template>
+                        <template v-else>{{ $t('Open Security') }}</template>
+                    </el-button>
+                </div>
+            </template>
         </div>
 
         <div class="fls_aside_block">

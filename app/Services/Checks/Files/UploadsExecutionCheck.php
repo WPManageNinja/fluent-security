@@ -188,11 +188,13 @@ class UploadsExecutionCheck extends Check
         $result = $this->probe();
 
         /*
-         * A definite answer keeps for a day. One we could not get keeps for far less: the
-         * usual causes are transient, and a site should not be told for a day that it cannot
-         * be tested because one request timed out.
+         * A definite answer keeps for a day. One we could not get keeps for an hour - long
+         * enough that a site whose loopback requests are blocked outright is not paying the
+         * timeout on a page load every few minutes, short enough that a site which was merely
+         * busy gets a real answer soon after. Retrying sooner than this is what the button on
+         * the finding is for.
          */
-        $ttl = $result['state'] === self::UNKNOWN ? 15 * MINUTE_IN_SECONDS : DAY_IN_SECONDS;
+        $ttl = $result['state'] === self::UNKNOWN ? HOUR_IN_SECONDS : DAY_IN_SECONDS;
 
         set_transient(self::CACHE_KEY, $result, apply_filters('fluent_auth/uploads_probe_ttl', $ttl, $result));
 
@@ -237,8 +239,13 @@ class UploadsExecutionCheck extends Check
             return ['state' => self::UNKNOWN, 'reason' => 'not_writable'];
         }
 
+        /*
+         * Five seconds, not thirty. This runs behind a page load, and a site that cannot
+         * answer itself quickly is a site we are going to report as untested either way -
+         * waiting longer only makes the screen slower to say so.
+         */
         $response = wp_remote_get($url, [
-            'timeout'   => 10,
+            'timeout'   => 5,
             'sslverify' => apply_filters('fluent_auth/uploads_probe_sslverify', true),
             'headers'   => ['Cache-Control' => 'no-cache']
         ]);

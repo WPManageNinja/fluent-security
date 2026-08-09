@@ -70,7 +70,7 @@ class DashboardControllerTest extends BaseTestCase
     {
         $result = $this->dashboard();
 
-        foreach (['range', 'stats', 'chart', 'recent', 'top_ips', 'methods', 'checklist', 'protection'] as $key) {
+        foreach (['range', 'stats', 'chart', 'recent', 'top_ips', 'methods', 'protection'] as $key) {
             $this->assertArrayHasKey($key, $result);
         }
 
@@ -237,42 +237,18 @@ class DashboardControllerTest extends BaseTestCase
     }
 
     /**
-     * The states, the scoring and the evidence behind each item belong to SecurityChecks and
-     * are tested there. All this needs to know is that the dashboard carries them.
+     * The dashboard used to assemble its own checklist, and the aside used to render it. Both
+     * are gone: the aside fetches the security screen's list from the endpoint that screen
+     * uses, so there is one answer to "what is wrong with this site" rather than one per
+     * screen. Two such lists do not merely duplicate each other - they eventually disagree,
+     * and a security tool that contradicts itself has spent the only thing it has.
+     *
+     * Asserted as an absence because putting it back is the mistake worth catching. What the
+     * list contains is covered by SecurityChecksTest and SecurityFindingsTest.
      */
-    public function testChecklistReflectsTheSettings()
+    public function testDoesNotAssembleASecondListOfWhatIsWrongWithTheSite()
     {
-        $before = $this->dashboard()['checklist'];
-
-        $settings = get_option('__fls_auth_settings');
-        $settings['disable_xmlrpc'] = 'yes';
-        $settings['totp_2fa'] = 'yes';
-        update_option('__fls_auth_settings', $settings);
-
-        \FluentAuth\App\Helpers\Helper::resetStatics();
-
-        $after = $this->dashboard()['checklist'];
-
-        $this->assertEquals($before['done'] + 2, $after['done']);
-
-        $states = [];
-
-        foreach ($after['items'] as $item) {
-            $states[$item['key']] = $item['state'];
-        }
-
-        $this->assertEquals('done', $states['disable_xmlrpc']);
-        $this->assertEquals('done', $states['two_fa']);
-    }
-
-    public function testChecklistItemsPointAtSomewhereToGo()
-    {
-        foreach ($this->dashboard()['checklist']['items'] as $item) {
-            $this->assertNotEmpty($item['route'], $item['key']);
-            $this->assertNotEmpty($item['title'], $item['key']);
-            $this->assertContains($item['state'], ['done', 'todo', 'in_use'], $item['key']);
-            $this->assertContains($item['action'], ['enable', 'navigate'], $item['key']);
-        }
+        $this->assertArrayNotHasKey('checklist', $this->dashboard());
     }
 
     public function testApplySecurityCheckEndpointTurnsOnAProtection()

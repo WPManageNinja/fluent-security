@@ -44,7 +44,12 @@ class DashboardController
             ],
             'top_ips'    => self::getTopIps($range),
             'methods'    => self::getLoginMethods($range),
-            'checklist'  => SecurityChecks::get(),
+            /*
+             * The checklist used to be assembled here. The aside now fetches it from the same
+             * endpoint the security screen uses - see _SecurityAside.vue - so there is one
+             * answer to "what is wrong with this site" rather than one per screen, and the
+             * dashboard's own figures are not held up behind the checks that produce it.
+             */
             'protection' => self::getProtection()
         ];
     }

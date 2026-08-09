@@ -565,102 +565,53 @@
     }
 }
 
-.fls_dash_checklist {
+/*
+ * The security screen's list, previewed.
+ *
+ * Titles only, each a link to where the work is done - the buttons that used to be here went
+ * with the checklist they belonged to. A row that can be acted on from two screens is a row
+ * whose two screens can disagree about whether it still needs acting on.
+ */
+.fls_dash_findings {
     @apply flex flex-col m-0 p-0 list-none;
 
-    gap: 16px;
+    gap: 10px;
+    margin-top: 16px;
 
     > li {
-        @apply m-0;
-    }
+        @apply relative m-0 text-sm;
 
-    /*
-     * A row is a mark, a title that links to the setting, and - when the protection can be
-     * turned on from here - a button that does it. The button is why the row is no longer
-     * one big link: a link wrapping a button is not a thing that can be clicked reliably.
-     */
-    .fls_dash_check {
-        @apply flex items-start;
+        padding-left: 14px;
+        line-height: 1.5;
 
-        gap: 12px;
-    }
+        /* The same tell as a finding row's stripe, at the size a preview can afford. */
+        &:before {
+            @apply absolute rounded-full;
 
-    .fls_dash_check_body {
-        @apply flex-1;
-
-        min-width: 0;
-    }
-
-    /* Dashed while it is undone, solid and filled once it is - the same tell as FluentCart. */
-    .fls_dash_check_mark {
-        @apply flex flex-none items-center justify-center rounded-full;
-
-        width: 20px;
-        height: 20px;
-        margin-top: 1px;
-        border-width: 1.5px;
-        border-style: dashed;
-        border-color: var(--fls-text-mid);
-
-        svg {
-            width: 12px;
-            height: 12px;
+            content: '';
+            left: 0;
+            top: 7px;
+            width: 6px;
+            height: 6px;
         }
-    }
 
-    .is_done .fls_dash_check_mark {
-        @apply bg-accent text-accent-on;
+        &.is_fix:before {
+            background: var(--fls-danger-fg);
+        }
 
-        border-style: solid;
-        border-color: var(--fls-accent);
-    }
+        &.is_look:before {
+            background: var(--fls-warning-fg);
+        }
 
-    /*
-     * Not a tick and not an empty circle: this one is off because something needs it off,
-     * which is neither done nor outstanding. Amber says "read this", not "fix this".
-     */
-    .is_in_use .fls_dash_check_mark {
-        @apply bg-caution-bg;
-
-        border-style: solid;
-        border-color: var(--fls-warning-fg);
-    }
-
-    .fls_dash_check_dot {
-        @apply block rounded-full;
-
-        width: 6px;
-        height: 6px;
-        background: var(--fls-warning-fg);
-    }
-
-    .fls_dash_check_title {
-        @apply block text-sm text-ink-mid no-underline;
-
-        &:hover {
-            @apply underline;
+        a {
+            @apply no-underline;
 
             color: var(--fls-text);
+
+            &:hover {
+                color: var(--fls-heading);
+            }
         }
-
-        &:focus {
-            box-shadow: none;
-            outline: none;
-        }
-    }
-
-    /* The evidence for the state, when there is any: "in use by 2 users". */
-    .fls_dash_check_note {
-        @apply text-xs text-ink-light m-0;
-
-        margin-top: 3px;
-        line-height: 1.5;
-    }
-
-    .fls_dash_check_action {
-        @apply flex-none;
-
-        margin-top: -2px;
     }
 }
 

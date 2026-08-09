@@ -281,9 +281,7 @@ export default {
                 </template>
             </div>
 
-            <security-aside v-if="dashboard" :checklist="dashboard.checklist"
-                            :protection="dashboard.protection"
-                            @applied="dashboard.checklist = $event"/>
+            <security-aside v-if="dashboard" :protection="dashboard.protection"/>
         </div>
     </div>
 </template>
