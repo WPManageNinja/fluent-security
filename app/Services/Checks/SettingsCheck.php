@@ -22,8 +22,6 @@ use FluentAuth\App\Services\SecurityChecks;
  */
 class SettingsCheck extends Check
 {
-    const DISMISSED_OPTION = '__fls_dismissed_checks';
-
     public function id()
     {
         return 'settings';
@@ -100,12 +98,7 @@ class SettingsCheck extends Check
             );
         }
 
-        $dismissed = self::dismissed();
-
-        if (!in_array($key, $dismissed, true)) {
-            $dismissed[] = $key;
-            update_option(self::DISMISSED_OPTION, $dismissed, false);
-        }
+        Dismissals::add($key);
 
         return ['message' => __('Noted. This will not be counted or mentioned again.', 'fluent-security')];
     }
@@ -126,23 +119,9 @@ class SettingsCheck extends Check
             );
         }
 
-        update_option(
-            self::DISMISSED_OPTION,
-            array_values(array_diff(self::dismissed(), [$key])),
-            false
-        );
+        Dismissals::remove($key);
 
         return ['message' => __('This is back on the list.', 'fluent-security')];
-    }
-
-    /**
-     * @return array
-     */
-    protected static function dismissed()
-    {
-        $dismissed = get_option(self::DISMISSED_OPTION, []);
-
-        return is_array($dismissed) ? $dismissed : [];
     }
 
     /**
@@ -170,7 +149,7 @@ class SettingsCheck extends Check
          * Only while it is still undone: a site that later switches the thing on should get
          * the credit and see it counted, not go on being told it once said no.
          */
-        if ($state !== 'done' && in_array($key, self::dismissed(), true)) {
+        if ($state !== 'done' && Dismissals::has($key)) {
             return new Finding([
                 'id'      => $this->id() . '_' . $key,
                 'check'   => $this->id(),

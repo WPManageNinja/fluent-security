@@ -30,7 +30,13 @@ class Registry
             new Files\DropInsCheck(),
             new Files\UploadsExecutionCheck(),
             new Files\ConfigPermissionsCheck(),
-            new Files\BaselineCheck()
+            new Files\BaselineCheck(),
+            new Files\BackupFilesCheck(),
+            new Config\FileEditorCheck(),
+            new Config\DebugDisplayCheck(),
+            new Config\HttpsCheck(),
+            new Users\AdminUsernameCheck(),
+            new Users\DormantAdminCheck()
         ];
 
         /*

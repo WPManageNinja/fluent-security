@@ -247,9 +247,16 @@ class SecurityFindingsTest extends BaseTestCase
                 );
             }
 
-            /* A row that navigates has to have somewhere to send them. */
+            /*
+             * A row that navigates has to have somewhere to send them - either one of this
+             * plugin's own screens or a WordPress one. Which of the two is the check's
+             * business; that there is one is not.
+             */
             if ($finding['action'] === 'navigate') {
-                $this->assertNotEmpty($finding['route'], $finding['id'] . ' navigates nowhere');
+                $this->assertNotEmpty(
+                    $finding['route'] ?: $finding['url'],
+                    $finding['id'] . ' navigates nowhere'
+                );
             }
         }
     }

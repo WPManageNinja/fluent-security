@@ -113,7 +113,15 @@ export default {
         </div>
 
         <div class="fls_finding_actions">
-            <el-button v-if="finding.action !== 'none'" type="primary" size="small"
+            <!--
+                A WordPress screen rather than one of ours: a real link, opened in a new tab,
+                so going to look at something does not throw away a half-read list.
+            -->
+            <el-button v-if="finding.url" type="primary" size="small" tag="a"
+                       :href="finding.url" target="_blank" rel="noopener">
+                {{ primaryLabel }}
+            </el-button>
+            <el-button v-else-if="finding.action !== 'none'" type="primary" size="small"
                        :loading="busy" @click="onPrimary">
                 {{ primaryLabel }}
             </el-button>

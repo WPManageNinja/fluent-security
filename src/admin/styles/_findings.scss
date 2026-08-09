@@ -237,6 +237,14 @@
         .el-button + .el-button {
             margin-left: 0;
         }
+
+        /*
+         * The row that opens a WordPress screen is a real link, and a link in this app is
+         * underlined. Here it should read as the button beside it rather than as prose.
+         */
+        a.el-button {
+            @apply no-underline;
+        }
     }
 }
 

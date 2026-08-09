@@ -75,6 +75,13 @@ class Finding
             'route'    => '',
             'section'  => '',
             /*
+             * Or a WordPress screen, for the checks whose answer is somewhere this plugin does
+             * not own - the users list, the plugins list. Opened in a new tab rather than
+             * navigated to, so a half-finished review of the findings is not thrown away by
+             * going to look at something.
+             */
+            'url'      => '',
+            /*
              * `expected` records the current state and speaks up if it changes again;
              * `ignore` silences the path for good. Empty means this cannot be dismissed.
              */
