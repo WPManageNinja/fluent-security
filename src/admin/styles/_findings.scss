@@ -300,3 +300,209 @@
         }
     }
 }
+
+/* ----------------------------------------------------------- recovery */
+
+/*
+ * The one action on this screen that is safe to take without reading the rest of it. Given
+ * the weight to be found by somebody who is not reading carefully, and the wording to be
+ * understood by them - the sequence below is for people who are.
+ */
+.fls_recover_hero {
+    @apply flex flex-wrap items-start justify-between rounded border border-solid;
+
+    gap: 16px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    background: var(--fls-danger-wash);
+    border-color: var(--fls-danger-line);
+
+    .fls_recover_hero_body {
+        @apply flex-1;
+
+        min-width: 260px;
+    }
+
+    h2 {
+        @apply text-sm font-medium m-0;
+
+        line-height: 20px;
+        color: var(--fls-danger-fg);
+    }
+
+    p {
+        @apply text-xs m-0;
+
+        margin-top: 6px;
+        line-height: 1.6;
+        color: var(--fls-text-mid);
+        max-width: 62ch;
+    }
+}
+
+.fls_recover_last {
+    @apply text-xs m-0;
+
+    margin-bottom: 20px;
+    color: var(--fls-text-light);
+}
+
+/*
+ * Numbered, and the numbers mean something: mailing everyone a reset link before the open
+ * sessions are gone accomplishes very little. This is one of the few lists in the app where
+ * the order is information rather than decoration.
+ */
+.fls_recover_steps {
+    @apply flex flex-col m-0 p-0 rounded overflow-hidden border border-solid;
+
+    list-style: none;
+    background: var(--fls-surface);
+    border-color: var(--fls-border);
+
+    > li {
+        @apply grid items-start border-0 border-b border-solid m-0;
+
+        grid-template-columns: 26px minmax(0, 1fr) auto;
+        gap: 0 14px;
+        padding: 16px 18px;
+        border-color: var(--fls-border);
+
+        &:last-child {
+            @apply border-b-0;
+        }
+    }
+
+    .fls_recover_num {
+        @apply flex flex-none items-center justify-center rounded-full text-xs font-medium;
+
+        width: 22px;
+        height: 22px;
+        margin-top: 1px;
+        background: var(--fls-surface-raised);
+        color: var(--fls-text-mid);
+    }
+
+    .is_warning .fls_recover_num {
+        @apply bg-caution-bg text-caution-fg;
+    }
+
+    .fls_recover_body {
+        min-width: 0;
+
+        h3 {
+            @apply text-sm font-medium m-0;
+
+            line-height: 20px;
+            color: var(--fls-heading);
+        }
+
+        p {
+            @apply text-xs m-0;
+
+            margin-top: 4px;
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+            max-width: 62ch;
+        }
+    }
+
+    .fls_recover_actions {
+        @apply flex flex-wrap items-center justify-end flex-none;
+
+        gap: 8px;
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+    }
+
+    .fls_recover_progress {
+        @apply text-xs;
+
+        margin-top: 8px;
+        color: var(--fls-text-light);
+    }
+}
+
+/* Who can change the site, and when they turned up. The dates are the reason this exists. */
+.fls_recover_admins {
+    @apply flex flex-col rounded;
+
+    gap: 2px;
+    margin-top: 12px;
+    padding: 4px;
+    background: var(--fls-surface-sunk);
+
+    /*
+     * A grid rather than a flex row, so every account's dates start at the same place and the
+     * column can be read down. Left to wrap, the one account with a long email pushed its own
+     * dates onto a second line and the list stopped scanning as a list.
+     */
+    .fls_recover_admin {
+        @apply grid items-center rounded;
+
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 16px;
+        padding: 8px 10px;
+
+        &.is_new {
+            background: var(--fls-warning-wash);
+        }
+
+        > div {
+            @apply flex flex-wrap items-center;
+
+            gap: 8px;
+            min-width: 0;
+        }
+
+        strong {
+            @apply text-sm font-medium;
+
+            color: var(--fls-text);
+        }
+    }
+
+    .fls_recover_admin_email {
+        @apply text-xs truncate;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_recover_admin_dates {
+        @apply text-xs flex-none justify-end;
+
+        color: var(--fls-text-mid);
+        white-space: nowrap;
+
+        span + span:before {
+            content: '·';
+            margin: 0 6px;
+            color: var(--fls-text-light);
+        }
+
+        a {
+            margin-left: 10px;
+        }
+    }
+
+    /* Below 782px wp-admin is already stacking; the dates go under the name with it. */
+    @media screen and (max-width: 782px) {
+        .fls_recover_admin {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .fls_recover_admin_dates {
+            @apply justify-start;
+
+            white-space: normal;
+        }
+    }
+}
+
+.fls_recover_note {
+    @apply text-xs m-0;
+
+    margin-top: 14px;
+    color: var(--fls-text-light);
+}

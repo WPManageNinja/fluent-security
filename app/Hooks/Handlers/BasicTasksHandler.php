@@ -38,6 +38,15 @@ class BasicTasksHandler
         });
 
         /*
+         * The rest of a password reset run. A site with thousands of users cannot be mailed
+         * inside the request that started it, so the queue reschedules itself until it is
+         * empty - see RecoveryService::processQueue().
+         */
+        add_action('fluent_auth_recovery_resets', function () {
+            \FluentAuth\App\Services\Recovery\RecoveryService::processQueue();
+        });
+
+        /*
          * Maybe Disable Admin Bar
          */
         add_filter('show_admin_bar', function ($status) {

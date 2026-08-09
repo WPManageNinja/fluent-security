@@ -13,6 +13,7 @@ import CustomWpEmails from './Components/CustomWpEmails/AllEmails.vue';
 import EditWpEmail from './Components/CustomWpEmails/EditWpEmail.vue';
 import TemplateSettings from './Components/CustomWpEmails/TemplateSettings.vue';
 import SecurityFindings from './Components/Security/Findings.vue';
+import SecurityRecovery from './Components/Security/Recovery.vue';
 import SecurityScans from './Components/SecurityScan/index.vue';
 import RegisterPromt from './Components/SecurityScan/RegisterPromt.vue';
 import AuthCustomizer from './Components/AuthCustomizer/AuthCustomizer.vue';
@@ -125,6 +126,15 @@ export var routes = [
         meta: {
             active: 'security',
             title: 'Security'
+        }
+    },
+    {
+        path: '/security/recovery',
+        name: 'security_recovery',
+        component: SecurityRecovery,
+        meta: {
+            active: 'security',
+            title: 'Recovery'
         }
     },
     {

@@ -30,5 +30,12 @@ export default {
         <router-link :to="{name: 'security_scans'}" class="fls_sec_tab">
             {{ $t('Monitoring') }}
         </router-link>
+        <!--
+            Last, and named for what it is for rather than for what it does. Nobody goes
+            looking for "tools"; they go looking for what to do after a break-in.
+        -->
+        <router-link :to="{name: 'security_recovery'}" class="fls_sec_tab">
+            {{ $t('Recovery') }}
+        </router-link>
     </nav>
 </template>
