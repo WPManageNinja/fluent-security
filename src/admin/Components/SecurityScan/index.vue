@@ -3,6 +3,7 @@ import icons from './icons';
 import RegisterPromt from './RegisterPromt.vue';
 import ScanResults from './_ScanResults.vue';
 import ScannerWidgets from './_ScannerWidgets.vue';
+import SecurityTabs from '../Security/_SecurityTabs.vue';
 
 /*
  * The security scans screen.
@@ -32,7 +33,8 @@ export default {
     components: {
         RegisterPromt,
         ScanResults,
-        ScannerWidgets
+        ScannerWidgets,
+        SecurityTabs
     },
     data() {
         return {
@@ -64,6 +66,12 @@ export default {
             /* In flight right now - more than one, because the walk runs a few at a time. */
             checkingKeys: [],
             coverage: null,
+            /*
+             * How many findings the other tab is holding. Fetched here purely so the tab bar
+             * reads the same from both sides - a badge that appears only once you are already
+             * looking at the list is a badge that never told anybody anything.
+             */
+            openFindings: 0,
             progress: {
                 phase: 'core',
                 done: 0,
@@ -356,6 +364,14 @@ export default {
         this.getTargets().catch(() => {
             /* The installed list is worth showing when it can be; not worth an error banner. */
         });
+
+        this.$get('security-findings')
+            .then(response => {
+                this.openFindings = response.counts.open;
+            })
+            .catch(() => {
+                /* The badge is a convenience; its absence is not worth reporting. */
+            });
     },
     watch: {
         /*
@@ -378,7 +394,7 @@ export default {
             <div class="fls_page_main">
                 <div class="fls_page_head">
                     <div>
-                        <h1 class="fls_page_title">{{ $t('Security Scans') }}</h1>
+                        <h1 class="fls_page_title">{{ $t('Security') }}</h1>
                         <p class="fls_page_desc">
                             {{ $t('Compares every WordPress core file, plugin and theme on this site against the official release on WordPress.org, so an unauthorised change cannot sit there unnoticed.') }}
                         </p>
@@ -391,6 +407,8 @@ export default {
                         </el-button>
                     </div>
                 </div>
+
+                <security-tabs :open-count="openFindings"/>
 
                 <el-skeleton v-if="loading" :animated="true" :rows="8"/>
 

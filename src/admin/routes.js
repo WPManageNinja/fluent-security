@@ -12,6 +12,7 @@ import SocialAuthSettings from './Components/SocialAuthSettings.vue';
 import CustomWpEmails from './Components/CustomWpEmails/AllEmails.vue';
 import EditWpEmail from './Components/CustomWpEmails/EditWpEmail.vue';
 import TemplateSettings from './Components/CustomWpEmails/TemplateSettings.vue';
+import SecurityFindings from './Components/Security/Findings.vue';
 import SecurityScans from './Components/SecurityScan/index.vue';
 import RegisterPromt from './Components/SecurityScan/RegisterPromt.vue';
 import AuthCustomizer from './Components/AuthCustomizer/AuthCustomizer.vue';
@@ -109,12 +110,29 @@ export var routes = [
             title: 'Auth Logs'
         }
     },
+    /*
+     * Security is one destination with two views of the same subject: what needs doing, and
+     * what is being watched. They share `active` so the top bar highlights Security on both.
+     *
+     * Monitoring keeps the `security_scans` name and its old path. The name is what the
+     * checklist points at (see SecurityChecks::definitions) and the path is what a year of
+     * bookmarks point at; neither is worth breaking to make the two routes look like a pair.
+     */
+    {
+        path: '/security',
+        name: 'security_findings',
+        component: SecurityFindings,
+        meta: {
+            active: 'security',
+            title: 'Security'
+        }
+    },
     {
         path: '/security-scans',
         name: 'security_scans',
         component: SecurityScans,
         meta: {
-            active: 'security_scans',
+            active: 'security',
             title: 'Security Scans'
         }
     },
@@ -123,7 +141,7 @@ export var routes = [
         name: 'security_scan_register',
         component: RegisterPromt,
         meta: {
-            active: 'security_scans',
+            active: 'security',
             title: 'Security Scans'
         }
     },

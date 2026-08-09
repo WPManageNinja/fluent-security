@@ -23,6 +23,15 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'getLogs'], $permissions)
     ->get('dashboard', ['\FluentAuth\App\Http\Controllers\DashboardController', 'getDashboard'], $permissions)
     ->post('security-checks/{key}/apply', ['\FluentAuth\App\Http\Controllers\DashboardController', 'applySecurityCheck'], $permissions)
+    /*
+     * The security screen. Three endpoints for every check the plugin has or will have -
+     * see SecurityFindingsController. The check and finding are named in the body rather
+     * than the path: a finding identifies itself with whatever its check finds meaningful,
+     * which for a file check is a path, and a path does not survive a route pattern.
+     */
+    ->get('security-findings', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'getFindings'], $permissions)
+    ->post('security-findings/fix', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'fix'], $permissions)
+    ->post('security-findings/accept', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'accept'], $permissions)
     ->get('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'getRules'], $permissions)
     ->post('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'saveRules'], $permissions)
     ->post('ip-rules/add', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'addIp'], $permissions)

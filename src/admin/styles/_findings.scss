@@ -1,0 +1,265 @@
+/*
+ * The security screen's findings list.
+ *
+ * Everything the screen says about the site is one of these rows, whatever produced it - a
+ * setting, a file hash, a question put to the web server. So the component is deliberately
+ * plain: a severity stripe, a body that reads as a sentence, and the buttons pushed to the
+ * far edge where the eye finds them in the same place on every row.
+ *
+ * Colours come from the shared semantic names rather than from anything invented here, so a
+ * finding sits in the same red and amber as a blocked login and a failed scan.
+ */
+
+/* --------------------------------------------------------------- tabs */
+
+/*
+ * Findings and Monitoring. An underline rather than a pill or a segmented control: these are
+ * two views of one subject, not two settings, and the tab that is on should read as the page
+ * you are on rather than as a choice you have made.
+ */
+.fls_sec_tabs {
+    @apply flex items-center border-0 border-b border-solid;
+
+    border-color: var(--fls-border);
+    gap: 24px;
+    margin-bottom: 20px;
+
+    .fls_sec_tab {
+        @apply flex items-center text-sm font-medium no-underline;
+
+        gap: 6px;
+        padding: 0 0 10px;
+        margin-bottom: -1px;
+        color: var(--fls-text-mid);
+        border-bottom: 2px solid transparent;
+        transition: color .15s ease, border-color .15s ease;
+
+        &:hover {
+            color: var(--fls-text);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+        }
+
+        &.router-link-active {
+            color: var(--fls-heading);
+            border-bottom-color: var(--fls-accent);
+        }
+    }
+
+    .fls_sec_tab_count {
+        @apply inline-flex items-center justify-center rounded-full text-xs font-medium;
+
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        line-height: 18px;
+        background: var(--fls-danger-bg);
+        color: var(--fls-danger-fg);
+    }
+}
+
+/* ------------------------------------------------------------ filters */
+
+.fls_find_filters {
+    @apply flex flex-wrap items-center;
+
+    gap: 8px;
+    margin-bottom: 16px;
+
+    .fls_find_chip {
+        @apply inline-flex items-center rounded-full border border-solid text-xs font-medium cursor-pointer;
+
+        gap: 6px;
+        padding: 4px 11px;
+        line-height: 18px;
+        background: var(--fls-surface);
+        border-color: var(--fls-border-strong);
+        color: var(--fls-text-mid);
+        transition: background .15s ease, color .15s ease, border-color .15s ease;
+
+        &:hover {
+            color: var(--fls-text);
+            border-color: var(--fls-text-light);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+        }
+
+        &.is_on {
+            background: var(--fls-accent);
+            border-color: var(--fls-accent);
+            color: var(--fls-accent-contrast);
+        }
+    }
+
+    .fls_find_chip_count {
+        @apply font-normal;
+
+        opacity: .7;
+    }
+}
+
+/* --------------------------------------------------------------- list */
+
+.fls_find_list {
+    @apply rounded overflow-hidden border border-solid;
+
+    background: var(--fls-surface);
+    border-color: var(--fls-border);
+}
+
+/*
+ * Stripe, body, actions. The stripe is a column of the grid rather than a border on the row,
+ * so it runs the full height of whatever the body grows to - including an opened details list.
+ */
+.fls_finding {
+    @apply grid items-start border-0 border-b border-solid;
+
+    grid-template-columns: 3px minmax(0, 1fr) auto;
+    gap: 0 16px;
+    padding: 16px 18px;
+    border-color: var(--fls-border);
+
+    &:last-child {
+        @apply border-b-0;
+    }
+
+    .fls_finding_stripe {
+        @apply self-stretch rounded-xs;
+    }
+
+    &.is_fix .fls_finding_stripe {
+        background: var(--fls-danger-fg);
+    }
+
+    &.is_look .fls_finding_stripe {
+        background: var(--fls-warning-fg);
+    }
+
+    .fls_finding_body {
+        min-width: 0;
+    }
+
+    .fls_finding_meta {
+        @apply flex flex-wrap items-center;
+
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .fls_finding_group {
+        @apply text-xs;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_finding_title {
+        @apply text-sm font-medium m-0;
+
+        line-height: 20px;
+        color: var(--fls-heading);
+    }
+
+    .fls_finding_why {
+        @apply text-xs m-0;
+
+        margin-top: 4px;
+        line-height: 1.6;
+        color: var(--fls-text-mid);
+        max-width: 60ch;
+    }
+
+    /* Level three, and it stays shut until asked for. */
+    .fls_finding_toggle {
+        @apply inline-flex items-center bg-transparent border-0 p-0 text-xs cursor-pointer;
+
+        gap: 4px;
+        margin-top: 8px;
+        color: var(--fls-text-mid);
+
+        &:hover {
+            color: var(--fls-text);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+        }
+    }
+
+    .fls_finding_chev {
+        @apply inline-flex;
+
+        transition: transform .15s ease;
+
+        &.is_open {
+            transform: rotate(180deg);
+        }
+
+        svg {
+            width: 14px;
+            height: 14px;
+        }
+    }
+
+    /*
+     * Paths, hashes and dates, in the one place on the screen where a monospace face earns
+     * itself: these are read character by character, and a proportional font hides the
+     * difference between two paths that differ by one letter.
+     */
+    .fls_finding_details {
+        @apply list-none rounded m-0;
+
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: var(--fls-surface-sunk);
+
+        li {
+            @apply text-xs m-0;
+
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            line-height: 1.7;
+            color: var(--fls-text-mid);
+            word-break: break-all;
+        }
+    }
+
+    .fls_finding_actions {
+        @apply flex flex-wrap items-center justify-end flex-none;
+
+        gap: 8px;
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+    }
+}
+
+/*
+ * What was looked at and found to be fine. Under the list, quiet, and never rows of its own -
+ * a screen of ticks buries the one thing that is not one.
+ */
+.fls_find_passed {
+    @apply text-xs m-0;
+
+    margin-top: 12px;
+    color: var(--fls-text-light);
+}
+
+@media screen and (max-width: 782px) {
+    .fls_finding {
+        grid-template-columns: 3px minmax(0, 1fr);
+
+        .fls_finding_actions {
+            @apply justify-start;
+
+            grid-column: 2;
+            margin-top: 12px;
+        }
+    }
+}

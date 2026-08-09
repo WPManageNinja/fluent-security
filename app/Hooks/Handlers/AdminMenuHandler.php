@@ -129,12 +129,16 @@ class AdminMenuHandler
             array($this, 'render')
         );
 
+        /*
+         * Lands on Findings rather than on the file scan. The two are tabs of one screen now,
+         * and Findings is the one that answers "is anything wrong" without being asked to run.
+         */
         add_submenu_page(
             'fluent-auth',
-            __('Security Scans', 'fluent-security'),
-            __('Security Scans', 'fluent-security'),
+            __('Security', 'fluent-security'),
+            __('Security', 'fluent-security'),
             $permission,
-            'fluent-auth#/security-scans',
+            'fluent-auth#/security',
             array($this, 'render')
         );
     }

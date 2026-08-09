@@ -18,7 +18,7 @@ export default {
             menuItems: [
                 {route: 'dashboard', title: this.$t('Dashboard')},
                 {route: 'logs', title: this.$t('Logs')},
-                {route: 'security_scans', title: this.$t('Security Scans')},
+                {route: 'security_findings', title: this.$t('Security'), match: 'security'},
                 {route: 'settings_general', title: this.$t('Settings'), match: 'settings'}
             ]
         }

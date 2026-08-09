@@ -157,6 +157,13 @@ class SecurityChecks
         $item = [
             'key'     => $key,
             'title'   => $definition['title'],
+            /*
+             * One line on why it matters, for the finding row on the security screen. The
+             * checklist on the dashboard never had room for it and did without; a reader who
+             * has to decide whether to press the button needs it.
+             */
+            'why'     => Arr::get($definition, 'why', ''),
+            'group'   => Arr::get($definition, 'group', 'login'),
             'scored'  => $definition['scored'],
             'state'   => $done ? 'done' : 'todo',
             'action'  => $definition['settings'] ? 'enable' : 'navigate',
@@ -180,6 +187,8 @@ class SecurityChecks
         return [
             'two_fa'             => [
                 'title'    => __('Two-factor authentication', 'fluent-security'),
+                'why'      => __('A stolen password is not enough to get in when a second step is asked for.', 'fluent-security'),
+                'group'    => 'login',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'two_fa',
@@ -196,6 +205,8 @@ class SecurityChecks
             ],
             'notifications'      => [
                 'title'    => __('Alert admins about logins', 'fluent-security'),
+                'why'      => __('An email when someone signs in is how a stolen account gets noticed on the day, not the week after.', 'fluent-security'),
+                'group'    => 'login',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'notifications',
@@ -207,6 +218,8 @@ class SecurityChecks
             ],
             'disable_xmlrpc'     => [
                 'title'    => __('Block XML-RPC requests', 'fluent-security'),
+                'why'      => __('An old way in that few sites still use, and a favourite route for guessing passwords in bulk.', 'fluent-security'),
+                'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -217,6 +230,8 @@ class SecurityChecks
             ],
             'disable_users_rest' => [
                 'title'    => __('Hide the public user list', 'fluent-security'),
+                'why'      => __('By default anyone can read the usernames on your site, which is half of every login.', 'fluent-security'),
+                'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -227,6 +242,8 @@ class SecurityChecks
             ],
             'secure_signup_form' => [
                 'title'    => __('Verify email addresses on signup', 'fluent-security'),
+                'why'      => __('Without it, anyone can register accounts in bulk with addresses they do not own.', 'fluent-security'),
+                'group'    => 'login',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -243,6 +260,8 @@ class SecurityChecks
              */
             'disable_app_login'  => [
                 'title'    => __('Block application passwords', 'fluent-security'),
+                'why'      => __('These sign in without a second step, so any that exist bypass two-factor entirely.', 'fluent-security'),
+                'group'    => 'login',
                 'scored'   => false,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -262,6 +281,8 @@ class SecurityChecks
                  * at four out of five forever through no fault of their configuration.
                  */
                 'title'    => __('Watch core files for changes', 'fluent-security'),
+                'why'      => __('Nothing else on this list can tell you that a file was edited after somebody got in.', 'fluent-security'),
+                'group'    => 'files',
                 'scored'   => false,
                 'route'    => 'security_scans',
                 'settings' => [],

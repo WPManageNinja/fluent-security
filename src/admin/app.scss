@@ -8,6 +8,7 @@ $primary-color: rgb(47, 41, 37);
 @use "styles/dashboard";
 @use "styles/list";
 @use "styles/scan";
+@use "styles/findings";
 
 @tailwind components;
 @tailwind utilities;
