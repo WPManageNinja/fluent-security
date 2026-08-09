@@ -83,7 +83,13 @@ class FileChecksTest extends BaseTestCase
         $this->assertStringContainsString('2 files', $this->only((new MuPluginsCheck())->run())['title']);
     }
 
-    public function test_accepting_them_settles_it()
+    /**
+     * Accepted, not passed. "There is nothing here" and "there are files here and you vouched
+     * for them" are different facts, and the second is a decision worth keeping on the record
+     * with a way back - it is still scored as resolved, because vouching for these is what
+     * satisfying this check looks like.
+     */
+    public function test_accepting_them_settles_it_without_pretending_they_are_not_there()
     {
         $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
 
@@ -92,7 +98,34 @@ class FileChecksTest extends BaseTestCase
 
         $finding = $this->only($check->run());
 
+        $this->assertEquals(Finding::STATE_ACCEPTED, $finding['state']);
+        $this->assertTrue($finding['scored']);
+        $this->assertNotEmpty($finding['details']);
+    }
+
+    /**
+     * An empty folder is the only thing that passes outright.
+     */
+    public function test_nothing_here_at_all_is_a_pass()
+    {
+        $finding = $this->only((new MuPluginsCheck())->run());
+
         $this->assertEquals(Finding::STATE_PASSED, $finding['state']);
+    }
+
+    public function test_an_acceptance_can_be_taken_back()
+    {
+        $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
+
+        $check = new MuPluginsCheck();
+        $check->accept($check->id());
+
+        $this->assertFalse(is_wp_error($check->unaccept($check->id())));
+
+        $finding = $this->only($check->run());
+
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertEmpty(AcceptedFiles::all());
     }
 
     /**

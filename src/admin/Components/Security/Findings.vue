@@ -34,6 +34,9 @@ export default {
             score: {done: 0, total: 0, percent: 100},
             /* The scan's own settings, for the honest note in the aside. */
             scan: null,
+            /* Things the site has said it is happy with. Kept out of the way, not hidden. */
+            accepted: [],
+            showAccepted: false,
             group: 'all',
             /* Which finding is mid-request, so only its own button spins. */
             acting: ''
@@ -137,6 +140,7 @@ export default {
          */
         apply(response) {
             this.findings = response.findings || [];
+            this.accepted = response.accepted || [];
             this.counts = response.counts || this.counts;
             this.score = response.score || this.score;
 
@@ -178,6 +182,26 @@ export default {
             this.acting = finding.id;
 
             this.$post('security-findings/accept', {check: finding.check, finding: finding.id})
+                .then(response => {
+                    this.$notify.success(response.message || this.$t('Done.'));
+                    this.apply(response);
+                })
+                .catch(errors => {
+                    this.$handleError(errors);
+                })
+                .finally(() => {
+                    this.acting = '';
+                });
+        },
+        /*
+         * Put something back on the list. Offered in the place it was taken off, because a
+         * dismissal whose only way back is a Reset button on another screen is not a decision
+         * anybody can revise - only one they can undo wholesale.
+         */
+        unaccept(finding) {
+            this.acting = finding.id;
+
+            this.$post('security-findings/unaccept', {check: finding.check, finding: finding.id})
                 .then(response => {
                     this.$notify.success(response.message || this.$t('Done.'));
                     this.apply(response);
@@ -258,9 +282,43 @@ export default {
                         of ticks buries the one thing that is not one - but said, because a list
                         with nothing on it should not read as a list nobody has run.
                     -->
-                    <p v-if="counts.passed" class="fls_find_passed">
-                        {{ $_n('%s check passed', '%s checks passed', counts.passed) }}
+                    <p v-if="counts.passed || accepted.length" class="fls_find_passed">
+                        <span v-if="counts.passed">
+                            {{ $_n('%s check passed', '%s checks passed', counts.passed) }}
+                        </span>
+                        <template v-if="accepted.length">
+                            <span v-if="counts.passed" class="fls_find_sep">·</span>
+                            <button type="button" class="fls_find_link"
+                                    @click="showAccepted = !showAccepted">
+                                {{ $_n('%s marked as expected', '%s marked as expected', accepted.length) }}
+                            </button>
+                        </template>
                     </p>
+
+                    <!--
+                        What the site has said it is happy with. Below the fold of the list and
+                        collapsed, because these are settled - but on the screen, with the way
+                        back beside them, because they are decisions somebody made rather than
+                        checks that never ran.
+                    -->
+                    <div v-if="showAccepted && accepted.length" class="fls_find_list fls_find_accepted">
+                        <div v-for="item in accepted" :key="item.id" class="fls_finding is_accepted">
+                            <span class="fls_finding_stripe"></span>
+                            <div class="fls_finding_body">
+                                <h3 class="fls_finding_title">{{ item.title }}</h3>
+                                <p v-if="item.why" class="fls_finding_why">{{ item.why }}</p>
+                                <ul v-if="item.details && item.details.length" class="fls_finding_details">
+                                    <li v-for="(detail, index) in item.details" :key="index">{{ detail }}</li>
+                                </ul>
+                            </div>
+                            <div class="fls_finding_actions">
+                                <el-button size="small" :loading="acting === item.id"
+                                           @click="unaccept(item)">
+                                    {{ $t('Undo') }}
+                                </el-button>
+                            </div>
+                        </div>
+                    </div>
                 </template>
             </div>
 

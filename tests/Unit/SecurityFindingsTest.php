@@ -34,6 +34,7 @@ class SecurityFindingsTest extends BaseTestCase
         Helper::resetStatics();
         Registry::reset();
         delete_option('__fls_integrity_settings');
+        delete_option('__fls_dismissed_checks');
 
         /*
          * The uploads check asks the web server a question. Answered here so the registry is
@@ -251,6 +252,59 @@ class SecurityFindingsTest extends BaseTestCase
                 $this->assertNotEmpty($finding['route'], $finding['id'] . ' navigates nowhere');
             }
         }
+    }
+
+    /**
+     * Declining a recommendation is not the same as following it.
+     *
+     * It leaves the score altogether rather than counting as satisfied - both halves of the
+     * fraction, not just the numerator. If dismissing handed over the point, the quickest
+     * route to a hundred per cent would be to turn everything down, and the number would stop
+     * meaning that the site follows the recommendations.
+     */
+    public function test_declining_a_recommendation_takes_it_out_of_the_score_rather_than_satisfying_it()
+    {
+        $before = Registry::summary()['score'];
+
+        Registry::accept('settings', 'settings_disable_xmlrpc');
+
+        $after = Registry::summary()['score'];
+
+        $this->assertEquals($before['total'] - 1, $after['total']);
+        $this->assertEquals($before['done'], $after['done']);
+
+        /* And it is off the list without having been done. */
+        $this->assertEmpty($this->finding(Registry::summary(), 'settings_disable_xmlrpc'));
+        $this->assertNotEquals('yes', Helper::getAuthSettings()['disable_xmlrpc']);
+    }
+
+    public function test_a_declined_recommendation_stays_visible_and_can_be_taken_back()
+    {
+        Registry::accept('settings', 'settings_disable_xmlrpc');
+
+        $accepted = array_column(Registry::summary()['accepted'], 'id');
+        $this->assertContains('settings_disable_xmlrpc', $accepted);
+
+        Registry::unaccept('settings', 'settings_disable_xmlrpc');
+
+        $this->assertNotEmpty($this->finding(Registry::summary(), 'settings_disable_xmlrpc'));
+    }
+
+    /**
+     * Turning something on later should earn the credit, not go on reporting that the site
+     * once said no to it.
+     */
+    public function test_doing_a_declined_recommendation_anyway_counts_normally()
+    {
+        Registry::accept('settings', 'settings_disable_xmlrpc');
+        $declined = Registry::summary()['score'];
+
+        $this->setSetting('disable_xmlrpc', 'yes');
+
+        $done = Registry::summary()['score'];
+
+        $this->assertEquals($declined['total'] + 1, $done['total']);
+        $this->assertEquals($declined['done'] + 1, $done['done']);
     }
 
     public function test_findings_are_ordered_worst_first()

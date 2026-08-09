@@ -245,10 +245,47 @@
  * a screen of ticks buries the one thing that is not one.
  */
 .fls_find_passed {
-    @apply text-xs m-0;
+    @apply flex flex-wrap items-center text-xs m-0;
 
+    gap: 6px;
     margin-top: 12px;
     color: var(--fls-text-light);
+
+    .fls_find_link {
+        @apply bg-transparent border-0 p-0 cursor-pointer underline;
+
+        font: inherit;
+        color: var(--fls-text-mid);
+
+        &:hover {
+            color: var(--fls-text);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+        }
+    }
+}
+
+/*
+ * Settled decisions, opened on request. Quieter than the list above it - no severity, and a
+ * stripe in the neutral border colour, so it cannot be mistaken for something outstanding.
+ */
+.fls_find_accepted {
+    margin-top: 10px;
+
+    .fls_finding.is_accepted {
+        .fls_finding_stripe {
+            background: var(--fls-border-strong);
+        }
+
+        .fls_finding_title {
+            @apply font-normal;
+
+            color: var(--fls-text-mid);
+        }
+    }
 }
 
 @media screen and (max-width: 782px) {

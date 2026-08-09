@@ -90,4 +90,24 @@ abstract class Check
             ['status' => 422]
         );
     }
+
+    /**
+     * Take back an acceptance.
+     *
+     * Anything a reader can silence they have to be able to un-silence, in the place they
+     * silenced it. A dismissal whose only way back is a Reset button on another screen that
+     * clears everything at once is not a decision they can revise - it is one they have to
+     * live with or undo wholesale.
+     *
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function unaccept($findingId)
+    {
+        return new \WP_Error(
+            'not_acceptable',
+            __('There is nothing to undo for this one.', 'fluent-security'),
+            ['status' => 422]
+        );
+    }
 }

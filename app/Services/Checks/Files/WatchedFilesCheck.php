@@ -62,6 +62,14 @@ abstract class WatchedFilesCheck extends Check
      */
     abstract protected function firstTitle($count);
 
+    /**
+     * The heading once every file here has been vouched for.
+     *
+     * @param int $count
+     * @return string
+     */
+    abstract protected function acceptedTitle($count);
+
     public function run()
     {
         $current = [];
@@ -103,14 +111,24 @@ abstract class WatchedFilesCheck extends Check
             }
         }
 
+        /*
+         * Accepted rather than passed. "There is nothing here" and "there are four things
+         * here and you vouched for them" are different facts, and the second one is a
+         * decision the reader made and may want to revisit - so it stays on the record with a
+         * way back, rather than disappearing into a tally of checks that found nothing.
+         *
+         * Still scored as resolved: vouching for these is what satisfying this check looks
+         * like, since nothing else can tell a legitimate file here from a planted one.
+         */
         if (!$unaccounted && !$changed) {
             return [new Finding([
-                'id'     => $this->id(),
-                'check'  => $this->id(),
-                'group'  => $this->group(),
-                'state'  => Finding::STATE_PASSED,
-                'title'  => $words['none_title'],
-                'scored' => true
+                'id'      => $this->id(),
+                'check'   => $this->id(),
+                'group'   => $this->group(),
+                'state'   => Finding::STATE_ACCEPTED,
+                'title'   => $this->acceptedTitle(count($current)),
+                'details' => array_keys($current),
+                'scored'  => true
             ])];
         }
 
@@ -170,6 +188,27 @@ abstract class WatchedFilesCheck extends Check
 
         return [
             'message' => __('Noted. You will hear about these again only if they change.', 'fluent-security')
+        ];
+    }
+
+    /**
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function unaccept($findingId)
+    {
+        if ($findingId !== $this->id()) {
+            return new \WP_Error(
+                'unknown_check',
+                __('That is not something this plugin knows how to check.', 'fluent-security'),
+                ['status' => 404]
+            );
+        }
+
+        AcceptedFiles::forgetMany($this->scope());
+
+        return [
+            'message' => __('These are no longer marked as expected, so they are back on the list.', 'fluent-security')
         ];
     }
 

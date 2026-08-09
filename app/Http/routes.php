@@ -32,6 +32,7 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('security-findings', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'getFindings'], $permissions)
     ->post('security-findings/fix', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'fix'], $permissions)
     ->post('security-findings/accept', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'accept'], $permissions)
+    ->post('security-findings/unaccept', ['\FluentAuth\App\Http\Controllers\SecurityFindingsController', 'unaccept'], $permissions)
     ->get('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'getRules'], $permissions)
     ->post('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'saveRules'], $permissions)
     ->post('ip-rules/add', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'addIp'], $permissions)

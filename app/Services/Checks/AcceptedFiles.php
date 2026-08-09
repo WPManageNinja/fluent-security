@@ -113,6 +113,30 @@ class AcceptedFiles
     }
 
     /**
+     * Take back every acceptance in one part of the tree.
+     *
+     * @param string $prefix
+     * @return void
+     */
+    public static function forgetMany($prefix)
+    {
+        $accepted = self::all();
+
+        $kept = array_filter($accepted, function ($path) use ($prefix) {
+            return strpos($path, $prefix) !== 0;
+        }, ARRAY_FILTER_USE_KEY);
+
+        if (count($kept) === count($accepted)) {
+            return;
+        }
+
+        $lists = IntegrityHelper::getIgnoreLists();
+        $lists['hashes'] = $kept;
+
+        IntegrityHelper::updateIgnoreLists($lists);
+    }
+
+    /**
      * @param string $absolutePath
      * @return string
      */

@@ -195,6 +195,31 @@ class ConfigPermissionsCheck extends Check
     }
 
     /**
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function unaccept($findingId)
+    {
+        $path = $this->configPath();
+
+        if ($findingId !== $this->id() || !$path) {
+            return new \WP_Error(
+                'unknown_check',
+                __('There is nothing to undo for this one.', 'fluent-security'),
+                ['status' => 404]
+            );
+        }
+
+        $lists = IntegrityHelper::getIgnoreLists();
+        $relative = AcceptedFiles::toRelative($path);
+
+        $lists['files'] = array_values(array_diff($lists['files'], [$relative]));
+        IntegrityHelper::updateIgnoreLists($lists);
+
+        return ['message' => __('This is back on the list.', 'fluent-security')];
+    }
+
+    /**
      * @param string $path
      * @return bool
      */

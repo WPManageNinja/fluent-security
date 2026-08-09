@@ -22,6 +22,8 @@ use FluentAuth\App\Services\SecurityChecks;
  */
 class SettingsCheck extends Check
 {
+    const DISMISSED_OPTION = '__fls_dismissed_checks';
+
     public function id()
     {
         return 'settings';
@@ -71,6 +73,79 @@ class SettingsCheck extends Check
     }
 
     /**
+     * Decline a recommendation.
+     *
+     * Not the same promise the file checks make. There, accepting says "this file is fine as
+     * it is" and the check keeps watching it; here it says "this one is not for my site", and
+     * there is nothing left to watch. Which is why a declined recommendation leaves the score
+     * altogether rather than counting as satisfied - see toFinding(). Otherwise dismissing
+     * things would be the quickest route to a hundred per cent, and the number would stop
+     * meaning that the site follows the recommendations.
+     *
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function accept($findingId)
+    {
+        $key = $this->keyFromFindingId($findingId);
+        $definitions = SecurityChecks::get();
+
+        $known = wp_list_pluck(Arr::get($definitions, 'items', []), 'key');
+
+        if (!$key || !in_array($key, $known, true)) {
+            return new \WP_Error(
+                'unknown_check',
+                __('That is not something this plugin knows how to check.', 'fluent-security'),
+                ['status' => 404]
+            );
+        }
+
+        $dismissed = self::dismissed();
+
+        if (!in_array($key, $dismissed, true)) {
+            $dismissed[] = $key;
+            update_option(self::DISMISSED_OPTION, $dismissed, false);
+        }
+
+        return ['message' => __('Noted. This will not be counted or mentioned again.', 'fluent-security')];
+    }
+
+    /**
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function unaccept($findingId)
+    {
+        $key = $this->keyFromFindingId($findingId);
+
+        if (!$key) {
+            return new \WP_Error(
+                'unknown_check',
+                __('There is nothing to undo for this one.', 'fluent-security'),
+                ['status' => 404]
+            );
+        }
+
+        update_option(
+            self::DISMISSED_OPTION,
+            array_values(array_diff(self::dismissed(), [$key])),
+            false
+        );
+
+        return ['message' => __('This is back on the list.', 'fluent-security')];
+    }
+
+    /**
+     * @return array
+     */
+    protected static function dismissed()
+    {
+        $dismissed = get_option(self::DISMISSED_OPTION, []);
+
+        return is_array($dismissed) ? $dismissed : [];
+    }
+
+    /**
      * @param array $item
      * @return Finding
      */
@@ -85,9 +160,30 @@ class SettingsCheck extends Check
          * saying so. It stays on screen as a fact, with no button to press.
          */
         $inUse = $state === 'in_use';
+        $key = Arr::get($item, 'key');
+
+        /*
+         * Declined, and still off. A recommendation the reader has turned down stays on the
+         * record with a way back, and leaves the score entirely - `scored` false here is what
+         * takes it out of both halves of the fraction rather than handing over the point.
+         *
+         * Only while it is still undone: a site that later switches the thing on should get
+         * the credit and see it counted, not go on being told it once said no.
+         */
+        if ($state !== 'done' && in_array($key, self::dismissed(), true)) {
+            return new Finding([
+                'id'      => $this->id() . '_' . $key,
+                'check'   => $this->id(),
+                'group'   => Arr::get($item, 'group', 'login'),
+                'state'   => Finding::STATE_ACCEPTED,
+                'title'   => Arr::get($item, 'title', ''),
+                'why'     => __('You have said this one is not for your site.', 'fluent-security'),
+                'scored'  => false
+            ]);
+        }
 
         $finding = [
-            'id'       => $this->id() . '_' . Arr::get($item, 'key'),
+            'id'       => $this->id() . '_' . $key,
             'check'    => $this->id(),
             'group'    => Arr::get($item, 'group', 'login'),
             'state'    => $state === 'done' ? Finding::STATE_PASSED : Finding::STATE_OPEN,
@@ -103,6 +199,12 @@ class SettingsCheck extends Check
             'label'    => __('Set up', 'fluent-security'),
             'route'    => Arr::get($item, 'route', ''),
             'section'  => Arr::get($item, 'section', ''),
+            /*
+             * Only an outstanding one can be declined. There is nothing to turn down about a
+             * protection that is already on, and `in_use` is a fact about the site rather
+             * than a recommendation waiting on an answer.
+             */
+            'dismiss'  => ($state === 'todo' && !$inUse) ? 'ignore' : '',
             'scored'   => $scored
         ];
 

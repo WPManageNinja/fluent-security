@@ -205,6 +205,22 @@ class Registry
 
     /**
      * @param string $checkId
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public static function unaccept($checkId, $findingId)
+    {
+        $check = self::find($checkId);
+
+        if (is_wp_error($check)) {
+            return $check;
+        }
+
+        return $check->unaccept($findingId);
+    }
+
+    /**
+     * @param string $checkId
      * @return Check|\WP_Error
      */
     protected static function find($checkId)

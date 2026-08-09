@@ -27,6 +27,14 @@ class BasicTasksHandler
         add_action('fluent_auth_daily_tasks', function () {
             $this->maybeSendDigestEMail();
             \FluentAuth\App\Helpers\Helper::cleanUpLogs();
+
+            /*
+             * Ask the web server whether the uploads folder runs PHP, out here where nobody is
+             * waiting. The check caches its answer, so warming it on the schedule means the
+             * security screen almost always reads a stored result rather than paying for an
+             * HTTP request while somebody watches the page load.
+             */
+            (new \FluentAuth\App\Services\Checks\Files\UploadsExecutionCheck())->refresh();
         });
 
         /*

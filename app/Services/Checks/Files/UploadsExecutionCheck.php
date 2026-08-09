@@ -175,6 +175,21 @@ class UploadsExecutionCheck extends Check
     }
 
     /**
+     * Test now and store the answer, whatever it is.
+     *
+     * For the scheduled run: the point is that the cache is warm by the time anybody opens the
+     * screen, so this deliberately discards whatever was there rather than honouring it.
+     *
+     * @return string
+     */
+    public function refresh()
+    {
+        delete_transient(self::CACHE_KEY);
+
+        return $this->probeState();
+    }
+
+    /**
      * @return array
      */
     protected function cachedProbe()

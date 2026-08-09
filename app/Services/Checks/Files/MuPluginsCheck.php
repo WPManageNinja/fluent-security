@@ -49,6 +49,20 @@ class MuPluginsCheck extends WatchedFilesCheck
         );
     }
 
+    protected function acceptedTitle($count)
+    {
+        return sprintf(
+            /* translators: %s: number of files */
+            _n(
+                'A file runs on every page, and you have marked it as expected',
+                '%s files run on every page, and you have marked them as expected',
+                $count,
+                'fluent-security'
+            ),
+            number_format_i18n($count)
+        );
+    }
+
     protected function words()
     {
         return [

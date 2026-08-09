@@ -65,6 +65,24 @@ class SecurityFindingsController
     }
 
     /**
+     * @param \WP_REST_Request $request
+     * @return array|\WP_Error
+     */
+    public static function unaccept(\WP_REST_Request $request)
+    {
+        $result = Registry::unaccept(
+            sanitize_text_field((string)$request->get_param('check')),
+            sanitize_text_field((string)$request->get_param('finding'))
+        );
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return self::withSummary($result);
+    }
+
+    /**
      * Send the recalculated list back with every write.
      *
      * Turning one thing on can move another - blocking application passwords changes what

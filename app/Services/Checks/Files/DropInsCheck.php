@@ -63,6 +63,20 @@ class DropInsCheck extends WatchedFilesCheck
         );
     }
 
+    protected function acceptedTitle($count)
+    {
+        return sprintf(
+            /* translators: %s: number of files */
+            _n(
+                'A file loads before the rest of your site, and you have marked it as expected',
+                '%s files load before the rest of your site, and you have marked them as expected',
+                $count,
+                'fluent-security'
+            ),
+            number_format_i18n($count)
+        );
+    }
+
     protected function words()
     {
         return [
