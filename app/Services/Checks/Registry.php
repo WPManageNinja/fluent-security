@@ -29,7 +29,8 @@ class Registry
             new Files\MuPluginsCheck(),
             new Files\DropInsCheck(),
             new Files\UploadsExecutionCheck(),
-            new Files\ConfigPermissionsCheck()
+            new Files\ConfigPermissionsCheck(),
+            new Files\BaselineCheck()
         ];
 
         /*

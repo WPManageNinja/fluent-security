@@ -342,6 +342,12 @@ class IntegrityHelper
          */
         self::scanExtensionBatch();
 
+        /*
+         * And the site's own snapshot, which covers exactly what the directory cannot - the
+         * premium and custom extensions. Does nothing until somebody has taken one.
+         */
+        \FluentAuth\App\Services\Baseline\BaselineScanner::compare();
+
         $modifiedExtensionFiles = self::getActiveExtensionFindings();
 
         /*

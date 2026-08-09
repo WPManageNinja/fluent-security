@@ -1,6 +1,7 @@
 <script type="text/babel">
 import isEmpty from 'lodash/isEmpty';
 import icons from './icons';
+import BaselinePanel from './_BaselinePanel.vue';
 
 /*
  * The right-hand column: how scanning is set up on this site.
@@ -11,6 +12,9 @@ import icons from './icons';
  */
 export default {
     name: 'ScannerWidgets',
+    components: {
+        BaselinePanel
+    },
     props: {
         settings: {
             type: Object,
@@ -279,6 +283,13 @@ export default {
                 {{ $_n('%s item is not from the WordPress.org directory, so there are no official checksums to compare it against.', '%s items are not from the WordPress.org directory, so there are no official checksums to compare them against.', coverage.unverifiable) }}
             </p>
         </div>
+
+        <!--
+            Directly under the coverage it completes: the panel above says what cannot be
+            checked against WordPress.org, and this is the only other thing there is to check
+            those against - the site's own record of them.
+        -->
+        <baseline-panel :is-clean="settings.is_ok === 'yes' && !!settings.last_checked_human"/>
 
         <div v-if="hasIgnores" class="fls_aside_block">
             <h3>
