@@ -138,6 +138,43 @@ define('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET', '******');
                         </template>
                     </div>
 
+                    <div v-if="settings.enabled == 'yes'" class="fls_login_settings">
+                        <h3>{{ $t('Login with LinkedIn Settings') }}</h3>
+                        <el-form-item class="fls_switch">
+                            <el-switch v-model="settings.enable_linkedin" active-value="yes" inactive-value="no"/>
+                            {{ $t('Enable Login with LinkedIn') }}
+                        </el-form-item>
+                        <template v-if="settings.enable_linkedin == 'yes'">
+                            <el-form-item :label="$t('Credential Storage Method')">
+                                <el-radio-group v-model="settings.linkedin_key_method">
+                                    <el-radio-button :label="$t('Database')" value="db"/>
+                                    <el-radio-button label="wp-config" value="wp_config"/>
+                                </el-radio-group>
+                            </el-form-item>
+                            <div class="fls_code_instruction" v-if="settings.linkedin_key_method == 'wp_config'">
+                                <h3>{{ $t('__wp_config_instruction__') }}</h3>
+                                <textarea readonly>define('FLUENT_AUTH_LINKEDIN_CLIENT_ID', '******');
+define('FLUENT_AUTH_LINKEDIN_CLIENT_SECRET', '******');
+                                </textarea>
+                            </div>
+                            <template v-else>
+                                <el-form-item :label="$t('LinkedIn Client ID')">
+                                    <el-input v-model="settings.linkedin_client_id" type="text"
+                                              :placeholder="$t('LinkedIn Client ID')"/>
+                                </el-form-item>
+                                <el-form-item :label="$t('LinkedIn Client Secret')">
+                                    <el-input v-model="settings.linkedin_client_secret" type="password"
+                                              :placeholder="$t('LinkedIn Client Secret')"/>
+                                </el-form-item>
+                            </template>
+                            <p>{{ $t('Please set your LinkedIn app Redirect URL:') }}
+                                <code>{{ auth_info.linkedin.app_redirect }}</code>.
+                                {{ $t('For more information how to setup LinkedIn app for social authentication please') }}
+                                <a target="_blank" rel="noopener"
+                                   :href="auth_info.linkedin.doc_url">{{ $t('read this documentation') }}.</a></p>
+                        </template>
+                    </div>
+
                     <el-form-item>
                         <el-button v-loading="saving" :disabled="saving" @click="saveSettings()" type="success">
                             {{ $t('Save Settings') }}

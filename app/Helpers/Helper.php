@@ -267,7 +267,11 @@ class Helper
             'facebook_key_method'    => 'wp_config',
             'facebook_client_id'     => '',
             'facebook_client_secret' => '',
-            'facebook_api_version'   => 'v12.0'
+            'facebook_api_version'   => 'v12.0',
+            'enable_linkedin'        => 'no',
+            'linkedin_key_method'    => 'wp_config',
+            'linkedin_client_id'     => '',
+            'linkedin_client_secret' => ''
         ];
 
         $settings = get_option('__fls_social_auth_settings');
@@ -293,6 +297,11 @@ class Helper
                 $settings['facebook_client_id'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID')) ? FLUENT_AUTH_FACEBOOK_CLIENT_ID : '';
                 $settings['facebook_client_secret'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) ? FLUENT_AUTH_FACEBOOK_CLIENT_SECRET : '';
                 $settings['facebook_api_version'] = sanitize_text_field($settings['facebook_api_version']);
+            }
+
+            if ($settings['linkedin_key_method'] == 'wp_config') {
+                $settings['linkedin_client_id'] = (defined('FLUENT_AUTH_LINKEDIN_CLIENT_ID')) ? FLUENT_AUTH_LINKEDIN_CLIENT_ID : '';
+                $settings['linkedin_client_secret'] = (defined('FLUENT_AUTH_LINKEDIN_CLIENT_SECRET')) ? FLUENT_AUTH_LINKEDIN_CLIENT_SECRET : '';
             }
         }
 
