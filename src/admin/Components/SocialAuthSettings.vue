@@ -123,6 +123,13 @@ export default {
                                     :id-label="$t('Facebook App ID')"
                                     :secret-label="$t('Facebook App Secret')"
                                     :info="auth_info.facebook"/>
+
+                    <SocialProvider :settings="settings" provider="linkedin"
+                                    :title="$t('LinkedIn')"
+                                    :description="$t('Signs in with a LinkedIn account.')"
+                                    :id-label="$t('LinkedIn Client ID')"
+                                    :secret-label="$t('LinkedIn Client Secret')"
+                                    :info="auth_info.linkedin"/>
                 </template>
 
                 <div class="fls_errors" v-if="errors">
