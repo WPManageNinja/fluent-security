@@ -11,15 +11,15 @@ class LinkedInAuthService
     {
         $config = Helper::getSocialAuthSettings('edit');
 
-        $params = [
+        $params = http_build_query([
             'response_type' => 'code',
             'client_id'     => $config['linkedin_client_id'],
             'redirect_uri'  => self::getAppRedirect(),
             'scope'         => 'openid profile email',
             'state'         => $state
-        ];
+        ]);
 
-        return add_query_arg($params, 'https://www.linkedin.com/oauth/v2/authorization');
+        return 'https://www.linkedin.com/oauth/v2/authorization?' . $params;
     }
 
     public static function getTokenByCode($code)
@@ -101,9 +101,6 @@ class LinkedInAuthService
 
     public static function getAppRedirect()
     {
-        return add_query_arg([
-            'fs_auth' => 'linkedin',
-            'fs_type' => 'confirm'
-        ], wp_login_url());
+        return add_query_arg(['fs_auth' => 'linkedin'], wp_login_url());
     }
 }
