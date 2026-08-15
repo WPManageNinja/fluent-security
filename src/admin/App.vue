@@ -40,6 +40,10 @@ export default {
                     title: this.$t('Settings')
                 },
                 {
+                    route: 'social_auth_settings',
+                    title: this.$t('Social Login')
+                },
+                {
                     route: 'auth_shortcodes',
                     title: this.$t('Login/Signup Forms')
                 },
