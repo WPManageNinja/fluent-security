@@ -34,7 +34,12 @@ class RecoveryController
              */
             'outstanding'    => [
                 'to_fix' => $summary['counts']['to_fix'],
-                'open'   => $summary['counts']['open']
+                /*
+                 * Fix and look, not everything open: best-practice advice is listed on the
+                 * findings tab but is not something a site being recovered has to clear, and
+                 * counting it here would keep a badge on the tab that nothing can put out.
+                 */
+                'open'   => $summary['counts']['attention']
             ]
         ];
     }

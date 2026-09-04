@@ -30,13 +30,24 @@ export default {
             icons,
             loading: true,
             findings: [],
-            counts: {open: 0, to_fix: 0, look: 0, passed: 0, accepted: 0},
+            counts: {open: 0, to_fix: 0, look: 0, advice: 0, attention: 0, passed: 0, accepted: 0},
             score: {done: 0, total: 0, percent: 100},
             /* The scan's own settings, for the honest note in the aside. */
             scan: null,
-            /* Things the site has said it is happy with. Kept out of the way, not hidden. */
+            /*
+             * Things the site has said it is happy with. Shown, not hidden behind a link: a
+             * dismissal is a decision somebody made and may want back, and one they have to
+             * remember to go looking for is one they will not find. They sit under the open
+             * list, quieter than it, with the way back beside each.
+             */
             accepted: [],
-            showAccepted: false,
+            /*
+             * The checks that found nothing. Behind a click, because a screen of ticks buries
+             * the one row that is not one - but there to be opened, because "18 checks passed"
+             * is otherwise a number the reader has no way to check.
+             */
+            passed: [],
+            showPassed: false,
             group: 'all',
             /* Which finding is mid-request, so only its own button spins. */
             acting: ''
@@ -98,7 +109,7 @@ export default {
                 };
             }
 
-            if (this.counts.open) {
+            if (this.counts.look) {
                 return {
                     tone: 'is_warning',
                     icon: icons.shield,
@@ -106,16 +117,29 @@ export default {
                     body: this.$_n(
                         'One thing is worth a look when you have a minute.',
                         '%s things are worth a look when you have a minute.',
-                        this.counts.open
+                        this.counts.look
                     )
                 };
             }
 
+            /*
+             * Advice on its own is not a verdict. A site whose only open row is "you could add
+             * a line to wp-config.php" has passed everything this plugin actually checks, and
+             * saying otherwise at the top of the page is the false alarm the tier exists to
+             * avoid - so the heading is the same green as a clean site, and the suggestions
+             * are mentioned underneath it rather than counted against it.
+             */
             return {
                 tone: 'is_success',
                 icon: icons.tick,
                 title: this.$t('Everything checked out'),
-                body: this.$t('Nothing on this site needs your attention right now.')
+                body: this.counts.advice
+                    ? this.$_n(
+                        'One suggestion below if you want to harden things further.',
+                        '%s suggestions below if you want to harden things further.',
+                        this.counts.advice
+                    )
+                    : this.$t('Nothing on this site needs your attention right now.')
             };
         }
     },
@@ -135,12 +159,13 @@ export default {
         /*
          * Every write comes back with the recalculated list, so the screen redraws from the
          * server's answer rather than striking a row out locally. Turning one thing on can move
-         * another - blocking application passwords changes what the two-factor row has to say -
+         * another - accepting the mu-plugins on a site changes what the file group has to say -
          * and a list that only ever removes the row you pressed drifts away from the truth.
          */
         apply(response) {
             this.findings = response.findings || [];
             this.accepted = response.accepted || [];
+            this.passed = response.passed || [];
             this.counts = response.counts || this.counts;
             this.score = response.score || this.score;
 
@@ -243,7 +268,7 @@ export default {
                     </div>
                 </div>
 
-                <security-tabs :open-count="counts.open"/>
+                <security-tabs :open-count="counts.attention"/>
 
                 <el-skeleton v-if="loading" :animated="true" :rows="6"/>
 
@@ -274,51 +299,67 @@ export default {
                     <div v-if="visibleFindings.length" class="fls_find_list">
                         <finding-row v-for="finding in visibleFindings" :key="finding.id"
                                      :finding="finding" :busy="acting === finding.id"
-                                     @fix="fix" @accept="accept" @navigate="navigate"/>
+                                     @fix="fix" @accept="accept" @unaccept="unaccept"
+                                     @navigate="navigate"/>
                     </div>
 
                     <!--
-                        What was checked and found to be fine. Never a row of its own - a screen
-                        of ticks buries the one thing that is not one - but said, because a list
-                        with nothing on it should not read as a list nobody has run.
+                        What the site has said it is happy with. Open, under the list it came
+                        out of. These are decisions somebody made and may want back, and a
+                        decision behind a link is one nobody remembers to go looking for - so
+                        the heading says how many and the rows are already there, each with
+                        the way back beside it.
                     -->
-                    <p v-if="counts.passed || accepted.length" class="fls_find_passed">
-                        <span v-if="counts.passed">
-                            {{ $_n('%s check passed', '%s checks passed', counts.passed) }}
-                        </span>
-                        <template v-if="accepted.length">
-                            <span v-if="counts.passed" class="fls_find_sep">·</span>
-                            <button type="button" class="fls_find_link"
-                                    @click="showAccepted = !showAccepted">
-                                {{ $_n('%s marked as expected', '%s marked as expected', accepted.length) }}
-                            </button>
-                        </template>
-                    </p>
+                    <template v-if="accepted.length">
+                        <h4 class="fls_find_subhead">
+                            {{ $_n('%s marked as expected', '%s marked as expected', accepted.length) }}
+                        </h4>
+
+                        <div class="fls_find_list fls_find_accepted">
+                            <div v-for="item in accepted" :key="item.id" class="fls_finding is_accepted">
+                                <span class="fls_finding_stripe"></span>
+                                <div class="fls_finding_body">
+                                    <h3 class="fls_finding_title">{{ item.title }}</h3>
+                                    <p v-if="item.why" class="fls_finding_why">{{ item.why }}</p>
+                                    <ul v-if="item.details && item.details.length" class="fls_finding_details">
+                                        <li v-for="(detail, index) in item.details" :key="index">{{ detail }}</li>
+                                    </ul>
+                                </div>
+                                <div class="fls_finding_actions">
+                                    <el-button size="small" :loading="acting === item.id"
+                                               @click="unaccept(item)">
+                                        {{ $t('Undo') }}
+                                    </el-button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
 
                     <!--
-                        What the site has said it is happy with. Below the fold of the list and
-                        collapsed, because these are settled - but on the screen, with the way
-                        back beside them, because they are decisions somebody made rather than
-                        checks that never ran.
+                        What was checked and found to be fine. Never rows by default - a screen
+                        of ticks buries the one thing that is not one - but openable, because
+                        the count alone asks the reader to take it on trust, and this is the
+                        only place the plugin says out loud what it actually looked at.
                     -->
-                    <div v-if="showAccepted && accepted.length" class="fls_find_list fls_find_accepted">
-                        <div v-for="item in accepted" :key="item.id" class="fls_finding is_accepted">
+                    <p v-if="counts.passed" class="fls_find_passed">
+                        <button type="button" class="fls_find_link"
+                                :aria-expanded="showPassed ? 'true' : 'false'"
+                                @click="showPassed = !showPassed">
+                            <span class="fls_finding_chev" :class="{is_open: showPassed}"
+                                  v-html="icons.chevron"></span>
+                            {{ $_n('%s check passed', '%s checks passed', counts.passed) }}
+                        </button>
+                    </p>
+
+                    <div v-if="showPassed" class="fls_find_list fls_find_passed_list">
+                        <div v-for="item in passed" :key="item.id" class="fls_finding is_passed">
                             <span class="fls_finding_stripe"></span>
                             <div class="fls_finding_body">
                                 <h3 class="fls_finding_title">{{ item.title }}</h3>
-                                <p v-if="item.why" class="fls_finding_why">{{ item.why }}</p>
-                                <ul v-if="item.details && item.details.length" class="fls_finding_details">
-                                    <li v-for="(detail, index) in item.details" :key="index">{{ detail }}</li>
-                                </ul>
-                            </div>
-                            <div class="fls_finding_actions">
-                                <el-button size="small" :loading="acting === item.id"
-                                           @click="unaccept(item)">
-                                    {{ $t('Undo') }}
-                                </el-button>
                             </div>
                         </div>
                     </div>
+
                 </template>
             </div>
 

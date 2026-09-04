@@ -157,7 +157,7 @@ export default {
                 -->
                 <ul v-if="preview.length" class="fls_dash_findings">
                     <li v-for="finding in preview" :key="finding.id"
-                        :class="finding.severity === 'fix' ? 'is_fix' : 'is_look'">
+                        :class="'is_' + (['fix', 'look', 'advice'].includes(finding.severity) ? finding.severity : 'look')">
                         <router-link :to="{name: 'security_findings'}">{{ finding.title }}</router-link>
                     </li>
                 </ul>

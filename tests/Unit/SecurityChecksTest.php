@@ -13,7 +13,6 @@ class SecurityChecksTest extends BaseTestCase
 
         update_option('__fls_auth_settings', [
             'disable_xmlrpc'          => 'no',
-            'disable_app_login'       => 'no',
             'disable_users_rest'      => 'no',
             'secure_signup_form'      => 'no',
             'login_try_limit'         => 5,
@@ -57,25 +56,6 @@ class SecurityChecksTest extends BaseTestCase
         Helper::resetStatics();
     }
 
-    /**
-     * @return void
-     */
-    private function giveUserAnAppPassword()
-    {
-        $userId = $this->factory->user->create();
-
-        update_user_meta($userId, \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS, [
-            [
-                'uuid'      => 'a-uuid',
-                'name'      => 'Some integration',
-                'password'  => 'hashed',
-                'created'   => time(),
-                'last_used' => null,
-                'last_ip'   => null
-            ]
-        ]);
-    }
-
     /* ------------------------------------------------------------------ scoring */
 
     public function testOnlyTheUniversalRecommendationsAreScored()
@@ -95,9 +75,9 @@ class SecurityChecksTest extends BaseTestCase
 
         $this->assertEquals($checklist['total'], count($scored));
 
-        // The two with no right answer for every site must never count against one.
-        $this->assertContains('disable_app_login', $unscored);
+        // The ones with no right answer for every site must never count against one.
         $this->assertContains('integrity_scan', $unscored);
+        $this->assertContains('notifications', $unscored);
 
         $this->assertContains('two_fa', $scored);
         $this->assertContains('disable_xmlrpc', $scored);
@@ -112,7 +92,7 @@ class SecurityChecksTest extends BaseTestCase
         $this->assertEquals(2, SecurityChecks::get()['done']);
 
         // Satisfying an unscored item must not move the score.
-        $this->settings(['disable_app_login' => 'yes']);
+        $this->settings(['notification_user_roles' => ['administrator'], 'notification_email' => '{admin_email}']);
 
         $this->assertEquals(2, SecurityChecks::get()['done']);
     }
@@ -155,40 +135,6 @@ class SecurityChecksTest extends BaseTestCase
         $this->assertArrayNotHasKey('totp_required_roles', $recommended);
         $this->assertArrayNotHasKey('trusted_proxies', $recommended);
         $this->assertArrayNotHasKey('proxy_ip_header', $recommended);
-    }
-
-    /* ----------------------------------------------------------------- evidence */
-
-    public function testAppPasswordsAreAnOpportunityWhenNobodyUsesThem()
-    {
-        $item = $this->item('disable_app_login');
-
-        $this->assertEquals('todo', $item['state']);
-        $this->assertEquals('enable', $item['action']);
-        $this->assertStringContainsString('Nobody has one', $item['note']);
-    }
-
-    public function testAppPasswordsAreReportedAsInUseNotAsAFailing()
-    {
-        $this->giveUserAnAppPassword();
-
-        $item = $this->item('disable_app_login');
-
-        $this->assertEquals('in_use', $item['state']);
-        $this->assertEquals('navigate', $item['action']);
-        $this->assertStringContainsString('In use', $item['note']);
-        $this->assertFalse($item['scored']);
-    }
-
-    public function testBlockedAppPasswordsReadAsDoneWhicheverWayTheSiteUsesThem()
-    {
-        $this->giveUserAnAppPassword();
-        $this->settings(['disable_app_login' => 'yes']);
-
-        $item = $this->item('disable_app_login');
-
-        $this->assertEquals('done', $item['state']);
-        $this->assertStringContainsString('Blocked', $item['note']);
     }
 
     /* -------------------------------------------------------------------- apply */
@@ -246,28 +192,6 @@ class SecurityChecksTest extends BaseTestCase
     {
         $this->assertWpErrorWithCode(SecurityChecks::apply('disable_admin_bar'), 'unknown_check');
         $this->assertWpErrorWithCode(SecurityChecks::apply(''), 'unknown_check');
-    }
-
-    /**
-     * The dashboard hides this button, but hiding a button is not a guard - the request can
-     * still be made by hand.
-     */
-    public function testApplyRefusesToBlockAppPasswordsThatAreInUse()
-    {
-        $this->giveUserAnAppPassword();
-
-        $error = SecurityChecks::apply('disable_app_login');
-
-        $this->assertWpErrorWithCode($error, 'in_use');
-        $this->assertEquals('no', get_option('__fls_auth_settings')['disable_app_login']);
-    }
-
-    public function testApplyBlocksAppPasswordsWhenNothingWouldBreak()
-    {
-        $result = SecurityChecks::apply('disable_app_login');
-
-        $this->assertIsArray($result);
-        $this->assertEquals('yes', $result['settings']['disable_app_login']);
     }
 
     public function testApplyRefusesWhatItCannotTurnOnFromHere()

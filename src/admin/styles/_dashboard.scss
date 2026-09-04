@@ -586,6 +586,10 @@
             background: var(--fls-warning-fg);
         }
 
+        &.is_advice:before {
+            background: var(--fls-border-strong);
+        }
+
         a {
             @apply no-underline;
 

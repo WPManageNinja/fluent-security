@@ -14,12 +14,19 @@ use FluentAuth\App\Services\Checks\Finding;
  * legitimate one from a planted one by looking at it. What can be told is whether it is the
  * same file as last time you looked.
  *
- * Which is why the first sight of these is not an alarm. Plenty of hosts ship mu-plugins, and
- * plenty of caching plugins install a drop-in; a plugin that opened with "4 files are running
- * that WordPress did not put there - fix this" would be wrong on most sites on its first day,
- * and being wrong once is how a security tool teaches people to ignore it. So the first sight
- * is an invitation to look, and once looked at, anything new or changed is the alarm - which
- * is the claim this can actually stand behind.
+ * Which is why the first sight of these says nothing at all. Plenty of hosts ship mu-plugins,
+ * and plenty of caching plugins install a drop-in; a plugin that opened with "4 files are
+ * running that WordPress did not put there - fix this" would be wrong on most sites on its
+ * first day, and being wrong once is how a security tool teaches people to ignore it.
+ *
+ * It used to open with an invitation to look instead, which was gentler and still wrong: the
+ * row was scored, so a site sat below full marks until somebody clicked a button about their
+ * host's own files. A score that is gated on an acknowledgement is not measuring the site.
+ *
+ * So what is there on the first run is recorded silently, and from then on anything new or
+ * changed is the alarm - which is the only claim here that can actually be stood behind. The
+ * files themselves are listed on the scan screen, where somebody can read them at their own
+ * pace rather than because a row asked them to.
  */
 abstract class WatchedFilesCheck extends Check
 {
@@ -44,14 +51,14 @@ abstract class WatchedFilesCheck extends Check
     abstract protected function scope();
 
     /**
-     * Copy, keyed: first_why, alert_title, alert_why, none_title.
+     * Copy, keyed: appeared_why, alert_title, alert_why, none_title.
      *
      * @return array
      */
     abstract protected function words();
 
     /**
-     * The heading for files nobody has vouched for yet.
+     * The heading when everything here is as it was.
      *
      * Its own method rather than a format string in words(), because it counts things and so
      * needs _n() - and _n() has to be written where a translator can see both forms and the
@@ -60,29 +67,23 @@ abstract class WatchedFilesCheck extends Check
      * @param int $count
      * @return string
      */
-    abstract protected function firstTitle($count);
+    abstract protected function watchedTitle($count);
 
     /**
-     * The heading once every file here has been vouched for.
+     * The heading when files are here that were not here before.
      *
      * @param int $count
      * @return string
      */
-    abstract protected function acceptedTitle($count);
+    abstract protected function appearedTitle($count);
 
     public function run()
     {
-        $current = [];
+        $current = $this->currentHashes();
 
-        foreach ($this->paths() as $path) {
-            $hash = AcceptedFiles::hash($path);
-
-            if ($hash) {
-                $current[AcceptedFiles::toRelative($path)] = $hash;
-            }
-        }
-
-        AcceptedFiles::forgetMissing(array_keys($current), $this->scope());
+        AcceptedFiles::forgetMissing(array_keys($current), function ($path) {
+            return $this->owns($path);
+        });
 
         $words = $this->words();
 
@@ -97,7 +98,26 @@ abstract class WatchedFilesCheck extends Check
             ])];
         }
 
-        $unaccounted = [];
+        /*
+         * First run. Recorded without a word, because nothing has been learned about this site
+         * yet - only about its host. Reported as passed rather than as nothing so the check
+         * still appears in the list of what was looked at, with a title that says what was
+         * actually done rather than implying somebody read them.
+         */
+        if (!AcceptedFiles::hasBaseline($this->scope())) {
+            AcceptedFiles::baseline($this->scope(), $current);
+
+            return [new Finding([
+                'id'     => $this->id(),
+                'check'  => $this->id(),
+                'group'  => $this->group(),
+                'state'  => Finding::STATE_PASSED,
+                'title'  => $this->watchedTitle(count($current)),
+                'scored' => true
+            ])];
+        }
+
+        $appeared = [];
         $changed = [];
 
         foreach ($current as $path => $hash) {
@@ -107,51 +127,72 @@ abstract class WatchedFilesCheck extends Check
             }
 
             if (!AcceptedFiles::isAccepted($path, $hash)) {
-                $unaccounted[] = $path;
+                $appeared[] = $path;
             }
         }
 
-        /*
-         * Accepted rather than passed. "There is nothing here" and "there are four things
-         * here and you vouched for them" are different facts, and the second one is a
-         * decision the reader made and may want to revisit - so it stays on the record with a
-         * way back, rather than disappearing into a tally of checks that found nothing.
-         *
-         * Still scored as resolved: vouching for these is what satisfying this check looks
-         * like, since nothing else can tell a legitimate file here from a planted one.
-         */
-        if (!$unaccounted && !$changed) {
+        if (!$appeared && !$changed) {
             return [new Finding([
-                'id'      => $this->id(),
-                'check'   => $this->id(),
-                'group'   => $this->group(),
-                'state'   => Finding::STATE_ACCEPTED,
-                'title'   => $this->acceptedTitle(count($current)),
-                'details' => array_keys($current),
-                'scored'  => true
+                'id'     => $this->id(),
+                'check'  => $this->id(),
+                'group'  => $this->group(),
+                'state'  => Finding::STATE_PASSED,
+                'title'  => $this->watchedTitle(count($current)),
+                'scored' => true
             ])];
         }
 
         /*
-         * A file that was vouched for and is no longer what it was outranks one that has
-         * simply never been looked at - the first is a change somebody made to code that runs
-         * on every request, the second is most likely the host's.
+         * Both outcomes are the alarm, and neither outranks the other. A file that was here
+         * and is no longer what it was, and a file that was not here at all, are the two
+         * shapes the same event takes - and dropping something into mu-plugins is the more
+         * common of the two, not the milder one.
          */
-        $isAlarm = !empty($changed);
-
         return [new Finding([
             'id'       => $this->id(),
             'check'    => $this->id(),
             'group'    => $this->group(),
             'state'    => Finding::STATE_OPEN,
-            'severity' => $isAlarm ? Finding::SEVERITY_FIX : Finding::SEVERITY_LOOK,
-            'title'    => $isAlarm ? $words['alert_title'] : $this->firstTitle(count($unaccounted)),
-            'why'      => $isAlarm ? $words['alert_why'] : $words['first_why'],
-            'details'  => $this->details($changed, $unaccounted),
+            'severity' => Finding::SEVERITY_FIX,
+            'title'    => $changed ? $words['alert_title'] : $this->appearedTitle(count($appeared)),
+            'why'      => $changed ? $words['alert_why'] : $words['appeared_why'],
+            'details'  => $this->details($changed, $appeared),
             'action'   => 'none',
             'dismiss'  => 'expected',
             'scored'   => true
         ])];
+    }
+
+    /**
+     * Whether a recorded path is this check's to forget.
+     *
+     * A subtree by default, which is what mu-plugins is. Overridden where it is not - see
+     * DropInsCheck, whose files sit loose in wp-content beside everything else.
+     *
+     * @param string $path root-relative
+     * @return bool
+     */
+    protected function owns($path)
+    {
+        return strpos($path, $this->scope()) === 0;
+    }
+
+    /**
+     * @return array path => hash
+     */
+    protected function currentHashes()
+    {
+        $current = [];
+
+        foreach ($this->paths() as $path) {
+            $hash = AcceptedFiles::hash($path);
+
+            if ($hash) {
+                $current[AcceptedFiles::toRelative($path)] = $hash;
+            }
+        }
+
+        return $current;
     }
 
     /**
@@ -214,20 +255,21 @@ abstract class WatchedFilesCheck extends Check
 
     /**
      * @param array $changed
-     * @param array $unaccounted
+     * @param array $appeared
      * @return array
      */
-    protected function details($changed, $unaccounted)
+    protected function details($changed, $appeared)
     {
         $details = [];
 
         foreach ($changed as $path) {
             /* translators: %s: a file path */
-            $details[] = sprintf(__('%s — changed since you accepted it', 'fluent-security'), $path);
+            $details[] = sprintf(__('%s — not the file it was', 'fluent-security'), $path);
         }
 
-        foreach ($unaccounted as $path) {
-            $details[] = $path;
+        foreach ($appeared as $path) {
+            /* translators: %s: a file path */
+            $details[] = sprintf(__('%s — new since we started watching', 'fluent-security'), $path);
         }
 
         return $details;

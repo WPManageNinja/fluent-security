@@ -9,13 +9,12 @@ use FluentAuth\App\Services\SecurityChecks;
  * The plugin's own settings, as findings.
  *
  * Deliberately an adapter over SecurityChecks rather than a rewrite of it. That class holds
- * three things worth more than the tidiness of a uniform hierarchy: what counts as
- * recommended comes from Helper::getRecommendedSettings(), so the checklist and the
- * "apply recommended" button cannot disagree; a check can report `in_use`, which is what
- * stopped the list scolding sites for configurations they chose on purpose; and apply()
- * re-reads its evidence and refuses on its own terms, so the endpoint cannot be talked into
- * writing an arbitrary setting. Re-expressing all of that as check classes would risk every
- * bit of it to gain nothing the screen can see.
+ * two things worth more than the tidiness of a uniform hierarchy: what counts as recommended
+ * comes from Helper::getRecommendedSettings(), so the checklist and the "apply recommended"
+ * button cannot disagree; and apply() takes the name of a check rather than a setting and a
+ * value, re-deciding what that means and refusing on its own terms, so the endpoint cannot be
+ * talked into writing an arbitrary setting. Re-expressing that as check classes would risk
+ * both to gain nothing the screen can see.
  *
  * So this maps one vocabulary onto another, and the settings half of the security screen
  * behaves exactly as the dashboard checklist did.
@@ -132,13 +131,6 @@ class SettingsCheck extends Check
     {
         $state = Arr::get($item, 'state');
         $scored = !empty($item['scored']);
-
-        /*
-         * `in_use` is not a failing and never renders as one - it is the plugin reporting
-         * that something on this site relies on the setting being off, with the evidence for
-         * saying so. It stays on screen as a fact, with no button to press.
-         */
-        $inUse = $state === 'in_use';
         $key = Arr::get($item, 'key');
 
         /*
@@ -167,40 +159,50 @@ class SettingsCheck extends Check
             'group'    => Arr::get($item, 'group', 'login'),
             'state'    => $state === 'done' ? Finding::STATE_PASSED : Finding::STATE_OPEN,
             /*
-             * Only a scored recommendation that is simply off is something to fix. Everything
-             * else - the ones that depend on what this site connects to, and the ones already
-             * relied upon - is worth a look and no more.
+             * Only a scored recommendation that is off is something to fix. An unscored one
+             * does not suit every site, so it is worth a look and no more; advice is quieter
+             * again - sound practice rather than anything wrong with this site.
              */
-            'severity' => ($scored && !$inUse) ? Finding::SEVERITY_FIX : Finding::SEVERITY_LOOK,
+            'severity' => $this->severityFor($item),
             'title'    => Arr::get($item, 'title', ''),
-            'why'      => Arr::get($item, 'note') ?: Arr::get($item, 'why', ''),
+            'why'      => Arr::get($item, 'why', ''),
             'action'   => 'navigate',
             'label'    => __('Set up', 'fluent-security'),
             'route'    => Arr::get($item, 'route', ''),
             'section'  => Arr::get($item, 'section', ''),
             /*
              * Only an outstanding one can be declined. There is nothing to turn down about a
-             * protection that is already on, and `in_use` is a fact about the site rather
-             * than a recommendation waiting on an answer.
+             * protection that is already on.
              */
-            'dismiss'  => ($state === 'todo' && !$inUse) ? 'ignore' : '',
+            'dismiss'  => $state === 'todo' ? 'ignore' : '',
             'scored'   => $scored
         ];
 
-        if ($inUse) {
-            /*
-             * Not "Set up". Nothing here is waiting to be set up - something on this site is
-             * relying on the setting being off, and the only useful thing to offer is a look at
-             * what that is. A button that implies there is work outstanding turns a fact into
-             * a failing, which is the one thing this state exists to avoid.
-             */
-            $finding['label'] = __('Review', 'fluent-security');
-        } elseif (Arr::get($item, 'action') === 'enable') {
+        if (Arr::get($item, 'action') === 'enable') {
             $finding['action'] = 'fix';
             $finding['label'] = __('Turn on', 'fluent-security');
         }
 
         return new Finding($finding);
+    }
+
+    /**
+     * How loudly a checklist item is said.
+     *
+     * Advice is tested first: a recommendation that depends on how a site is staffed stays
+     * quiet whether or not it is one the score counts, because there is nothing wrong with
+     * the site either way.
+     *
+     * @param array $item
+     * @return string
+     */
+    protected function severityFor($item)
+    {
+        if (!empty($item['advice'])) {
+            return Finding::SEVERITY_ADVICE;
+        }
+
+        return !empty($item['scored']) ? Finding::SEVERITY_FIX : Finding::SEVERITY_LOOK;
     }
 
     /**

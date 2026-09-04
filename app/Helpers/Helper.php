@@ -146,6 +146,10 @@ class Helper
      *   where something does; the same goes for anything else a site may legitimately
      *   depend on. Being absent here means "apply recommended" leaves it alone rather than
      *   undoing a deliberate choice, and the checklist does not score it.
+     *
+     * The reverse does not follow: being present here means "apply recommended" will write
+     * it, not that the score counts it. Login alerts are written and not scored - worth
+     * offering to every site, not worth marking one down for having decided against.
      * - Ones that describe the server rather than a preference - trusted proxies, the
      *   forwarded-IP header - and ones that lock people out if imposed, like the roles
      *   required to have an authenticator app.
@@ -161,7 +165,14 @@ class Helper
             'login_try_limit'         => 5,
             'login_try_timing'        => 30,
             'auto_delete_logs_day'    => 30,
-            'notification_user_roles' => ['administrator', 'editor', 'author'],
+            /*
+             * Administrators only. The alert is worth having on the accounts that can install
+             * code and make other administrators; on the roles that sign in every day it is a
+             * mailbox filling with sign-ins nobody reads, which is how the one that mattered
+             * ends up in a folder somebody wrote a filter for. Anyone who wants the wider net
+             * can widen it - "apply recommended" should not be what floods their inbox.
+             */
+            'notification_user_roles' => ['administrator'],
             'notification_email'      => '{admin_email}',
             'notify_on_blocked'       => 'no',
             'magic_login'             => 'no',

@@ -36,10 +36,10 @@ export default {
         applyRecommended() {
             /*
              * The recommendations come from the server, not from a literal here. They are
-             * also what the dashboard's security checklist scores a site against, and this
-             * button used to carry its own copy of them - which is exactly how the two came
-             * to disagree about application passwords. See Helper::getRecommendedSettings(),
-             * which documents what it deliberately leaves out and why.
+             * also what the security screen scores a site against, and this button used to
+             * carry its own copy of them - which is exactly how the two came to disagree
+             * about what a well configured site looks like. See
+             * Helper::getRecommendedSettings(), which documents what it leaves out and why.
              *
              * Spread what is already saved first: saving replaces the whole option, so a
              * key missing from the result is a key erased.

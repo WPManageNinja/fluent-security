@@ -442,6 +442,83 @@
     padding: 10px 20px;
 }
 
+/*
+ * The must-use plugins listing. Built on the same row rhythm as the scan's own file lists,
+ * because it sits directly under them and a second rhythm would read as a second kind of
+ * thing - but with no ignore control and no status on most rows, since this section is not
+ * asking the reader to decide anything.
+ */
+.fls_mu_list {
+    @apply m-0 p-0 list-none;
+
+    > li {
+        @apply flex items-center border-0 border-b border-solid border-hairline;
+
+        gap: 10px;
+        margin: 0;
+        padding: 11px 20px;
+
+        &:last-child {
+            @apply border-b-0;
+        }
+
+        &:hover {
+            @apply bg-surface-sunk;
+        }
+    }
+
+    .fls_mu_icon svg {
+        @apply flex-none block text-ink-light;
+
+        width: 15px;
+        height: 15px;
+    }
+
+    .fls_mu_name {
+        @apply text-sm;
+
+        color: var(--fls-text);
+        font-family: Menlo, Consolas, monospace;
+        word-break: break-all;
+    }
+
+    /*
+     * Pushed right, so size and date line up down the list and the eye can skip them. They
+     * are context for a name, not facts anybody came here to read.
+     */
+    .fls_mu_meta {
+        @apply flex-none ml-auto text-xs whitespace-nowrap;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_mu_view {
+        @apply inline-flex items-center flex-none bg-transparent rounded-xs cursor-pointer text-xs;
+
+        gap: 5px;
+        padding: 3px 9px;
+        color: var(--fls-text-mid);
+        border: 1px solid var(--fls-border);
+
+        &:hover {
+            color: var(--fls-heading);
+            border-color: var(--fls-border-strong);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+        }
+
+        svg {
+            @apply block;
+
+            width: 13px;
+            height: 13px;
+        }
+    }
+}
+
 /* Before a scan: what this screen is for, above the sections it will fill in. */
 .fls_scan_intro {
     @apply flex flex-col items-start;

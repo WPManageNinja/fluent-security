@@ -140,6 +140,13 @@
     &.is_look .fls_finding_stripe {
         background: var(--fls-warning-fg);
     }
+    /*
+     * Grey on purpose. Advice is not a finding about this site, and a third colour here would
+     * be a third thing to learn before the list can be read at a glance.
+     */
+    &.is_advice .fls_finding_stripe {
+        background: var(--fls-border-strong);
+    }
 
     .fls_finding_body {
         min-width: 0;
@@ -249,20 +256,35 @@
 }
 
 /*
- * What was looked at and found to be fine. Under the list, quiet, and never rows of its own -
- * a screen of ticks buries the one thing that is not one.
+ * The heading over a settled list. Small and unemphatic on purpose - it is naming a group
+ * that is already resolved, so it must not read as another section of things to do.
+ */
+.fls_find_subhead {
+    @apply text-xs font-medium uppercase m-0;
+
+    letter-spacing: .04em;
+    margin-top: 22px;
+    margin-bottom: 8px;
+    color: var(--fls-text-light);
+}
+
+/*
+ * What was looked at and found to be fine. Under the list, quiet, and collapsed by default -
+ * a screen of ticks buries the one thing that is not one, so opening it is the reader's
+ * choice rather than the page's.
  */
 .fls_find_passed {
     @apply flex flex-wrap items-center text-xs m-0;
 
     gap: 6px;
-    margin-top: 12px;
+    margin-top: 22px;
     color: var(--fls-text-light);
 
     .fls_find_link {
-        @apply bg-transparent border-0 p-0 cursor-pointer underline;
+        @apply inline-flex items-center bg-transparent border-0 p-0 cursor-pointer underline;
 
         font: inherit;
+        gap: 5px;
         color: var(--fls-text-mid);
 
         &:hover {
@@ -273,16 +295,30 @@
             outline: 2px solid var(--fls-accent);
             outline-offset: 2px;
         }
+
+        /* Its own copy: the shared one is scoped inside a finding row, and this is not in one. */
+        .fls_finding_chev {
+            @apply inline-flex;
+
+            transition: transform .15s ease;
+
+            &.is_open {
+                transform: rotate(180deg);
+            }
+
+            svg {
+                width: 14px;
+                height: 14px;
+            }
+        }
     }
 }
 
 /*
- * Settled decisions, opened on request. Quieter than the list above it - no severity, and a
- * stripe in the neutral border colour, so it cannot be mistaken for something outstanding.
+ * Settled decisions. Quieter than the list above them - no severity, and a stripe in the
+ * neutral border colour, so they cannot be mistaken for something outstanding.
  */
 .fls_find_accepted {
-    margin-top: 10px;
-
     .fls_finding.is_accepted {
         .fls_finding_stripe {
             background: var(--fls-border-strong);
@@ -290,6 +326,29 @@
 
         .fls_finding_title {
             @apply font-normal;
+
+            color: var(--fls-text-mid);
+        }
+    }
+}
+
+/*
+ * The checks that found nothing, once asked for. One line each and no buttons: there is
+ * nothing to decide here, and the only question this list answers is "what did you look at".
+ */
+.fls_find_passed_list {
+    margin-top: 10px;
+
+    .fls_finding.is_passed {
+        padding-top: 10px;
+        padding-bottom: 10px;
+
+        .fls_finding_stripe {
+            background: var(--fls-success-fg);
+        }
+
+        .fls_finding_title {
+            @apply text-sm font-normal m-0;
 
             color: var(--fls-text-mid);
         }

@@ -24,11 +24,9 @@ class DropInsCheck extends WatchedFilesCheck
 
     protected function paths()
     {
-        require_once ABSPATH . 'wp-admin/includes/plugin.php';
-
         $found = [];
 
-        foreach (array_keys(_get_dropins()) as $name) {
+        foreach ($this->names() as $name) {
             $path = WP_CONTENT_DIR . '/' . $name;
 
             if (file_exists($path)) {
@@ -39,23 +37,43 @@ class DropInsCheck extends WatchedFilesCheck
         return $found;
     }
 
-    /*
-     * The drop-ins sit loose in wp-content beside plugins and themes, so the scope has to be
-     * the individual filenames - anything wider would have this check forgetting entries that
-     * belong to the file scan.
-     */
     protected function scope()
     {
         return AcceptedFiles::toRelative(WP_CONTENT_DIR) . '/';
     }
 
-    protected function firstTitle($count)
+    /**
+     * The drop-ins sit loose in wp-content beside plugins, themes and mu-plugins, so the
+     * subtree this check is named after is not the set it owns. Matching on the prefix would
+     * have it forgetting the mu-plugins record every time it ran - and forgetting it in the
+     * direction where a planted file comes back reading as expected.
+     *
+     * @param string $path
+     * @return bool
+     */
+    protected function owns($path)
+    {
+        return dirname($path) === rtrim($this->scope(), '/')
+            && in_array(basename($path), $this->names(), true);
+    }
+
+    /**
+     * @return array the drop-in filenames WordPress itself recognises
+     */
+    protected function names()
+    {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+        return array_keys(_get_dropins());
+    }
+
+    protected function watchedTitle($count)
     {
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'A file loads before the rest of your site',
-                '%s files load before the rest of your site',
+                'The file that loads before the rest of your site is the one that was there before',
+                'The %s files that load before the rest of your site are the ones that were there before',
                 $count,
                 'fluent-security'
             ),
@@ -63,13 +81,13 @@ class DropInsCheck extends WatchedFilesCheck
         );
     }
 
-    protected function acceptedTitle($count)
+    protected function appearedTitle($count)
     {
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'A file loads before the rest of your site, and you have marked it as expected',
-                '%s files load before the rest of your site, and you have marked them as expected',
+                'A new file has started loading before the rest of your site',
+                '%s new files have started loading before the rest of your site',
                 $count,
                 'fluent-security'
             ),
@@ -80,10 +98,10 @@ class DropInsCheck extends WatchedFilesCheck
     protected function words()
     {
         return [
-            'first_why'   => __('WordPress runs these automatically if they are present, and nothing lists them as installed. Caching and database plugins add them legitimately — have a look, and mark them as expected if you recognise them.', 'fluent-security'),
-            'alert_title' => __('A file that loads before the rest of your site has changed', 'fluent-security'),
-            'alert_why'   => __('One of these is no longer the file you marked as expected. They run earlier than plugins do, so a change here is worth accounting for.', 'fluent-security'),
-            'none_title'  => __('Nothing unexpected loads ahead of your site', 'fluent-security')
+            'appeared_why'  => __('This was not here when we last looked. WordPress runs these automatically if they are present, nothing lists them as installed, and they load earlier than plugins do. Caching and database plugins add them legitimately — worth checking whether you just installed one.', 'fluent-security'),
+            'alert_title'   => __('A file that loads before the rest of your site has changed', 'fluent-security'),
+            'alert_why'     => __('One of these is no longer the file it was. They run earlier than plugins do, so a change here is worth accounting for.', 'fluent-security'),
+            'none_title'    => __('Nothing unexpected loads ahead of your site', 'fluent-security')
         ];
     }
 
@@ -92,10 +110,10 @@ class DropInsCheck extends WatchedFilesCheck
      * describes each; the description is worth more to the reader than the path is.
      *
      * @param array $changed
-     * @param array $unaccounted
+     * @param array $appeared
      * @return array
      */
-    protected function details($changed, $unaccounted)
+    protected function details($changed, $appeared)
     {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
@@ -112,11 +130,12 @@ class DropInsCheck extends WatchedFilesCheck
 
         foreach ($changed as $path) {
             /* translators: %s: a drop-in file name and what it does */
-            $details[] = sprintf(__('%s (changed since you accepted it)', 'fluent-security'), $describe($path));
+            $details[] = sprintf(__('%s (not the file it was)', 'fluent-security'), $describe($path));
         }
 
-        foreach ($unaccounted as $path) {
-            $details[] = $describe($path);
+        foreach ($appeared as $path) {
+            /* translators: %s: a drop-in file name and what it does */
+            $details[] = sprintf(__('%s (new since we started watching)', 'fluent-security'), $describe($path));
         }
 
         return $details;

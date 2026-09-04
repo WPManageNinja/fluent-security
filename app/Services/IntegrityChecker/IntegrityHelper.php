@@ -290,8 +290,12 @@ class IntegrityHelper
         $ignoreLists = get_option('__fls_integrity_ignore_lists', []);
 
         $defaults = [
-            'files'   => [],
-            'folders' => []
+            'files'     => [],
+            'folders'   => [],
+            /* path => hash, for the small directories watched by hash rather than by list. */
+            'hashes'    => [],
+            /* scope => unix time it was first recorded. See AcceptedFiles. */
+            'baselined' => []
         ];
 
         if (empty($ignoreLists)) {

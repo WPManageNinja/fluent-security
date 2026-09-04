@@ -4,10 +4,11 @@ namespace FluentAuth\App\Services\Checks\Files;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Services\Checks\Check;
+use FluentAuth\App\Services\Checks\Dismissals;
 use FluentAuth\App\Services\Checks\Finding;
 
 /**
- * Whether code can be made to run from the uploads folder.
+ * Whether PHP can be made to run from the uploads folder.
  *
  * Every route into a WordPress site that ends in a shell ends here: something accepts a file,
  * the file lands in uploads, and the attacker asks the web server for it. Blocking execution
@@ -18,12 +19,19 @@ use FluentAuth\App\Services\Checks\Finding;
  * it tells you nothing at all, on a managed host the rule may be overridden, and a rule that
  * is present and ignored reports as fixed. So a file is written, fetched over HTTP, and the
  * answer is whatever comes back. That is also what lets the screen say the sentence worth
- * saying - not "a rule is in place" but "we tested it, and code will not run there".
+ * saying - not "a rule is in place" but "we tested it, and PHP will not run there".
  *
  * There are three answers, not two. A probe that cannot complete - loopback requests
  * disabled, HTTP auth on a staging site, a firewall in the way - must say so. Reporting a
  * failed test as either verdict is worse than not testing: one is a false alarm, the other is
  * an assurance nobody checked.
+ *
+ * Dismissing this one does not do what dismissing does elsewhere. Everywhere else, "not for
+ * my site" means the question does not apply and the row is settled. Here the question
+ * applies and the answer was measured: PHP ran. What a reader can honestly be saying is "my
+ * host will not change this and I have stopped being able to act on it" - so the dismissal
+ * takes the row out of the score and out of the red, and leaves it on the list in amber. It
+ * would be a lie to file a proven finding under things that are fine.
  */
 class UploadsExecutionCheck extends Check
 {
@@ -65,7 +73,7 @@ class UploadsExecutionCheck extends Check
                 'check'  => $this->id(),
                 'group'  => $this->group(),
                 'state'  => Finding::STATE_PASSED,
-                'title'  => __('Code cannot run from your uploads folder', 'fluent-security'),
+                'title'  => __('PHP code cannot run in your uploads folder', 'fluent-security'),
                 'scored' => true
             ])];
         }
@@ -81,8 +89,8 @@ class UploadsExecutionCheck extends Check
                 'group'    => $this->group(),
                 'state'    => Finding::STATE_OPEN,
                 'severity' => Finding::SEVERITY_LOOK,
-                'title'    => __('We could not test your uploads folder', 'fluent-security'),
-                'why'      => __('Your site would not answer a request from itself, so we cannot tell you whether code can run in the folder your uploads go to. This is usually a hosting setting rather than a problem with your site.', 'fluent-security'),
+                'title'    => __('We could not test PHP execution in your uploads folder', 'fluent-security'),
+                'why'      => __('Your site would not answer a request from itself, so we cannot tell you whether PHP runs in the folder your uploads go to. This is usually a hosting setting rather than a problem with your site.', 'fluent-security'),
                 'details'  => $this->probeDetails($result),
                 'action'   => 'fix',
                 'label'    => __('Try again', 'fluent-security'),
@@ -91,22 +99,76 @@ class UploadsExecutionCheck extends Check
         }
 
         $canWrite = $this->canWriteRules();
+        $setAside = Dismissals::has($this->id());
 
         return [new Finding([
             'id'       => $this->id(),
             'check'    => $this->id(),
             'group'    => $this->group(),
             'state'    => Finding::STATE_OPEN,
-            'severity' => Finding::SEVERITY_FIX,
-            'title'    => __('Someone could run their own code from your uploads folder', 'fluent-security'),
-            'why'      => $canWrite
-                ? __('If anything on your site accepts a file, a file slipped through it would run. We tested this folder and it is not blocked. Blocking it does not affect your images or documents.', 'fluent-security')
-                : __('If anything on your site accepts a file, a file slipped through it would run. We tested this folder and it is not blocked. Your web server is not one we can write the rule for, so your host will need to add it.', 'fluent-security'),
+            /*
+             * Amber once set aside, never green and never gone. The score is what a site can
+             * be held to; the row is what is true about it, and that has not changed.
+             */
+            'severity' => $setAside ? Finding::SEVERITY_LOOK : Finding::SEVERITY_FIX,
+            'title'    => __('PHP code can run in your uploads folder', 'fluent-security'),
+            'why'      => $setAside
+                ? __('You have set this one aside, so it is no longer counted against your score. It is still true: we put a PHP file in your uploads folder and your server ran it. Worth raising with your host if you ever get the chance.', 'fluent-security')
+                : ($canWrite
+                    ? __('We put a PHP file there and your server ran it. So if anything on your site accepts an upload, a file slipped through it would run too. Blocking PHP in this folder does not affect your images or documents.', 'fluent-security')
+                    : __('We put a PHP file there and your server ran it. So if anything on your site accepts an upload, a file slipped through it would run too. Your web server is not one we can write the rule for, so your host will need to add it.', 'fluent-security')),
             'details'  => $canWrite ? $this->probeDetails($result) : $this->snippetDetails($result),
+            /*
+             * The fix stays on offer after it is set aside. Somebody who moved host, or whose
+             * host finally answered, should not have to undo a decision before they can act.
+             */
             'action'   => $canWrite ? 'fix' : 'none',
             'label'    => __('Block it', 'fluent-security'),
-            'scored'   => true
+            'dismiss'  => $setAside ? 'undo' : 'aside',
+            'scored'   => !$setAside
         ])];
+    }
+
+    /**
+     * Stop counting this against the site, without pretending it is fixed.
+     *
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function accept($findingId)
+    {
+        if ($findingId !== $this->id()) {
+            return new \WP_Error(
+                'unknown_check',
+                __('That is not something this plugin knows how to check.', 'fluent-security'),
+                ['status' => 404]
+            );
+        }
+
+        Dismissals::add($this->id());
+
+        return [
+            'message' => __('Set aside. This no longer counts against your score, and stays on the list because it is still true.', 'fluent-security')
+        ];
+    }
+
+    /**
+     * @param string $findingId
+     * @return array|\WP_Error
+     */
+    public function unaccept($findingId)
+    {
+        if ($findingId !== $this->id()) {
+            return new \WP_Error(
+                'unknown_check',
+                __('There is nothing to undo for this one.', 'fluent-security'),
+                ['status' => 404]
+            );
+        }
+
+        Dismissals::remove($this->id());
+
+        return ['message' => __('This counts towards your score again.', 'fluent-security')];
     }
 
     /**
@@ -137,7 +199,7 @@ class UploadsExecutionCheck extends Check
         if ($before !== self::EXECUTES) {
             return [
                 'message' => $before === self::BLOCKED
-                    ? __('Tested again: code cannot run in your uploads folder.', 'fluent-security')
+                    ? __('Tested again: PHP cannot run in your uploads folder.', 'fluent-security')
                     : __('Your site still would not answer a request from itself, so we cannot test this.', 'fluent-security')
             ];
         }
@@ -160,7 +222,7 @@ class UploadsExecutionCheck extends Check
         $state = $this->probeState();
 
         if ($state === self::BLOCKED) {
-            return ['message' => __('Done. We tested it: code can no longer run in your uploads folder.', 'fluent-security')];
+            return ['message' => __('Done. We tested it again: PHP can no longer run in your uploads folder.', 'fluent-security')];
         }
 
         if ($state === self::UNKNOWN) {

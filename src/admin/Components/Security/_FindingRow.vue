@@ -12,6 +12,10 @@ import icons from '../SecurityScan/icons';
  *
  * There is no severity word in the row beyond the pill. The stripe carries it, so the shape
  * of a list reads before any of it is read.
+ *
+ * Three severities, and `advice` is the quiet one - grey pill, grey stripe. It is not a
+ * finding about this site but hardening the site would be better with, and drawing it in the
+ * same amber as a real one is how a reader learns that amber does not mean much.
  */
 export default {
     name: 'FindingRow',
@@ -26,7 +30,7 @@ export default {
             default: false
         }
     },
-    emits: ['fix', 'accept', 'navigate'],
+    emits: ['fix', 'accept', 'unaccept', 'navigate'],
     data() {
         return {
             icons,
@@ -37,8 +41,30 @@ export default {
         isCritical() {
             return this.finding.severity === 'fix';
         },
+        isAdvice() {
+            return this.finding.severity === 'advice';
+        },
+        /* Anything unrecognised reads as "worth a look" - the same fallback the server sorts by. */
+        toneClass() {
+            if (this.isCritical) {
+                return 'is_fix';
+            }
+
+            return this.isAdvice ? 'is_advice' : 'is_look';
+        },
         severityLabel() {
-            return this.isCritical ? this.$t('Fix this') : this.$t('Worth a look');
+            if (this.isCritical) {
+                return this.$t('Fix this');
+            }
+
+            return this.isAdvice ? this.$t('Best practice') : this.$t('Worth a look');
+        },
+        severityTagClass() {
+            if (this.isCritical) {
+                return 'is_blocked';
+            }
+
+            return this.isAdvice ? 'is_neutral' : 'is_warning';
         },
         groupLabel() {
             const labels = {
@@ -68,8 +94,22 @@ export default {
         primaryLabel() {
             return this.finding.label || (this.finding.action === 'fix' ? this.$t('Turn on') : this.$t('Set up'));
         },
+        /*
+         * `undo` is the row after it has been set aside - the only dismissal state that draws
+         * its own way back, because the row stays on the list rather than moving to the
+         * settled ones where every other undo lives.
+         */
+        isSetAside() {
+            return this.finding.dismiss === 'undo';
+        },
         dismissLabel() {
-            return this.finding.dismiss === 'expected' ? this.$t('Expected') : this.$t('Ignore');
+            const labels = {
+                expected: this.$t('Expected'),
+                aside: this.$t('Not mine to fix'),
+                undo: this.$t('Count it again')
+            };
+
+            return labels[this.finding.dismiss] || this.$t('Ignore');
         }
     },
     methods: {
@@ -86,12 +126,12 @@ export default {
 </script>
 
 <template>
-    <div class="fls_finding" :class="isCritical ? 'is_fix' : 'is_look'">
+    <div class="fls_finding" :class="toneClass">
         <span class="fls_finding_stripe"></span>
 
         <div class="fls_finding_body">
             <div class="fls_finding_meta">
-                <span class="fls_tag" :class="isCritical ? 'is_blocked' : 'is_warning'">
+                <span class="fls_tag" :class="severityTagClass">
                     {{ severityLabel }}
                 </span>
                 <span class="fls_finding_group">{{ groupLabel }}</span>
@@ -126,7 +166,7 @@ export default {
                 {{ primaryLabel }}
             </el-button>
             <el-button v-if="finding.dismiss" size="small" :disabled="busy"
-                       @click="$emit('accept', finding)">
+                       @click="$emit(isSetAside ? 'unaccept' : 'accept', finding)">
                 {{ dismissLabel }}
             </el-button>
         </div>

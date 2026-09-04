@@ -3,7 +3,7 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Services\Checks\AcceptedFiles;
-use FluentAuth\App\Services\Checks\Files\ConfigPermissionsCheck;
+use FluentAuth\App\Services\Checks\Files\DropInsCheck;
 use FluentAuth\App\Services\Checks\Files\MuPluginsCheck;
 use FluentAuth\App\Services\Checks\Files\UploadsExecutionCheck;
 use FluentAuth\App\Services\Checks\Finding;
@@ -25,6 +25,7 @@ class FileChecksTest extends BaseTestCase
 
         Registry::reset();
         delete_option('__fls_integrity_ignore_lists');
+        delete_option('__fls_dismissed_checks');
         delete_transient(UploadsExecutionCheck::CACHE_KEY);
 
         $this->muDir = defined('WPMU_PLUGIN_DIR') ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
@@ -50,6 +51,13 @@ class FileChecksTest extends BaseTestCase
         file_put_contents($this->muDir . '/fls-test-' . $name . '.php', $body);
     }
 
+    private function muScope()
+    {
+        return AcceptedFiles::toRelative(
+            defined('WPMU_PLUGIN_DIR') ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins'
+        );
+    }
+
     private function only($findings)
     {
         $this->assertCount(1, $findings);
@@ -61,83 +69,45 @@ class FileChecksTest extends BaseTestCase
 
     /**
      * The first sight of a file here is not evidence of anything. Hosts ship mu-plugins and
-     * developers write them; opening with an alarm would be wrong on most sites on day one,
-     * and being wrong once is how a security tool teaches people to ignore it.
+     * developers write them; saying anything at all on day one would be saying it about the
+     * host, and being wrong once is how a security tool teaches people to ignore it.
+     *
+     * The stronger claim is that the row is not merely quiet but not outstanding: it used to
+     * be scored while open, so a site sat below full marks until somebody clicked a button
+     * about files they did not put there.
      */
-    public function test_files_never_seen_before_are_an_invitation_to_look_not_an_alarm()
+    public function test_the_first_sight_of_these_files_is_recorded_rather_than_reported()
     {
         $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
 
         $finding = $this->only((new MuPluginsCheck())->run());
 
-        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
-        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
-        $this->assertEquals('expected', $finding['dismiss']);
-        $this->assertNotEmpty($finding['details']);
-
-        /* One file is "a file", not "1 files". */
-        $this->assertStringNotContainsString('1 files', $finding['title']);
-
-        $this->writeMuPlugin('two', '<?php // and another');
-
-        $this->assertStringContainsString('2 files', $this->only((new MuPluginsCheck())->run())['title']);
+        $this->assertEquals(Finding::STATE_PASSED, $finding['state']);
+        $this->assertNotEmpty(AcceptedFiles::all());
+        $this->assertTrue(AcceptedFiles::hasBaseline($this->muScope()));
     }
 
     /**
-     * Accepted, not passed. "There is nothing here" and "there are files here and you vouched
-     * for them" are different facts, and the second is a decision worth keeping on the record
-     * with a way back - it is still scored as resolved, because vouching for these is what
-     * satisfying this check looks like.
-     */
-    public function test_accepting_them_settles_it_without_pretending_they_are_not_there()
-    {
-        $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
-
-        $check = new MuPluginsCheck();
-        $check->accept($check->id());
-
-        $finding = $this->only($check->run());
-
-        $this->assertEquals(Finding::STATE_ACCEPTED, $finding['state']);
-        $this->assertTrue($finding['scored']);
-        $this->assertNotEmpty($finding['details']);
-    }
-
-    /**
-     * An empty folder is the only thing that passes outright.
+     * An empty folder is a pass too, and says a different thing.
      */
     public function test_nothing_here_at_all_is_a_pass()
     {
         $finding = $this->only((new MuPluginsCheck())->run());
 
         $this->assertEquals(Finding::STATE_PASSED, $finding['state']);
-    }
-
-    public function test_an_acceptance_can_be_taken_back()
-    {
-        $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
-
-        $check = new MuPluginsCheck();
-        $check->accept($check->id());
-
-        $this->assertFalse(is_wp_error($check->unaccept($check->id())));
-
-        $finding = $this->only($check->run());
-
-        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
-        $this->assertEmpty(AcceptedFiles::all());
+        $this->assertStringContainsString('Nothing loads', $finding['title']);
     }
 
     /**
      * The claim this check can actually stand behind: not that a file is suspicious, but that
-     * it is not the file you looked at.
+     * it is not the file that was here.
      */
-    public function test_a_file_that_changes_after_being_accepted_is_the_alarm()
+    public function test_a_file_that_changes_after_the_baseline_is_the_alarm()
     {
         $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
 
         $check = new MuPluginsCheck();
-        $check->accept($check->id());
+        $check->run();
 
         $this->writeMuPlugin('one', '<?php eval($_POST["x"]); // not that any more');
 
@@ -145,29 +115,140 @@ class FileChecksTest extends BaseTestCase
 
         $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
         $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
+        $this->assertStringContainsString('has changed', $finding['title']);
     }
 
-    public function test_a_new_file_alongside_accepted_ones_is_reported()
+    /**
+     * A file dropped in after the fact is the same event wearing different clothes, and the
+     * more common of the two - so it is the same alarm, not a milder one.
+     */
+    public function test_a_file_that_appears_after_the_baseline_is_the_same_alarm()
     {
         $this->writeMuPlugin('one', '<?php // known');
 
         $check = new MuPluginsCheck();
-        $check->accept($check->id());
+        $check->run();
 
         $this->writeMuPlugin('two', '<?php // brand new');
 
         $finding = $this->only($check->run());
 
         $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
         $this->assertStringContainsString('fls-test-two.php', implode(' ', $finding['details']));
+
+        /* One file is "A new file", not "1 new files". */
+        $this->assertStringNotContainsString('1 new files', $finding['title']);
     }
 
-    public function test_an_accepted_file_that_is_deleted_is_forgotten()
+    /**
+     * The hole a bare "are there any hashes here" test would leave open. Emptying the folder
+     * prunes every entry under the scope, and if that read as never-recorded then deleting
+     * the host's files and dropping in your own would be silently blessed - which is a thing
+     * an attacker can arrange and a host cannot.
+     */
+    public function test_emptying_the_folder_does_not_win_a_fresh_baseline()
     {
         $this->writeMuPlugin('one', '<?php // known');
 
         $check = new MuPluginsCheck();
+        $check->run();
+
+        unlink($this->muDir . '/fls-test-one.php');
+        $check->run();
+
+        $this->assertEmpty(AcceptedFiles::all());
+        $this->assertTrue(AcceptedFiles::hasBaseline($this->muScope()));
+
+        $this->writeMuPlugin('evil', '<?php eval($_POST["x"]);');
+
+        $finding = $this->only($check->run());
+
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
+    }
+
+    /**
+     * One check must not forget another's record.
+     *
+     * The drop-ins live loose in wp-content, so "everything under /wp-content/" is a prefix
+     * that covers the mu-plugins directory too. Pruning on that prefix had the drop-ins check
+     * wiping the mu-plugins hashes on every run - and the failure is silent and in the worst
+     * direction: the next run finds no baseline, records whatever is there now, and a planted
+     * file comes back reading as expected.
+     */
+    public function test_the_drop_ins_check_does_not_forget_what_the_mu_plugins_check_recorded()
+    {
+        $this->writeMuPlugin('one', '<?php // known');
+
+        (new MuPluginsCheck())->run();
+
+        $recorded = AcceptedFiles::all();
+
+        $this->assertNotEmpty($recorded);
+
+        (new DropInsCheck())->run();
+
+        $after = AcceptedFiles::all();
+
+        /*
+         * Every mu-plugins entry survives, hash and all. Asserted as a subset rather than as
+         * equality, because the drop-ins check legitimately adds its own entries in the same
+         * pass - the test suite's install has a db.php.
+         */
+        foreach ($recorded as $path => $hash) {
+            $this->assertArrayHasKey($path, $after, $path . ' was forgotten by another check');
+            $this->assertEquals($hash, $after[$path]);
+        }
+
+        $this->assertTrue(AcceptedFiles::hasBaseline($this->muScope()));
+
+        /* And the record still does its job afterwards. */
+        $this->writeMuPlugin('one', '<?php eval($_POST["x"]);');
+
+        $this->assertEquals(
+            Finding::SEVERITY_FIX,
+            $this->only((new MuPluginsCheck())->run())['severity']
+        );
+    }
+
+    /**
+     * Accepting is still how somebody says "yes, that was me" to an alarm they have looked at.
+     */
+    public function test_accepting_an_alarm_settles_it()
+    {
+        $this->writeMuPlugin('one', '<?php // known');
+
+        $check = new MuPluginsCheck();
+        $check->run();
+
+        $this->writeMuPlugin('two', '<?php // brand new');
+
+        $this->assertEquals(Finding::STATE_OPEN, $this->only($check->run())['state']);
+
         $check->accept($check->id());
+
+        $this->assertEquals(Finding::STATE_PASSED, $this->only($check->run())['state']);
+    }
+
+    public function test_an_acceptance_can_be_taken_back()
+    {
+        $this->writeMuPlugin('one', '<?php // a perfectly ordinary mu-plugin');
+
+        $check = new MuPluginsCheck();
+        $check->run();
+
+        $this->assertFalse(is_wp_error($check->unaccept($check->id())));
+
+        $this->assertEmpty(AcceptedFiles::all());
+    }
+
+    public function test_a_recorded_file_that_is_deleted_is_forgotten()
+    {
+        $this->writeMuPlugin('one', '<?php // known');
+
+        $check = new MuPluginsCheck();
+        $check->run();
 
         $this->assertNotEmpty(AcceptedFiles::all());
 
@@ -210,6 +291,51 @@ class FileChecksTest extends BaseTestCase
 
         $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
         $this->assertTrue($finding['scored']);
+
+        remove_all_filters('pre_http_request');
+    }
+
+    /**
+     * Setting this one aside is not the same promise as dismissing anything else on the list.
+     *
+     * The answer here was measured rather than inferred, so the row cannot move to the settled
+     * list without the plugin filing a proven finding under things that are fine. What the
+     * reader is saying is "my host will not change this", and all that can honestly follow is
+     * that it stops being counted.
+     */
+    public function test_setting_the_uploads_finding_aside_stops_it_scoring_without_burying_it()
+    {
+        add_filter('pre_http_request', function () {
+            return ['response' => ['code' => 200], 'body' => 'FLS-EXECUTED'];
+        });
+
+        $check = new UploadsExecutionCheck();
+
+        $before = $this->only($check->run());
+
+        $this->assertEquals('aside', $before['dismiss']);
+        $this->assertFalse(is_wp_error($check->accept($check->id())));
+
+        $finding = $this->only($check->run());
+
+        /* Still open, still saying the same thing, and no longer red or counted. */
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
+        $this->assertFalse($finding['scored']);
+        $this->assertEquals('undo', $finding['dismiss']);
+        $this->assertStringContainsString('still true', $finding['why']);
+
+        /*
+         * Whatever the row could offer before, it still offers - so somebody who moves host,
+         * or whose host finally answers, does not have to undo a decision before they can act.
+         * Asserted against the row as it was rather than against a literal, because what is on
+         * offer depends on whether this server is one the rule can be written for.
+         */
+        $this->assertEquals($before['action'], $finding['action']);
+        $this->assertEquals($before['label'], $finding['label']);
+
+        $this->assertFalse(is_wp_error($check->unaccept($check->id())));
+        $this->assertEquals(Finding::SEVERITY_FIX, $this->only($check->run())['severity']);
 
         remove_all_filters('pre_http_request');
     }
@@ -277,84 +403,6 @@ class FileChecksTest extends BaseTestCase
         remove_all_filters('pre_http_request');
     }
 
-    /* ------------------------------------------------------- config file mode */
-
-    /**
-     * Pointed at a file of our own rather than the install's real wp-config.php - the test
-     * suite has none at ABSPATH, and a check whose two outcomes are only ever skipped is a
-     * check nobody has tested.
-     *
-     * @param int $mode
-     * @return ConfigPermissionsCheck
-     */
-    private function configCheckOn($mode)
-    {
-        $path = $this->muDir . '/fls-test-config.php';
-        file_put_contents($path, '<?php // stand-in for wp-config.php');
-        chmod($path, $mode);
-        clearstatcache(true, $path);
-
-        return new TestableConfigPermissionsCheck($path);
-    }
-
-    public function test_a_world_readable_config_is_worth_a_look_and_never_scored_against_you()
-    {
-        $finding = $this->only($this->configCheckOn(0644)->run());
-
-        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
-        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
-        $this->assertFalse($finding['scored']);
-    }
-
-    /**
-     * Group-readable is how a good many hosts let the web server and the site's own user share
-     * the file. Marking that down would be marking a correct configuration down.
-     */
-    public function test_a_group_readable_config_is_not_reported()
-    {
-        $this->assertEquals(
-            Finding::STATE_PASSED,
-            $this->only($this->configCheckOn(0640)->run())['state']
-        );
-    }
-
-    public function test_restricting_the_config_takes_read_access_away_from_others()
-    {
-        $check = $this->configCheckOn(0644);
-        $result = $check->fix($check->id());
-
-        $this->assertFalse(is_wp_error($result));
-        $this->assertEquals(Finding::STATE_PASSED, $this->only($check->run())['state']);
-    }
-
-    /**
-     * Every button a row draws has to do something. A dismissal declared without a handler
-     * behind it reaches the reader as an error message from a button they were offered.
-     */
-    public function test_dismissing_it_takes_it_off_the_list_without_pretending_it_passed()
-    {
-        $check = $this->configCheckOn(0644);
-
-        $this->assertFalse(is_wp_error($check->accept($check->id())));
-
-        $finding = $this->only($check->run());
-
-        $this->assertEquals(Finding::STATE_ACCEPTED, $finding['state']);
-        $this->assertFalse($finding['scored']);
-    }
-
-    /**
-     * A config file we cannot find is not a config file we have checked, and a pass would be
-     * the assurance nobody verified.
-     */
-    public function test_a_config_file_that_cannot_be_found_reports_nothing_rather_than_passing()
-    {
-        $check = new TestableConfigPermissionsCheck('');
-
-        $this->assertEmpty($check->run());
-        $this->assertWpErrorWithCode($check->fix($check->id()), 'not_found');
-    }
-
     /* ------------------------------------------------------------- the whole */
 
     public function test_the_registry_runs_the_file_checks_alongside_the_settings_ones()
@@ -371,24 +419,5 @@ class FileChecksTest extends BaseTestCase
         $this->assertContains('files', $groups);
 
         remove_all_filters('pre_http_request');
-    }
-}
-
-/**
- * The permission check, pointed at a file we own. Everything below configPath() - the octal
- * test, the finding, the chmod and the re-read that follows it - is the real thing.
- */
-class TestableConfigPermissionsCheck extends ConfigPermissionsCheck
-{
-    private $path;
-
-    public function __construct($path)
-    {
-        $this->path = $path;
-    }
-
-    protected function configPath()
-    {
-        return $this->path;
     }
 }

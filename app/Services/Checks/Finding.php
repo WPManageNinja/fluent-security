@@ -18,9 +18,16 @@ use FluentAuth\App\Helpers\Arr;
  * about all of them. Emitting four rows is how a scan turns into a wall of text that gets
  * scrolled past, and the paths are not what the reader is deciding on anyway.
  *
- * There are two severities. `fix` is something to act on; `look` is worth knowing. A third
- * tier asks the reader to triage, which is a skill we cannot assume - anything more urgent
- * than "fix this" belongs in the verdict at the top of the page, not in a louder row.
+ * There are three severities, and the third is quieter rather than louder. `fix` is something
+ * to act on; `look` is worth knowing; `advice` is hardening this site does not need but would
+ * be better with. Nothing above `fix` will ever be added - anything more urgent belongs in the
+ * verdict at the top of the page, not in a louder row, and a tier above the top one asks the
+ * reader to triage, which is a skill we cannot assume.
+ *
+ * `advice` earns its place for the opposite reason: without it, "you could add a line to
+ * wp-config.php" is drawn in the same amber as "a file that runs on every request changed
+ * last night". Those are not the same sentence, and saying them in the same voice is how a
+ * list of real findings gets read as a list of suggestions.
  *
  * Findings that pass are still findings. They are what lets the list end with "18 checks
  * passed" instead of implying that everything unmentioned was simply never looked at.
@@ -30,6 +37,9 @@ class Finding
     const SEVERITY_FIX = 'fix';
 
     const SEVERITY_LOOK = 'look';
+
+    /* Sound practice rather than a finding about this site. Never scored, never in the verdict. */
+    const SEVERITY_ADVICE = 'advice';
 
     /* Nothing wrong. Never rendered as a row; counted at the foot of the list. */
     const STATE_PASSED = 'passed';
@@ -55,7 +65,7 @@ class Finding
             'severity' => self::SEVERITY_LOOK,
             /*
              * A sentence about this site, in words the owner uses. Not "DISALLOW_FILE_EDIT"
-             * but "Anyone who gets into your admin can edit your site's code".
+             * but "Your dashboard can edit your site's code".
              */
             'title'    => '',
             /* One line on why it matters. Read far more often than the details are opened. */
@@ -83,7 +93,10 @@ class Finding
             'url'      => '',
             /*
              * `expected` records the current state and speaks up if it changes again;
-             * `ignore` silences the path for good. Empty means this cannot be dismissed.
+             * `ignore` silences the path for good; `aside` takes it out of the score and
+             * leaves the row standing, for a finding that is measurably true and not the
+             * reader's to fix - and `undo` is that row afterwards, offering the way back.
+             * Empty means this cannot be dismissed.
              */
             'dismiss'  => '',
             /*

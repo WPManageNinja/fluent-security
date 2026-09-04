@@ -9,6 +9,10 @@ namespace FluentAuth\App\Services\Checks\Files;
  * in most installs is not listed anywhere a site owner would think to look. That combination
  * is why it is a favourite place to leave a way back in after a break-in, and why it is worth
  * a check of its own rather than a line in a file scan.
+ *
+ * It is also why most managed hosts put their own files here, which is the reason this check
+ * says nothing on the first run - see WatchedFilesCheck. What is here can be read on the scan
+ * screen, which lists the files and will show the source of any of them.
  */
 class MuPluginsCheck extends WatchedFilesCheck
 {
@@ -19,11 +23,25 @@ class MuPluginsCheck extends WatchedFilesCheck
 
     protected function paths()
     {
+        return self::phpFiles();
+    }
+
+    /**
+     * The same list the check watches, for the screen that lists them.
+     *
+     * Public and static so the scan screen cannot end up with its own idea of what is in this
+     * folder - a listing that disagreed with the check about which files exist would be two
+     * answers to one question, and one of them would be wrong.
+     *
+     * @return array absolute paths
+     */
+    public static function phpFiles()
+    {
         if (!defined('WPMU_PLUGIN_DIR')) {
             return [];
         }
 
-        return $this->phpFilesIn(WPMU_PLUGIN_DIR);
+        return (new self())->phpFilesIn(WPMU_PLUGIN_DIR);
     }
 
     protected function scope()
@@ -35,13 +53,13 @@ class MuPluginsCheck extends WatchedFilesCheck
         return \FluentAuth\App\Services\Checks\AcceptedFiles::toRelative(WPMU_PLUGIN_DIR);
     }
 
-    protected function firstTitle($count)
+    protected function watchedTitle($count)
     {
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'A file runs on every page of your site',
-                '%s files run on every page of your site',
+                'The file that runs on every page is the one that was there before',
+                'The %s files that run on every page are the ones that were there before',
                 $count,
                 'fluent-security'
             ),
@@ -49,13 +67,13 @@ class MuPluginsCheck extends WatchedFilesCheck
         );
     }
 
-    protected function acceptedTitle($count)
+    protected function appearedTitle($count)
     {
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'A file runs on every page, and you have marked it as expected',
-                '%s files run on every page, and you have marked them as expected',
+                'A new file has started running on every page of your site',
+                '%s new files have started running on every page of your site',
                 $count,
                 'fluent-security'
             ),
@@ -66,10 +84,10 @@ class MuPluginsCheck extends WatchedFilesCheck
     protected function words()
     {
         return [
-            'first_why'   => __('They load automatically and cannot be switched off from the plugins screen. Some hosts and developers put files here on purpose — have a look, and mark them as expected if you recognise them.', 'fluent-security'),
-            'alert_title' => __('Something running on every page of your site has changed', 'fluent-security'),
-            'alert_why'   => __('A file you marked as expected is no longer the same file. Nothing here can be switched off from the plugins screen, so it is worth finding out who changed it.', 'fluent-security'),
-            'none_title'  => __('Nothing unexpected loads on every page', 'fluent-security')
+            'appeared_why'  => __('This was not here when we last looked. Files in this folder load automatically and cannot be switched off from the plugins screen, which is why it is a favourite place to leave a way back in. Your host or your developer may have added it — worth asking before anything else.', 'fluent-security'),
+            'alert_title'   => __('Something running on every page of your site has changed', 'fluent-security'),
+            'alert_why'     => __('A file that was here is no longer the same file. Nothing in this folder can be switched off from the plugins screen, so it is worth finding out who changed it.', 'fluent-security'),
+            'none_title'    => __('Nothing loads on every page but WordPress itself', 'fluent-security')
         ];
     }
 }

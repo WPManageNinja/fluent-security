@@ -80,6 +80,12 @@ export default {
                         </span>
                     </span>
                 </li>
+                <li v-if="counts.advice">
+                    <span class="fls_scan_fact_label">{{ $t('Best practice') }}</span>
+                    <span class="fls_scan_fact_value">
+                        <span class="fls_tag is_neutral">{{ counts.advice }}</span>
+                    </span>
+                </li>
                 <li>
                     <span class="fls_scan_fact_label">{{ $t('Checks passed') }}</span>
                     <span class="fls_scan_fact_value">{{ counts.passed }}</span>

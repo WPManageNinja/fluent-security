@@ -16,7 +16,6 @@ class DashboardControllerTest extends BaseTestCase
 
         update_option('__fls_auth_settings', [
             'disable_xmlrpc'          => 'no',
-            'disable_app_login'       => 'no',
             'disable_users_rest'      => 'no',
             'login_try_limit'         => 5,
             'login_try_timing'        => 30,

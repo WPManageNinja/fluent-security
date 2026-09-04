@@ -22,7 +22,6 @@ class SecurityFindingsTest extends BaseTestCase
 
         update_option('__fls_auth_settings', [
             'disable_xmlrpc'          => 'no',
-            'disable_app_login'       => 'no',
             'disable_users_rest'      => 'no',
             'secure_signup_form'      => 'no',
             'notification_user_roles' => [],
@@ -94,7 +93,10 @@ class SecurityFindingsTest extends BaseTestCase
             $this->assertNotEmpty($finding['id']);
             $this->assertNotEmpty($finding['check']);
             $this->assertNotEmpty($finding['title']);
-            $this->assertContains($finding['severity'], [Finding::SEVERITY_FIX, Finding::SEVERITY_LOOK]);
+            $this->assertContains(
+                $finding['severity'],
+                [Finding::SEVERITY_FIX, Finding::SEVERITY_LOOK, Finding::SEVERITY_ADVICE]
+            );
         }
     }
 
@@ -125,28 +127,8 @@ class SecurityFindingsTest extends BaseTestCase
 
         $this->assertEquals(
             Finding::SEVERITY_LOOK,
-            $this->finding($summary, 'settings_disable_app_login')['severity']
+            $this->finding($summary, 'settings_integrity_scan')['severity']
         );
-    }
-
-    public function test_a_check_in_use_is_reported_as_a_fact_with_no_button()
-    {
-        $user = $this->factory->user->create(['role' => 'administrator']);
-        \WP_Application_Passwords::create_new_application_password($user, ['name' => 'Test integration']);
-
-        $summary = Registry::summary();
-        $finding = $this->finding($summary, 'settings_disable_app_login');
-
-        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
-        $this->assertEquals('navigate', $finding['action']);
-        $this->assertStringContainsString('In use', $finding['why']);
-
-        /*
-         * "Set up" would say there is work outstanding here, and there is not - something on
-         * this site relies on the setting being off. All that can honestly be offered is a
-         * look at what that something is.
-         */
-        $this->assertEquals('Review', $finding['label']);
     }
 
     /**
@@ -155,9 +137,6 @@ class SecurityFindingsTest extends BaseTestCase
      */
     public function test_a_row_never_hides_a_copy_of_what_it_already_says()
     {
-        $user = $this->factory->user->create(['role' => 'administrator']);
-        \WP_Application_Passwords::create_new_application_password($user, ['name' => 'Test integration']);
-
         foreach (Registry::summary()['findings'] as $finding) {
             $this->assertNotContains($finding['why'], $finding['details']);
         }
@@ -184,17 +163,33 @@ class SecurityFindingsTest extends BaseTestCase
     }
 
     /**
-     * The rule the score rests on. Application passwords are deliberately not recommended for
-     * every site - see Helper::getRecommendedSettings() - so blocking them must not earn a
-     * point, or the score stops meaning "this site follows the recommendations".
+     * The rule the score rests on. Login alerts suit some sites and flood others - see
+     * Helper::getRecommendedSettings() - so switching them on must not earn a point, or the
+     * score stops meaning "this site follows the recommendations".
      */
     public function test_turning_on_an_unscored_recommendation_does_not_move_the_score()
     {
-        $before = Registry::summary()['score'];
+        $before = Registry::summary();
 
-        $this->setSetting('disable_app_login', 'yes');
+        $this->assertEquals(
+            Finding::STATE_OPEN,
+            $this->finding($before, 'settings_notifications')['state'],
+            'Nothing was turned on, so this proves nothing'
+        );
 
-        $this->assertEquals($before['done'], Registry::summary()['score']['done']);
+        $this->setSetting('notification_user_roles', ['administrator']);
+        $this->setSetting('notification_email', '{admin_email}');
+
+        $after = Registry::summary();
+
+        $this->assertEmpty(
+            array_filter($after['findings'], function ($finding) {
+                return $finding['id'] === 'settings_notifications';
+            }),
+            'The recommendation was not actually satisfied'
+        );
+
+        $this->assertEquals($before['score']['done'], $after['score']['done']);
     }
 
     /**
@@ -240,9 +235,16 @@ class SecurityFindingsTest extends BaseTestCase
             }
 
             if ($finding['dismiss']) {
+                /*
+                 * `undo` draws the way back rather than the way out, so it is unaccept() that
+                 * has to be there - a row offering "count it again" over the base class's
+                 * refusal is a button that errors at whoever presses it.
+                 */
+                $method = $finding['dismiss'] === 'undo' ? 'unaccept' : 'accept';
+
                 $this->assertNotEquals(
                     Check::class,
-                    (new \ReflectionMethod($check, 'accept'))->getDeclaringClass()->getName(),
+                    (new \ReflectionMethod($check, $method))->getDeclaringClass()->getName(),
                     $finding['id'] . ' offers a dismissal its check does not implement'
                 );
             }
@@ -316,16 +318,112 @@ class SecurityFindingsTest extends BaseTestCase
 
     public function test_findings_are_ordered_worst_first()
     {
-        $seenLook = false;
+        $ranks = [Finding::SEVERITY_FIX => 0, Finding::SEVERITY_LOOK => 1, Finding::SEVERITY_ADVICE => 2];
+        $previous = 0;
 
         foreach (Registry::summary()['findings'] as $finding) {
-            if ($finding['severity'] === Finding::SEVERITY_LOOK) {
-                $seenLook = true;
-                continue;
-            }
+            $rank = $ranks[$finding['severity']];
 
-            $this->assertFalse($seenLook, 'A fix-this finding was listed after a worth-a-look one');
+            $this->assertGreaterThanOrEqual(
+                $previous,
+                $rank,
+                sprintf('%s was listed after something less urgent', $finding['id'])
+            );
+
+            $previous = $rank;
         }
+    }
+
+    /**
+     * Best practice is the quiet tier, and quiet has to hold everywhere the number is read.
+     *
+     * A site whose only open row is "you could add a line to wp-config.php" has passed every
+     * check this plugin actually makes, so it must not carry a badge on the tab or a count in
+     * the amber column - the tier exists precisely to stop that reading.
+     */
+    public function test_advice_is_listed_but_kept_out_of_what_needs_attention()
+    {
+        $summary = Registry::summary();
+        $counts = $summary['counts'];
+
+        $this->assertGreaterThan(0, $counts['advice'], 'No check produces advice, so this proves nothing');
+
+        $this->assertEquals($counts['to_fix'] + $counts['look'], $counts['attention']);
+        $this->assertEquals($counts['attention'] + $counts['advice'], $counts['open']);
+
+        foreach ($summary['findings'] as $finding) {
+            if ($finding['severity'] === Finding::SEVERITY_ADVICE) {
+                $this->assertFalse($finding['scored'], $finding['id'] . ' is advice and should not be scored');
+            }
+        }
+    }
+
+    /**
+     * Login alerts are a judgement about how a site is staffed, not a protection every site
+     * should have on. A busy multi-author site that decided against them has not failed
+     * anything, so the row must not be scored and must not read as something to fix.
+     */
+    public function test_login_alerts_are_offered_rather_than_counted()
+    {
+        $finding = $this->finding(Registry::summary(), 'settings_notifications');
+
+        $this->assertEquals(Finding::SEVERITY_ADVICE, $finding['severity']);
+        $this->assertFalse($finding['scored']);
+    }
+
+    /**
+     * The roles "apply recommended" writes. Author logins on a multi-author site are a
+     * mailbox filling with mail nobody reads, and that is how the alert that mattered gets
+     * filtered away - so the recommendation covers the accounts that can install code.
+     */
+    public function test_the_recommended_alert_roles_are_the_high_privilege_ones()
+    {
+        $roles = Helper::getRecommendedSettings()['notification_user_roles'];
+
+        $this->assertEquals(['administrator'], $roles);
+    }
+
+    /**
+     * The one thing a site owner is most likely to mix this up with. DISALLOW_FILE_EDIT
+     * removes the two editor screens; DISALLOW_FILE_MODS is what stops updates, and this
+     * plugin recommends it nowhere.
+     */
+    public function test_the_file_editor_row_is_advice_and_never_asks_for_disallow_file_mods()
+    {
+        $finding = $this->finding(Registry::summary(), 'file_editor');
+
+        $this->assertEquals(Finding::SEVERITY_ADVICE, $finding['severity']);
+        $this->assertEquals('none', $finding['action']);
+        $this->assertFalse($finding['scored']);
+
+        $said = $finding['title'] . ' ' . $finding['why'] . ' ' . implode(' ', $finding['details']);
+
+        $this->assertStringContainsString('DISALLOW_FILE_EDIT', $said);
+        $this->assertStringNotContainsString('DISALLOW_FILE_MODS', $said);
+    }
+
+    /**
+     * The list behind the count. "18 checks passed" asks the reader to take a number on
+     * trust; this is the only place the plugin says what it actually looked at, so the count
+     * and the list have to be the same thing rather than two answers to one question.
+     */
+    public function test_the_passed_checks_are_sent_so_the_count_can_be_opened()
+    {
+        $summary = Registry::summary();
+
+        $this->assertNotEmpty($summary['passed']);
+        $this->assertCount($summary['counts']['passed'], $summary['passed']);
+
+        foreach ($summary['passed'] as $finding) {
+            $this->assertEquals(Finding::STATE_PASSED, $finding['state']);
+            $this->assertNotEmpty($finding['title']);
+        }
+
+        $titles = array_column($summary['passed'], 'title');
+        $sorted = $titles;
+        sort($sorted, SORT_STRING);
+
+        $this->assertEquals($sorted, $titles, 'Passed checks are listed out of order');
     }
 
     public function test_passing_checks_are_counted_rather_than_listed()

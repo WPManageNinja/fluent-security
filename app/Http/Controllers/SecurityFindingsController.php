@@ -85,9 +85,9 @@ class SecurityFindingsController
     /**
      * Send the recalculated list back with every write.
      *
-     * Turning one thing on can move another - blocking application passwords changes what
-     * the two-factor row has to say about this site - so the screen redraws from the server's
-     * answer rather than striking a row out locally and drifting from it.
+     * Turning one thing on can move another - accepting the mu-plugins on a site changes what
+     * the file group has to say about it - so the screen redraws from the server's answer
+     * rather than striking a row out locally and drifting from it.
      *
      * @param array $result
      * @return array

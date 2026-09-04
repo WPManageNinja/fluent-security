@@ -367,7 +367,7 @@ export default {
 
         this.$get('security-findings')
             .then(response => {
-                this.openFindings = response.counts.open;
+                this.openFindings = response.counts.attention;
             })
             .catch(() => {
                 /* The badge is a convenience; its absence is not worth reporting. */

@@ -3,6 +3,8 @@
 namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Helpers\Arr;
+use FluentAuth\App\Services\Checks\AcceptedFiles;
+use FluentAuth\App\Services\Checks\Files\MuPluginsCheck;
 use FluentAuth\App\Services\IntegrityChecker\Api;
 use FluentAuth\App\Services\IntegrityChecker\CheckerService;
 use FluentAuth\App\Services\IntegrityChecker\ExtensionChecker;
@@ -347,6 +349,10 @@ class SecurityScanController
             return self::viewExtensionFileDiff($fileConfig);
         }
 
+        if (Arr::get($fileConfig, 'scope') === 'mu-plugin') {
+            return self::viewMuPluginFile($fileConfig);
+        }
+
         $resolved = self::resolveCoreFile($fileConfig);
 
         if (is_wp_error($resolved)) {
@@ -372,6 +378,128 @@ class SecurityScanController
             'originalFileContent' => $remoteContent,
         ];
 
+    }
+
+    /**
+     * What is in the must-use plugins directory, and how it stands against the record.
+     *
+     * A listing rather than a verdict. These files run on every request and cannot be
+     * deactivated from the plugins screen, so they are worth showing - but most sites have
+     * them because their host put them there, and the check that watches them deliberately
+     * says nothing on the first run. This is the other half of that: what it will not accuse
+     * anybody of, it will at least let them read.
+     *
+     * @param \WP_REST_Request $request
+     * @return array
+     */
+    public static function getMuPlugins(\WP_REST_Request $request)
+    {
+        $scope = defined('WPMU_PLUGIN_DIR')
+            ? AcceptedFiles::toRelative(WPMU_PLUGIN_DIR)
+            : '/wp-content/mu-plugins';
+
+        $baselinedAt = AcceptedFiles::baselinedAt($scope);
+
+        $files = [];
+
+        foreach (MuPluginsCheck::phpFiles() as $path) {
+            $relative = AcceptedFiles::toRelative($path);
+            $hash = AcceptedFiles::hash($path);
+
+            /*
+             * Three states, and the third is the one worth drawing. "Recorded" is every file
+             * that was here when watching began or has been accepted since; "changed" and
+             * "new" are the two shapes a thing worth asking about takes.
+             *
+             * Before there is a baseline there is nothing for a file to be new against, and
+             * saying otherwise would put "new since we started watching" beside every file on
+             * a site that has not started watching. This screen can be opened before the one
+             * that records the baseline, so that is not a hypothetical.
+             */
+            $status = 'recorded';
+
+            if ($baselinedAt && $hash) {
+                if (AcceptedFiles::hasChanged($relative, $hash)) {
+                    $status = 'changed';
+                } elseif (!AcceptedFiles::isAccepted($relative, $hash)) {
+                    $status = 'new';
+                }
+            }
+
+            $files[] = [
+                'name'     => str_replace(trailingslashit(WPMU_PLUGIN_DIR), '', $path),
+                'path'     => $relative,
+                'size'     => (int)@filesize($path),
+                'modified' => (int)@filemtime($path),
+                'status'   => $status
+            ];
+        }
+
+        return [
+            'files'        => $files,
+            'directory'    => $scope,
+            'baselined_at' => $baselinedAt,
+            'baselined_human' => $baselinedAt
+                ? human_time_diff($baselinedAt, current_time('timestamp'))
+                : ''
+        ];
+    }
+
+    /**
+     * One must-use plugin, as it stands.
+     *
+     * There is nothing to compare it against - no official copy of a file the host or a
+     * developer wrote - so this only ever returns the source. Which is the point: nobody can
+     * tell a legitimate mu-plugin from a planted one without reading it, so the least this
+     * screen can do is not make them go and find it over SFTP.
+     *
+     * Resolved through realpath() against the directory itself rather than by trusting the
+     * name, so a path the browser sent cannot walk out of the folder it is supposed to name.
+     *
+     * @param array $fileConfig
+     * @return array|\WP_Error
+     */
+    protected static function viewMuPluginFile($fileConfig)
+    {
+        if (!defined('WPMU_PLUGIN_DIR')) {
+            return new \WP_Error(
+                'invalid_data',
+                __('This site has no must-use plugins directory.', 'fluent-security'),
+                ['status' => 400]
+            );
+        }
+
+        $expectedDir = realpath(WPMU_PLUGIN_DIR);
+        $realPath = realpath(trailingslashit(WPMU_PLUGIN_DIR) . ltrim($fileConfig['file'], '/'));
+
+        if (!$expectedDir || !$realPath || strpos($realPath, $expectedDir . DIRECTORY_SEPARATOR) !== 0) {
+            return new \WP_Error(
+                'invalid_data',
+                __('This file could not be viewed for security reason.', 'fluent-security'),
+                ['status' => 400]
+            );
+        }
+
+        if (!is_file($realPath) || strtolower(pathinfo($realPath, PATHINFO_EXTENSION)) !== 'php') {
+            return new \WP_Error(
+                'invalid_data',
+                __('This file could not be viewed.', 'fluent-security'),
+                ['status' => 400]
+            );
+        }
+
+        $viewable = self::assertViewableFile($realPath, basename($realPath));
+
+        if (is_wp_error($viewable)) {
+            return $viewable;
+        }
+
+        return [
+            'filePath'            => str_replace(ABSPATH, '/', $realPath),
+            'fileContent'         => self::readFileContents($realPath),
+            'hasDiff'             => false,
+            'originalFileContent' => ''
+        ];
     }
 
     /**

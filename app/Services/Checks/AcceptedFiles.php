@@ -19,6 +19,14 @@ use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
  * of mu-plugins and drop-ins rather than a hashed wp-content, so it fits in an option row -
  * the full baseline, when it comes, needs a table and does not belong here.
  *
+ * A scope is recorded once, on first sight, without asking. The alternative was to open with
+ * "4 files are running that WordPress did not put there" on a site whose host put them there,
+ * and being wrong on the first day is how a security tool teaches people to ignore it. What
+ * is given up is the day this plugin was installed: a site already broken into when it
+ * arrives records the backdoor as normal. Every tool that learns a baseline makes that trade,
+ * and the alternative here was not making it - it was asking a question most readers cannot
+ * answer.
+ *
  * Paths are root-relative with a leading slash, the way the rest of the ignore list names
  * things, so the two halves cannot disagree about what a path is.
  */
@@ -73,6 +81,55 @@ class AcceptedFiles
     }
 
     /**
+     * Whether this part of the tree has ever been recorded.
+     *
+     * Its own flag rather than "are there any hashes here", because those are two different
+     * facts and only one of them is safe to act on. A site whose mu-plugins were all removed
+     * and replaced has no hashes under that prefix - and treating that as never-recorded is
+     * how a directory emptied and refilled gets silently blessed, which is a thing an
+     * attacker can arrange and a host cannot.
+     *
+     * @param string $scope
+     * @return bool
+     */
+    public static function hasBaseline($scope)
+    {
+        $baselined = Arr::get(IntegrityHelper::getIgnoreLists(), 'baselined', []);
+
+        return is_array($baselined) && isset($baselined[$scope]);
+    }
+
+    /**
+     * @param string $scope
+     * @return int|null unix time it was first recorded, or null
+     */
+    public static function baselinedAt($scope)
+    {
+        $baselined = Arr::get(IntegrityHelper::getIgnoreLists(), 'baselined', []);
+
+        return isset($baselined[$scope]) ? (int)$baselined[$scope] : null;
+    }
+
+    /**
+     * Record everything in a scope as it stands, and remember that we did.
+     *
+     * @param string $scope
+     * @param array $hashes path => hash
+     * @return void
+     */
+    public static function baseline($scope, $hashes)
+    {
+        $lists = IntegrityHelper::getIgnoreLists();
+
+        $lists['hashes'] = array_merge(self::all(), $hashes);
+        $baselined = Arr::get($lists, 'baselined', []);
+        $baselined[$scope] = time();
+        $lists['baselined'] = is_array($baselined) ? $baselined : [$scope => time()];
+
+        IntegrityHelper::updateIgnoreLists($lists);
+    }
+
+    /**
      * @param array $hashes path => hash
      * @return void
      */
@@ -87,17 +144,23 @@ class AcceptedFiles
     /**
      * Drop anything no longer on disk, so a removed file cannot sit in the list for ever.
      *
-     * @param array $known paths currently present in the scopes this covers
-     * @param string $prefix only forget within this part of the tree
+     * Takes a predicate rather than a path prefix, because the two checks that use this do not
+     * both own a subtree. The drop-ins are a fixed set of filenames sitting loose in
+     * wp-content, and "everything under /wp-content/" is a prefix that swallows the
+     * mu-plugins record as well - which is a check quietly forgetting another check's work,
+     * and it forgets it in the direction that makes a planted file read as expected.
+     *
+     * @param array $known paths currently present
+     * @param callable $owns whether a recorded path belongs to the caller
      * @return void
      */
-    public static function forgetMissing($known, $prefix)
+    public static function forgetMissing($known, $owns)
     {
         $accepted = self::all();
         $kept = [];
 
         foreach ($accepted as $path => $hash) {
-            if (strpos($path, $prefix) !== 0 || in_array($path, $known, true)) {
+            if (!call_user_func($owns, $path) || in_array($path, $known, true)) {
                 $kept[$path] = $hash;
             }
         }

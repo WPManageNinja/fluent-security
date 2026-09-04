@@ -9,23 +9,18 @@ use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 /**
  * The security checklist on the dashboard, and the one-click way to satisfy an item.
  *
- * A check is not a yes-or-no. The first version of this list was, and it marked a site
- * down for not blocking application passwords - a setting the plugin recommends leaving
- * alone, because blocking it breaks every integration on a site that uses it. A list that
- * scolds you for a deliberate configuration teaches you to ignore the list.
+ * A check is `done` or `todo`, and separately it is scored or not. Only the protections
+ * this plugin recommends for every site count towards the score, so the score is reachable
+ * - the rest are shown below it as things to weigh up. What "recommended" means comes from
+ * Helper::getRecommendedSettings() rather than from anything written here, so the checklist
+ * and the "apply recommended" button cannot disagree.
  *
- * So a check has a state:
- *
- * - `done`    the protection is on.
- * - `todo`    it is off, and turning it on is what this plugin recommends.
- * - `in_use`  it is off, and something on this site is relying on that. Reported as a fact
- *             with the evidence for it, never as a failing, and never one-click fixable.
- *
- * And a check is either scored or not. Only the ones this plugin recommends for every site
- * count towards the score, so the score is reachable - the rest are shown below it as
- * things to weigh up. What "recommended" means comes from Helper::getRecommendedSettings()
- * rather than from anything written here, so the checklist and the "apply recommended"
- * button cannot disagree.
+ * The rule this list is built to obey: nothing on it may scold a site for a configuration
+ * somebody chose on purpose. An early version marked sites down for not blocking
+ * application passwords - a thing plenty of sites legitimately depend on - and a list that
+ * does that teaches people to ignore the list. Which is why a recommendation that does not
+ * suit every site either goes unscored, goes in as advice, or does not go on the list at
+ * all.
  */
 class SecurityChecks
 {
@@ -93,24 +88,6 @@ class SecurityChecks
             );
         }
 
-        /*
-         * Ordered before the "can this be turned on from here" check, and not folded into
-         * it, because a check in use reports itself as navigate-only - so testing that first
-         * would refuse for the right reason while giving the wrong one, and the reason is
-         * the entire value of this guard: it is what tells the caller what would break.
-         *
-         * The evidence is re-read here rather than taken from the request. Between the
-         * dashboard loading and this being clicked somebody may have created an application
-         * password, and the point of the check is not to cut off what they just set up.
-         */
-        if ($item['state'] === 'in_use') {
-            return new \WP_Error(
-                'in_use',
-                $item['note'] ?: __('Something on this site is relying on this.', 'fluent-security'),
-                ['status' => 422]
-            );
-        }
-
         if ($item['action'] !== 'enable') {
             return new \WP_Error(
                 'not_applicable',
@@ -165,16 +142,17 @@ class SecurityChecks
             'why'     => Arr::get($definition, 'why', ''),
             'group'   => Arr::get($definition, 'group', 'login'),
             'scored'  => $definition['scored'],
+            /*
+             * Sound practice rather than a protection every site should have on. Carried
+             * separately from `scored` because they answer different questions: an unscored
+             * check is one the score cannot reach, advice is one nothing is wrong about.
+             */
+            'advice'  => !empty($definition['advice']),
             'state'   => $done ? 'done' : 'todo',
             'action'  => $definition['settings'] ? 'enable' : 'navigate',
-            'note'    => '',
             'route'   => $definition['route'],
             'section' => Arr::get($definition, 'section', '')
         ];
-
-        if (isset($definition['evidence'])) {
-            $item = call_user_func($definition['evidence'], $item);
-        }
 
         return $item;
     }
@@ -203,11 +181,23 @@ class SecurityChecks
                         || Arr::get($settings, 'email2fa') === 'yes';
                 }
             ],
+            /*
+             * Advice, and unscored with it. Login alerts are worth having on the accounts that
+             * can do damage, and worth not having on the ones that sign in all day - a mailbox
+             * that fills up with sign-ins nobody reads is worse than no alerts at all, because
+             * the one that mattered arrives in a folder somebody set up a filter for.
+             *
+             * Which is a judgement about how a particular site is staffed, not a protection
+             * every site should have on. So it is offered rather than counted, and the roles
+             * this recommends are the high-privilege ones only - see
+             * Helper::getRecommendedSettings().
+             */
             'notifications'      => [
-                'title'    => __('Alert admins about logins', 'fluent-security'),
-                'why'      => __('An email when someone signs in is how a stolen account gets noticed on the day, not the week after.', 'fluent-security'),
+                'title'    => __('Get an email when a high-privilege account signs in', 'fluent-security'),
+                'why'      => __('A sign-in nobody made is the first sign of a stolen account, and an email is how that gets noticed the same day rather than the following week. Worth having for administrators. Leave it off for roles that sign in all day, or the alerts stop being read.', 'fluent-security'),
                 'group'    => 'login',
-                'scored'   => true,
+                'scored'   => false,
+                'advice'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'notifications',
                 'settings' => ['notification_user_roles', 'notification_email'],
@@ -253,26 +243,6 @@ class SecurityChecks
                 }
             ],
 
-            /*
-             * Not scored, because there is no answer that is right for every site - see
-             * Helper::getRecommendedSettings(). What makes it worth showing anyway is that
-             * the answer for *this* site can be looked up rather than guessed at.
-             */
-            'disable_app_login'  => [
-                'title'    => __('Block application passwords', 'fluent-security'),
-                'why'      => __('These sign in without a second step, so any that exist bypass two-factor entirely.', 'fluent-security'),
-                'group'    => 'login',
-                'scored'   => false,
-                'route'    => 'settings_general',
-                'section'  => 'core',
-                'settings' => ['disable_app_login'],
-                'done'     => function ($settings) {
-                    return Arr::get($settings, 'disable_app_login') === 'yes';
-                },
-                'evidence' => function ($item) {
-                    return self::appPasswordEvidence($item);
-                }
-            ],
             'integrity_scan'     => [
                 /*
                  * No settings to write: file monitoring is a service that has to be set up
@@ -294,72 +264,5 @@ class SecurityChecks
                 }
             ]
         ];
-    }
-
-    /**
-     * Whether anything on this site signs in with an application password.
-     *
-     * Read from the passwords themselves rather than from the auth log: a successful REST
-     * login does not go through the login form and leaves no entry, so the log can only
-     * ever prove that nothing has failed. A password that exists is a thing somebody
-     * created for something, which is the fact worth knowing before blocking the lot.
-     *
-     * @param array $item
-     * @return array
-     */
-    private static function appPasswordEvidence($item)
-    {
-        if ($item['state'] === 'done') {
-            $item['note'] = __('Blocked. Nothing can sign in over the REST API with one.', 'fluent-security');
-
-            return $item;
-        }
-
-        $users = self::usersWithAppPasswords();
-
-        if ($users) {
-            $item['state'] = 'in_use';
-            $item['action'] = 'navigate';
-            $item['route'] = 'settings_two_fa_enrollment';
-            $item['note'] = sprintf(
-                /* translators: %s: number of users */
-                _n(
-                    'In use: %s user has an application password. Blocking these would cut off whatever it was made for.',
-                    'In use: %s users have application passwords. Blocking these would cut off whatever they were made for.',
-                    $users,
-                    'fluent-security'
-                ),
-                number_format_i18n($users)
-            );
-
-            return $item;
-        }
-
-        $item['note'] = __('Nobody has one, so blocking them costs this site nothing.', 'fluent-security');
-
-        return $item;
-    }
-
-    /**
-     * @return int
-     */
-    private static function usersWithAppPasswords()
-    {
-        if (!class_exists('\WP_Application_Passwords')) {
-            return 0;
-        }
-
-        $query = new \WP_User_Query([
-            'number'     => 1,
-            'fields'     => 'ID',
-            'meta_query' => [
-                [
-                    'key'     => \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS,
-                    'compare' => 'EXISTS'
-                ]
-            ]
-        ]);
-
-        return (int)$query->get_total();
     }
 }

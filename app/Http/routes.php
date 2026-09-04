@@ -61,6 +61,7 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('security-scan-settings/scan/targets', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'getScanTargets'], $permissions)
     ->post('security-scan-settings/scan/extension', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'scanExtension'], $permissions)
     ->post('security-scan-settings/scan/toggle-ignore', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'toggleIgnore'], $permissions)
+    ->get('security-scan-settings/mu-plugins', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'getMuPlugins'], $permissions)
     ->get('security-scan-settings/scan/view-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'viewFileDiff'], $permissions)
     ->post('security-scan-settings/scan/restore-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'restoreFile'], $permissions)
     ->post('security-scan-settings/scan/update-schedule-scan', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'updateScheduleScan'], $permissions)

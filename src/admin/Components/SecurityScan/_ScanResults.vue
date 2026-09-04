@@ -2,6 +2,7 @@
 import icons from './icons';
 import CoreSection from './_CoreSection.vue';
 import ExtensionSection from './_ExtensionSection.vue';
+import MuPluginsSection from './_MuPluginsSection.vue';
 import ScanProgress from './_ScanProgress.vue';
 import UnverifiedList from './_UnverifiedList.vue';
 
@@ -22,6 +23,7 @@ export default {
     components: {
         CoreSection,
         ExtensionSection,
+        MuPluginsSection,
         ScanProgress,
         UnverifiedList
     },
@@ -236,6 +238,13 @@ export default {
                        :ignored-folders="ignores.folders"
                        :checking-keys="pending"
                        :empty-text="$t('No themes from the WordPress.org directory are installed.')"/>
+
+    <!--
+        After plugins and themes, because those are what somebody came here to check. This is
+        a listing rather than a verdict, and it should read as the extra thing worth knowing
+        rather than as a fourth thing that might be wrong.
+    -->
+    <mu-plugins-section/>
 
     <unverified-list v-if="unverified.length" :items="unverified"/>
 </template>

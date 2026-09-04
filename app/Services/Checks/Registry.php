@@ -29,7 +29,6 @@ class Registry
             new Files\MuPluginsCheck(),
             new Files\DropInsCheck(),
             new Files\UploadsExecutionCheck(),
-            new Files\ConfigPermissionsCheck(),
             new Files\BaselineCheck(),
             new Files\BackupFilesCheck(),
             new Config\FileEditorCheck(),
@@ -112,7 +111,7 @@ class Registry
 
         $open = [];
         $accepted = [];
-        $passed = 0;
+        $passed = [];
         $scoredTotal = 0;
         $scoredPassed = 0;
 
@@ -126,7 +125,7 @@ class Registry
             }
 
             if ($finding->state() === Finding::STATE_PASSED) {
-                $passed++;
+                $passed[] = $finding;
                 continue;
             }
 
@@ -140,16 +139,28 @@ class Registry
 
         /* Worst first, and stable within a severity so the list does not shuffle on reload. */
         usort($open, function ($a, $b) {
-            if ($a->severity() === $b->severity()) {
-                return strcmp($a->id(), $b->id());
-            }
+            $rank = self::rank($a) - self::rank($b);
 
-            return $a->severity() === Finding::SEVERITY_FIX ? -1 : 1;
+            return $rank ?: strcmp($a->id(), $b->id());
         });
 
-        $toFix = array_values(array_filter($open, function ($finding) {
-            return $finding->severity() === Finding::SEVERITY_FIX;
-        }));
+        $bySeverity = [Finding::SEVERITY_FIX => 0, Finding::SEVERITY_LOOK => 0, Finding::SEVERITY_ADVICE => 0];
+
+        foreach ($open as $finding) {
+            $severity = $finding->severity();
+
+            if (isset($bySeverity[$severity])) {
+                $bySeverity[$severity]++;
+            }
+        }
+
+        /*
+         * Alphabetical, because there is no worst-first to speak of among things that are
+         * fine and any other order would look like one.
+         */
+        usort($passed, function ($a, $b) {
+            return strcmp($a->get('title'), $b->get('title'));
+        });
 
         return [
             'findings' => array_map(function ($finding) {
@@ -158,11 +169,26 @@ class Registry
             'accepted' => array_map(function ($finding) {
                 return $finding->toArray();
             }, $accepted),
+            /*
+             * Sent, not just counted. "18 checks passed" is a number the reader has to take on
+             * trust; the list behind it is what makes the claim checkable, and it is the only
+             * place the plugin says out loud what it actually looked at.
+             */
+            'passed'   => array_map(function ($finding) {
+                return $finding->toArray();
+            }, $passed),
             'counts'   => [
                 'open'     => count($open),
-                'to_fix'   => count($toFix),
-                'look'     => count($open) - count($toFix),
-                'passed'   => $passed,
+                'to_fix'   => $bySeverity[Finding::SEVERITY_FIX],
+                'look'     => $bySeverity[Finding::SEVERITY_LOOK],
+                'advice'   => $bySeverity[Finding::SEVERITY_ADVICE],
+                /*
+                 * What the tab badge counts. Advice is open and listed but is not something
+                 * the site has to answer for, and a red number on a navigation tab is the one
+                 * place a suggestion would read as an outstanding problem.
+                 */
+                'attention' => $bySeverity[Finding::SEVERITY_FIX] + $bySeverity[Finding::SEVERITY_LOOK],
+                'passed'   => count($passed),
                 'accepted' => count($accepted)
             ],
             /*
@@ -176,6 +202,27 @@ class Registry
                 'percent' => $scoredTotal ? (int)round(($scoredPassed / $scoredTotal) * 100) : 100
             ]
         ];
+    }
+
+    /**
+     * Where a finding sits in the list. Lower is more urgent.
+     *
+     * Anything unrecognised sorts with `look` rather than to either end: a check contributed
+     * by an add-on cannot push itself to the top of the list by inventing a severity, and it
+     * cannot be buried by getting one wrong either.
+     *
+     * @param Finding $finding
+     * @return int
+     */
+    protected static function rank($finding)
+    {
+        $ranks = [
+            Finding::SEVERITY_FIX    => 0,
+            Finding::SEVERITY_LOOK   => 1,
+            Finding::SEVERITY_ADVICE => 2
+        ];
+
+        return isset($ranks[$finding->severity()]) ? $ranks[$finding->severity()] : 1;
     }
 
     /**
