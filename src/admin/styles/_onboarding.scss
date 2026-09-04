@@ -1,21 +1,4 @@
-/*
- * The setup wizard.
- *
- * A split screen: the page this site's own users sign in on, beside the question that
- * changes it. The preview is the larger half deliberately - it answers "what does this
- * actually do", which is the question a settings label never answers.
- *
- * Everything here is scoped under `.fls_onb`. The wizard replaces the app shell rather
- * than sitting inside it (see App.vue), so it owns the whole screen while it is open and
- * none of these rules can reach anything else.
- *
- * On type: this screen uses the same scale as the rest of the app and nothing larger.
- * A setup screen invites a hero headline, and an app whose page titles are 16px does not
- * have one - a 28px headline here would say "different product" more loudly than it says
- * anything else. The step headline is 20px, the largest size the app uses anywhere (the
- * dashboard's stat values), and everything under it is the settings screen's own scale:
- * 14px for a title, 12px for the sentence explaining it.
- */
+/* Security setup: choices first, with a supporting live preview. */
 
 .fframe_app.is-bare {
     padding-top: 0;
@@ -34,8 +17,8 @@
 .fls_onb_bar {
     @apply grid items-center gap-6 bg-surface px-6 border-0 border-b border-solid border-hairline;
 
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    height: 56px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: 68px;
     position: sticky;
     top: 32px;
     z-index: 20;
@@ -180,7 +163,13 @@ button.fls_onb_rail_hit {
 .fls_onb_body {
     @apply grid items-start flex-1;
 
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 64px;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 48px 40px 64px;
+    box-sizing: border-box;
 }
 
 .fls_onb_loading {
@@ -194,11 +183,15 @@ button.fls_onb_rail_hit {
 /* ------------------------------------------------------------------- the stage */
 
 .fls_onb_stage {
-    @apply flex justify-center;
+    @apply flex flex-col;
 
     position: sticky;
-    top: 88px;
-    padding: 40px 32px 40px 40px;
+    top: 124px;
+    padding: 28px;
+    min-width: 0;
+    border-radius: 12px;
+    background: var(--fls-surface-sunk);
+    border: 1px solid var(--fls-border);
 }
 
 .fls_onb_stage_inner {
@@ -528,36 +521,33 @@ button.fls_onb_rail_hit {
 /* -------------------------------------------------------------- the question */
 
 .fls_onb_ask {
-    @apply flex justify-start bg-surface border-0 border-l border-solid border-hairline;
+    @apply flex justify-start;
 
-    padding: 40px 40px 60px 32px;
-    min-height: calc(100vh - 88px);
+    padding: 0;
+    min-width: 0;
 }
 
 .fls_onb_ask_inner {
     @apply flex flex-col w-full;
 
-    max-width: 500px;
+    max-width: 560px;
+    animation: fls-onb-enter .22s ease-out;
 }
 
-/*
- * 20px is the largest size this app uses anywhere. It is the loudest thing on this screen
- * without being louder than the product.
- */
 .fls_onb_headline {
     margin: 0 0 10px;
-    font-size: 20px;
-    font-weight: 500;
-    line-height: 28px;
-    letter-spacing: -.01em;
+    font-size: clamp(24px, 2.3vw, 30px);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -.025em;
     color: var(--fls-heading);
     text-wrap: balance;
 }
 
 .fls_onb_why {
-    @apply text-xs text-ink-mid m-0;
+    @apply text-sm text-ink-mid m-0;
 
-    margin-bottom: 26px;
+    margin-bottom: 28px;
     line-height: 1.65;
     max-width: 58ch;
 }
@@ -661,7 +651,7 @@ button.fls_onb_rail_hit {
 .fls_onb_presets {
     @apply grid;
 
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -812,7 +802,8 @@ button.fls_onb_rail_hit {
 }
 
 .fls_onb_next.el-button {
-    min-width: 150px;
+    min-width: 160px;
+    margin-left: auto;
 }
 
 .fls_onb_back.el-button {
@@ -849,9 +840,9 @@ button.fls_onb_rail_hit {
 }
 
 .fls_onb_done_lead {
-    @apply text-xs text-ink-mid m-0;
+    @apply text-sm text-ink-mid m-0;
 
-    margin-bottom: 26px;
+    margin-bottom: 28px;
     line-height: 1.65;
     max-width: 60ch;
 }
@@ -945,156 +936,402 @@ button.fls_onb_rail_hit {
     }
 }
 
-/* ---------------------------------------------------------------- narrow views */
-
-@media (max-width: 1400px) {
-    .fls_onb_screen {
-        --fls-onb-s: .48;
-    }
+/* Progress has its own row so labels never compete with the wordmark. */
+.fls_onb_progress {
+    padding: 22px 24px;
+    background: var(--fls-surface);
+    border-bottom: 1px solid var(--fls-border);
 }
 
-@media (max-width: 1180px) {
+.fls_onb_rail {
+    justify-content: center;
+    gap: 8px;
+}
+
+.fls_onb_rail_mark {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+}
+
+.fls_onb_rail_hit {
+    padding: 6px 10px 6px 6px;
+}
+
+.fls_onb_rail_hit:disabled {
+    cursor: wait;
+}
+
+.fls_onb_rail_label {
+    color: var(--fls-text-mid);
+}
+
+.fls_onb {
+    background: var(--fls-surface);
+}
+
+.fls_onb .fls_eyebrow {
+    color: var(--fls-text-mid);
+    margin: 0 0 16px;
+}
+
+.fls_onb .fls_onb_stage .fls_eyebrow {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--fls-heading);
+}
+
+.fls_onb_detected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin: 0;
+    color: var(--fls-text-mid);
+    font-size: 13px;
+}
+
+.fls_onb_detected strong {
+    color: var(--fls-heading);
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+
+.fls_onb_preview_label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--fls-text-mid);
+    font-size: 12px;
+    margin-bottom: 22px;
+}
+
+.fls_onb_preview_label .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.fls_onb_preview_hint, .fls_onb_save_note {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--fls-text-mid);
+    margin: 16px 0 0;
+}
+
+.fls_onb_save_note {
+    text-align: right;
+}
+
+.fls_onb_hint, .fls_onb_choice_note, .fls_onb_preset_note, .fls_onb_conn_row dt, .fls_onb_stage_foot {
+    color: var(--fls-text-mid);
+}
+
+.fls_onb_actions .el-button {
+    min-height: 42px;
+}
+
+.fls_onb_actions .el-button > span, .fls_onb_leave > span {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.fls_onb_opt, .fls_onb_choice, .fls_onb_preset {
+    border-radius: 8px;
+}
+
+.fls_onb_opt .fls_toggle {
+    padding: 0;
+}
+
+.fls_onb_opt .fls_toggle_body p {
+    color: var(--fls-text-mid);
+}
+
+.fls_onb_opt.is-on {
+    background: var(--fls-surface-sunk);
+    border-color: var(--fls-border-strong);
+}
+
+.fls_onb_choice:active, .fls_onb_preset:active {
+    transform: translateY(1px);
+}
+
+.fls_onb_reveal {
+    animation: fls-onb-enter .18s ease-out;
+}
+
+.fls_onb h1:focus {
+    outline: none;
+}
+
+.fls_onb_load_error, .fls_onb_review {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 44px 28px 64px;
+    box-sizing: border-box;
+}
+
+.fls_onb_review {
+    animation: fls-onb-enter .22s ease-out;
+}
+
+.fls_onb_review_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--fls-border);
+}
+
+.fls_onb_review_list > li {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 16px;
+    margin: 0;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--fls-border);
+}
+
+.fls_onb_review_list h2 {
+    font-size: 14px;
+    color: var(--fls-heading);
+    margin: 2px 0 6px;
+    font-weight: 600;
+}
+
+.fls_onb_review_list p {
+    font-size: 13px;
+    color: var(--fls-text-mid);
+    margin: 3px 0;
+    overflow-wrap: anywhere;
+}
+
+.fls_onb_review_number {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    background: var(--fls-accent-wash);
+    color: var(--fls-heading);
+    border-radius: 50%;
+    font-size: 12px;
+}
+
+.fls_onb_review .fls_onb_actions {
+    border-top: 0;
+    margin-top: 0;
+}
+
+.fls_onb_done_inner {
+    max-width: 680px;
+    animation: fls-onb-enter .22s ease-out;
+}
+
+.fls_onb_done_symbol {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    background: var(--fls-success-bg);
+    color: var(--fls-success-fg);
+    border-radius: 50%;
+    margin-bottom: 22px;
+}
+
+.fls_onb_done_symbol .dashicons {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+}
+
+.fls_onb_done_next {
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--fls-border);
+    padding: 24px 0 0;
+}
+
+.fls_onb_done_next_list span {
+    color: var(--fls-text-mid);
+}
+
+
+@keyframes fls-onb-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+@media (max-width: 1200px) {
+    .fls_onb_body {
+        gap: 32px;
+        padding: 36px 28px 56px;
+    }
+
+    .fls_onb_stage {
+        padding: 20px;
+    }
+
+    .fls_onb_preset {
+        padding: 12px;
+    }
+
+    .fls_onb_rail {
+        gap: 2px;
+    }
+
+    .fls_onb_rail_item + .fls_onb_rail_item::before {
+        width: 8px;
+    }
+
+}
+@media (max-width: 900px) {
     .fls_onb_body {
         grid-template-columns: minmax(0, 1fr);
+        max-width: 720px;
+    }
+
+    .fls_onb_ask_inner {
+        max-width: none;
     }
 
     .fls_onb_stage {
         position: static;
-        padding: 28px 24px 4px;
     }
 
     .fls_onb_stage_inner {
-        max-width: 600px;
-        margin: 0 auto;
+        max-width: 100%;
     }
 
-    .fls_onb_ask {
-        @apply justify-center border-l-0 border-0 border-t border-solid border-hairline;
-
-        min-height: 0;
-        padding: 30px 24px 60px;
-    }
-
-    .fls_onb_ask_inner {
-        max-width: 600px;
-    }
-
-    .fls_onb_screen {
-        --fls-onb-s: .58;
-    }
-}
-
-/* The rail keeps its shape but drops the words: on a narrow bar the count and the
-   position are what matter, and five words do not fit beside a logo. */
-@media (max-width: 900px) {
     .fls_onb_rail_label {
         display: none;
     }
 
-    .fls_onb_rail_hit {
-        padding: 4px 5px;
+    .fls_onb_rail_item.is-current .fls_onb_rail_label {
+        display: inline;
     }
 
-    .fls_onb_rail_item + .fls_onb_rail_item::before {
-        width: 7px;
-    }
 }
-
 @media (max-width: 782px) {
     .fls_onb_bar {
-        top: 0;
+        top: 46px;
     }
 
     .fls_onb {
-        min-height: 100vh;
+        min-height: calc(100vh - 46px);
     }
-}
 
-@media (max-width: 680px) {
+}
+@media (max-width: 600px) {
     .fls_onb_bar {
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 12px;
+        position: static;
         padding: 0 16px;
+        height: 60px;
+        gap: 8px;
     }
 
     .fls_onb_bar_brand span {
         display: none;
     }
 
-    .fls_onb_rail {
-        justify-content: flex-end;
+    .fls_onb_progress {
+        padding: 14px 8px;
     }
 
-    /* Leaving stays reachable, but from the foot of the questions rather than a header
-       with no room left in it. */
-    .fls_onb_bar_end {
+    .fls_onb_rail {
+        gap: 0;
+        justify-content: space-between;
+    }
+
+    .fls_onb_rail_hit {
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .fls_onb_rail_item + .fls_onb_rail_item::before {
         display: none;
     }
 
-    .fls_onb_screen {
-        --fls-onb-s: .5;
+    .fls_onb_rail_item.is-current .fls_onb_rail_label {
+        display: none;
     }
 
-    .fls_onb_stage,
-    .fls_onb_ask {
-        padding-left: 16px;
-        padding-right: 16px;
+    .fls_onb_body {
+        padding: 28px 20px 40px;
+        gap: 28px;
     }
 
-    .fls_onb_actions {
-        @apply flex-col-reverse items-stretch;
+    .fls_onb_presets {
+        grid-template-columns: 1fr;
     }
 
-    .fls_onb_next.el-button,
-    .fls_onb_back.el-button {
-        @apply w-full;
+    .fls_onb_preset {
+        position: relative;
+        padding: 14px;
+        gap: 5px;
+    }
 
-        margin-left: 0;
+    .fls_onb_preset_head {
+        display: none;
+    }
+
+    .fls_onb_preset.has-tag .fls_onb_preset_head {
+        display: flex;
+        position: absolute;
+        top: 14px;
+        right: 14px;
     }
 
     .fls_onb_conn_row {
         grid-template-columns: minmax(0, 1fr);
-        gap: 1px;
+        gap: 2px;
     }
-}
 
-@media (max-width: 560px) {
-    .fls_onb_screen {
-        --fls-onb-s: .36;
+    .fls_onb_choices {
+        grid-template-columns: 1fr;
     }
-}
 
-@media (max-width: 420px) {
-    .fls_onb_screen {
-        --fls-onb-s: .28;
+    .fls_onb_stage {
+        padding: 16px;
     }
-}
 
-/*
- * The way out on a narrow screen, where the header has no room for it. Declared after the
- * breakpoints so it wins over the base rule regardless of source order above.
- */
-.fls_onb_leave_foot.el-button {
-    display: none;
-    margin: 16px 0 0;
-}
-
-@media (max-width: 680px) {
-    .fls_onb_leave_foot.el-button {
-        @apply inline-flex self-center;
+    .fls_onb_conn {
+        padding: 18px;
     }
-}
 
+    .fls_onb_save_note {
+        text-align: left;
+    }
+
+    .fls_onb_review {
+        padding: 28px 20px 40px;
+    }
+
+    .fls_onb_review_list > li {
+        gap: 10px;
+    }
+
+}
 @media (prefers-reduced-motion: reduce) {
-    .fls_onb_screen,
-    .fls_onb_mail,
-    .fls_onb_opt,
-    .fls_onb_choice,
-    .fls_onb_preset,
-    .fls_onb_role {
-        transition: none;
+    .fls_onb *, .fls_onb *::before, .fls_onb *::after {
+        animation: none !important;
+        transition: none !important;
     }
+
 }
+
 
 /*
  * A row this site already satisfies before setup started. Said inside the toggle's own

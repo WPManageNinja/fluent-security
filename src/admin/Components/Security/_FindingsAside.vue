@@ -1,115 +1,59 @@
 <script type="text/babel">
-/*
- * The right-hand column: how this site is doing overall, and what the list does not cover.
- *
- * The score is out of what the plugin recommends for every site, not out of everything it
- * knows how to check - so it stays reachable. The last block exists because the findings on
- * the left are only the instant checks: whether anyone has looked at the files lately is a
- * different question, answered on the other tab, and a screen that said "everything checked
- * out" without mentioning that would be overstating what it knows.
- */
 export default {
     name: 'FindingsAside',
+    emits: ['retry'],
     props: {
-        score: {
-            type: Object,
-            required: true
-        },
-        counts: {
-            type: Object,
-            required: true
-        },
-        /* The scan settings, so the file half of the picture can be summarised honestly. */
-        scan: {
-            type: Object,
-            default: null
-        }
+        score: {type: Object, required: true},
+        scan: {type: Object, default: null},
+        loading: Boolean,
+        error: Boolean
     },
     computed: {
         percent() {
-            return this.score.total ? this.score.percent : 100;
+            return this.score.total ? Math.max(0, Math.min(100, this.score.percent || 0)) : 0;
         },
         fileWatchLabel() {
-            if (!this.scan || !this.scan.last_checked_human) {
-                return this.$t('Never');
-            }
-
-            return this.$t('%s ago', this.scan.last_checked_human);
-        },
-        fileWatchWarning() {
-            return !this.scan || !this.scan.last_checked_human || this.scan.is_ok === 'no';
+            if (this.loading) return this.$t('Loading…');
+            if (this.error || !this.scan) return this.$t('Unavailable');
+            return this.scan.last_checked_human ? this.$t('%s ago', this.scan.last_checked_human) : this.$t('Not run yet');
         }
     }
-}
+};
 </script>
 
 <template>
-    <aside class="fls_page_aside">
-        <div class="fls_aside_block">
-            <h3>
-                {{ $t('Security Score') }}
-                <small>{{ $t('%1s of %2s', score.done, score.total) }}</small>
-            </h3>
-
-            <div class="fls_dash_score">
-                <div class="fls_dash_score_track">
-                    <div class="fls_dash_score_fill" :style="{width: percent + '%'}"></div>
-                </div>
+    <aside class="fls_security_aside">
+        <section class="fls_security_coverage">
+            <h2>{{ $t('Recommended checks') }}</h2>
+            <p class="fls_security_coverage_value">
+                <strong>{{ score.done }}</strong> <span>{{ $t('of %s addressed', score.total) }}</span>
+            </p>
+            <div class="fls_security_coverage_track" role="progressbar" :aria-label="$t('Recommended checks addressed')"
+                 :aria-valuenow="percent" :aria-valuemin="0" :aria-valuemax="100">
+                <span :style="{width: percent + '%'}"></span>
             </div>
+            <p>{{ $t('Includes passed and accepted recommendations. Review other findings and file monitoring separately.') }}</p>
+        </section>
 
-            <p class="fls_note">{{ $t('__security_score_desc__') }}</p>
-        </div>
-
-        <div class="fls_aside_block">
-            <h3>{{ $t('At a Glance') }}</h3>
-
-            <ul class="fls_scan_facts">
-                <li>
-                    <span class="fls_scan_fact_label">{{ $t('Needs fixing') }}</span>
-                    <span class="fls_scan_fact_value">
-                        <span class="fls_tag" :class="counts.to_fix ? 'is_blocked' : 'is_success'">
-                            {{ counts.to_fix }}
-                        </span>
-                    </span>
-                </li>
-                <li>
-                    <span class="fls_scan_fact_label">{{ $t('Worth a look') }}</span>
-                    <span class="fls_scan_fact_value">
-                        <span class="fls_tag" :class="counts.look ? 'is_warning' : 'is_neutral'">
-                            {{ counts.look }}
-                        </span>
-                    </span>
-                </li>
-                <li v-if="counts.advice">
-                    <span class="fls_scan_fact_label">{{ $t('Best practice') }}</span>
-                    <span class="fls_scan_fact_value">
-                        <span class="fls_tag is_neutral">{{ counts.advice }}</span>
-                    </span>
-                </li>
-                <li>
-                    <span class="fls_scan_fact_label">{{ $t('Checks passed') }}</span>
-                    <span class="fls_scan_fact_value">{{ counts.passed }}</span>
-                </li>
-            </ul>
-        </div>
-
-        <div class="fls_aside_block">
-            <h3>{{ $t('File Checks') }}</h3>
-
-            <ul class="fls_scan_facts">
-                <li :class="{is_warning: fileWatchWarning}">
-                    <span class="fls_scan_fact_label">{{ $t('Last run') }}</span>
-                    <span class="fls_scan_fact_value">{{ fileWatchLabel }}</span>
-                </li>
-            </ul>
-
-            <p class="fls_note">{{ $t('__findings_deep_scan_note__') }}</p>
-
-            <div class="fls_scan_aside_actions">
-                <el-button size="small" @click="$router.push({name: 'security_scans'})">
-                    {{ $t('Go to Monitoring') }}
-                </el-button>
-            </div>
-        </div>
+        <section class="fls_security_monitoring">
+            <h2>{{ $t('File monitoring') }}</h2>
+            <dl>
+                <dt>{{ $t('Last file check') }}</dt>
+                <dd>{{ fileWatchLabel }}</dd>
+            </dl>
+            <p v-if="!loading && !error && scan && scan.is_ok === 'no'" class="fls_security_monitoring_warning">
+                {{ $t('The last file check needs review.') }}
+            </p>
+            <p>{{ $t('Recheck refreshes these findings. File scans run separately in Monitoring.') }}</p>
+            <el-button v-if="error" size="small" @click="$emit('retry')">{{ $t('Retry status') }}</el-button>
+            <router-link :to="{name: 'security_scans'}" class="fls_security_aside_link">
+                {{ $t('Review file monitoring') }} <span aria-hidden="true">→</span>
+            </router-link>
+        </section>
+        <section class="fls_security_help">
+            <h2>{{ $t('Suspect a compromised account?') }}</h2>
+            <p>{{ $t('Review active sessions and account recovery options.') }}</p>
+            <router-link :to="{name: 'security_recovery'}" class="fls_security_aside_link">{{ $t('Open recovery') }} <span aria-hidden="true">→</span></router-link>
+        </section>
     </aside>
 </template>

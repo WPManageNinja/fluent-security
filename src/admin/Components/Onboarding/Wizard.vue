@@ -7,31 +7,9 @@ import LoginLimit from './Steps/_LoginLimit.vue';
 import Hardening from './Steps/_Hardening.vue';
 import Alerts from './Steps/_Alerts.vue';
 import SummaryScreen from './_Summary.vue';
+import ReviewScreen from './_Review.vue';
 
-/**
- * The first run.
- *
- * A new install has every protection off and a checklist explaining what is wrong, which
- * is a to-do list handed to somebody who has not been told what the words mean yet. This
- * walks through the same list one question at a time, showing what each answer does to the
- * page the site's own users sign in on.
- *
- * Three things this holds to, none of which the wizards it was measured against manage:
- *
- * - You can always see how much is left. The rail names every step and marks where you
- *   are, so it reads as a short list of questions rather than a funnel of unknown depth.
- *
- * - You can always leave. `Set this up later` sits in the header on every screen and
- *   writes nothing. A wizard you cannot leave is a wizard people uninstall.
- *
- * - Nothing is written until the end. Answers are held here and posted once, so closing
- *   the tab half way through leaves the site exactly as it was rather than partly
- *   configured in a way nobody chose. The server enforces the same thing - see the
- *   Onboarding service - because a rule that only exists in a browser is not a rule.
- *
- * The steps and the values they open on come from the server, so what the wizard
- * recommends and what the security checklist scores are the same answer.
- */
+// Keep answers local until the administrator reviews and applies them.
 export default {
     name: 'OnboardingWizard',
     components: {
@@ -42,7 +20,8 @@ export default {
         LoginLimit,
         Hardening,
         Alerts,
-        SummaryScreen
+        SummaryScreen,
+        ReviewScreen
     },
     data() {
         return {
@@ -57,10 +36,11 @@ export default {
             siteName: '',
             authSettings: null,
             index: 0,
-            // `steps` while questions are being answered, then `done` once they are applied.
+            // Questions, review, then confirmation after the server applies the choices.
             phase: 'steps',
             applied: [],
-            error: ''
+            error: '',
+            loadError: ''
         };
     },
     computed: {
@@ -74,6 +54,12 @@ export default {
                 alerts: 'Alerts'
             };
         },
+        railSteps() {
+            return [...this.steps, {id: 'review', title: this.$t('Review')}];
+        },
+        railIndex() {
+            return this.phase === 'review' ? this.steps.length : this.index;
+        },
         current() {
             return this.steps[this.index] || null;
         },
@@ -84,7 +70,7 @@ export default {
             return this.index === this.steps.length - 1;
         },
         canGoBack() {
-            return this.index > 0;
+            return this.phase === 'review' || this.index > 0;
         },
         /**
          * The connection step refuses to be waved past in the one state where waving past
@@ -98,6 +84,7 @@ export default {
     methods: {
         load() {
             this.loading = true;
+            this.loadError = '';
 
             this.$get('onboarding')
                 .then(response => {
@@ -113,8 +100,13 @@ export default {
                         answers[step.id] = JSON.parse(JSON.stringify(step.answer));
                     });
                     this.answers = answers;
+                    if (!this.steps.length) {
+                        this.loadError = this.$t('No setup steps are available. Please try again.');
+                    }
                 })
-                .catch(error => this.$handleError(error))
+                .catch(error => {
+                    this.loadError = (error && error.message) || this.$t('Unable to load setup. Check your connection and try again.');
+                })
                 .finally(() => {
                     this.loading = false;
                 });
@@ -135,6 +127,10 @@ export default {
                 });
         },
         goNext() {
+            if (this.loading || this.saving || !this.current || this.phase !== 'steps') {
+                return;
+            }
+
             this.error = '';
 
             const problem = this.$refs.step && this.$refs.step.validate
@@ -152,27 +148,38 @@ export default {
                 return;
             }
 
-            this.finish();
+            this.phase = 'review';
+            this.scrollUp();
         },
         goBack() {
-            if (!this.canGoBack) {
+            if (this.saving || !this.canGoBack) {
                 return;
             }
 
             this.error = '';
-            this.index--;
+            if (this.phase === 'review') {
+                this.phase = 'steps';
+                this.index = this.steps.length - 1;
+            } else {
+                this.index--;
+            }
             this.scrollUp();
         },
         jumpTo(index) {
             // Only backwards. Skipping ahead past an unanswered question is how a wizard
             // ends up applying a default nobody read.
-            if (index < this.index) {
+            if (!this.saving && index >= 0 && index < this.railIndex) {
+                this.phase = 'steps';
                 this.error = '';
                 this.index = index;
                 this.scrollUp();
             }
         },
         finish() {
+            if (this.saving || this.phase !== 'review') {
+                return;
+            }
+
             this.saving = true;
             this.error = '';
 
@@ -180,6 +187,7 @@ export default {
                 .then(response => {
                     this.applied = response.applied || [];
                     this.phase = 'done';
+                    this.appVars.is_onboarding = false;
                     this.scrollUp();
                 })
                 .catch(error => {
@@ -190,6 +198,10 @@ export default {
                 });
         },
         leave() {
+            if (this.saving || this.loading || !this.canLeave) {
+                return;
+            }
+
             this.saving = true;
 
             this.$post('onboarding/skip')
@@ -203,117 +215,84 @@ export default {
                 });
         },
         scrollUp() {
-            window.scrollTo({top: 0, behavior: 'smooth'});
-        },
-        /**
-         * Enter moves on, the way it would in any form - but not while the caret is in a
-         * textarea, and not from a button, which has its own meaning for the key.
-         */
-        onKeydown(event) {
-            if (event.key !== 'Enter' || this.phase !== 'steps' || this.saving) {
-                return;
-            }
-
-            const tag = (event.target.tagName || '').toLowerCase();
-
-            if (tag === 'textarea' || tag === 'button' || tag === 'a') {
-                return;
-            }
-
-            event.preventDefault();
-            this.goNext();
+            this.$nextTick(() => {
+                const heading = this.$el.querySelector('h1');
+                if (heading) heading.focus({preventScroll: true});
+                window.scrollTo({top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+            });
         }
     },
     created() {
         this.load();
         this.loadAuthSettings();
-    },
-    mounted() {
-        document.addEventListener('keydown', this.onKeydown);
-    },
-    beforeUnmount() {
-        document.removeEventListener('keydown', this.onKeydown);
-        // Whatever happened here, the app should not bounce back into the wizard.
-        this.appVars.is_onboarding = false;
     }
 };
 </script>
 
 <template>
     <div class="fls_onb">
-
         <header class="fls_onb_bar">
             <div class="fls_onb_bar_brand">
                 <img :src="appVars.asset_url + '/images/logo.png'" alt="FluentAuth"/>
-                <span>{{ $t('Setup') }}</span>
+                <span>{{ $t('Security setup') }}</span>
             </div>
-
-            <step-rail v-if="phase === 'steps' && steps.length"
-                       :steps="steps" :index="index" @jump="jumpTo"/>
-
             <div class="fls_onb_bar_end">
-                <el-button v-if="phase === 'steps' && canLeave" text :disabled="saving"
+                <el-button v-if="phase !== 'done' && canLeave" text :disabled="saving || loading"
                            class="fls_onb_leave" @click="leave">
-                    {{ $t('Set this up later') }}
+                    {{ $t('Set up later') }} <span aria-hidden="true">↗</span>
                 </el-button>
             </div>
         </header>
 
-        <div v-if="loading" class="fls_onb_loading">
+        <nav v-if="!loading && !loadError && phase !== 'done'" class="fls_onb_progress" :aria-label="$t('Setup progress')">
+            <step-rail :steps="railSteps" :index="railIndex" :disabled="saving" @jump="jumpTo"/>
+        </nav>
+
+        <div v-if="loading" class="fls_onb_loading" role="status" :aria-label="$t('Loading setup')">
             <el-skeleton :animated="true" :rows="8"/>
+        </div>
+
+        <div v-else-if="loadError" class="fls_onb_load_error">
+            <h1 tabindex="-1">{{ $t('Setup could not be loaded') }}</h1>
+            <p role="alert">{{ loadError }}</p>
+            <el-button type="primary" @click="load">{{ $t('Try again') }}</el-button>
         </div>
 
         <summary-screen v-else-if="phase === 'done'" :applied="applied" :steps="steps"/>
 
-        <div v-else-if="current" class="fls_onb_body">
+        <review-screen v-else-if="phase === 'review'" :steps="steps" :answers="answers"
+                       :user-roles="userRoles" :admin-email="adminEmail" :connection="connection"
+                       :saving="saving" :error="error" @edit="jumpTo" @back="goBack" @finish="finish"/>
 
-            <div class="fls_onb_stage">
-                <stage :step="current" :answer="answers[current.id]"
-                       :connection="connection" :auth-settings="authSettings"
-                       :site-name="siteName" :admin-email="adminEmail"
-                       :user-roles="userRoles"/>
-            </div>
-
-            <div class="fls_onb_ask">
-                <div class="fls_onb_ask_inner">
-                    <p class="fls_eyebrow">
-                        {{ $t('Step %s of %s', index + 1, steps.length) }}
-                    </p>
-
-                    <h1 class="fls_onb_headline">{{ current.headline }}</h1>
-
+        <main v-else-if="current" class="fls_onb_body">
+            <form class="fls_onb_ask" @submit.prevent="goNext">
+                <div :key="current.id" class="fls_onb_ask_inner">
+                    <p class="fls_eyebrow">{{ $t('Step %s of %s', index + 1, railSteps.length) }} <span aria-hidden="true"> / </span> {{ current.title }}</p>
+                    <h1 class="fls_onb_headline" tabindex="-1">{{ current.headline }}</h1>
                     <p class="fls_onb_why">{{ current.why }}</p>
 
-                    <component :is="currentComponent" ref="step"
-                               v-model="answers[current.id]"
-                               :step="current" :connection="connection"
-                               :recommended="recommended" :user-roles="userRoles"
-                               :admin-email="adminEmail"/>
+                    <component :is="currentComponent" ref="step" v-model="answers[current.id]"
+                               :step="current" :connection="connection" :recommended="recommended"
+                               :user-roles="userRoles" :admin-email="adminEmail"/>
 
-                    <div v-if="error" class="fls_errors">{{ error }}</div>
-
+                    <div v-if="error" class="fls_errors" role="alert">{{ error }}</div>
                     <div class="fls_onb_actions">
-                        <el-button v-if="canGoBack" text class="fls_onb_back" @click="goBack">
-                            {{ $t('Back') }}
+                        <el-button v-if="canGoBack" text class="fls_onb_back" :disabled="saving" @click="goBack">
+                            <span aria-hidden="true">←</span> {{ $t('Back') }}
                         </el-button>
-
-                        <el-button type="primary" class="fls_onb_next"
-                                   :loading="saving" @click="goNext">
-                            {{ isLast ? $t('Finish setup') : $t('Continue') }}
+                        <el-button type="primary" native-type="submit" class="fls_onb_next" :loading="saving">
+                            {{ isLast ? $t('Review settings') : $t('Continue') }} <span aria-hidden="true">→</span>
                         </el-button>
                     </div>
-
-                    <!--
-                        On a narrow screen the header has no room for this, so leaving
-                        lives here instead. Never nowhere: a wizard with no way out is a
-                        wizard people uninstall.
-                    -->
-                    <el-button v-if="canLeave" text :disabled="saving"
-                               class="fls_onb_leave_foot" @click="leave">
-                        {{ $t('Set this up later') }}
-                    </el-button>
+                    <p class="fls_onb_save_note">{{ $t('Your settings are saved only after you review and apply them.') }}</p>
                 </div>
-            </div>
-        </div>
+            </form>
+            <aside class="fls_onb_stage" :aria-label="$t('Preview')">
+                <div class="fls_onb_preview_label"><span class="dashicons dashicons-visibility" aria-hidden="true"></span>{{ $t('Preview') }}</div>
+                <stage :step="current" :answer="answers[current.id]" :connection="connection"
+                       :auth-settings="authSettings" :site-name="siteName" :admin-email="adminEmail" :user-roles="userRoles"/>
+                <p class="fls_onb_preview_hint">{{ $t('Updates as you make your choices.') }}</p>
+            </aside>
+        </main>
     </div>
 </template>

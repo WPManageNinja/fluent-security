@@ -16,6 +16,7 @@ export default {
     name: 'StepRail',
     emits: ['jump'],
     props: {
+        disabled: Boolean,
         steps: {
             type: Array,
             required: true
@@ -43,9 +44,11 @@ export default {
             class="fls_onb_rail_item" :class="'is-' + stateOf(i)">
             <component :is="i < index ? 'button' : 'span'"
                        class="fls_onb_rail_hit"
+                       :disabled="i < index ? disabled : null"
+                       :aria-label="step.title"
                        :type="i < index ? 'button' : null"
                        :aria-current="i === index ? 'step' : null"
-                       @click="i < index && $emit('jump', i)">
+                       @click="!disabled && i < index && $emit('jump', i)">
                 <span class="fls_onb_rail_mark" aria-hidden="true">
                     <span v-if="i < index" class="dashicons dashicons-yes"></span>
                     <span v-else>{{ i + 1 }}</span>

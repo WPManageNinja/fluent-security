@@ -57,7 +57,7 @@ export default {
     <div class="fls_toggle" :class="{'is-disabled': disabled}">
         <div class="fls_toggle_main">
             <el-switch :model-value="modelValue" :active-value="activeValue"
-                       :inactive-value="inactiveValue" :disabled="disabled"
+                       :inactive-value="inactiveValue" :disabled="disabled" :aria-label="label"
                        @update:model-value="v => { $emit('update:modelValue', v); $emit('change', v); }"/>
 
             <span class="fls_toggle_title" @click="toggle()">

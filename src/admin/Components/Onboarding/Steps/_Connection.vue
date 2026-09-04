@@ -94,6 +94,11 @@ export default {
                 }}
             </div>
 
+            <p class="fls_onb_detected">
+                {{ $t('Detected visitor IP') }}
+                <strong>{{ resolved || $t('Unavailable') }}</strong>
+            </p>
+
             <div class="fls_onb_choices">
                 <button type="button" class="fls_onb_choice"
                         :class="{'is-picked': answer.mode === 'direct'}"

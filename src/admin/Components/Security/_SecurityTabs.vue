@@ -22,7 +22,7 @@ export default {
 </script>
 
 <template>
-    <nav class="fls_sec_tabs">
+    <nav class="fls_sec_tabs" :aria-label="$t('Security sections')">
         <router-link :to="{name: 'security_findings'}" class="fls_sec_tab">
             {{ $t('Findings') }}
             <span v-if="openCount" class="fls_sec_tab_count">{{ openCount }}</span>

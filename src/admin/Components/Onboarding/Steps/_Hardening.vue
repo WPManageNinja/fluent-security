@@ -71,7 +71,7 @@ export default {
             values came from. One line covers that without a badge on each row.
         -->
         <p class="fls_onb_hint">
-            {{ $t('Set to what we recommend. Turn off anything this site does not need.') }}
+            {{ $t('Recommended protections are selected. Review each one before continuing.') }}
         </p>
 
         <div class="fls_onb_opts">
@@ -90,7 +90,7 @@ export default {
 
         <p class="fls_onb_reassure">
             {{
-                $t('Leave one on if you use it. XML-RPC still carries Jetpack and the mobile apps on some sites, and turning it off there breaks them.')
+                $t('If Jetpack, a mobile app, or a publishing tool needs XML-RPC, leave the XML-RPC blocking protection off.')
             }}
         </p>
     </div>

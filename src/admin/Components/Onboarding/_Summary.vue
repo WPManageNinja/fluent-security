@@ -35,19 +35,20 @@ export default {
     <div class="fls_onb_done">
         <div class="fls_onb_done_inner">
 
+            <div class="fls_onb_done_symbol" aria-hidden="true"><span class="dashicons dashicons-yes"></span></div>
             <p class="fls_eyebrow">{{ $t('Setup complete') }}</p>
 
-            <h1 class="fls_onb_done_title">
-                {{ changedNothing ? $t('Nothing was changed.') : $t('Here is what changed.') }}
+            <h1 class="fls_onb_headline" tabindex="-1">
+                {{ $t('Your settings have been saved') }}
             </h1>
 
             <p v-if="changedNothing" class="fls_onb_done_lead">
                 {{
-                    $t('You went through setup without turning anything on. The security checklist has the same recommendations whenever you want them.')
+                    $t('Your choices have been saved. Review the security checklist for any remaining recommendations.')
                 }}
             </p>
             <p v-else class="fls_onb_done_lead">
-                {{ $t('These are live now. Every one of them can be changed or turned off again.') }}
+                {{ $t('Your selected settings are now active. You can adjust them at any time in Settings.') }}
             </p>
 
             <ul v-if="!changedNothing" class="fls_onb_done_list">
@@ -70,7 +71,7 @@ export default {
                     </li>
                     <li>
                         <router-link :to="{name: 'security_scans'}">{{ $t('Set up file monitoring') }}</router-link>
-                        <span>{{ $t('Nothing else can tell you a file was edited after somebody got in.') }}</span>
+                        <span>{{ $t('Scan WordPress files and review unexpected changes.') }}</span>
                     </li>
                 </ul>
             </div>

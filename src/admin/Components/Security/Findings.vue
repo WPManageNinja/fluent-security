@@ -4,247 +4,178 @@ import SecurityTabs from './_SecurityTabs.vue';
 import FindingRow from './_FindingRow.vue';
 import FindingsAside from './_FindingsAside.vue';
 
-/*
- * The security screen's first tab: everything outstanding, worst first.
- *
- * One flat list rather than sections. Sections are what you build when the list is a
- * taxonomy; this is a queue, and the reader works down it. What the sections used to do -
- * letting somebody look at one subject - the filter chips do, without imposing an order that
- * puts a serious file finding below a settings one because F comes before L.
- *
- * Nothing here waits on a button. The checks behind this list answer from local state, so
- * they run on arrival and the screen is never a blank page with a call to action on it. The
- * expensive ones - checksums, file hashing - report through the Monitoring tab and their own
- * schedule; the aside says when they last ran so this list cannot imply it knows more than
- * it does.
- */
 export default {
     name: 'SecurityFindings',
-    components: {
-        SecurityTabs,
-        FindingRow,
-        FindingsAside
-    },
+    components: {SecurityTabs, FindingRow, FindingsAside},
     data() {
         return {
             icons,
             loading: true,
+            refreshing: false,
+            loaded: false,
+            error: '',
+            updatedAt: '',
             findings: [],
-            counts: {open: 0, to_fix: 0, look: 0, advice: 0, attention: 0, passed: 0, accepted: 0},
-            score: {done: 0, total: 0, percent: 100},
-            /* The scan's own settings, for the honest note in the aside. */
-            scan: null,
-            /*
-             * Things the site has said it is happy with. Shown, not hidden behind a link: a
-             * dismissal is a decision somebody made and may want back, and one they have to
-             * remember to go looking for is one they will not find. They sit under the open
-             * list, quieter than it, with the way back beside each.
-             */
             accepted: [],
-            /*
-             * The checks that found nothing. Behind a click, because a screen of ticks buries
-             * the one row that is not one - but there to be opened, because "18 checks passed"
-             * is otherwise a number the reader has no way to check.
-             */
             passed: [],
-            showPassed: false,
+            counts: {open: 0, to_fix: 0, look: 0, advice: 0, attention: 0, passed: 0, accepted: 0},
+            score: {done: 0, total: 0, percent: 0},
+            scan: null,
+            scanLoading: true,
+            scanError: false,
+            view: 'attention',
             group: 'all',
-            /* Which finding is mid-request, so only its own button spins. */
-            acting: ''
-        }
+            query: '',
+            acting: '',
+            announcement: ''
+        };
     },
     computed: {
-        /*
-         * Only the groups that actually produced something. A chip for a subject with nothing
-         * under it is a filter that can only ever empty the screen.
-         */
-        groups() {
-            const labels = {
-                files: this.$t('Files'),
-                config: this.$t('Configuration'),
-                login: this.$t('Login'),
-                users: this.$t('Users'),
-                plugins: this.$t('Plugins & Themes')
+        views() {
+            return [
+                {id: 'attention', label: this.$t('Needs attention'), count: this.findings.filter(item => item.severity !== 'advice').length},
+                {id: 'advice', label: this.$t('Recommendations'), count: this.findings.filter(item => item.severity === 'advice').length},
+                {id: 'passed', label: this.$t('Passed'), count: this.passed.length},
+                {id: 'accepted', label: this.$t('Dismissed'), count: this.accepted.length}
+            ];
+        },
+        currentView() {
+            return this.views.find(view => view.id === this.view);
+        },
+        viewFindings() {
+            if (this.view === 'accepted') return this.accepted;
+            if (this.view === 'passed') return this.passed;
+            return this.findings.filter(item => this.view === 'advice' ? item.severity === 'advice' : item.severity !== 'advice');
+        },
+        groupLabels() {
+            return {
+                files: this.$t('Files'), config: this.$t('Configuration'), login: this.$t('Login'),
+                users: this.$t('Users'), plugins: this.$t('Plugins & Themes')
             };
-
-            const present = [];
-
-            this.findings.forEach(finding => {
-                if (!present.includes(finding.group)) {
-                    present.push(finding.group);
-                }
-            });
-
-            return present.map(group => ({
-                key: group,
-                label: labels[group] || group,
-                count: this.findings.filter(finding => finding.group === group).length
+        },
+        groups() {
+            return [...new Set(this.viewFindings.map(item => item.group))].map(key => ({
+                key, label: this.groupLabels[key] || key
             }));
         },
         visibleFindings() {
-            if (this.group === 'all') {
-                return this.findings;
-            }
-
-            return this.findings.filter(finding => finding.group === this.group);
+            const query = this.query.trim().toLocaleLowerCase();
+            return this.viewFindings.filter(item => {
+                if (this.group !== 'all' && item.group !== this.group) return false;
+                const content = [item.title, item.why, this.groupLabels[item.group], ...(item.details || [])].join(' ').toLocaleLowerCase();
+                return !query || content.includes(query);
+            });
         },
-        /*
-         * Named after the worst thing on the list, and said as a number of things to do rather
-         * than as a verdict on the site. "Your site is at risk" is not information; "2 things
-         * need fixing" is, and it is the same sentence whether the reader is technical or not.
-         */
+        isFiltered() {
+            return this.group !== 'all' || !!this.query.trim();
+        },
+        viewDescription() {
+            const descriptions = {
+                attention: this.$t('Review these findings, starting with the highest priority.'),
+                advice: this.$t('Optional ways to harden your site. These do not count as outstanding issues.'),
+                passed: this.$t('These checks found no issues in their current results.'),
+                accepted: this.$t('Findings you have set aside. Restore a finding to include it in your review again.')
+            };
+            return descriptions[this.view];
+        },
         verdict() {
             if (this.counts.to_fix) {
-                return {
-                    tone: 'is_danger',
-                    icon: icons.alert,
-                    title: this.$_n('%s thing needs fixing', '%s things need fixing', this.counts.to_fix),
-                    body: this.counts.look
-                        ? this.$_n(
-                            'One more is worth a look when you have a minute.',
-                            '%s more are worth a look when you have a minute.',
-                            this.counts.look
-                        )
-                        : this.$t('Everything else on this site checked out.')
-                };
+                return {tone: 'is_fix', icon: icons.alert,
+                    title: this.$_n('%s finding needs action', '%s findings need action', this.counts.to_fix),
+                    body: this.$t('Start with the items marked Action needed. File monitoring is checked separately.')};
             }
-
-            if (this.counts.look) {
-                return {
-                    tone: 'is_warning',
-                    icon: icons.shield,
-                    title: this.$t('Nothing urgent'),
-                    body: this.$_n(
-                        'One thing is worth a look when you have a minute.',
-                        '%s things are worth a look when you have a minute.',
-                        this.counts.look
-                    )
-                };
+            if (this.views[0].count) {
+                return {tone: 'is_look', icon: icons.shield,
+                    title: this.$_n('%s finding to review', '%s findings to review', this.views[0].count),
+                    body: this.$t('Review the findings below to decide what applies to your site.')};
             }
-
-            /*
-             * Advice on its own is not a verdict. A site whose only open row is "you could add
-             * a line to wp-config.php" has passed everything this plugin actually checks, and
-             * saying otherwise at the top of the page is the false alarm the tier exists to
-             * avoid - so the heading is the same green as a clean site, and the suggestions
-             * are mentioned underneath it rather than counted against it.
-             */
-            return {
-                tone: 'is_success',
-                icon: icons.tick,
-                title: this.$t('Everything checked out'),
-                body: this.counts.advice
-                    ? this.$_n(
-                        'One suggestion below if you want to harden things further.',
-                        '%s suggestions below if you want to harden things further.',
-                        this.counts.advice
-                    )
-                    : this.$t('Nothing on this site needs your attention right now.')
+            return {tone: 'is_passed', icon: icons.shieldTick,
+                title: this.$t('No outstanding attention items'),
+                body: this.$t('Check recommendations and file monitoring for the rest of the picture.')};
+        },
+        emptyTitle() {
+            if (this.isFiltered) return this.$t('No matching checks');
+            const titles = {
+                attention: this.$t('No findings need attention'), advice: this.$t('No additional recommendations'),
+                passed: this.$t('No passed checks to show'), accepted: this.$t('No dismissed findings')
             };
+            return titles[this.view];
         }
     },
     methods: {
-        load() {
-            return this.$get('security-findings')
-                .then(response => {
-                    this.apply(response);
-                })
-                .catch(errors => {
-                    this.$handleError(errors);
-                })
-                .finally(() => {
-                    this.loading = false;
-                });
+        async load() {
+            if (this.refreshing || this.acting) return;
+            this.refreshing = true;
+            this.error = '';
+            try {
+                const response = await this.$get('security-findings');
+                this.apply(response);
+                this.loaded = true;
+                this.updatedAt = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                this.announcement = this.$t('Security checks updated.');
+            } catch (error) {
+                this.error = error && error.message || this.$t('Unable to load security checks. Please try again.');
+            } finally {
+                this.loading = false;
+                this.refreshing = false;
+            }
         },
-        /*
-         * Every write comes back with the recalculated list, so the screen redraws from the
-         * server's answer rather than striking a row out locally. Turning one thing on can move
-         * another - accepting the mu-plugins on a site changes what the file group has to say -
-         * and a list that only ever removes the row you pressed drifts away from the truth.
-         */
         apply(response) {
             this.findings = response.findings || [];
             this.accepted = response.accepted || [];
             this.passed = response.passed || [];
             this.counts = response.counts || this.counts;
             this.score = response.score || this.score;
-
-            /* A filter whose subject has just been cleared would otherwise show an empty list. */
-            if (this.group !== 'all' && !this.findings.some(finding => finding.group === this.group)) {
-                this.group = 'all';
+            if (this.group !== 'all' && !this.groups.some(item => item.key === this.group)) this.group = 'all';
+        },
+        async getScanState() {
+            this.scanLoading = true;
+            this.scanError = false;
+            try {
+                const response = await this.$get('security-scan-settings');
+                this.scan = response.settings || null;
+                this.scanError = !this.scan;
+            } catch (error) {
+                this.scanError = true;
+            } finally {
+                this.scanLoading = false;
             }
         },
-        getScanState() {
-            return this.$get('security-scan-settings')
-                .then(response => {
-                    this.scan = response.settings;
-                })
-                .catch(() => {
-                    /* Worth showing when it can be; not worth an error banner over. */
-                });
+        refresh() {
+            if (this.refreshing || this.acting) return;
+            this.load();
+            this.getScanState();
         },
-        fix(finding) {
-            this.acting = finding.id;
-
-            this.$post('security-findings/fix', {check: finding.check, finding: finding.id})
-                .then(response => {
-                    this.$notify.success(response.message || this.$t('Done.'));
-
-                    if (response.settings) {
-                        this.appVars.auth_settings = response.settings;
-                    }
-
-                    this.apply(response);
-                })
-                .catch(errors => {
-                    this.$handleError(errors);
-                })
-                .finally(() => {
-                    this.acting = '';
-                });
+        selectView(view) {
+            this.view = view;
+            this.clearFilters();
         },
-        accept(finding) {
-            this.acting = finding.id;
-
-            this.$post('security-findings/accept', {check: finding.check, finding: finding.id})
-                .then(response => {
-                    this.$notify.success(response.message || this.$t('Done.'));
-                    this.apply(response);
-                })
-                .catch(errors => {
-                    this.$handleError(errors);
-                })
-                .finally(() => {
-                    this.acting = '';
-                });
+        clearFilters() {
+            this.group = 'all';
+            this.query = '';
         },
-        /*
-         * Put something back on the list. Offered in the place it was taken off, because a
-         * dismissal whose only way back is a Reset button on another screen is not a decision
-         * anybody can revise - only one they can undo wholesale.
-         */
-        unaccept(finding) {
+        async act(action, finding) {
+            // Every response contains a full snapshot. Serialize writes so an older one
+            // cannot overwrite the result of a later action on a different finding.
+            if (this.acting || this.refreshing) return;
             this.acting = finding.id;
-
-            this.$post('security-findings/unaccept', {check: finding.check, finding: finding.id})
-                .then(response => {
-                    this.$notify.success(response.message || this.$t('Done.'));
-                    this.apply(response);
-                })
-                .catch(errors => {
-                    this.$handleError(errors);
-                })
-                .finally(() => {
-                    this.acting = '';
-                });
+            try {
+                const response = await this.$post('security-findings/' + action, {check: finding.check, finding: finding.id});
+                if (response.settings) this.appVars.auth_settings = response.settings;
+                this.apply(response);
+                this.announcement = response.message || this.$t('Security checks updated.');
+                this.$notify.success(this.announcement);
+                this.updatedAt = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            } catch (error) {
+                this.$handleError(error);
+            } finally {
+                this.acting = '';
+            }
         },
         navigate(finding) {
+            if (!finding.route) return;
             const target = {name: finding.route};
-
-            if (finding.section) {
-                target.query = {section: finding.section};
-            }
-
+            if (finding.section) target.query = {section: finding.section};
             this.$router.push(target);
         }
     },
@@ -252,118 +183,86 @@ export default {
         this.load();
         this.getScanState();
     }
-}
+};
 </script>
 
 <template>
-    <div class="fls_page">
-        <div class="fls_page_inner">
-            <div class="fls_page_main">
-                <div class="fls_page_head">
-                    <div>
-                        <h1 class="fls_page_title">{{ $t('Security') }}</h1>
-                        <p class="fls_page_desc">
-                            {{ $t('Everything on this site that needs your attention, and what to do about each one.') }}
-                        </p>
-                    </div>
+    <div class="fls_page fls_security">
+        <div class="fls_security_inner">
+            <div class="fls_page_head">
+                <div>
+                    <h1 class="fls_page_title">{{ $t('Security') }}</h1>
+                    <p class="fls_page_desc">{{ $t('Review your site’s checks and take the next step.') }}</p>
                 </div>
+                <div class="fls_security_refresh">
+                    <span v-if="updatedAt">{{ $t('Updated at %s', updatedAt) }}</span>
+                    <el-button :loading="refreshing" :disabled="!!acting" @click="refresh">
+                        {{ $t('Recheck') }}
+                    </el-button>
+                </div>
+            </div>
+            <security-tabs :open-count="views[0].count"/>
+            <p class="screen-reader-text" role="status">{{ announcement }}</p>
 
-                <security-tabs :open-count="counts.attention"/>
-
-                <el-skeleton v-if="loading" :animated="true" :rows="6"/>
-
-                <template v-else>
-                    <div class="fls_scan_verdict" :class="verdict.tone">
-                        <span class="fls_scan_verdict_icon" v-html="verdict.icon"></span>
-                        <div>
-                            <h2>{{ verdict.title }}</h2>
-                            <p>{{ verdict.body }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Only worth drawing when there is more than one subject to sort by. -->
-                    <div v-if="groups.length > 1" class="fls_find_filters">
-                        <button type="button" class="fls_find_chip"
-                                :class="{is_on: group === 'all'}" @click="group = 'all'">
-                            {{ $t('All') }}
-                            <span class="fls_find_chip_count">{{ findings.length }}</span>
-                        </button>
-                        <button v-for="item in groups" :key="item.key" type="button"
-                                class="fls_find_chip" :class="{is_on: group === item.key}"
-                                @click="group = item.key">
-                            {{ item.label }}
-                            <span class="fls_find_chip_count">{{ item.count }}</span>
-                        </button>
-                    </div>
-
-                    <div v-if="visibleFindings.length" class="fls_find_list">
-                        <finding-row v-for="finding in visibleFindings" :key="finding.id"
-                                     :finding="finding" :busy="acting === finding.id"
-                                     @fix="fix" @accept="accept" @unaccept="unaccept"
-                                     @navigate="navigate"/>
-                    </div>
-
-                    <!--
-                        What the site has said it is happy with. Open, under the list it came
-                        out of. These are decisions somebody made and may want back, and a
-                        decision behind a link is one nobody remembers to go looking for - so
-                        the heading says how many and the rows are already there, each with
-                        the way back beside it.
-                    -->
-                    <template v-if="accepted.length">
-                        <h4 class="fls_find_subhead">
-                            {{ $_n('%s marked as expected', '%s marked as expected', accepted.length) }}
-                        </h4>
-
-                        <div class="fls_find_list fls_find_accepted">
-                            <div v-for="item in accepted" :key="item.id" class="fls_finding is_accepted">
-                                <span class="fls_finding_stripe"></span>
-                                <div class="fls_finding_body">
-                                    <h3 class="fls_finding_title">{{ item.title }}</h3>
-                                    <p v-if="item.why" class="fls_finding_why">{{ item.why }}</p>
-                                    <ul v-if="item.details && item.details.length" class="fls_finding_details">
-                                        <li v-for="(detail, index) in item.details" :key="index">{{ detail }}</li>
-                                    </ul>
-                                </div>
-                                <div class="fls_finding_actions">
-                                    <el-button size="small" :loading="acting === item.id"
-                                               @click="unaccept(item)">
-                                        {{ $t('Undo') }}
-                                    </el-button>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-
-                    <!--
-                        What was checked and found to be fine. Never rows by default - a screen
-                        of ticks buries the one thing that is not one - but openable, because
-                        the count alone asks the reader to take it on trust, and this is the
-                        only place the plugin says out loud what it actually looked at.
-                    -->
-                    <p v-if="counts.passed" class="fls_find_passed">
-                        <button type="button" class="fls_find_link"
-                                :aria-expanded="showPassed ? 'true' : 'false'"
-                                @click="showPassed = !showPassed">
-                            <span class="fls_finding_chev" :class="{is_open: showPassed}"
-                                  v-html="icons.chevron"></span>
-                            {{ $_n('%s check passed', '%s checks passed', counts.passed) }}
-                        </button>
-                    </p>
-
-                    <div v-if="showPassed" class="fls_find_list fls_find_passed_list">
-                        <div v-for="item in passed" :key="item.id" class="fls_finding is_passed">
-                            <span class="fls_finding_stripe"></span>
-                            <div class="fls_finding_body">
-                                <h3 class="fls_finding_title">{{ item.title }}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                </template>
+            <el-skeleton v-if="loading" :animated="true" :rows="8"/>
+            <div v-if="error" class="fls_security_error" role="alert">
+                <strong>{{ loaded ? $t('Could not refresh checks') : $t('Could not load security checks') }}</strong>
+                <p>{{ error }}</p>
+                <p v-if="loaded">{{ $t('Showing the last loaded results. Use Recheck to try again.') }}</p>
+                <el-button v-else :loading="refreshing" @click="refresh">{{ $t('Try again') }}</el-button>
             </div>
 
-            <findings-aside v-if="!loading" :score="score" :counts="counts" :scan="scan"/>
+            <template v-if="loaded">
+                <section class="fls_security_summary" :class="verdict.tone" :aria-label="$t('Check summary')">
+                    <span class="fls_security_summary_icon" aria-hidden="true" v-html="verdict.icon"></span>
+                    <div>
+                        <h2>{{ verdict.title }}</h2>
+                        <p>{{ verdict.body }}</p>
+                    </div>
+                    <button type="button" class="fls_security_passed_link" @click="selectView('passed')">
+                        <span aria-hidden="true" v-html="icons.tick"></span>
+                        {{ $_n('%s check passed', '%s checks passed', passed.length) }} <span aria-hidden="true">→</span>
+                    </button>
+                </section>
+
+                <div class="fls_security_workspace">
+                    <section class="fls_security_results" :aria-label="$t('Security checks')" :aria-busy="refreshing || !!acting">
+                        <div class="fls_security_views" role="group" :aria-label="$t('Finding status')">
+                            <button v-for="item in views" :key="item.id" type="button"
+                                    :class="{is_active: view === item.id}" :aria-pressed="view === item.id"
+                                    @click="selectView(item.id)">
+                                {{ item.label }} <span>{{ item.count }}</span>
+                            </button>
+                        </div>
+                        <div class="fls_security_toolbar">
+                            <el-input v-model="query" clearable :placeholder="$t('Search checks')" :aria-label="$t('Search checks')"/>
+                            <select v-model="group" :aria-label="$t('Filter by category')">
+                                <option value="all">{{ $t('All categories') }}</option>
+                                <option v-for="item in groups" :key="item.key" :value="item.key">{{ item.label }}</option>
+                            </select>
+                        </div>
+                        <div v-if="visibleFindings.length && (view !== 'attention' || isFiltered)" class="fls_security_list_intro">
+                            <p>{{ viewDescription }}</p>
+                            <button v-if="isFiltered && visibleFindings.length" type="button" @click="clearFilters">{{ $t('Clear filters') }}</button>
+                        </div>
+                        <p v-if="isFiltered" class="fls_security_match_count" role="status">{{ $t('%s of %s checks', visibleFindings.length, viewFindings.length) }}</p>
+                        <div v-if="visibleFindings.length" class="fls_find_list">
+                            <finding-row v-for="finding in visibleFindings" :key="view + finding.id"
+                                         :finding="finding" :busy="acting === finding.id" :disabled="!!acting || refreshing"
+                                         @fix="item => act('fix', item)" @accept="item => act('accept', item)"
+                                         @unaccept="item => act('unaccept', item)" @navigate="navigate"/>
+                        </div>
+                        <div v-else class="fls_security_empty">
+                            <span aria-hidden="true" v-html="isFiltered ? icons.unknown : icons.shieldTick"></span>
+                            <h2>{{ emptyTitle }}</h2>
+                            <p>{{ isFiltered ? $t('Try another search or clear your filters.') : viewDescription }}</p>
+                            <el-button v-if="isFiltered" @click="clearFilters">{{ $t('Clear filters') }}</el-button>
+                            <el-button v-else-if="view === 'attention' && counts.advice" @click="selectView('advice')">{{ $t('View recommendations') }}</el-button>
+                        </div>
+                    </section>
+                    <findings-aside :score="score" :scan="scan" :loading="scanLoading" :error="scanError" @retry="getScanState"/>
+                </div>
+            </template>
         </div>
     </div>
 </template>

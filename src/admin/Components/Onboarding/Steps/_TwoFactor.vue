@@ -77,7 +77,7 @@ export default {
             values came from. One line covers that without a badge on each row.
         -->
         <p class="fls_onb_hint">
-            {{ $t('Set to what we recommend. Turn off anything this site does not need.') }}
+            {{ $t('Review the available methods and choose who can use them.') }}
         </p>
 
         <div class="fls_onb_opts">
@@ -85,7 +85,7 @@ export default {
                 <setting-toggle :model-value="answer.totp" :active-value="true" :inactive-value="false"
                                 :recommend="true"
                                 :label="$t('Authenticator app')"
-                                :description="$t('A code from an app on their phone. It works with no signal, and it cannot be read out of an inbox.')"
+                                :description="$t('Use a time-based code from an authenticator app, even when offline.')"
                                 @update:model-value="v => update('totp', v)"/>
             </div>
 
@@ -93,7 +93,7 @@ export default {
                 <setting-toggle :model-value="answer.email" :active-value="true" :inactive-value="false"
                                 :recommend="true"
                                 :label="$t('Emailed code')"
-                                :description="$t('Nothing to install. Worth having on as well, so nobody is stuck when they change phone.')"
+                                :description="$t('Send a verification code to the user’s email address. No app needed.')"
                                 @update:model-value="v => update('email', v)"/>
             </div>
         </div>

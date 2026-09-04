@@ -160,8 +160,8 @@ class Onboarding
              */
             'connection' => [
                 'title'     => __('Connection', 'fluent-security'),
-                'headline'  => __('Check that this site can tell your visitors apart.', 'fluent-security'),
-                'why'       => __('Blocking an address, allowing one and counting failed attempts all depend on knowing who is who. If something sits in front of this site and has not been declared, every visitor arrives as the same address and none of that works.', 'fluent-security'),
+                'headline'  => __('Confirm your visitor IP address', 'fluent-security'),
+                'why'       => __('Check the detected address before setting up login protection. If your site uses a proxy, it needs to forward each visitor’s real IP address.', 'fluent-security'),
                 'preview'   => 'connection',
                 'checks'    => [],
                 /*
@@ -216,8 +216,8 @@ class Onboarding
 
             'two_fa'      => [
                 'title'    => __('Two-factor', 'fluent-security'),
-                'headline' => __('Ask for a second step after the password.', 'fluent-security'),
-                'why'      => __('Passwords get reused on other sites, guessed, and typed into convincing fake login pages. A second step is what still protects an account once the password is known.', 'fluent-security'),
+                'headline' => __('Set up two-factor authentication', 'fluent-security'),
+                'why'      => __('Choose the verification methods available to your users and the roles that can use them.', 'fluent-security'),
                 'preview'  => 'two_factor',
                 'checks'   => ['two_fa'],
                 'answer'   => function ($settings, $recommended) {
@@ -252,8 +252,8 @@ class Onboarding
              */
             'login_limit' => [
                 'title'    => __('Failed attempts', 'fluent-security'),
-                'headline' => __('Shut an address out after a few wrong passwords.', 'fluent-security'),
-                'why'      => __('Guessing passwords only works at speed. A short lockout after a few failures makes it too slow to be worth trying, and still leaves room for someone who mistyped their own password.', 'fluent-security'),
+                'headline' => __('Limit failed login attempts', 'fluent-security'),
+                'why'      => __('Choose how many failed attempts an IP address can make within a time window. Start with a preset or enter your own limits.', 'fluent-security'),
                 'preview'  => 'lockout',
                 'checks'   => [],
                 'answer'   => function ($settings, $recommended) {
@@ -267,9 +267,9 @@ class Onboarding
             ],
 
             'hardening'   => [
-                'title'    => __('Open doors', 'fluent-security'),
-                'headline' => __('Close the doors this site does not use.', 'fluent-security'),
-                'why'      => __('Each of these is on by default. Each one is useful to some sites and free help to an attacker on the rest. Turn off the ones this site has no use for.', 'fluent-security'),
+                'title'    => __('Hardening', 'fluent-security'),
+                'headline' => __('Choose your WordPress protections', 'fluent-security'),
+                'why'      => __('Reduce access to unused WordPress features and verify new registrations. Keep compatibility with the tools your site uses.', 'fluent-security'),
                 'preview'  => 'signup',
                 'checks'   => ['disable_xmlrpc', 'disable_users_rest', 'secure_signup_form'],
                 'answer'   => function ($settings, $recommended) {
@@ -290,8 +290,8 @@ class Onboarding
 
             'alerts'      => [
                 'title'    => __('Alerts', 'fluent-security'),
-                'headline' => __('Get an email when an important account signs in.', 'fluent-security'),
-                'why'      => __('A sign-in you did not make is the first sign of a stolen account, and an email is how that gets noticed the same day rather than the following week. Keep it to the accounts that can install code and make other administrators. On roles that sign in all day, the alerts stop being read.', 'fluent-security'),
+                'headline' => __('Choose your sign-in alerts', 'fluent-security'),
+                'why'      => __('Get an email when someone signs in with a selected role. Focus on privileged accounts to keep notifications useful.', 'fluent-security'),
                 'preview'  => 'email',
                 'checks'   => ['notifications'],
                 'answer'   => function ($settings, $recommended) {

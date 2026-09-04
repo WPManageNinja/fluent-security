@@ -1,22 +1,6 @@
 <script type="text/babel">
-/* One glyph, and it is the only one this component needs. */
 import icons from '../SecurityScan/icons';
 
-/*
- * One finding, and the whole vocabulary of the security screen.
- *
- * Three levels of disclosure, and the reader we are designing for stops at the second. The
- * title says what is true of this site, the line under it says why that matters, and the
- * button does the thing. Everything a developer would want - paths, hashes, dates, setting
- * names - is behind "Show details", present and not first.
- *
- * There is no severity word in the row beyond the pill. The stripe carries it, so the shape
- * of a list reads before any of it is read.
- *
- * Three severities, and `advice` is the quiet one - grey pill, grey stripe. It is not a
- * finding about this site but hardening the site would be better with, and drawing it in the
- * same amber as a real one is how a reader learns that amber does not mean much.
- */
 export default {
     name: 'FindingRow',
     props: {
@@ -25,6 +9,7 @@ export default {
             required: true
         },
         /* This row's own request is in flight - only its button spins. */
+        disabled: Boolean,
         busy: {
             type: Boolean,
             default: false
@@ -34,10 +19,26 @@ export default {
     data() {
         return {
             icons,
-            showDetails: false
+            showDetails: false,
+            confirmDismiss: false
         }
     },
     computed: {
+        isPassed() {
+            return this.finding.state === 'passed';
+        },
+        isAccepted() {
+            return this.finding.state === 'accepted';
+        },
+        dismissExplanation() {
+            if (this.finding.dismiss === 'expected') {
+                return this.$t('Mark the current state as expected. This check can report a finding again when that state changes.');
+            }
+            if (this.finding.dismiss === 'aside') {
+                return this.$t('Remove this item from the score. It will remain visible so you can keep track of it.');
+            }
+            return this.$t('This finding will stop being reported while it is dismissed. You can restore it from Dismissed. This does not fix the underlying issue.');
+        },
         isCritical() {
             return this.finding.severity === 'fix';
         },
@@ -46,6 +47,8 @@ export default {
         },
         /* Anything unrecognised reads as "worth a look" - the same fallback the server sorts by. */
         toneClass() {
+            if (this.isPassed) return 'is_passed';
+            if (this.isAccepted) return 'is_accepted';
             if (this.isCritical) {
                 return 'is_fix';
             }
@@ -54,10 +57,10 @@ export default {
         },
         severityLabel() {
             if (this.isCritical) {
-                return this.$t('Fix this');
+                return this.$t('Action needed');
             }
 
-            return this.isAdvice ? this.$t('Best practice') : this.$t('Worth a look');
+            return this.isAdvice ? this.$t('Recommendation') : this.$t('Review');
         },
         severityTagClass() {
             if (this.isCritical) {
@@ -85,6 +88,8 @@ export default {
                 return this.$t('Hide details');
             }
 
+            if (this.finding.action === 'none' && !this.isPassed && !this.isAccepted) return this.$t('View instructions');
+
             return this.$_n('Show detail', 'Show %s details', this.finding.details.length);
         },
         /*
@@ -104,16 +109,30 @@ export default {
         },
         dismissLabel() {
             const labels = {
-                expected: this.$t('Expected'),
+                expected: this.$t('Mark as expected'),
                 aside: this.$t('Not mine to fix'),
                 undo: this.$t('Count it again')
             };
 
-            return labels[this.finding.dismiss] || this.$t('Ignore');
+            return labels[this.finding.dismiss] || this.$t('Dismiss');
+        }
+    },
+    watch: {
+        disabled(value) {
+            if (value) this.confirmDismiss = false;
         }
     },
     methods: {
+        requestDismiss() {
+            if (this.disabled) return;
+            if (this.isSetAside) {
+                this.$emit('unaccept', this.finding);
+            } else {
+                this.confirmDismiss = true;
+            }
+        },
         onPrimary() {
+            if (this.disabled) return;
             if (this.finding.action === 'fix') {
                 this.$emit('fix', this.finding);
                 return;
@@ -126,49 +145,51 @@ export default {
 </script>
 
 <template>
-    <div class="fls_finding" :class="toneClass">
-        <span class="fls_finding_stripe"></span>
-
+    <article class="fls_finding" :class="toneClass" :aria-label="finding.title">
+        <span class="fls_finding_status" aria-hidden="true"
+              v-html="isPassed ? icons.tick : isAccepted ? icons.mute : isCritical ? icons.alert : icons.shield"></span>
         <div class="fls_finding_body">
             <div class="fls_finding_meta">
-                <span class="fls_tag" :class="severityTagClass">
-                    {{ severityLabel }}
-                </span>
                 <span class="fls_finding_group">{{ groupLabel }}</span>
+                <span v-if="!isPassed && !isAccepted" class="fls_tag" :class="severityTagClass">{{ severityLabel }}</span>
+                <span v-if="isSetAside" class="fls_tag is_neutral">{{ $t('Excluded from score') }}</span>
             </div>
-
             <h3 class="fls_finding_title">{{ finding.title }}</h3>
-            <p v-if="finding.why" class="fls_finding_why">{{ finding.why }}</p>
-
+            <p v-if="finding.why && !isPassed" class="fls_finding_why">{{ finding.why }}</p>
             <button v-if="hasDetails" type="button" class="fls_finding_toggle"
-                    :aria-expanded="showDetails ? 'true' : 'false'"
+                    :aria-expanded="showDetails" :aria-controls="'finding-details-' + finding.id"
                     @click="showDetails = !showDetails">
-                <span class="fls_finding_chev" :class="{is_open: showDetails}" v-html="icons.chevron"></span>
+                <span class="fls_finding_chev" :class="{is_open: showDetails}" aria-hidden="true" v-html="icons.chevron"></span>
                 {{ detailsLabel }}
             </button>
-
-            <ul v-if="hasDetails && showDetails" class="fls_finding_details">
-                <li v-for="(detail, index) in finding.details" :key="index">{{ detail }}</li>
-            </ul>
         </div>
-
-        <div class="fls_finding_actions">
-            <!--
-                A WordPress screen rather than one of ours: a real link, opened in a new tab,
-                so going to look at something does not throw away a half-read list.
-            -->
-            <el-button v-if="finding.url" type="primary" size="small" tag="a"
-                       :href="finding.url" target="_blank" rel="noopener">
-                {{ primaryLabel }}
+        <div v-if="!isPassed" class="fls_finding_actions">
+            <el-button v-if="isAccepted" size="small" :loading="busy" :disabled="disabled" @click="$emit('unaccept', finding)">
+                {{ $t('Restore finding') }}
             </el-button>
-            <el-button v-else-if="finding.action !== 'none'" type="primary" size="small"
-                       :loading="busy" @click="onPrimary">
-                {{ primaryLabel }}
-            </el-button>
-            <el-button v-if="finding.dismiss" size="small" :disabled="busy"
-                       @click="$emit(isSetAside ? 'unaccept' : 'accept', finding)">
-                {{ dismissLabel }}
-            </el-button>
+            <template v-else>
+                <el-button v-if="finding.url" size="small" tag="a" :href="finding.url" target="_blank" rel="noopener noreferrer"
+                           :aria-label="$t('%s (opens in a new tab)', primaryLabel)">
+                    {{ primaryLabel }} <span aria-hidden="true">↗</span>
+                </el-button>
+                <el-button v-else-if="finding.action !== 'none'" :type="isCritical ? 'primary' : 'default'" size="small"
+                           :loading="busy" :disabled="disabled" @click="onPrimary">
+                    {{ primaryLabel }} <span v-if="finding.action === 'navigate'" aria-hidden="true">→</span>
+                </el-button>
+                <el-button v-if="finding.dismiss" text size="small" :disabled="disabled" @click="requestDismiss">
+                    {{ dismissLabel }}
+                </el-button>
+            </template>
         </div>
-    </div>
+        <ul v-if="hasDetails && showDetails" :id="'finding-details-' + finding.id" class="fls_finding_details">
+            <li v-for="(detail, index) in finding.details" :key="index">{{ detail }}</li>
+        </ul>
+        <div v-if="confirmDismiss" class="fls_finding_confirm" role="group" :aria-label="$t('Dismiss finding')">
+            <p>{{ dismissExplanation }}</p>
+            <div>
+                <el-button size="small" @click="confirmDismiss = false">{{ $t('Cancel') }}</el-button>
+                <el-button size="small" type="primary" :disabled="disabled" @click="$emit('accept', finding)">{{ dismissLabel }}</el-button>
+            </div>
+        </div>
+    </article>
 </template>

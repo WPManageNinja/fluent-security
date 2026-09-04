@@ -55,6 +55,18 @@ export default {
             default: () => []
         }
     },
+    data() {
+        return {previewScale: 0.42};
+    },
+    mounted() {
+        this.previewObserver = new ResizeObserver(entries => {
+            this.previewScale = Math.min(entries[0].contentRect.width / 1020, 0.56);
+        });
+        this.previewObserver.observe(this.$el);
+    },
+    beforeUnmount() {
+        if (this.previewObserver) this.previewObserver.disconnect();
+    },
     computed: {
         kind() {
             return this.step.preview;
@@ -163,7 +175,7 @@ export default {
                        :answer="answer" :site-name="siteName" :admin-email="adminEmail"
                        :user-roles="userRoles"/>
 
-        <div v-else class="fls_onb_screen" :class="{'is-off': !isOn}">
+        <div v-else class="fls_onb_screen" :style="{'--fls-onb-s': previewScale}" :class="{'is-off': !isOn}">
             <div class="fls_onb_chrome" aria-hidden="true">
                 <span class="fls_onb_dot"></span>
                 <span class="fls_onb_dot"></span>
@@ -171,7 +183,7 @@ export default {
                 <span class="fls_onb_url">{{ appVars.site_url }}wp-login.php</span>
             </div>
 
-            <div class="fls_onb_screen_body">
+            <div class="fls_onb_screen_body" inert>
 
                 <!-- Two-factor: the second screen, once a password has been accepted. -->
                 <auth-form-preview v-if="kind === 'two_factor'"
