@@ -67,7 +67,7 @@ export default {
             }
 
             if (!this.answer.mode) {
-                return this.$t('Choose one, so the plugin knows whether to trust a forwarded header.');
+                return this.$t('Pick one, so the plugin knows whether to trust a forwarded header.');
             }
 
             if (this.answer.mode === 'proxy' && !(this.answer.trusted_proxies || '').trim()) {
@@ -84,7 +84,7 @@ export default {
     <div class="fls_onb_fields">
 
         <div v-if="configLocked" class="fls_onb_locked">
-            {{ $t('This is set in wp-config.php, which wins over this screen. Nothing to do here.') }}
+            {{ $t('This is set in wp-config.php, which wins over this screen. There is nothing to do here.') }}
         </div>
 
         <template v-else>
@@ -111,7 +111,7 @@ export default {
                         @click="choose('proxy')">
                     <span class="fls_onb_choice_title">{{ $t('No, that is not me') }}</span>
                     <span class="fls_onb_choice_note">
-                        {{ $t('A proxy or CDN sits in front, so this is its address rather than a visitor\'s.') }}
+                        {{ $t('A proxy or CDN sits in front, so that is its address rather than a visitor\'s.') }}
                     </span>
                 </button>
             </div>
@@ -121,7 +121,7 @@ export default {
                 <a href="https://www.whatismyip.com/" target="_blank" rel="noopener">
                     {{ $t('Look up your address') }}
                 </a>
-                {{ $t('and compare it with the one on the left.') }}
+                {{ $t('and compare the two.') }}
             </p>
 
             <div v-if="answer.mode === 'proxy'" class="fls_onb_reveal">
@@ -133,7 +133,7 @@ export default {
                           @update:model-value="v => update('trusted_proxies', v)"/>
                 <p class="fls_onb_hint">
                     {{
-                        $t('Addresses or ranges, separated by commas. Only a request arriving from one of these will have its forwarded header believed.')
+                        $t('Addresses or ranges, separated by commas. Only a request coming from one of these has its forwarded header believed.')
                     }}
                 </p>
 

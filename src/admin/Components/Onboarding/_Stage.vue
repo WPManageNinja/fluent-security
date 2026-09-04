@@ -104,7 +104,7 @@ export default {
         },
         twoFactorNotice() {
             if (this.answer.totp && this.answer.email) {
-                return this.$t('Open your authenticator app, or use the code we emailed you.');
+                return this.$t('Enter the code from your authenticator app, or the one we emailed you.');
             }
 
             if (this.answer.totp) {
@@ -135,15 +135,15 @@ export default {
         },
         caption() {
             const captions = {
-                connection: this.$t('What this site currently sees'),
+                connection: this.$t('What this site sees now'),
                 two_factor: this.isOn
-                    ? this.$t('After the password — what your users will see')
-                    : this.$t('Sign-in ends at the password'),
+                    ? this.$t('What your users see after the password')
+                    : this.$t('Signing in ends at the password'),
                 lockout: this.$t('After too many failed attempts'),
                 signup: this.isOn
-                    ? this.$t('Creating an account — the verification step')
-                    : this.$t('Creating an account'),
-                email: this.$t('The alert, as it arrives')
+                    ? this.$t('Signing up, with the code step')
+                    : this.$t('Signing up'),
+                email: this.$t('The email, as it arrives')
             };
 
             return captions[this.kind] || '';
@@ -154,7 +154,7 @@ export default {
 
 <template>
     <div class="fls_onb_stage_inner">
-        <p class="fls_onb_stage_cap">{{ caption }}</p>
+        <p class="fls_eyebrow">{{ caption }}</p>
 
         <connection-preview v-if="kind === 'connection'"
                             :connection="connection" :answer="answer"/>
@@ -207,7 +207,7 @@ export default {
                                    :button-label="isOn ? $t('Confirm email address') : ''">
                     <template v-if="isOn" #notice>
                         <div class="fls_onb_note is-info">
-                            {{ $t('Check your inbox — we sent a code to confirm the address is yours.') }}
+                            {{ $t('We sent a code to that address. Enter it to confirm the address is yours.') }}
                         </div>
                     </template>
                 </auth-form-preview>

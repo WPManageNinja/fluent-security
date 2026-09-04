@@ -1,4 +1,5 @@
 <script type="text/babel">
+import SettingToggle from '../../Settings/_SettingToggle.vue';
 import RoleChoice from './_RoleChoice.vue';
 
 /**
@@ -9,10 +10,15 @@ import RoleChoice from './_RoleChoice.vue';
  * would - `totp_required_roles` - is not on this screen and will not be: requiring a second
  * factor from a wizard, before anybody has enrolled, is how an administrator locks
  * themselves out of the site they installed this on ten minutes ago.
+ *
+ * The switches are the settings screen's own, so a switch means the same thing in both
+ * places, and `recommend` behaves the same way here as it does there: nothing is said while
+ * the setting is what it should be, and a note appears once it is not. The wizard opens on
+ * the recommended answer, so that note is the wizard telling you what you just turned off.
  */
 export default {
     name: 'OnboardingTwoFactor',
-    components: {RoleChoice},
+    components: {SettingToggle, RoleChoice},
     emits: ['update:modelValue'],
     props: {
         modelValue: {
@@ -43,10 +49,6 @@ export default {
         },
         anyOn() {
             return !!(this.answer.totp || this.answer.email);
-        },
-        /** The checklist's own reasoning for this item, so the two never disagree. */
-        check() {
-            return (this.step.checks || [])[0] || null;
         }
     },
     methods: {
@@ -67,42 +69,43 @@ export default {
 <template>
     <div class="fls_onb_fields">
 
-        <div class="fls_onb_opts">
-            <label class="fls_onb_opt" :class="{'is-on': answer.totp}">
-                <el-switch :model-value="answer.totp" @update:model-value="v => update('totp', v)"/>
-                <span class="fls_onb_opt_text">
-                    <span class="fls_onb_opt_title">
-                        {{ $t('Authenticator app') }}
-                        <span class="fls_onb_tag">{{ $t('Recommended') }}</span>
-                    </span>
-                    <span class="fls_onb_opt_note">
-                        {{ $t('A code from an app on their phone. Works with no signal and cannot be intercepted in an inbox.') }}
-                    </span>
-                </span>
-            </label>
+        <!--
+            Said once above the group rather than badged on every row. The switches use the
+            settings screen's `recommend`, which stays quiet while a setting is what it
+            should be and speaks up once it is not - right on a settings screen, where the
+            reader chose the values, but on a first run nobody has been told where the
+            values came from. One line covers that without a badge on each row.
+        -->
+        <p class="fls_onb_hint">
+            {{ $t('Set to what we recommend. Turn off anything this site does not need.') }}
+        </p>
 
-            <label class="fls_onb_opt" :class="{'is-on': answer.email}">
-                <el-switch :model-value="answer.email" @update:model-value="v => update('email', v)"/>
-                <span class="fls_onb_opt_text">
-                    <span class="fls_onb_opt_title">
-                        {{ $t('Emailed code') }}
-                        <span class="fls_onb_tag">{{ $t('Recommended') }}</span>
-                    </span>
-                    <span class="fls_onb_opt_note">
-                        {{ $t('Nothing to install. Worth having on as well, so nobody is locked out when they change phone.') }}
-                    </span>
-                </span>
-            </label>
+        <div class="fls_onb_opts">
+            <div class="fls_onb_opt" :class="{'is-on': answer.totp}">
+                <setting-toggle :model-value="answer.totp" :active-value="true" :inactive-value="false"
+                                :recommend="true"
+                                :label="$t('Authenticator app')"
+                                :description="$t('A code from an app on their phone. It works with no signal, and it cannot be read out of an inbox.')"
+                                @update:model-value="v => update('totp', v)"/>
+            </div>
+
+            <div class="fls_onb_opt" :class="{'is-on': answer.email}">
+                <setting-toggle :model-value="answer.email" :active-value="true" :inactive-value="false"
+                                :recommend="true"
+                                :label="$t('Emailed code')"
+                                :description="$t('Nothing to install. Worth having on as well, so nobody is stuck when they change phone.')"
+                                @update:model-value="v => update('email', v)"/>
+            </div>
         </div>
 
         <role-choice v-if="anyOn" :model-value="answer.roles" :user-roles="userRoles"
                      :label="$t('Offer it to')"
-                     :hint="$t('These roles will be prompted to set a method up the next time they sign in.')"
+                     :hint="$t('These roles are asked to set a method up the next time they sign in.')"
                      @update:model-value="v => update('roles', v)"/>
 
         <p class="fls_onb_reassure">
             {{
-                $t('Nobody is locked out by this. It lets the roles you chose set a method up — it never refuses a sign-in from somebody who has not.')
+                $t('This does not lock anyone out. The roles you pick are asked to set a method up. Nobody is refused a sign-in for not having one.')
             }}
         </p>
     </div>

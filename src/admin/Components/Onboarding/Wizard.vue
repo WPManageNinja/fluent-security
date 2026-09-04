@@ -276,7 +276,7 @@ export default {
 
             <div class="fls_onb_ask">
                 <div class="fls_onb_ask_inner">
-                    <p class="fls_onb_count">
+                    <p class="fls_eyebrow">
                         {{ $t('Step %s of %s', index + 1, steps.length) }}
                     </p>
 
@@ -290,7 +290,7 @@ export default {
                                :recommended="recommended" :user-roles="userRoles"
                                :admin-email="adminEmail"/>
 
-                    <p v-if="error" class="fls_onb_error">{{ error }}</p>
+                    <div v-if="error" class="fls_errors">{{ error }}</div>
 
                     <div class="fls_onb_actions">
                         <el-button v-if="canGoBack" text class="fls_onb_back" @click="goBack">
@@ -299,7 +299,7 @@ export default {
 
                         <el-button type="primary" class="fls_onb_next"
                                    :loading="saving" @click="goNext">
-                            {{ isLast ? $t('Apply these settings') : $t('Continue') }}
+                            {{ isLast ? $t('Finish setup') : $t('Continue') }}
                         </el-button>
                     </div>
 

@@ -55,10 +55,10 @@ export default {
             }
 
             if (this.isProxy) {
-                return this.$t('Once the proxy is declared, visitors will be told apart by the header it sends.');
+                return this.$t('Once the proxy is declared, visitors are told apart by the header it sends.');
             }
 
-            return this.$t('Visitors are being told apart by the address they connect from.');
+            return this.$t('Visitors are told apart by the address they connect from.');
         }
     }
 };
@@ -66,7 +66,7 @@ export default {
 
 <template>
     <div class="fls_onb_conn" :class="tone">
-        <p class="fls_onb_conn_lead">{{ $t('This site sees you at') }}</p>
+        <p class="fls_eyebrow">{{ $t('This site sees you at') }}</p>
 
         <p class="fls_onb_conn_ip">{{ resolved }}</p>
 

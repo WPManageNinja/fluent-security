@@ -40,14 +40,14 @@ export default {
                 {
                     id: 'relaxed',
                     title: this.$t('Relaxed'),
-                    note: this.$t('For a site whose users forget passwords often.'),
+                    note: this.$t('For sites where people forget their passwords often.'),
                     limit: 10,
                     timing: 15
                 },
                 {
                     id: 'balanced',
                     title: this.$t('Balanced'),
-                    note: this.$t('Slow enough to make guessing pointless, generous enough for a bad morning.'),
+                    note: this.$t('Suits most sites.'),
                     limit: suggested.limit,
                     timing: suggested.timing,
                     recommended: true
@@ -55,7 +55,7 @@ export default {
                 {
                     id: 'strict',
                     title: this.$t('Strict'),
-                    note: this.$t('For a site where only a few people ever sign in.'),
+                    note: this.$t('For sites where only a few people ever sign in.'),
                     limit: 3,
                     timing: 60
                 }
@@ -110,7 +110,7 @@ export default {
                     apply, so the line below it starts at the same height in all three.
                 -->
                 <span class="fls_onb_preset_head" aria-hidden="true">
-                    <span class="fls_onb_tag">{{ $t('Recommended') }}</span>
+                    <span class="fls_tag is_success is_round">{{ $t('Recommended') }}</span>
                 </span>
                 <span class="fls_onb_preset_title">
                     {{ preset.title }}
@@ -141,7 +141,7 @@ export default {
         </div>
 
         <p class="fls_onb_reassure">
-            {{ $t('Your own address can be added to the allow list later, so this can never lock you out of your own site.') }}
+            {{ $t('You can add your own address to the allow list later, so this can never shut you out of your own site.') }}
         </p>
     </div>
 </template>

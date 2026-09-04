@@ -160,8 +160,8 @@ class Onboarding
              */
             'connection' => [
                 'title'     => __('Connection', 'fluent-security'),
-                'headline'  => __('Everything else on this list depends on telling your visitors apart.', 'fluent-security'),
-                'why'       => __('Blocking an address, allowing one, and counting failed attempts all need to know who is who. If your site sits behind a proxy or a CDN that has not been declared, every visitor arrives wearing the same address and none of that works.', 'fluent-security'),
+                'headline'  => __('Check that this site can tell your visitors apart.', 'fluent-security'),
+                'why'       => __('Blocking an address, allowing one and counting failed attempts all depend on knowing who is who. If something sits in front of this site and has not been declared, every visitor arrives as the same address and none of that works.', 'fluent-security'),
                 'preview'   => 'connection',
                 'checks'    => [],
                 /*
@@ -216,8 +216,8 @@ class Onboarding
 
             'two_fa'      => [
                 'title'    => __('Two-factor', 'fluent-security'),
-                'headline' => __('A password that has been stolen still works. A second step does not.', 'fluent-security'),
-                'why'      => __('Passwords leak - reused on another site, guessed, or handed over on a convincing looking page. A second step at sign-in is the one protection that still holds after that has happened.', 'fluent-security'),
+                'headline' => __('Ask for a second step after the password.', 'fluent-security'),
+                'why'      => __('Passwords get reused on other sites, guessed, and typed into convincing fake login pages. A second step is what still protects an account once the password is known.', 'fluent-security'),
                 'preview'  => 'two_factor',
                 'checks'   => ['two_fa'],
                 'answer'   => function ($settings, $recommended) {
@@ -252,8 +252,8 @@ class Onboarding
              */
             'login_limit' => [
                 'title'    => __('Failed attempts', 'fluent-security'),
-                'headline' => __('An attacker can try thousands of passwords before anyone notices.', 'fluent-security'),
-                'why'      => __('Guessing works when it can be done at speed. Locking an address out after a handful of failures makes the whole approach too slow to be worth an attacker\'s time - while leaving room for the person who simply mistyped.', 'fluent-security'),
+                'headline' => __('Shut an address out after a few wrong passwords.', 'fluent-security'),
+                'why'      => __('Guessing passwords only works at speed. A short lockout after a few failures makes it too slow to be worth trying, and still leaves room for someone who mistyped their own password.', 'fluent-security'),
                 'preview'  => 'lockout',
                 'checks'   => [],
                 'answer'   => function ($settings, $recommended) {
@@ -268,8 +268,8 @@ class Onboarding
 
             'hardening'   => [
                 'title'    => __('Open doors', 'fluent-security'),
-                'headline' => __('WordPress leaves a few things open that most sites never use.', 'fluent-security'),
-                'why'      => __('Each of these is on by default and useful to somebody, but not to most sites - and each one hands an attacker something for free. Closing the ones you do not use costs you nothing.', 'fluent-security'),
+                'headline' => __('Close the doors this site does not use.', 'fluent-security'),
+                'why'      => __('Each of these is on by default. Each one is useful to some sites and free help to an attacker on the rest. Turn off the ones this site has no use for.', 'fluent-security'),
                 'preview'  => 'signup',
                 'checks'   => ['disable_xmlrpc', 'disable_users_rest', 'secure_signup_form'],
                 'answer'   => function ($settings, $recommended) {
@@ -290,8 +290,8 @@ class Onboarding
 
             'alerts'      => [
                 'title'    => __('Alerts', 'fluent-security'),
-                'headline' => __('A sign-in nobody made is the first thing you can actually act on.', 'fluent-security'),
-                'why'      => __('An email the same day is the difference between noticing a stolen account and finding out the following week. Worth having for the accounts that can install code and make other administrators - and worth leaving off for roles that sign in all day, or the alerts stop being read.', 'fluent-security'),
+                'headline' => __('Get an email when an important account signs in.', 'fluent-security'),
+                'why'      => __('A sign-in you did not make is the first sign of a stolen account, and an email is how that gets noticed the same day rather than the following week. Keep it to the accounts that can install code and make other administrators. On roles that sign in all day, the alerts stop being read.', 'fluent-security'),
                 'preview'  => 'email',
                 'checks'   => ['notifications'],
                 'answer'   => function ($settings, $recommended) {
@@ -420,7 +420,7 @@ class Onboarding
                     if (!$proxies) {
                         return new \WP_Error(
                             'proxy_required',
-                            __('Add the address of the proxy in front of this site, so its forwarded header can be trusted.', 'fluent-security'),
+                            __('Add the address of the proxy in front of this site.', 'fluent-security'),
                             ['status' => 422]
                         );
                     }
@@ -428,7 +428,7 @@ class Onboarding
                     $settings['trusted_proxies'] = $proxies;
                     $settings['proxy_ip_header'] = self::sanitizeHeader(Arr::get($answer, 'proxy_ip_header', ''));
 
-                    $applied[] = __('Declared the proxy in front of this site, so visitors can be told apart.', 'fluent-security');
+                    $applied[] = __('Declared the proxy in front of this site.', 'fluent-security');
                 }
 
                 /*
@@ -544,7 +544,7 @@ class Onboarding
                 $settings['notification_user_roles'] = $roles;
                 $settings['notification_email'] = $email ?: Arr::get($recommended, 'notification_email', '{admin_email}');
 
-                $applied[] = __('Turned on an email alert when a high-privilege account signs in.', 'fluent-security');
+                $applied[] = __('Turned on sign-in alerts.', 'fluent-security');
                 break;
         }
 

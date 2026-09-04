@@ -1,4 +1,5 @@
 <script type="text/babel">
+import SettingToggle from '../../Settings/_SettingToggle.vue';
 import RoleChoice from './_RoleChoice.vue';
 
 /**
@@ -12,7 +13,7 @@ import RoleChoice from './_RoleChoice.vue';
  */
 export default {
     name: 'OnboardingAlerts',
-    components: {RoleChoice},
+    components: {SettingToggle, RoleChoice},
     emits: ['update:modelValue'],
     props: {
         modelValue: {
@@ -78,22 +79,19 @@ export default {
     <div class="fls_onb_fields">
 
         <div class="fls_onb_opts">
-            <label class="fls_onb_opt" :class="{'is-on': answer.enabled}">
-                <el-switch :model-value="answer.enabled"
-                           @update:model-value="v => update('enabled', v)"/>
-                <span class="fls_onb_opt_text">
-                    <span class="fls_onb_opt_title">{{ $t('Email me about sign-ins') }}</span>
-                    <span class="fls_onb_opt_note">
-                        {{ $t('One message per sign-in, for the roles you choose below.') }}
-                    </span>
-                </span>
-            </label>
+            <div class="fls_onb_opt" :class="{'is-on': answer.enabled}">
+                <setting-toggle :model-value="answer.enabled"
+                                :active-value="true" :inactive-value="false"
+                                :label="$t('Email me about sign-ins')"
+                                :description="$t('One message per sign-in, for the roles you pick below.')"
+                                @update:model-value="v => update('enabled', v)"/>
+            </div>
         </div>
 
         <template v-if="answer.enabled">
             <role-choice :model-value="answer.roles" :user-roles="userRoles"
                          :label="$t('Tell me when these roles sign in')"
-                         :hint="$t('Keep this to the accounts that can install code and make other administrators. Adding a role that signs in all day is how these stop being read.')"
+                         :hint="$t('Keep this to the accounts that can install code and make other administrators. Add a role that signs in all day and these stop being read.')"
                          @update:model-value="v => update('roles', v)"/>
 
             <div class="fls_onb_field">
@@ -102,7 +100,7 @@ export default {
                           :placeholder="adminEmail"
                           @update:model-value="updateEmail"/>
                 <p class="fls_onb_hint">
-                    {{ $t('Leave empty to use this site\'s administrator address, so it follows the site if that changes.') }}
+                    {{ $t('Leave this empty to use the site administrator address, so it follows the site if that changes.') }}
                 </p>
             </div>
         </template>

@@ -35,7 +35,7 @@ export default {
     <div class="fls_onb_done">
         <div class="fls_onb_done_inner">
 
-            <p class="fls_onb_done_eyebrow">{{ $t('Setup complete') }}</p>
+            <p class="fls_eyebrow">{{ $t('Setup complete') }}</p>
 
             <h1 class="fls_onb_done_title">
                 {{ changedNothing ? $t('Nothing was changed.') : $t('Here is what changed.') }}
@@ -43,11 +43,11 @@ export default {
 
             <p v-if="changedNothing" class="fls_onb_done_lead">
                 {{
-                    $t('You went through setup without turning anything on. The security checklist keeps the same recommendations, whenever you want them.')
+                    $t('You went through setup without turning anything on. The security checklist has the same recommendations whenever you want them.')
                 }}
             </p>
             <p v-else class="fls_onb_done_lead">
-                {{ $t('These settings are live now. Every one of them can be changed or turned back off.') }}
+                {{ $t('These are live now. Every one of them can be changed or turned off again.') }}
             </p>
 
             <ul v-if="!changedNothing" class="fls_onb_done_list">
@@ -62,7 +62,7 @@ export default {
                 <ul class="fls_onb_done_next_list">
                     <li>
                         <router-link :to="{name: 'security_findings'}">{{ $t('Review the security checklist') }}</router-link>
-                        <span>{{ $t('Everything this wizard did not cover, scored and explained.') }}</span>
+                        <span>{{ $t('Everything setup did not cover, scored and explained.') }}</span>
                     </li>
                     <li>
                         <router-link :to="{name: 'settings_ip_rules'}">{{ $t('Add your own address to the allow list') }}</router-link>
