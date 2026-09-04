@@ -18,6 +18,16 @@ $permissions = [$appPermission];
 
 $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getSettings'], $permissions)
     ->post('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'updateSettings'], $permissions)
+    /*
+     * The setup wizard. Answers name steps rather than settings and are applied in a
+     * single write at the end - see the Onboarding service, which is where every rule
+     * about what an answer may mean actually lives.
+     */
+    ->get('onboarding', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'getOnboarding'], $permissions)
+    ->post('onboarding/complete', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'complete'], $permissions)
+    ->post('onboarding/rerun', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'rerun'], $permissions)
+    ->post('onboarding/skip', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'skip'], $permissions)
+    ->post('onboarding/reopen', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'reopen'], $permissions)
     ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $permissions)
     ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $permissions)
     ->get('auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'getLogs'], $permissions)

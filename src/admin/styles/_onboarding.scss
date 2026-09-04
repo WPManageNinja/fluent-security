@@ -1,0 +1,1327 @@
+/*
+ * The setup wizard.
+ *
+ * A split screen: the page the site's own users sign in on, beside the question that
+ * changes it. The preview is the larger half deliberately - it is the part that answers
+ * "what does this actually do", which is the question a settings label never answers.
+ *
+ * Everything here is scoped under `.fls_onb`. The wizard replaces the app shell rather
+ * than sitting inside it (see App.vue), so it owns the whole screen for as long as it is
+ * open, and none of these rules can reach anything else.
+ */
+
+.fframe_app.is-bare {
+    padding-top: 0;
+}
+
+.fls_onb {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 32px);
+    background: var(--fls-body-bg);
+}
+
+/* --------------------------------------------------------------------- header */
+
+.fls_onb_bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    height: 64px;
+    padding: 0 24px;
+    background: var(--fls-surface);
+    border-bottom: 1px solid var(--fls-border);
+    position: sticky;
+    top: 32px;
+    z-index: 20;
+}
+
+.fls_onb_bar_brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+
+    img {
+        height: 22px;
+        width: auto;
+    }
+
+    /*
+     * The wordmark is one near-black colour on transparent, so on dark it is recoloured
+     * rather than loaded twice - the same treatment the app bar gives it in _layout.scss.
+     */
+    .fluent_theme_dark & img {
+        filter: brightness(0) invert(.96);
+    }
+
+    span {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--fls-text-mid);
+        letter-spacing: .02em;
+    }
+}
+
+.fls_onb_bar_end {
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.fls_onb_leave.el-button {
+    color: var(--fls-text-light);
+    font-size: 13px;
+
+    &:hover,
+    &:focus {
+        color: var(--fls-text);
+        background: transparent;
+    }
+}
+
+/* ----------------------------------------------------------------- step rail */
+
+.fls_onb_rail {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fls_onb_rail_item {
+    display: flex;
+    align-items: center;
+
+    /* The hairline between steps carries the sense of a sequence, so it is drawn
+       between them rather than around each one. */
+    & + .fls_onb_rail_item::before {
+        content: "";
+        width: 14px;
+        height: 1px;
+        background: var(--fls-border-strong);
+        flex-shrink: 0;
+    }
+}
+
+.fls_onb_rail_hit {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px 5px 6px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    font: inherit;
+    color: var(--fls-text-light);
+    white-space: nowrap;
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+}
+
+button.fls_onb_rail_hit {
+    cursor: pointer;
+
+    &:hover {
+        background: var(--fls-accent-wash);
+        color: var(--fls-text);
+    }
+}
+
+.fls_onb_rail_mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 21px;
+    height: 21px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--fls-border-strong);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+
+    .dashicons {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+}
+
+.fls_onb_rail_label {
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.fls_onb_rail_item.is-done {
+    .fls_onb_rail_mark {
+        background: var(--fls-success-bg);
+        border-color: var(--fls-success-line);
+        color: var(--fls-success-fg);
+    }
+
+    .fls_onb_rail_label {
+        color: var(--fls-text-mid);
+    }
+}
+
+.fls_onb_rail_item.is-current {
+    .fls_onb_rail_hit {
+        background: var(--fls-accent-wash);
+    }
+
+    .fls_onb_rail_mark {
+        background: var(--fls-accent);
+        border-color: var(--fls-accent);
+        color: var(--fls-accent-contrast);
+    }
+
+    .fls_onb_rail_label {
+        color: var(--fls-heading);
+        font-weight: 600;
+    }
+}
+
+/* ----------------------------------------------------------------- the split */
+
+.fls_onb_body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: start;
+    flex: 1;
+}
+
+.fls_onb_loading {
+    padding: 60px 24px;
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* ------------------------------------------------------------------- the stage */
+
+.fls_onb_stage {
+    position: sticky;
+    top: 96px;
+    display: flex;
+    justify-content: center;
+    padding: 44px 32px 44px 40px;
+}
+
+.fls_onb_stage_inner {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    max-width: 640px;
+}
+
+.fls_onb_stage_cap,
+.fls_onb_stage_foot {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--fls-text-light);
+}
+
+.fls_onb_stage_foot {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    font-size: 12.5px;
+}
+
+/*
+ * The login page, in a frame that reads as a browser without pretending to be one.
+ *
+ * The frame takes its width from the scale rather than filling the column. A fixed scale
+ * inside a fluid frame leaves the scaled page short of the right edge by whatever the two
+ * disagree by, which at narrow widths was most of the frame - so the frame is sized to
+ * what it holds, and centred in whatever space the column has.
+ */
+.fls_onb_screen {
+    --fls-onb-w: 1020px;
+    --fls-onb-h: 700px;
+    --fls-onb-s: .56;
+
+    width: calc(var(--fls-onb-w) * var(--fls-onb-s));
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--fls-surface);
+    border: 1px solid var(--fls-border);
+    box-shadow: var(--fls-shadow-pop);
+    transition: opacity .18s ease;
+
+    &.is-off {
+        opacity: .82;
+    }
+}
+
+.fls_onb_chrome {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    background: var(--fls-surface-sunk);
+    border-bottom: 1px solid var(--fls-border);
+}
+
+.fls_onb_dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--fls-border-strong);
+    flex-shrink: 0;
+}
+
+.fls_onb_url {
+    margin-left: 8px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    background: var(--fls-surface);
+    border: 1px solid var(--fls-border);
+    font-size: 11px;
+    color: var(--fls-text-light);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/*
+ * The preview is the customizer's canvas, which is built to fill a screen. Rather than
+ * reflow it at a size it was never designed for - which would show a layout no visitor
+ * will ever see - it is rendered at full size and scaled down, the way a thumbnail of a
+ * page is. `--fls-onb-s` is the only thing that changes between breakpoints.
+ */
+.fls_onb_screen_body {
+    width: 100%;
+    height: calc(var(--fls-onb-h) * var(--fls-onb-s));
+    overflow: hidden;
+    position: relative;
+
+    /*
+     * The canvas and its override have to be the same rule. Setting the height here and
+     * neutralising the customizer's `min-height` in a second block meant a percentage
+     * height resolving against this already-scaled box, which left the login page ending
+     * two thirds of the way down its own frame.
+     */
+    > * {
+        width: var(--fls-onb-w);
+        height: var(--fls-onb-h);
+        min-height: 0;
+        border-radius: 0;
+        transform: scale(var(--fls-onb-s));
+        transform-origin: top left;
+    }
+
+    /* Long states - a lockout notice above a full form - must not clip at either end. */
+    .fcom_auth_wrap {
+        overflow: hidden;
+    }
+
+    .fcom_auth_content {
+        padding-top: 28px;
+        padding-bottom: 28px;
+    }
+}
+
+/* A message the login page would really show, drawn in the preview's own scale. */
+.fls_onb_note {
+    margin: 0 0 20px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border-left: 4px solid;
+    font-size: 14px;
+    line-height: 1.5;
+
+    &.is-info {
+        background: var(--fls-tile-success-bg);
+        border-left-color: var(--fls-tile-success-fg);
+        color: var(--fls-tile-success-fg);
+    }
+
+    &.is-blocked {
+        background: var(--fls-danger-bg);
+        border-left-color: var(--fls-danger-fg);
+        color: var(--fls-danger-fg);
+    }
+}
+
+/* ---------------------------------------------------------- connection preview */
+
+.fls_onb_conn {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 30px 32px 26px;
+    border-radius: 10px;
+    background: var(--fls-surface);
+    border: 1px solid var(--fls-border);
+    box-shadow: var(--fls-shadow-card);
+    border-top: 3px solid var(--fls-neutral-bg);
+
+    &.is-ok {
+        border-top-color: var(--fls-success-fg);
+    }
+
+    &.is-warning {
+        border-top-color: var(--fls-warning-fg);
+    }
+}
+
+.fls_onb_conn_lead {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--fls-text-light);
+}
+
+.fls_onb_conn_ip {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    color: var(--fls-heading);
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+}
+
+.fls_onb_conn_verdict {
+    margin: 0;
+    font-size: 14px;
+    color: var(--fls-text-mid);
+    max-width: 46ch;
+}
+
+.fls_onb_conn_evidence {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--fls-border);
+}
+
+.fls_onb_conn_row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 12px;
+    align-items: baseline;
+
+    dt {
+        margin: 0;
+        font-size: 12px;
+        color: var(--fls-text-light);
+    }
+
+    dd {
+        margin: 0;
+        font-size: 13px;
+        color: var(--fls-text);
+        min-width: 0;
+    }
+}
+
+.fls_onb_conn_flag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    background: var(--fls-warning-bg);
+    color: var(--fls-warning-fg);
+    font-size: 11px;
+}
+
+.fls_onb_conn_header {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 7px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    b {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--fls-text);
+    }
+
+    em {
+        font-style: normal;
+        font-size: 11.5px;
+        color: var(--fls-text-light);
+        word-break: break-all;
+    }
+}
+
+/* --------------------------------------------------------------- email preview */
+
+.fls_onb_mail {
+    border-radius: 10px;
+    background: var(--fls-surface);
+    border: 1px solid var(--fls-border);
+    box-shadow: var(--fls-shadow-pop);
+    overflow: hidden;
+    transition: opacity .18s ease;
+
+    &.is-off {
+        opacity: .5;
+    }
+}
+
+.fls_onb_mail_head {
+    padding: 22px 26px 18px;
+    border-bottom: 1px solid var(--fls-border);
+    background: var(--fls-surface-sunk);
+}
+
+.fls_onb_mail_subject {
+    margin: 0 0 12px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--fls-heading);
+    line-height: 1.3;
+}
+
+.fls_onb_mail_meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 28px;
+    margin: 0;
+
+    div {
+        display: flex;
+        gap: 7px;
+        align-items: baseline;
+    }
+
+    dt {
+        margin: 0;
+        font-size: 12px;
+        color: var(--fls-text-light);
+    }
+
+    dd {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--fls-text);
+    }
+}
+
+.fls_onb_mail_body {
+    padding: 22px 26px 24px;
+
+    > p {
+        margin: 0 0 16px;
+        font-size: 14px;
+        color: var(--fls-text);
+    }
+}
+
+.fls_onb_mail_facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px 20px;
+    margin: 0 0 18px;
+    padding: 16px 18px;
+    border-radius: 6px;
+    background: var(--fls-surface-sunk);
+    border: 1px solid var(--fls-border);
+
+    div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    dt {
+        margin: 0;
+        font-size: 11px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--fls-text-light);
+    }
+
+    dd {
+        margin: 0;
+        font-size: 13px;
+        color: var(--fls-text);
+        word-break: break-word;
+    }
+}
+
+.fls_onb_mail_tail {
+    margin: 0;
+    font-size: 13px;
+    color: var(--fls-text-mid);
+}
+
+.fls_onb_mail_off {
+    margin: 0;
+    padding: 12px 26px;
+    background: var(--fls-neutral-bg);
+    color: var(--fls-neutral-fg);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* -------------------------------------------------------------- the question */
+
+.fls_onb_ask {
+    display: flex;
+    justify-content: flex-start;
+    padding: 44px 40px 60px 32px;
+    background: var(--fls-surface);
+    border-left: 1px solid var(--fls-border);
+    min-height: calc(100vh - 96px);
+}
+
+.fls_onb_ask_inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 520px;
+}
+
+.fls_onb_count {
+    margin: 0 0 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--fls-text-light);
+    font-variant-numeric: tabular-nums;
+}
+
+.fls_onb_headline {
+    margin: 0 0 14px;
+    font-size: 27px;
+    line-height: 1.22;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--fls-heading);
+    text-wrap: balance;
+}
+
+.fls_onb_why {
+    margin: 0 0 28px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--fls-text-mid);
+    max-width: 56ch;
+}
+
+.fls_onb_fields {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* ------------------------------------------------------------------ controls */
+
+.fls_onb_opts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fls_onb_opt {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+    padding: 15px 17px;
+    border-radius: 8px;
+    border: 1px solid var(--fls-border);
+    background: var(--fls-surface);
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+
+    &:hover {
+        border-color: var(--fls-border-strong);
+    }
+
+    &.is-on {
+        border-color: var(--fls-accent);
+        background: var(--fls-accent-wash);
+    }
+
+    .el-switch {
+        margin-top: 1px;
+    }
+}
+
+.fls_onb_opt_text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.fls_onb_opt_title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fls-heading);
+}
+
+.fls_onb_opt_note {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--fls-text-mid);
+}
+
+.fls_onb_tag {
+    padding: 1px 7px;
+    border-radius: 3px;
+    background: var(--fls-tile-success-bg);
+    color: var(--fls-tile-success-fg);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+
+    &.is-quiet {
+        background: var(--fls-neutral-bg);
+        color: var(--fls-neutral-fg);
+    }
+}
+
+/* Two mutually exclusive answers, as cards rather than radios: the note under each is
+   the actual content of the choice, and a radio label is the wrong place for a sentence. */
+.fls_onb_choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+}
+
+.fls_onb_choice {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 16px 17px;
+    text-align: left;
+    border-radius: 8px;
+    border: 1px solid var(--fls-border);
+    background: var(--fls-surface);
+    cursor: pointer;
+    font: inherit;
+    transition: border-color .15s ease, background .15s ease;
+
+    &:hover {
+        border-color: var(--fls-border-strong);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+
+    &.is-picked {
+        border-color: var(--fls-accent);
+        background: var(--fls-accent-wash);
+        box-shadow: inset 0 0 0 1px var(--fls-accent);
+    }
+}
+
+.fls_onb_choice_title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fls-heading);
+}
+
+.fls_onb_choice_note {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--fls-text-mid);
+}
+
+/* Three named trades rather than three numbers. */
+.fls_onb_presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.fls_onb_preset {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 14px 15px;
+    text-align: left;
+    border-radius: 8px;
+    border: 1px solid var(--fls-border);
+    background: var(--fls-surface);
+    cursor: pointer;
+    font: inherit;
+    transition: border-color .15s ease, background .15s ease;
+
+    &:hover {
+        border-color: var(--fls-border-strong);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+
+    &.is-picked {
+        border-color: var(--fls-accent);
+        background: var(--fls-accent-wash);
+        box-shadow: inset 0 0 0 1px var(--fls-accent);
+    }
+}
+
+/*
+ * The badge gets a row of its own in every card, not just the one that has it. Inline
+ * beside the title it wrapped on the recommended card alone, which pushed that card's
+ * value and note half a line below its neighbours' - three cards that no longer read as
+ * one object.
+ */
+.fls_onb_preset_head {
+    display: flex;
+    align-items: center;
+    min-height: 16px;
+}
+
+.fls_onb_preset_head .fls_onb_tag {
+    visibility: hidden;
+}
+
+.fls_onb_preset.has-tag .fls_onb_preset_head .fls_onb_tag {
+    visibility: visible;
+}
+
+.fls_onb_preset_title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--fls-heading);
+}
+
+/*
+ * Carries what the hidden badge above says, for a reader who cannot see that it is the
+ * recommended card. Lives here rather than in `ui` because this is the only screen that
+ * needs it - it moves up when a second one does.
+ */
+.fls_screen_reader {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.fls_onb_preset_val {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fls-text-mid);
+    font-variant-numeric: tabular-nums;
+}
+
+.fls_onb_preset_note {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--fls-text-light);
+}
+
+.fls_onb_roles,
+.fls_onb_field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fls_onb_role_row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.fls_onb_role {
+    padding: 6px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--fls-border-strong);
+    background: var(--fls-surface);
+    color: var(--fls-text-mid);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s ease;
+
+    &:hover {
+        color: var(--fls-text);
+        border-color: var(--fls-text-light);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+
+    &.is-picked {
+        background: var(--fls-accent);
+        border-color: var(--fls-accent);
+        color: var(--fls-accent-contrast);
+        font-weight: 600;
+    }
+}
+
+.fls_onb_label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fls-heading);
+}
+
+.fls_onb_hint {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--fls-text-light);
+    max-width: 56ch;
+}
+
+.fls_onb_aside {
+    margin: 0;
+    font-size: 13px;
+    color: var(--fls-text-mid);
+
+    a {
+        color: var(--fls-link);
+        text-underline-offset: 2px;
+    }
+}
+
+.fls_onb_reveal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 18px 20px;
+    border-radius: 8px;
+    background: var(--fls-surface-sunk);
+    border: 1px solid var(--fls-border);
+
+    .fls_onb_label:not(:first-child) {
+        margin-top: 8px;
+    }
+}
+
+.fls_onb_pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+}
+
+.fls_onb_pair_item {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+/* The line that stops somebody worrying they are about to break their own access. */
+.fls_onb_reassure {
+    margin: 0;
+    padding: 12px 15px;
+    border-radius: 6px;
+    background: var(--fls-surface-sunk);
+    border-left: 3px solid var(--fls-border-strong);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--fls-text-mid);
+}
+
+.fls_onb_flag {
+    padding: 13px 15px;
+    border-radius: 6px;
+    background: var(--fls-warning-bg);
+    border: 1px solid var(--fls-warning-line);
+    color: var(--fls-warning-fg);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.fls_onb_locked {
+    padding: 13px 15px;
+    border-radius: 6px;
+    background: var(--fls-neutral-bg);
+    color: var(--fls-neutral-fg);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.fls_onb_error {
+    margin: 18px 0 0;
+    padding: 11px 14px;
+    border-radius: 6px;
+    background: var(--fls-danger-bg);
+    border: 1px solid var(--fls-danger-line);
+    color: var(--fls-danger-fg);
+    font-size: 13px;
+}
+
+/* -------------------------------------------------------------------- actions */
+
+.fls_onb_actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--fls-border);
+}
+
+.fls_onb_next.el-button {
+    min-width: 168px;
+    height: 42px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.fls_onb_back.el-button {
+    color: var(--fls-text-mid);
+    height: 42px;
+
+    &:hover {
+        color: var(--fls-heading);
+        background: transparent;
+    }
+}
+
+/* ------------------------------------------------------------------ the ending */
+
+.fls_onb_done {
+    display: flex;
+    justify-content: center;
+    padding: 64px 24px 90px;
+}
+
+.fls_onb_done_inner {
+    width: 100%;
+    max-width: 660px;
+}
+
+.fls_onb_done_eyebrow {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--fls-success-fg);
+}
+
+.fls_onb_done_title {
+    margin: 0 0 12px;
+    font-size: 32px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--fls-heading);
+    text-wrap: balance;
+}
+
+.fls_onb_done_lead {
+    margin: 0 0 30px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--fls-text-mid);
+    max-width: 58ch;
+}
+
+.fls_onb_done_list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0 0 34px;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--fls-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--fls-border);
+
+    li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 11px;
+        align-items: start;
+        margin: 0;
+        padding: 14px 17px;
+        background: var(--fls-surface);
+        font-size: 14px;
+        color: var(--fls-text);
+    }
+
+    .dashicons {
+        color: var(--fls-success-fg);
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-top: 1px;
+    }
+}
+
+.fls_onb_done_next {
+    padding: 22px 24px 24px;
+    border-radius: 8px;
+    background: var(--fls-surface);
+    border: 1px solid var(--fls-border);
+    margin-bottom: 30px;
+}
+
+.fls_onb_done_next_title {
+    margin: 0 0 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--fls-heading);
+}
+
+.fls_onb_done_next_list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 0;
+    }
+
+    /*
+     * Underlined at rest, not only on hover. The link colour in this app is a near-black
+     * that sits a shade off the heading beside it, so without a rule these read as bold
+     * text and the only things to do next on the screen look like labels.
+     */
+    a {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--fls-link);
+        text-decoration: underline;
+        text-decoration-color: var(--fls-border-strong);
+        text-underline-offset: 3px;
+
+        &:hover {
+            text-decoration-color: currentColor;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+    }
+
+    span {
+        font-size: 12.5px;
+        color: var(--fls-text-light);
+    }
+}
+
+.fls_onb_done_actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .el-button {
+        height: 40px;
+        text-decoration: none;
+    }
+}
+
+/* ---------------------------------------------------------------- narrow views */
+
+@media (max-width: 1400px) {
+    .fls_onb_screen {
+        --fls-onb-s: .48;
+    }
+}
+
+@media (max-width: 1180px) {
+    .fls_onb_body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fls_onb_stage {
+        position: static;
+        padding: 30px 24px 6px;
+    }
+
+    .fls_onb_stage_inner {
+        max-width: 620px;
+        margin: 0 auto;
+    }
+
+    .fls_onb_ask {
+        justify-content: center;
+        border-left: 0;
+        border-top: 1px solid var(--fls-border);
+        min-height: 0;
+        padding: 34px 24px 60px;
+    }
+
+    .fls_onb_ask_inner {
+        max-width: 620px;
+    }
+
+    .fls_onb_screen {
+        --fls-onb-s: .58;
+    }
+}
+
+/* The rail keeps its shape but drops the words: on a narrow bar the count and the
+   position are what matter, and five words do not fit beside a logo. */
+@media (max-width: 900px) {
+    .fls_onb_rail_label {
+        display: none;
+    }
+
+    .fls_onb_rail_hit {
+        padding: 5px 6px;
+    }
+
+    .fls_onb_rail_item + .fls_onb_rail_item::before {
+        width: 8px;
+    }
+}
+
+@media (max-width: 782px) {
+    .fls_onb_bar {
+        top: 0;
+    }
+
+    .fls_onb {
+        min-height: 100vh;
+    }
+}
+
+@media (max-width: 680px) {
+    .fls_onb_bar {
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        padding: 0 16px;
+    }
+
+    .fls_onb_bar_brand span {
+        display: none;
+    }
+
+    .fls_onb_rail {
+        justify-content: flex-end;
+    }
+
+    /* Leaving stays reachable, but from the foot of the questions rather than a header
+       with no room left in it. */
+    .fls_onb_bar_end {
+        display: none;
+    }
+
+    .fls_onb_headline {
+        font-size: 23px;
+    }
+
+    .fls_onb_screen {
+        --fls-onb-s: .5;
+    }
+
+    .fls_onb_stage,
+    .fls_onb_ask {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .fls_onb_actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .fls_onb_next.el-button,
+    .fls_onb_back.el-button {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .fls_onb_conn_row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+    }
+}
+
+@media (max-width: 560px) {
+    .fls_onb_screen {
+        --fls-onb-s: .36;
+    }
+}
+
+@media (max-width: 420px) {
+    .fls_onb_screen {
+        --fls-onb-s: .28;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fls_onb_screen,
+    .fls_onb_mail,
+    .fls_onb_opt,
+    .fls_onb_choice,
+    .fls_onb_preset,
+    .fls_onb_role {
+        transition: none;
+    }
+}
+
+/*
+ * The way out on a narrow screen, where the header has no room for it. Declared last so
+ * it wins over the base `display: none` regardless of source order above.
+ */
+.fls_onb_leave_foot.el-button {
+    display: none;
+    margin: 18px 0 0;
+    color: var(--fls-text-light);
+    font-size: 13px;
+
+    &:hover,
+    &:focus {
+        color: var(--fls-text);
+        background: transparent;
+    }
+}
+
+@media (max-width: 680px) {
+    .fls_onb_leave_foot.el-button {
+        display: inline-flex;
+        align-self: center;
+    }
+}

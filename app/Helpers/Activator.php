@@ -32,6 +32,7 @@ class Activator
         self::migrateLogsTable();
         self::migrateHashesTable();
         self::migrateTotpAllowedRoles();
+        self::migrateOnboardingFlag();
 
         if (!wp_next_scheduled('fluent_auth_daily_tasks')) {
             wp_schedule_event(time(), 'daily', 'fluent_auth_daily_tasks');
@@ -41,6 +42,32 @@ class Activator
             wp_schedule_event(time(), 'hourly', 'fluent_auth_hourly_tasks');
         }
 
+    }
+
+    /**
+     * The setup wizard is for sites that have not been configured, and a site that was
+     * configured before the wizard existed has already done the thing it asks for.
+     *
+     * Without this, every existing install would be walked into a first run on the update
+     * that introduced it, and be invited to reconsider settings somebody chose on purpose
+     * years ago. The presence of the settings option is the evidence: it is written the
+     * first time anything is saved, so a site that has one has been past this screen in
+     * every sense that matters.
+     *
+     * Recorded as `skipped` rather than a date, because no wizard was ever completed here
+     * and a completion date that nobody produced would be a small lie in the record.
+     *
+     * @return void
+     */
+    private static function migrateOnboardingFlag()
+    {
+        if (get_option(\FluentAuth\App\Services\Onboarding::OPTION)) {
+            return;
+        }
+
+        if (get_option('__fls_auth_settings')) {
+            update_option(\FluentAuth\App\Services\Onboarding::OPTION, 'skipped', false);
+        }
     }
 
     /**

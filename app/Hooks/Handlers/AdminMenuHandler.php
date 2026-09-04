@@ -3,6 +3,7 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\Onboarding;
 use FluentAuth\App\Services\TransStrings;
 
 class AdminMenuHandler
@@ -211,7 +212,13 @@ class AdminMenuHandler
                 // The dashboard greets whoever is reading it, so it needs their face.
                 'avatar'    => get_avatar_url($currentUser->ID, ['size' => 96])
             ],
-            'is_onboarding'   => true,
+            /*
+             * Whether this site still has a first run waiting for it. The app redirects
+             * into the wizard on this, so it is the flag itself rather than a description
+             * of one - a site that has finished setup or deliberately left it never sees
+             * the wizard again unless it asks to.
+             */
+            'is_onboarding'   => !Onboarding::isDone(),
             'i18n'            => TransStrings::getStrings(),
             'suggestedColors' => ['#000000', '#abb8c3', '#ffffff', '#f78da7', '#ff6900', '#fcb900', '#7bdcb5', '#00d084', '#8ed1fc', '#0693e3', '#9b51e0'],
             'has_fluent_smtp' => defined('FLUENTMAIL_PLUGIN_FILE'),

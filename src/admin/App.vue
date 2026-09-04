@@ -23,7 +23,35 @@ export default {
             ]
         }
     },
+    computed: {
+        /*
+         * The wizard covers the whole screen and carries its own header, so the app bar
+         * would only be a second navigation offering to abandon it. See routes.js.
+         */
+        isBare() {
+            return !!(this.$route.meta && this.$route.meta.bare);
+        }
+    },
     methods: {
+        /**
+         * Sends a site that has never been set up into the wizard, once.
+         *
+         * On the flag the server sends rather than on anything stored in the browser, so
+         * finishing setup in one tab does not leave another one still redirecting. The
+         * wizard clears the flag itself when it is finished or left, which is what stops
+         * this from being a loop.
+         */
+        redirectToOnboarding() {
+            if (!this.appVars.is_onboarding) {
+                return;
+            }
+
+            if (this.$route.name === 'onboarding') {
+                return;
+            }
+
+            this.$router.replace({name: 'onboarding'});
+        },
         isActive(item) {
             const active = this.$route.meta ? this.$route.meta.active : '';
 
@@ -56,6 +84,7 @@ export default {
     },
     created() {
         jQuery('.update-nag,.notice, #wpbody-content > .updated, #wpbody-content > .error').remove();
+        this.redirectToOnboarding();
     },
     mounted() {
         window.addEventListener('scroll', this.onScroll);
@@ -89,8 +118,8 @@ export default {
 </script>
 
 <template>
-    <div class="fframe_app">
-        <div class="fls_app_bar" :class="{'is-scrolled': scrolled}">
+    <div class="fframe_app" :class="{'is-bare': isBare}">
+        <div v-if="!isBare" class="fls_app_bar" :class="{'is-scrolled': scrolled}">
             <div class="fls_app_logo">
                 <router-link :to="{name: 'dashboard'}">
                     <img :src="appVars.asset_url + '/images/logo.png'" alt="FluentAuth"/>

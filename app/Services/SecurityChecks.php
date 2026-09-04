@@ -55,6 +55,28 @@ class SecurityChecks
     }
 
     /**
+     * One check, evaluated against the current settings.
+     *
+     * For callers that need a single item's title, reasoning and state without walking the
+     * whole list - the setup wizard shows the checklist's own words under the toggle that
+     * satisfies a check, so that a site is never given one explanation there and a
+     * different one here.
+     *
+     * @param string $key
+     * @return array|null
+     */
+    public static function find($key)
+    {
+        $definitions = self::definitions();
+
+        if (!isset($definitions[$key])) {
+            return null;
+        }
+
+        return self::evaluate($key, $definitions[$key], Helper::getAuthSettings());
+    }
+
+    /**
      * Turns on the protection a single check asks for.
      *
      * Takes the name of a check, not a setting and a value: the caller says which

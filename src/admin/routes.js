@@ -18,6 +18,7 @@ import SecurityScans from './Components/SecurityScan/index.vue';
 import RegisterPromt from './Components/SecurityScan/RegisterPromt.vue';
 import AuthCustomizer from './Components/AuthCustomizer/AuthCustomizer.vue';
 import ServerMode from './Components/ServerMode/ServerMode.vue';
+import OnboardingWizard from './Components/Onboarding/Wizard.vue';
 
 /*
  * Everything configurable is a child of /settings, so the sidebar is the one place to
@@ -93,6 +94,22 @@ const settingsChildren = [
 ];
 
 export var routes = [
+    /*
+     * The first run. Outside the app shell rather than inside it - like the login page
+     * designer, it covers the whole screen and draws its own header, and for the same
+     * reason: a wizard shown under the app's own navigation is a wizard offering to be
+     * abandoned by every link in the bar before the first question is answered.
+     */
+    {
+        path: '/onboarding',
+        name: 'onboarding',
+        component: OnboardingWizard,
+        meta: {
+            active: 'onboarding',
+            title: 'Setup',
+            bare: true
+        }
+    },
     {
         path: '/',
         name: 'dashboard',

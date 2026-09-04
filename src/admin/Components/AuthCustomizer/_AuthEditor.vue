@@ -4,73 +4,22 @@
         <auth-meta :currentTab="currentTab" :settings="settings" :savingCount="savingCount" />
     </el-aside>
     <el-main class="fcom_full_editor_main lockscreen_editor auth_editor">
-        <div class="fcom_editor_content" :style="contentStyles">
-            <div v-if="!settings.banner?.hidden" class="fcom_auth_wrap" :style="backgroundStyles(settings.banner)">
-                <div class="fcom_auth_content">
-                    <div class="fcom_auth_image" v-if="settings.banner?.logo">
-                        <img :src="settings.banner?.logo" :alt="settings.banner?.title" />
-                    </div>
-                    <div class="fcom_auth_title">
-                        <h2 :style="titleStyles(settings.banner)" contenteditable="true" @mouseleave="updateTitle($event, settings.banner)">
-                            {{ settings.banner?.title }}
-                        </h2>
-                    </div>
-                    <div class="fcom_auth_description" v-if="settings.banner?.description" :style="descriptionStyles(settings.banner)">
-                        <p v-html="settings.banner.description"></p>
-                    </div>
-                </div>
-            </div>
-            <div class="fcom_auth_wrap" :style="backgroundStyles(settings.form)">
-                <div class="fcom_auth_content form_content">
-                    <div class="fcom_auth_form_header">
-                        <div class="fcom_auth_title">
-                            <h2 :style="titleStyles(settings.form)" contenteditable="true" @mouseleave="updateTitle($event, settings.form)">
-                                {{ settings.form?.title }}
-                            </h2>
-                        </div>
-                        <div class="fcom_auth_description" v-if="settings.form?.description" :style="descriptionStyles(settings.form)">
-                            <p v-html="settings.form.description"></p>
-                        </div>
-                    </div>
-                    <el-form style="user-select: none; pointer-events: none;" v-if="currentFields" label-position="top" class="fcom_auth_form">
-                        <div v-for="field in currentFields" :key="field.name">
-                            <el-form-item v-if="['text', 'email', 'number', 'textarea', 'password'].includes(field.type)" :label="field.label">
-                                <el-input :type="field.type" :placeholder="field.placeholder"/>
-                            </el-form-item>
-                            <el-form-item v-if="field.type == 'inline_checkbox' && !field.disabled">
-                                <el-checkbox class="fcom_checkbox">
-                                    <span v-html="field.inline_label"></span>
-                                </el-checkbox>
-                            </el-form-item>
-                        </div>
-                        <el-form-item>
-                            <el-button :style="buttonStyles(settings.form)">
-                                <span v-if="currentTab == 'login'">{{ $t('Login') }}</span>
-                                <span v-else>{{ $t('Register') }}</span>
-                            </el-button>
-                        </el-form-item>
-                    </el-form>
-
-                    <div style="margin-top: 40px; display: block;" class="fs_form_extra">
-                        <p v-if="currentTab == 'login'">{{ $t('Register | Lost your password?') }}</p>
-                        <p v-else>{{ $t('Log in | Lost your password?') }}</p>
-                        <p>{{ $t('← Go to Website') }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <auth-form-preview :settings="settings" :tab="currentTab" editable
+                           @update:title="applyTitle"/>
     </el-main>
 </template>
 
 <script type="text/babel">
 import AuthMeta from './_AuthMeta.vue';
+import AuthFormPreview from './_AuthFormPreview.vue';
 
 export default {
     name: 'AuthEditor',
     emits: ['updateAuthSettings'],
     props: ['currentTab', 'savingCount', 'authSettings'],
     components: {
-        AuthMeta
+        AuthMeta,
+        AuthFormPreview
     },
     data() {
         return {
@@ -88,98 +37,15 @@ export default {
             this.settings = this.authSettings[this.currentTab];
         }
     },
-    computed: {
-        contentStyles() {
-            return {
-                flexDirection: this.settings.banner?.position == 'left' ? 'row' : 'row-reverse'
-            };
-        },
-        backgroundStyles() {
-            return (field) => {
-                return {
-                    backgroundSize: 'cover',
-                    backgroundImage: `url(${field?.background_image})`,
-                    backgroundColor: field?.background_color
-                };
-            };
-        },
-        titleStyles() {
-            return (field) => {
-                return {
-                    color: field?.title_color
-                };
-            };
-        },
-        descriptionStyles() {
-            return (field) => {
-                return {
-                    color: field?.text_color
-                };
-            };
-        },
-        buttonStyles() {
-            return (field) => {
-                return {
-                    backgroundColor: field?.button_color,
-                    color: field?.button_label_color
-                };
-            };
-        },
-        currentFields() {
-
-            if(this.currentTab == 'signup') {
-                return [
-                    {
-                        type: 'text',
-                        label: this.$t('Username')
-                    },
-                    {
-                        type: 'email',
-                        label: this.$t('Email Address')
-                    },
-                    {
-                        type: 'text',
-                        label: this.$t('Your Full Name')
-                    },
-                    {
-                        type: 'password',
-                        label: this.$t('Password')
-                    },
-                    {
-                        type: 'password',
-                        label: this.$t('Re-Enter Password')
-                    },
-                    {
-                        type: 'inline_checkbox',
-                        inline_label: this.$t('I agree to the terms and conditions'),
-                        disabled: false
-                    }
-                ]
-            }
-
-            return [
-                {
-                    type: 'text',
-                    label: this.$t('Username or Email Address')
-                },
-                {
-                    type: 'password',
-                    label: this.$t('Password')
-                },
-                {
-                    type: 'inline_checkbox',
-                    inline_label: this.$t('Remember Me'),
-                    disabled: false
-                }
-            ];
-        }
-    },
     methods: {
-        updateTitle(event, field) {
-            field.title = event.target.innerText;
-        },
-        updateButtonLabel(event, field) {
-            field.button_label = event.target.innerText;
+        /**
+         * The canvas reports what was typed into a heading; writing it is this screen's
+         * job, because this is where the settings being edited actually live.
+         */
+        applyTitle({section, title}) {
+            if (this.settings[section]) {
+                this.settings[section].title = title;
+            }
         },
         saveSettings() {
             this.saving = true;
