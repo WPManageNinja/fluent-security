@@ -50,6 +50,8 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('recovery', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'getRecovery'], $permissions)
     ->post('recovery/secure-now', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'secureNow'], $permissions)
     ->post('recovery/password-resets', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'passwordResets'], $permissions)
+    ->post('recovery/reinstall-core', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'reinstallCore'], $permissions)
+    ->post('recovery/reinstall-extension', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'reinstallExtension'], $permissions)
     ->get('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'getRules'], $permissions)
     ->post('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'saveRules'], $permissions)
     ->post('ip-rules/add', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'addIp'], $permissions)

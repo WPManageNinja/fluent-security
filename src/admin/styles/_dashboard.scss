@@ -1,76 +1,7 @@
-/*
- * The dashboard.
- *
- * The measurements are FluentCart's own, read off its rendered dashboard rather than
- * eyeballed from a screenshot: a 1350px content column centred in the page, split into a
- * fluid main column and a 380px aside with a 24px gutter; 20px card padding; 8px card
- * radius; 12px on the stat tiles. If FluentCart's dashboard changes, measure it again
- * rather than drift towards it.
- */
+/* Login activity and protection overview. Uses the shared FluentAuth theme. */
 
 /* The page shell these sit in - .fls_page and its aside - lives in _layout.scss now,
    because the security scans screen is laid out the same way. */
-
-/* ---------------------------------------------------------------- greeting */
-
-.fls_dash_greeting {
-    @apply flex items-center justify-between gap-4;
-
-    margin-bottom: 24px;
-
-    .fls_dash_greeting_who {
-        @apply flex items-center;
-
-        gap: 12px;
-        min-width: 0;
-    }
-
-    .fls_dash_avatar {
-        @apply flex-none overflow-hidden rounded-full bg-surface-raised;
-
-        width: 48px;
-        height: 48px;
-
-        img {
-            @apply block w-full h-full;
-
-            object-fit: cover;
-        }
-    }
-
-    h1 {
-        @apply text-lg font-medium m-0;
-
-        color: var(--fls-heading);
-        line-height: 24px;
-        margin-bottom: 4px;
-    }
-
-    p {
-        @apply text-sm text-ink-mid m-0;
-    }
-
-    .fls_dash_greeting_actions {
-        @apply flex items-center gap-3 flex-none;
-    }
-}
-
-/* -------------------------------------------------------------- range pill */
-
-/*
- * The range applies to the tiles and the chart, so it sits above both rather than inside
- * one of them - a filter parked in a card header reads as belonging to that card.
- */
-.fls_dash_range {
-    @apply flex items-center;
-
-    gap: 8px;
-    margin-bottom: 12px;
-
-    .fls_dash_range_label {
-        @apply text-xs text-ink-light;
-    }
-}
 
 /* ------------------------------------------------------------- stat tiles */
 
@@ -227,22 +158,6 @@
         &.is_flush {
             padding: 0;
         }
-    }
-}
-
-/*
- * Two cards abreast, stacking once one of them would be narrower than a log row reads at.
- * Measured against the grid rather than the viewport, for the same reason as the tiles.
- */
-.fls_dcard_pair {
-    @apply grid;
-
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 24px;
-    margin-bottom: 24px;
-
-    .fls_dcard {
-        margin-bottom: 0;
     }
 }
 
@@ -531,23 +446,6 @@
 
 /* --------------------------------------------------------------- checklist */
 
-.fls_dash_score {
-    margin-bottom: 16px;
-
-    .fls_dash_score_track {
-        @apply w-full rounded-xs bg-surface-raised overflow-hidden;
-
-        height: 6px;
-    }
-
-    .fls_dash_score_fill {
-        @apply h-full rounded-xs;
-
-        background: #189877;
-        transition: width .3s ease;
-    }
-}
-
 /*
  * The security screen's list, previewed.
  *
@@ -672,3 +570,116 @@
     }
 }
 
+
+/* Dashboard workspace: activity on the left, current protection on the right. */
+.fls_dashboard {
+    max-width: 1450px;
+    margin: 0 auto;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 26px;
+
+        h1 { margin: 0 0 6px; color: var(--fls-heading); font-size: 26px; line-height: 1.25; font-weight: 600; }
+        p { margin: 0; font-size: 13px; color: var(--fls-text-mid); }
+    }
+
+    &__actions, &__range { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    &__actions .el-button + .el-button { margin-left: 0; }
+
+    .fls_page_inner { max-width: none; grid-template-areas: "main aside"; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
+    .fls_page_main { min-width: 0; }
+    .fls_page_aside { position: static; max-height: none; overflow: visible; align-self: start; }
+    .fls_dcard { box-shadow: none; margin-bottom: 20px; }
+    .fls_dcard_head { min-height: 0; padding: 18px 22px; }
+    .fls_dcard_head h2 { font-size: 15px; font-weight: 600; line-height: 1.5; }
+
+    &__caption { font-size: 12px; color: var(--fls-text-mid); line-height: 1.55; margin: 4px 0 0; }
+    &__range select {
+        font: inherit;
+        font-size: 13px;
+        color: var(--fls-text);
+        background-color: var(--fls-surface);
+        border: 1px solid var(--fls-border);
+        border-radius: 6px;
+        min-height: 34px;
+        padding: 4px 30px 4px 10px;
+        cursor: pointer;
+        &:disabled { opacity: .6; cursor: wait; }
+    }
+
+    .fls_stat_tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0 22px; padding: 18px 0; border-bottom: 1px solid var(--fls-border); }
+    .fls_stat_tile {
+        gap: 10px; padding: 4px 22px; border-radius: 0; background: transparent; transition: background .15s ease;
+        border-right: 1px solid var(--fls-border);
+        &:first-child { padding-left: 0; }
+        &:last-child { border-right: 0; }
+        &:hover { box-shadow: none; background: var(--fls-surface-sunk); }
+        .fls_stat_title { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+        .fls_stat_icon { width: 18px; height: 18px; background: transparent; svg { width: 16px; height: 16px; } }
+        .fls_stat_value { font-size: 30px; line-height: 1.2; font-weight: 600; letter-spacing: -.8px; width: 100%; justify-content: space-between; font-variant-numeric: tabular-nums; }
+    }
+    &__arrow { color: var(--fls-text-mid); font-size: 16px; margin-right: 5px; opacity: 0; transition: opacity .15s ease; }
+    .fls_stat_tile:hover &__arrow, .fls_stat_tile:focus-visible &__arrow { opacity: 1; }
+    .fls_chart_plot { height: 200px; margin-top: 24px; }
+    .fls_chart_col:focus-visible { outline: 2px solid var(--fls-accent); outline-offset: 1px; }
+    .fls_chart_seg { min-height: 0; flex-shrink: 0; }
+    .fls_chart_stack { min-height: 0; }
+
+    &__views {
+        display: flex; gap: 20px; padding: 0 22px; border-bottom: 1px solid var(--fls-border);
+        button {
+            cursor: pointer; font: inherit; font-size: 13px; background: transparent; color: var(--fls-text-mid);
+            border: 0; border-bottom: 2px solid transparent; padding: 13px 0; transition: color .15s ease, border-color .15s ease;
+            &.is_active { color: var(--fls-text); border-bottom-color: var(--fls-accent); font-weight: 600; }
+            &:focus-visible { outline: 2px solid var(--fls-accent); outline-offset: 2px; }
+        }
+    }
+    .fls_dash_list > li { padding: 14px 22px; }
+    .fls_dash_list_title { flex-wrap: wrap; }
+    .fls_dash_list_meta { margin-top: 4px; }
+    .fls_dashboard__ip { display: block; }
+    &__ip-row { display: flex; align-items: center; gap: 18px; .fls_dash_list_main { flex: 1; } }
+    &__address { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    &__confirm { margin-top: 12px; padding: 12px; border-radius: 6px; background: var(--fls-surface-sunk); p { font-size: 13px; line-height: 1.6; margin: 0 0 10px; } }
+    &__error { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; margin-bottom: 20px; background: var(--fls-warning-bg); color: var(--fls-warning-fg); border-radius: 8px; font-size: 13px; }
+
+    &__security h2 { margin: 0 0 18px; font-size: 15px; line-height: 1.5; font-weight: 600; color: var(--fls-heading); }
+    &__verdict {
+        display: flex; align-items: flex-start; gap: 10px; color: var(--fls-warning-fg);
+        strong { display: block; font-size: 15px; line-height: 1.45; font-weight: 600; }
+        p { margin: 4px 0 0; color: var(--fls-text-mid); font-size: 12px; line-height: 1.5; }
+        &.is_clear { color: var(--fls-success-fg); }
+    }
+    &__verdict-icon { flex-shrink: 0; margin-top: 1px; svg { width: 20px; height: 20px; } }
+    .fls_dash_findings { margin: 20px 0 16px; gap: 14px; font-size: 13px; > li { font-size: 13px; } }
+    &__review { width: 100%; margin: 16px 0 20px; }
+    &__checks { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--fls-text-mid); b { white-space: nowrap; color: var(--fls-text); font-weight: 500; } }
+    .fls_dash_facts > li { align-items: flex-start; font-size: 12px; }
+    .fls_dash_facts .fls_dash_fact_value { flex-shrink: 1; }
+    .fls_dash_bar_fill { background: var(--fls-accent); }
+    .fls_dash_promo .el-button { width: 100%; }
+    .fls_empty { min-height: 120px; font-size: 13px; }
+
+    @media (max-width: 1200px) {
+        .fls_page_inner { grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; }
+        &__header { align-items: flex-start; }
+        .fls_stat_tile { padding: 4px 12px; .fls_stat_title { font-size: 11px; gap: 5px; } }
+        .fls_stat_icon { display: none !important; }
+        .fls_dcard_head { padding: 16px 18px; }
+        &__range { gap: 6px; }
+    }
+    @media (max-width: 950px) {
+        .fls_page_inner { grid-template-columns: minmax(0, 1fr); grid-template-areas: "aside" "main"; }
+        .fls_page_aside { grid-row: 1; }
+        &__header { flex-wrap: wrap; gap: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { transition: none !important; }
+    }
+}
+
+.fls_dashboard .fls_page_aside .fls_dashboard__caption { font-size: 12px; line-height: 1.55; color: var(--fls-text-mid); margin: 4px 0 0; }

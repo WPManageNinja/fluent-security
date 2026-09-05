@@ -30,6 +30,7 @@ class Registry
             new Files\DropInsCheck(),
             new Files\UploadsExecutionCheck(),
             new Files\BaselineCheck(),
+            new Files\IntegrityCheck(),
             new Files\BackupFilesCheck(),
             new Config\FileEditorCheck(),
             new Config\DebugDisplayCheck(),

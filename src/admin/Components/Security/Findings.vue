@@ -82,7 +82,7 @@ export default {
             if (this.counts.to_fix) {
                 return {tone: 'is_fix', icon: icons.alert,
                     title: this.$_n('%s finding needs action', '%s findings need action', this.counts.to_fix),
-                    body: this.$t('Start with the items marked Action needed. File monitoring is checked separately.')};
+                    body: this.$t('Start with the items marked Action needed.')};
             }
             if (this.views[0].count) {
                 return {tone: 'is_look', icon: icons.shield,
@@ -91,7 +91,7 @@ export default {
             }
             return {tone: 'is_passed', icon: icons.shieldTick,
                 title: this.$t('No outstanding attention items'),
-                body: this.$t('Check recommendations and file monitoring for the rest of the picture.')};
+                body: this.$t('Check the recommendations for the rest of the picture.')};
         },
         emptyTitle() {
             if (this.isFiltered) return this.$t('No matching checks');

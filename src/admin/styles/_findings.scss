@@ -411,6 +411,123 @@
     }
 }
 
+/*
+ * The things that can be put back, one per row. Buttons sit on the rows rather than in the
+ * step's action column because each one names a different download.
+ */
+.fls_recover_files {
+    @apply flex flex-col rounded;
+
+    gap: 2px;
+    margin-top: 12px;
+    padding: 4px;
+    background: var(--fls-surface-sunk);
+
+    .fls_recover_file {
+        @apply flex items-center justify-between rounded;
+
+        gap: 12px;
+        padding: 8px 10px;
+
+        &.is_busy {
+            background: var(--fls-warning-wash);
+        }
+
+        > .el-button {
+            flex: none;
+        }
+    }
+
+    .fls_recover_file_main {
+        @apply flex flex-col;
+
+        gap: 2px;
+        min-width: 0;
+
+        strong {
+            @apply flex flex-wrap items-center text-sm font-medium;
+
+            gap: 6px;
+            color: var(--fls-text);
+        }
+    }
+
+    .fls_recover_file_version {
+        @apply font-normal;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_recover_file_status {
+        @apply text-xs;
+
+        color: var(--fls-text-mid);
+
+        &.is_suspicious {
+            color: var(--fls-danger-fg);
+        }
+    }
+
+    /* Why this row has no button. A sentence, in the same grey as the rest of the row. */
+    .fls_recover_file_blocked {
+        @apply text-xs;
+
+        color: var(--fls-text-light);
+        max-width: 62ch;
+
+        a {
+            margin-left: 6px;
+        }
+    }
+
+    .fls_recover_files_all {
+        @apply flex justify-end;
+
+        padding: 6px 6px 2px;
+    }
+}
+
+/* What no checksum covers. Quieter than the rows above: this is a reading list, not a task. */
+.fls_recover_unverifiable {
+    margin-top: 12px;
+
+    > p {
+        @apply text-xs m-0;
+
+        color: var(--fls-text-mid);
+        max-width: 62ch;
+    }
+
+    ul {
+        @apply m-0 p-0;
+
+        list-style: none;
+        margin-top: 6px;
+    }
+
+    li {
+        @apply flex flex-wrap items-baseline text-xs m-0;
+
+        gap: 4px 8px;
+        padding: 3px 0;
+        color: var(--fls-text-light);
+
+        strong {
+            @apply font-medium;
+
+            color: var(--fls-text);
+        }
+    }
+}
+
+.fls_recover_quarantine {
+    @apply text-xs m-0;
+
+    margin-top: 10px;
+    color: var(--fls-text-mid);
+    max-width: 62ch;
+}
+
 .fls_recover_note {
     @apply text-xs m-0;
 

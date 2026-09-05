@@ -39,8 +39,8 @@ class DashboardController
             'stats'      => self::getStats($range),
             'chart'      => self::getChart($range),
             'recent'     => [
-                'threats'   => self::getRecentLogs(['failed', 'blocked']),
-                'successes' => self::getRecentLogs(['success'])
+                'threats'   => self::getRecentLogs(['failed', 'blocked'], $range),
+                'successes' => self::getRecentLogs(['success'], $range)
             ],
             'top_ips'    => self::getTopIps($range),
             'methods'    => self::getLoginMethods($range),
@@ -327,12 +327,14 @@ class DashboardController
 
     /**
      * @param array $statuses
+     * @param array $range
      * @return array
      */
-    private static function getRecentLogs($statuses)
+    private static function getRecentLogs($statuses, $range)
     {
         $logs = flsDb()->table('fls_auth_logs')
             ->whereIn('status', $statuses)
+            ->whereBetween('created_at', $range['from'], $range['to'])
             ->orderBy('id', 'DESC')
             ->limit(self::LIST_LIMIT)
             ->get();
@@ -457,6 +459,7 @@ class DashboardController
 
         return [
             'two_fa'    => $twoFa,
+            'two_fa_enabled' => Arr::get($settings, 'totp_2fa') === 'yes',
             'scan'      => [
                 'registered'   => in_array(Arr::get($scan, 'status'), ['active', 'self'], true),
                 /*

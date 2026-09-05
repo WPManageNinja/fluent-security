@@ -38,13 +38,85 @@ class IntegrityHelper
     }
 
     /*
+     * What the last scan made of core, kept so the screens that are not the scan screen can
+     * say so without hashing wp-includes on every page load.
+     *
+     * The scan screen itself still re-runs core on request - it is one cheap request and the
+     * answer should be live while somebody is looking at it. But the findings list and the
+     * recovery screen only need to know what the last look found, and "a file changed in
+     * wp-includes" is not something either of them should have to re-derive to mention.
+     *
+     * Stored unfiltered and capped, like the extension results: the ignore list is applied
+     * when read, so accepting a file later does not need a scan to take effect.
+     */
+    public static function getCoreResults()
+    {
+        $results = get_option('__fls_integrity_core_results', []);
+
+        return is_array($results) ? $results : [];
+    }
+
+    public static function storeCoreResult(CheckerService $checker)
+    {
+        $maxFiles = apply_filters('fluent_auth/integrity_max_extension_findings', 300);
+
+        $files = $checker->getModifiedFiles();
+        $total = count($files);
+
+        $result = [
+            'version'    => get_bloginfo('version'),
+            'files'      => array_slice($files, 0, $maxFiles, true),
+            'folders'    => array_values((array)$checker->getModifiedFolders()),
+            'total'      => $total,
+            'truncated'  => max(0, $total - $maxFiles),
+            'checked_at' => current_time('mysql')
+        ];
+
+        update_option('__fls_integrity_core_results', $result, false);
+
+        return $result;
+    }
+
+    /*
+     * Core findings the site has not already accepted, as flat root-relative paths.
+     *
+     * The same shape getActiveExtensionFindings() returns, so a reader of either can treat
+     * them alike. Nothing at all before the first scan - an empty list here means "nothing
+     * found", and the caller has to check checked_at to tell that from "never looked".
+     */
+    public static function getActiveCoreFindings()
+    {
+        $results = self::getCoreResults();
+
+        if (empty($results['checked_at'])) {
+            return [];
+        }
+
+        $ignored = array_map(function ($file) {
+            return ltrim($file, '/');
+        }, Arr::get(self::getIgnoreLists(), 'files', []));
+
+        $active = [];
+
+        foreach ((array)Arr::get($results, 'files', []) as $file => $data) {
+            if (in_array($file, $ignored, true)) {
+                continue;
+            }
+
+            $active[$file] = $data;
+        }
+
+        return $active;
+    }
+
+    /*
      * What the last scan found in each plugin and theme, keyed by type and file.
      *
-     * Core's findings are deliberately not kept - the screen re-scans on arrival and core is
-     * one cheap request. Extensions are not cheap, so their results are stored: it is what
-     * lets the aside say "44 of 47 verified" without walking wp-content again, and what lets
-     * the scheduled scan work through a big site across several runs instead of trying to
-     * finish inside one.
+     * Core's findings are kept only in summary - see getCoreResults() - because the screen
+     * re-scans on arrival and core is one cheap request. Extensions are not cheap, so their
+     * results are stored in full: it is what lets the aside say "44 of 47 verified" without
+     * walking wp-content again, and what lets the scheduled scan work through a big site
+     * across several runs instead of trying to finish inside one.
      */
     public static function getExtensionResults()
     {
@@ -335,6 +407,8 @@ class IntegrityHelper
             // error happended
             return false;
         }
+
+        self::storeCoreResult($checkerService);
 
         $modifiedFiles = $checkerService->getActiveModifiedFiles(false);
         $modifiedFolders = $checkerService->getActiveModifiedFolders();

@@ -139,6 +139,9 @@ class SecurityScanController
             return new \WP_Error('invalid_response', __('An error occurred while scanning the site. If you continously get this error, please reconnect the API.', 'fluent-security'), ['status' => 422, 'data' => $e->getMessage()]);
         }
 
+        /* Kept for the screens that do not re-scan - see IntegrityHelper::getCoreResults(). */
+        IntegrityHelper::storeCoreResult($checkerService);
+
         $scanResults = $checkerService->getScanResults(false);
         $activeChanges = $checkerService->getScanResults(true);
 

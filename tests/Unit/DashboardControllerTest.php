@@ -108,6 +108,37 @@ class DashboardControllerTest extends BaseTestCase
         $this->assertEquals('0', $stats['success']);
     }
 
+    public function testRecentActivityUsesTheSelectedRange()
+    {
+        foreach (['failed', 'blocked', 'success'] as $status) {
+            $this->log(['status' => $status, 'username' => 'older', 'created_at' => gmdate('Y-m-d H:i:s', strtotime('-100 days'))]);
+            $this->log(['status' => $status, 'username' => 'current']);
+        }
+
+        $recent = $this->dashboard('-7 days')['recent'];
+        $this->assertCount(2, $recent['threats']);
+        $this->assertCount(1, $recent['successes']);
+        foreach (array_merge($recent['threats'], $recent['successes']) as $row) {
+            $this->assertEquals('current', $row['username']);
+        }
+        $this->assertCount(4, $this->dashboard('all_time')['recent']['threats']);
+    }
+
+    public function testAuthenticatorStatusDoesNotInferEnabledFromEnrollment()
+    {
+        $userId = $this->factory->user->create();
+        update_user_meta($userId, TotpTwoFaMethod::META_SECRET, 'ABCDEFGHIJKLMNOP');
+        $protection = $this->dashboard()['protection'];
+        $this->assertEquals(1, $protection['two_fa']['enrolled']);
+        $this->assertFalse($protection['two_fa_enabled']);
+
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'yes';
+        update_option('__fls_auth_settings', $settings);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->assertTrue($this->dashboard()['protection']['two_fa_enabled']);
+    }
+
     public function testTwoFaTileCountsEnrolledUsers()
     {
         $userId = $this->factory->user->create();

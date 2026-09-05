@@ -4,6 +4,7 @@ namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Services\Checks\Check;
 use FluentAuth\App\Services\Checks\Registry;
+use FluentAuth\App\Services\Recovery\FileRecovery;
 use FluentAuth\App\Services\Recovery\RecoveryService;
 
 /**
@@ -28,6 +29,8 @@ class RecoveryController
             'administrators' => RecoveryService::administrators(),
             'progress'       => RecoveryService::progress(),
             'history'        => RecoveryService::history(),
+            /* What the last scan found, and what can be put back from here. */
+            'files'          => FileRecovery::summary(),
             /*
              * What the findings list is holding, so the screen can lead with the reason
              * somebody is on it - and so the last step can stay shut until it is empty.
@@ -61,6 +64,32 @@ class RecoveryController
     {
         return RecoveryService::queuePasswordResets(
             sanitize_text_field((string)$request->get_param('scope'))
+        );
+    }
+
+    /**
+     * @param \WP_REST_Request $request
+     * @return array|\WP_Error
+     */
+    public static function reinstallCore(\WP_REST_Request $request)
+    {
+        return FileRecovery::reinstallCore();
+    }
+
+    /**
+     * @param \WP_REST_Request $request
+     * @return array|\WP_Error
+     */
+    public static function reinstallExtension(\WP_REST_Request $request)
+    {
+        return FileRecovery::reinstallExtension(
+            sanitize_text_field((string)$request->get_param('type')),
+            /*
+             * Not sanitize_text_field(): a plugin key is "folder/file.php" and the theme key
+             * is a folder name, and both are only ever matched against the inventory - a
+             * key that names nothing installed is answered with a 404, not acted on.
+             */
+            (string)$request->get_param('key')
         );
     }
 }

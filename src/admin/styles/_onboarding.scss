@@ -293,6 +293,148 @@ button.fls_onb_rail_hit {
     }
 }
 
+/* ------------------------------------------------------- stock wp-login page */
+
+/*
+ * WordPress's own login page, for a site with the customizer off. The values are
+ * wp-admin/css/login.css read across by hand - the grey ground, the 320px column, the
+ * white box with its hairline and shadow, the 24px inputs and the blue button - so the
+ * drawing is recognisably the page a visitor gets. Colours are fixed rather than tokens:
+ * this page is light whatever the admin's theme is, and it should look it.
+ */
+.fls_onb_wp {
+    @apply flex justify-center;
+
+    color-scheme: light;
+    background: #f0f0f1;
+    color: #3c434a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+
+    p {
+        margin: 0;
+    }
+}
+
+.fls_onb_wp_login {
+    width: 320px;
+    padding-top: 44px;
+}
+
+.fls_onb_wp_logo {
+    @apply flex justify-center;
+
+    margin: 0 0 25px;
+    line-height: 0;
+}
+
+.fls_onb_wp_form {
+    margin: 0 0 24px;
+    padding: 26px 24px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+
+    label {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+}
+
+/* An input as a box rather than a control: the whole page is a picture. */
+.fls_onb_wp_input {
+    @apply block;
+
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    margin: 0 0 16px;
+    padding: 0 8px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+    color: #8c8f94;
+    font-size: 24px;
+    line-height: 38px;
+    letter-spacing: 2px;
+}
+
+.fls_onb_wp_check {
+    @apply flex items-center;
+
+    gap: 6px;
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.fls_onb_wp_box {
+    @apply inline-block flex-none;
+
+    width: 16px;
+    height: 16px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.fls_onb_wp_passmail {
+    margin: 0 0 16px;
+    font-size: 12px;
+}
+
+.fls_onb_wp_submit {
+    @apply flex justify-end;
+}
+
+.fls_onb_wp_button {
+    @apply inline-block;
+
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid #2271b1;
+    border-radius: 3px;
+    background: #2271b1;
+    color: #fff;
+    font-size: 13px;
+    line-height: 30px;
+}
+
+.fls_onb_wp_nav,
+.fls_onb_wp_back {
+    padding: 0 24px;
+    color: #50575e;
+    font-size: 13px;
+}
+
+.fls_onb_wp_back {
+    margin-top: 16px;
+}
+
+/*
+ * A notice on the stock page is WordPress's own: a white strip above the form with a
+ * coloured edge, not the wizard's tinted card. Same element, restyled where it lands.
+ */
+.fls_onb_wp .fls_onb_note {
+    margin: 0 0 20px;
+    padding: 12px;
+    border-radius: 0;
+    background: #fff;
+    color: #3c434a;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+    font-size: 13px;
+
+    &.is-info {
+        border-left-color: #3858e9;
+    }
+
+    &.is-blocked {
+        border-left-color: #d63638;
+    }
+}
+
 /*
  * A message the login page itself would show. Drawn at the preview's own scale, which is
  * why these sizes are larger than anything else on this screen: they are shrunk by the

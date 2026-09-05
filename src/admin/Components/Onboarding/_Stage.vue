@@ -1,6 +1,7 @@
 <script type="text/babel">
 import AuthFormPreview from '../AuthCustomizer/_AuthFormPreview.vue';
 import ConnectionPreview from './Previews/_ConnectionPreview.vue';
+import WpLoginPreview from './Previews/_WpLoginPreview.vue';
 import EmailPreview from './Previews/_EmailPreview.vue';
 
 /**
@@ -21,6 +22,7 @@ export default {
     name: 'OnboardingStage',
     components: {
         AuthFormPreview,
+        WpLoginPreview,
         ConnectionPreview,
         EmailPreview
     },
@@ -83,6 +85,23 @@ export default {
             const settings = this.authSettings && this.authSettings[this.tab];
 
             return settings || {banner: {hidden: true}, form: {}};
+        },
+        /**
+         * Which login page to draw. The customizer's design is only the page a visitor
+         * meets once the customizer is switched on; until then wp-login.php is WordPress's
+         * own, so that is what the questions are previewed against. Decided on the status
+         * flag alone: a saved-but-disabled design is still not the page anybody sees.
+         */
+        previewComponent() {
+            const enabled = this.authSettings && this.authSettings.status === 'yes';
+
+            return enabled ? 'AuthFormPreview' : 'WpLoginPreview';
+        },
+        /* The address in the frame's bar: registration has its own. */
+        previewUrl() {
+            const page = this.tab === 'signup' ? 'wp-login.php?action=register' : 'wp-login.php';
+
+            return this.appVars.site_url + page;
         },
         /** Whether this step's answer currently turns its protection on. */
         isOn() {
@@ -180,29 +199,27 @@ export default {
                 <span class="fls_onb_dot"></span>
                 <span class="fls_onb_dot"></span>
                 <span class="fls_onb_dot"></span>
-                <span class="fls_onb_url">{{ appVars.site_url }}wp-login.php</span>
+                <span class="fls_onb_url">{{ previewUrl }}</span>
             </div>
 
             <div class="fls_onb_screen_body" inert>
 
                 <!-- Two-factor: the second screen, once a password has been accepted. -->
-                <auth-form-preview v-if="kind === 'two_factor'"
-                                   :settings="design" tab="login"
-                                   :fields="twoFactorFields"
-                                   :button-label="isOn ? $t('Verify') : ''">
+                <component :is="previewComponent" v-if="kind === 'two_factor'"
+                           :settings="design" tab="login"
+                           :fields="twoFactorFields"
+                           :button-label="isOn ? $t('Verify') : ''">
                     <template v-if="isOn" #notice>
                         <div class="fls_onb_note is-info">{{ twoFactorNotice }}</div>
                     </template>
                     <template v-if="isOn" #after-form>
-                        <div class="fs_form_extra" style="margin-top: 40px; display: block;">
-                            <p>{{ $t('Use a different method') }}</p>
-                        </div>
+                        <p>{{ $t('Use a different method') }}</p>
                     </template>
-                </auth-form-preview>
+                </component>
 
                 <!-- The attempt limit, shown as the message it produces. -->
-                <auth-form-preview v-else-if="kind === 'lockout'"
-                                   :settings="design" tab="login">
+                <component :is="previewComponent" v-else-if="kind === 'lockout'"
+                           :settings="design" tab="login">
                     <template #notice>
                         <div class="fls_onb_note is-blocked">
                             {{
@@ -210,19 +227,19 @@ export default {
                             }}
                         </div>
                     </template>
-                </auth-form-preview>
+                </component>
 
                 <!-- Signup, with or without the verification step in front of it. -->
-                <auth-form-preview v-else-if="kind === 'signup'"
-                                   :settings="design" tab="signup"
-                                   :fields="signupFields"
-                                   :button-label="isOn ? $t('Confirm email address') : ''">
+                <component :is="previewComponent" v-else-if="kind === 'signup'"
+                           :settings="design" tab="signup"
+                           :fields="signupFields"
+                           :button-label="isOn ? $t('Confirm email address') : ''">
                     <template v-if="isOn" #notice>
                         <div class="fls_onb_note is-info">
                             {{ $t('We sent a code to that address. Enter it to confirm the address is yours.') }}
                         </div>
                     </template>
-                </auth-form-preview>
+                </component>
             </div>
         </div>
 

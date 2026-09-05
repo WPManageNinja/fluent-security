@@ -221,13 +221,13 @@ export default {
                     </el-form-item>
                 </el-form>
 
-                <slot name="after-form">
-                    <div style="margin-top: 40px; display: block;" class="fs_form_extra">
+                <div style="margin-top: 40px; display: block;" class="fs_form_extra">
+                    <slot name="after-form">
                         <p v-if="tab == 'login'">{{ $t('Register | Lost your password?') }}</p>
                         <p v-else>{{ $t('Log in | Lost your password?') }}</p>
                         <p>{{ $t('← Go to Website') }}</p>
-                    </div>
-                </slot>
+                    </slot>
+                </div>
             </div>
         </div>
     </div>

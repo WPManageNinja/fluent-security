@@ -411,11 +411,14 @@ class RecoveryService
      * be counted as a login in the dashboard's figures, and kept as a short list of its own so
      * the recovery screen can say when it was last used without reading the log table.
      *
+     * Public because the file recovery writes to the same record - one log, one "last used",
+     * whichever half of the recovery was used.
+     *
      * @param string $action
      * @param string $description
      * @return void
      */
-    protected static function log($action, $description)
+    public static function log($action, $description)
     {
         global $wpdb;
 
