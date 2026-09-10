@@ -248,6 +248,30 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertSame($row->login_hash, $_COOKIE[TwoFaHandler::PENDING_COOKIE]);
     }
 
+    public function testAPlainTextHandoffCarriesAUsableUrl()
+    {
+        // Not ajax and not a page: what a REST client would be shown.
+        $result = $this->handler->maybeDenyHeadlessLogin($this->user);
+        $this->assertSame($this->user, $result, 'A page login is left to the redirect');
+
+        $method = new \ReflectionMethod($this->handler, 'getHandoffMessage');
+        $method->setAccessible(true);
+        $url = add_query_arg(['fls_2fa' => 'email', 'login_hash' => 'abc', 'action' => 'fls_2fa_email'], wp_login_url());
+
+        add_filter('wp_doing_ajax', '__return_true');
+        try {
+            $html = $method->invoke($this->handler, new \FluentAuth\App\Services\TwoFa\EmailTwoFaMethod(), $url);
+        } finally {
+            remove_filter('wp_doing_ajax', '__return_true');
+        }
+        $this->assertStringContainsString('href="' . esc_url($url) . '"', $html);
+
+        $plain = $method->invoke($this->handler, new \FluentAuth\App\Services\TwoFa\EmailTwoFaMethod(), $url);
+        $this->assertStringContainsString('login_hash=abc&action=fls_2fa_email', $plain);
+        $this->assertStringNotContainsString('&#038;', $plain);
+        $this->assertStringNotContainsString('<a ', $plain);
+    }
+
     public function testTheChallengeRemembersWhereTheLoginCameFrom()
     {
         // WooCommerce sends `redirect`.
@@ -327,7 +351,75 @@ class TwoFaHandlerTest extends BaseTestCase
 
     public function testAnAuthCookieReissuedToWhoeverIsAlreadySignedInIsSent()
     {
+        // What core does on the way in when the request carries a valid cookie.
+        do_action('auth_cookie_valid', [], $this->user);
+
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    public function testACookieMintedInThisRequestCannotVouchForItself()
+    {
+        // A plugin signs the user in, writes the new cookie into $_COOKIE, and something
+        // validates it - all inside the same request. That is not an arrival.
+        $this->handler->rememberCookieUser('minted', 0, 0, $this->user->ID);
+        do_action('auth_cookie_valid', [], $this->user);
         $_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($this->user->ID, time() + 3600, 'logged_in');
+
+        $this->assertFalse($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNotNull($this->pendingRowFor($this->user));
+    }
+
+    public function testAnAdministratorMaySwitchIntoAnotherAccountWithoutItsSecondFactor()
+    {
+        $admin = $this->factory->user->create_and_get(['role' => 'administrator']);
+        do_action('auth_cookie_valid', [], $admin);
+
+        // User Switching, "login as customer": a cookie for somebody else.
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNull($this->pendingRowFor($this->user), 'No code is mailed to the account being entered');
+    }
+
+    public function testSomeoneWhoCannotEditTheAccountGetsNoSuchPass()
+    {
+        $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        do_action('auth_cookie_valid', [], $subscriber);
+
+        $this->assertFalse($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+    }
+
+    public function testReCheckingThePasswordOfWhoeverIsAlreadySignedInIsNotRefused()
+    {
+        do_action('auth_cookie_valid', [], $this->user);
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertSame($this->user, $result);
+        $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    public function testAnApplicationPasswordLoginIsNotRefused()
+    {
+        // XML-RPC with an application password reaches the authenticate chain too.
+        $this->handler->rememberAppPasswordAuth();
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertSame($this->user, $result);
+    }
+
+    public function testACookieRenewedAfterThisRequestsOwnCookieDiedIsStillSent()
+    {
+        // The request arrived signed in: core validated the cookie and said so.
+        do_action('auth_cookie_valid', [], $this->user);
+
+        // Then the password changed / the recovery sweep ran - the old cookie is dead.
+        \WP_Session_Tokens::destroy_all_for_all_users();
+        unset($_COOKIE[LOGGED_IN_COOKIE]);
 
         $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
         $this->assertNull($this->pendingRowFor($this->user));
@@ -390,6 +482,29 @@ class TwoFaHandlerTest extends BaseTestCase
 
         // One shot.
         $this->assertArrayNotHasKey(TwoFaHandler::PENDING_COOKIE, $_COOKIE);
+    }
+
+    public function testResumingFromTheLoginScreenKeepsTheAdminPageAskedFor()
+    {
+        $row = $this->raisePendingChallenge();
+        $this->assertSame('', $row->redirect_intend);
+
+        // auth_redirect() sent them to wp-login.php?redirect_to=... first.
+        $this->arriveAt('/wp-login.php');
+        $GLOBALS['pagenow'] = 'wp-login.php';
+        $_REQUEST['redirect_to'] = admin_url('edit.php');
+
+        try {
+            $sentTo = $this->captureRedirect(function () {
+                $this->handler->maybeResumePendingChallenge();
+            });
+        } finally {
+            $GLOBALS['pagenow'] = 'index.php';
+            unset($_REQUEST['redirect_to']);
+        }
+
+        $this->assertNotNull($sentTo);
+        $this->assertSame(admin_url('edit.php'), $this->pendingRowFor($this->user)->redirect_intend);
     }
 
     public function testAKnownDestinationIsNotOverwrittenOnResume()

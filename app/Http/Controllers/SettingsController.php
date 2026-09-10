@@ -33,6 +33,16 @@ class SettingsController
             return $settings;
         }
 
+        /*
+         * The digest window is measured from the last send. Left alone, switching from
+         * daily to a weekday could swallow the first weekly digest because a daily one
+         * went out a few days ago. A new frequency starts from now.
+         */
+        $previous = Helper::getSetting('digest_summary');
+        if (Arr::get($settings, 'digest_summary') !== $previous) {
+            delete_option('_fls_last_digest_sent');
+        }
+
         update_option('__fls_auth_settings', $settings, false);
 
         return [

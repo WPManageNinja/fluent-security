@@ -208,6 +208,36 @@ class SettingsControllerTest extends BaseTestCase
         return SettingsController::updateSettings($request);
     }
 
+    private function saveWithDigest($frequency)
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('settings', [
+            'login_try_limit'  => 5,
+            'login_try_timing' => 30,
+            'email2fa'         => 'no',
+            'email2fa_roles'   => [],
+            'digest_summary'   => $frequency,
+        ]);
+
+        return SettingsController::updateSettings($request);
+    }
+
+    public function testChangingTheDigestFrequencyStartsAFreshWindow()
+    {
+        $this->saveWithDigest('daily');
+        update_option('_fls_last_digest_sent', '2026-09-09 08:00:00', false);
+
+        // Saving again with the same frequency keeps the window.
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->saveWithDigest('daily');
+        $this->assertSame('2026-09-09 08:00:00', get_option('_fls_last_digest_sent'));
+
+        // A different one would otherwise be gated by a daily send a few days ago.
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->saveWithDigest('mon');
+        $this->assertFalse(get_option('_fls_last_digest_sent'));
+    }
+
     public function testChoosingRolesTurnsTheRestrictionOn()
     {
         $result = $this->saveWithBarRoles(['subscriber']);

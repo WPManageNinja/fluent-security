@@ -99,6 +99,22 @@ class BasicTasksHandlerTest extends BaseTestCase
         $this->assertSame(200, $response->get_status());
     }
 
+    public function testEveryoneMayStillReadTheirOwnRecord()
+    {
+        $this->saveSettings(['disable_users_rest' => 'yes']);
+        $author = $this->factory->user->create(['role' => 'author']);
+        $other = $this->factory->user->create(['role' => 'author']);
+        wp_set_current_user($author);
+
+        // What the block editor preloads on every load.
+        $request = new \WP_REST_Request('GET', '/wp/v2/users/me');
+        $request->set_param('context', 'edit');
+        $this->assertSame(200, rest_do_request($request)->get_status());
+
+        $this->assertSame(200, rest_do_request(new \WP_REST_Request('GET', '/wp/v2/users/' . $author))->get_status());
+        $this->assertSame(403, rest_do_request(new \WP_REST_Request('GET', '/wp/v2/users/' . $other))->get_status());
+    }
+
     public function testHiddenUserListIsEmptyForAnonymousRequests()
     {
         $this->saveSettings(['disable_users_rest' => 'yes']);
@@ -143,6 +159,27 @@ class BasicTasksHandlerTest extends BaseTestCase
         $this->set_permalink_structure('/%postname%/');
         wp_set_current_user(0);
         $_GET['author'] = '1';
+
+        try {
+            $sentTo = $this->captureRedirect(function () {
+                $this->handler->maybeBlockAuthorIdLookup();
+            });
+        } finally {
+            unset($_GET['author']);
+            $this->set_permalink_structure('');
+        }
+
+        $this->assertSame(home_url('/'), $sentTo);
+    }
+
+    public function testAnAuthorIdWithATrailingNewlineIsBlockedLikeCoreWouldFollowIt()
+    {
+        $this->saveSettings(['disable_users_rest' => 'yes']);
+        $this->set_permalink_structure('/%postname%/');
+        wp_set_current_user(0);
+
+        // redirect_canonical() matches "1\n" with ^[0-9]+$ and WP_Query reads it as 1.
+        $_GET['author'] = "1\n";
 
         try {
             $sentTo = $this->captureRedirect(function () {

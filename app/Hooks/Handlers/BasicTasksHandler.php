@@ -187,6 +187,11 @@ class BasicTasksHandler
 
     public function maybeInterceptRestUserResponse($response, $user, $request)
     {
+        // Everyone may read their own record; the block editor asks for it on every load.
+        if (!empty($request['id']) && (int)$request['id'] === get_current_user_id()) {
+            return $response;
+        }
+
         if (!empty($request['id']) && $this->hidesUsers()) {
             return new \WP_Error(
                 'permission_error',
@@ -228,7 +233,19 @@ class BasicTasksHandler
      */
     public function maybeBlockAuthorIdLookup()
     {
-        if (empty($_GET['author']) || !ctype_digit((string)$_GET['author'])) {
+        if (!isset($_GET['author']) || is_array($_GET['author'])) {
+            return;
+        }
+
+        /*
+         * Normalised the way WP_Query normalises it - everything but digits stripped -
+         * rather than tested for being all digits. Core accepts "1%0A" as author 1 and
+         * redirect_canonical() follows it to the slug, so a stricter test here than
+         * core's own is a hole, not a safeguard.
+         */
+        $authorId = preg_replace('/[^0-9]/', '', (string)wp_unslash($_GET['author']));
+
+        if ($authorId === '') {
             return;
         }
 
@@ -296,6 +313,23 @@ class BasicTasksHandler
         <?php
     }
 
+    /**
+     * Today, in the site's timezone. wp_date() is the only primitive that honours it
+     * regardless of what PHP's default zone has been set to; date() on a shifted
+     * timestamp is right only while that default is still UTC.
+     *
+     * @param $format string
+     * @return string
+     */
+    private function siteDate($format)
+    {
+        if (function_exists('wp_date')) {
+            return (string)wp_date($format);
+        }
+
+        return date($format, current_time('timestamp'));
+    }
+
     public function maybeSendDigestEMail()
     {
         $frequency = Helper::getSetting('digest_summary');
@@ -325,19 +359,17 @@ class BasicTasksHandler
             $frequency = 'mon';
         }
 
-        $now = current_time('timestamp');
-
         if ($frequency === 'daily') {
             $cutOut = 23 * HOUR_IN_SECONDS;
             $period = 'daily';
         } elseif ($frequency === 'monthly') {
-            if (date('d', $now) !== '01') {
+            if ($this->siteDate('d') !== '01') {
                 return false;
             }
             $cutOut = 27 * DAY_IN_SECONDS;
             $period = 'monthly';
         } elseif (isset($weekdays[$frequency])) {
-            if (date('D', $now) !== $weekdays[$frequency]) {
+            if ($this->siteDate('D') !== $weekdays[$frequency]) {
                 return false;
             }
             $cutOut = 6 * DAY_IN_SECONDS;

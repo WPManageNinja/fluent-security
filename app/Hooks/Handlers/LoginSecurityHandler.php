@@ -391,6 +391,10 @@ class LoginSecurityHandler
          * The password was right; the request just had nowhere to show the second step
          * (see TwoFaHandler::maybeDenyHeadlessLogin). Counting that as a guess would let
          * an honest user lock their own address out by retrying a popup login form.
+         *
+         * Core still fires `wp_login_failed` for it - the ignore list there is not
+         * filterable - so another plugin's attempt counter will see each retry. Nothing
+         * to be done about that from here beyond handing the user the link to finish.
          */
         if ($error->get_error_code() === 'fls_2fa_required') {
             return;

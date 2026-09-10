@@ -72,6 +72,29 @@ class TwoFaHandler
     private $cookieUserId = null;
 
     /**
+     * Whoever this request's own cookie proved to be, recorded the moment core validated
+     * it. Read later rather than re-validated later: by the time a cookie is re-issued,
+     * the one that got them here may already be dead - a password change invalidates its
+     * hash, the recovery sweep destroys its session - and re-checking it then would sign
+     * out the very person doing the renewing.
+     */
+    private static $cookieAuthenticatedUserId = 0;
+
+    /**
+     * Whether any auth cookie has been minted in this request. Once one has, nothing
+     * validated afterwards can be trusted to describe who *arrived*: a plugin that
+     * writes its freshly issued cookie into $_COOKIE (WooCommerce's Store API does, so
+     * nonces work straight after sign in) would otherwise have it vouch for itself.
+     */
+    private static $cookieMinted = false;
+
+    /**
+     * Whether an application password authenticated this request. Those exist to skip
+     * interactive factors, and the plugin has its own switch for refusing them.
+     */
+    private static $appPasswordAuthenticated = false;
+
+    /**
      * @param $user \WP_User
      * @return bool
      */
@@ -103,6 +126,8 @@ class TwoFaHandler
          * The last line. Everything above works through the login chain, and a plugin
          * that sets the auth cookie itself never enters it - see maybeWithholdAuthCookies().
          */
+        add_action('auth_cookie_valid', [$this, 'rememberAuthenticatedUser'], 10, 2);
+        add_action('application_password_did_authenticate', [$this, 'rememberAppPasswordAuth']);
         add_action('set_auth_cookie', [$this, 'rememberCookieUser'], 10, 4);
         add_filter('send_auth_cookies', [$this, 'maybeWithholdAuthCookies'], 999, 4);
 
@@ -418,6 +443,24 @@ class TwoFaHandler
             return $user;
         }
 
+        /*
+         * Not every wp_authenticate() is a sign in. A "confirm your password" dialog
+         * re-checks the password of whoever is already here, and there is nothing to
+         * gain from challenging someone who has already answered.
+         */
+        if ($this->arrivedSignedInAs($user->ID)) {
+            return $user;
+        }
+
+        /*
+         * An application password over XML-RPC comes through this chain too. It is the
+         * one credential built to skip interactive factors; whether a site allows them
+         * at all is `disable_app_login`, not this.
+         */
+        if (self::$appPasswordAuthenticated) {
+            return $user;
+        }
+
         $method = TwoFaService::getRequiredMethod($user, null, $this->isChallengeRequired($user));
 
         if (!$method) {
@@ -491,7 +534,16 @@ class TwoFaHandler
          * A cookie re-issued to whoever is already signed in - after a session sweep, say
          * - proves nothing new and takes nothing away. Only a fresh sign in is examined.
          */
-        if ($this->isSignedInByCookie($userId)) {
+        if ($this->arrivedSignedInAs($userId)) {
+            return $send;
+        }
+
+        /*
+         * An administrator switching into another account. They could reset that
+         * account's password from the users screen, so a second factor asked of the
+         * account they are stepping into - and mailed to its owner - guards nothing.
+         */
+        if (self::$cookieAuthenticatedUserId && user_can(self::$cookieAuthenticatedUserId, 'edit_user', $userId)) {
             return $send;
         }
 
@@ -528,21 +580,44 @@ class TwoFaHandler
     public function rememberCookieUser($cookie, $expire = 0, $expiration = 0, $userId = 0)
     {
         $this->cookieUserId = (int)$userId;
+        self::$cookieMinted = true;
     }
 
     /**
-     * Whether this request arrived with a valid logged-in cookie for this user.
+     * @return void
+     */
+    public function rememberAppPasswordAuth()
+    {
+        self::$appPasswordAuthenticated = true;
+    }
+
+    /**
+     * @param $cookieElements array
+     * @param $user \WP_User
+     * @return void
+     */
+    public function rememberAuthenticatedUser($cookieElements, $user)
+    {
+        // Only the cookie the request arrived with, and only the first time it is seen.
+        if (self::$cookieMinted || self::$cookieAuthenticatedUserId || !$user instanceof \WP_User) {
+            return;
+        }
+
+        self::$cookieAuthenticatedUserId = (int)$user->ID;
+    }
+
+    /**
+     * Whether this request arrived signed in as this user.
+     *
+     * Answered from what core validated on the way in, never by validating $_COOKIE now:
+     * by this point the same request may have minted a cookie and written it there.
      *
      * @param $userId int
      * @return bool
      */
-    private function isSignedInByCookie($userId)
+    private function arrivedSignedInAs($userId)
     {
-        if (empty($_COOKIE[LOGGED_IN_COOKIE])) {
-            return false;
-        }
-
-        return (int)wp_validate_auth_cookie($_COOKIE[LOGGED_IN_COOKIE], 'logged_in') === (int)$userId;
+        return self::$cookieAuthenticatedUserId && self::$cookieAuthenticatedUserId === (int)$userId;
     }
 
     /**
@@ -568,6 +643,9 @@ class TwoFaHandler
     {
         self::$withheldUsers = [];
         self::$completingChallenge = false;
+        self::$cookieAuthenticatedUserId = 0;
+        self::$cookieMinted = false;
+        self::$appPasswordAuthenticated = false;
     }
 
     /**
@@ -607,7 +685,9 @@ class TwoFaHandler
             return;
         }
 
-        $onLoginScreen = (bool)did_action('login_init');
+        global $pagenow;
+
+        $onLoginScreen = $pagenow === 'wp-login.php';
 
         if ($onLoginScreen && !empty($_REQUEST['action']) && $_REQUEST['action'] !== 'login') {
             return;
@@ -623,13 +703,24 @@ class TwoFaHandler
             return;
         }
 
-        if (!$row->redirect_intend && !$onLoginScreen) {
-            $current = $this->getCurrentUrl();
+        /*
+         * Where to send them afterwards, if the challenge does not already know: the
+         * page they were opening, or - when auth_redirect() bounced them to the login
+         * screen - the admin page it was asked to return them to.
+         */
+        if (!$row->redirect_intend) {
+            $destination = '';
 
-            if ($current) {
+            if (!$onLoginScreen) {
+                $destination = $this->getCurrentUrl();
+            } elseif (!empty($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to'])) {
+                $destination = Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($_REQUEST['redirect_to'])), '');
+            }
+
+            if ($destination) {
                 flsDb()->table('fls_login_hashes')
                     ->where('id', $row->id)
-                    ->update(['redirect_intend' => $current]);
+                    ->update(['redirect_intend' => $destination]);
             }
         }
 
@@ -732,8 +823,9 @@ class TwoFaHandler
             return $text . ' <a href="' . esc_url($url) . '">' . esc_html__('Finish signing in', 'fluent-security') . '</a>';
         }
 
+        // Not esc_url(): its &#038; is right inside an attribute and wrong in an address.
         /* translators: %s: URL of the second factor form */
-        return $text . ' ' . sprintf(__('Finish signing in at %s', 'fluent-security'), esc_url($url));
+        return $text . ' ' . sprintf(__('Finish signing in at %s', 'fluent-security'), esc_url_raw($url));
     }
 
     /**
