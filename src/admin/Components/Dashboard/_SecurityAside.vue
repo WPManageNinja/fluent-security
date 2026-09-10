@@ -80,7 +80,8 @@ export default {
                     value: ({
                         daily: this.$t('Daily'), mon: this.$t('Monday'), tue: this.$t('Tuesday'),
                         wed: this.$t('Wednesday'), thu: this.$t('Thursday'), fri: this.$t('Friday'),
-                        sat: this.$t('Saturday'), sun: this.$t('Sunday')
+                        sat: this.$t('Saturday'), sun: this.$t('Sunday'),
+                        weekly: this.$t('Monday'), monthly: this.$t('Monthly')
                     })[this.protection.digest] || this.protection.digest,
                     warning: false,
                     route: 'settings_general'

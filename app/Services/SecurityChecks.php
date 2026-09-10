@@ -241,8 +241,8 @@ class SecurityChecks
                 }
             ],
             'disable_users_rest' => [
-                'title'    => __('Hide the public user list', 'fluent-security'),
-                'why'      => __('By default anyone can read the usernames on your site, which is half of every login.', 'fluent-security'),
+                'title'    => __('Hide usernames from the public', 'fluent-security'),
+                'why'      => __('By default anyone can read the usernames on your site, through the REST API, author id lookups and the user sitemap. A username is half of every login.', 'fluent-security'),
                 'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',

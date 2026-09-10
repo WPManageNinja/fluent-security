@@ -33,8 +33,8 @@ export default {
                        :description="$t('These let external apps sign in over the REST API. Leave this off only if something connects that way.')"/>
 
         <SettingToggle v-model="settings.disable_users_rest" recommend="yes"
-                       :label="$t('Hide the user list from the REST API')"
-                       :description="$t('WordPress will otherwise list your usernames to anyone who asks, and those names are half of every password guess.')"/>
+                       :label="$t('Hide usernames from the public')"
+                       :description="$t('WordPress will otherwise hand out your usernames to anyone who asks, through the REST API, author id lookups and the user sitemap. Those names are half of every password guess.')"/>
 
         <SettingToggle v-model="settings.secure_signup_form" recommend="yes"
                        :label="$t('Verify email addresses on signup')"
