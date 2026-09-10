@@ -46,6 +46,32 @@ class TwoFaHandler
     private $challengeCache = [];
 
     /**
+     * True only while verify2FaEmailCode() completes a sign in whose proof has just been
+     * checked. Static because the wp_signon() it runs goes back through the `authenticate`
+     * chain, where every registered instance of this class would otherwise see a login
+     * that still looks like it owes a second factor.
+     */
+    private static $completingChallenge = false;
+
+    /**
+     * Where a challenge raised outside the login form waits for the browser to come
+     * back - see maybeResumePendingChallenge().
+     */
+    const PENDING_COOKIE = 'fls_2fa_pending';
+
+    /**
+     * Users refused an auth cookie in this request, by id. Static for the same reason as
+     * $completingChallenge: LoginSecurityHandler asks about it from another instance.
+     */
+    private static $withheldUsers = [];
+
+    /**
+     * The user core is about to issue cookies for, caught from `set_auth_cookie` because
+     * `send_auth_cookies` only started naming them in WordPress 6.2.
+     */
+    private $cookieUserId = null;
+
+    /**
      * @param $user \WP_User
      * @return bool
      */
@@ -65,6 +91,25 @@ class TwoFaHandler
     public function register()
     {
         add_action('fluent_auth/login_attempts_checked', [$this, 'maybe2FaRedirect'], 1, 1);
+
+        /*
+         * After LoginSecurityHandler (999), which is what fires the action above. Where
+         * that action cannot show a challenge it does nothing, and this is what turns
+         * "nothing" into a refusal - see maybeDenyHeadlessLogin().
+         */
+        add_filter('authenticate', [$this, 'maybeDenyHeadlessLogin'], 1000, 1);
+
+        /*
+         * The last line. Everything above works through the login chain, and a plugin
+         * that sets the auth cookie itself never enters it - see maybeWithholdAuthCookies().
+         */
+        add_action('set_auth_cookie', [$this, 'rememberCookieUser'], 10, 4);
+        add_filter('send_auth_cookies', [$this, 'maybeWithholdAuthCookies'], 999, 4);
+
+        // A challenge raised where no form could be shown is picked up on the next page.
+        add_action('template_redirect', [$this, 'maybeResumePendingChallenge'], 1);
+        add_action('login_init', [$this, 'maybeResumePendingChallenge'], 1);
+
         add_action('login_form_fls_2fa_email', [$this, 'render2FaForm'], 1);
         add_action('wp_ajax_nopriv_fluent_auth_2fa_email', [$this, 'verify2FaEmailCode']);
         add_action('wp_ajax_fluent_auth_2fa_email', function () {
@@ -121,9 +166,12 @@ class TwoFaHandler
 
     public function maybe2FaRedirect($user)
     {
-        // If it's an ajax call and not our own ajax calls then we will just return it
-        // Until we get a better work-around for other plugins
-        if (wp_doing_ajax() && empty($_REQUEST['_is_fls_form'])) {
+        if (self::$completingChallenge) {
+            return false;
+        }
+
+        // Nowhere to send a form. maybeDenyHeadlessLogin() decides what happens instead.
+        if ($this->cannotShowChallenge()) {
             return false;
         }
 
@@ -169,10 +217,7 @@ class TwoFaHandler
         $hash .= $user->ID . '-' . time();
 
         if ($redirectIntend === null) {
-            $redirectIntend = '';
-            if (isset($_REQUEST['redirect_to'])) {
-                $redirectIntend = esc_url($_REQUEST['redirect_to']);
-            }
+            $redirectIntend = $this->resolveRedirectIntent();
         }
 
         if (isset($_REQUEST['rememberme'])) {
@@ -204,11 +249,7 @@ class TwoFaHandler
             'row'         => $data
         ]);
 
-        $redirectTo = add_query_arg([
-            'fls_2fa'    => 'email',
-            'login_hash' => $hash,
-            'action'     => 'fls_2fa_email'
-        ], wp_login_url());
+        $redirectTo = $this->getChallengeUrl($hash);
 
         if ($return === 'url') {
             return $redirectTo;
@@ -291,10 +332,16 @@ class TwoFaHandler
             ], 422);
         }
 
-        remove_action('fluent_auth/login_attempts_checked', [$this, 'maybe2FaRedirect'], 1);
-
-        // They already produced the proof, so the attempt limit must not block them.
+        // They already produced the proof: no further challenge, and no attempt limit.
+        self::$completingChallenge = true;
         Helper::setTokenVerifiedLogin(true);
+
+        /*
+         * Before wp_signon(), because that is what fires `wp_login` and writes the
+         * success row. Set afterwards, as it used to be, every login completed with a
+         * code was recorded as a plain form login.
+         */
+        Helper::setLoginMedia($method->getLoginMedia());
 
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
         $user = wp_signon(array(
@@ -307,6 +354,7 @@ class TwoFaHandler
         remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
 
         Helper::setTokenVerifiedLogin(false);
+        self::$completingChallenge = false;
 
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);
@@ -323,7 +371,7 @@ class TwoFaHandler
                     $redirectTo = admin_url();
                 }
 
-                Helper::setLoginMedia($method->getLoginMedia());
+                $this->clearPendingCookie();
 
                 $redirectTo = apply_filters('login_redirect', $redirectTo, $logHash->redirect_intend, $user);
 
@@ -341,6 +389,413 @@ class TwoFaHandler
     public function allowProgrammaticLogin($user, $username, $password)
     {
         return get_user_by('login', $username);
+    }
+
+    /**
+     * Refuses a login that still owes a second factor where no challenge can be shown.
+     *
+     * The request used to be left alone here, on the theory that interfering with
+     * another plugin's AJAX handler would break it. It did leave it alone - and with it
+     * every second factor the account had, because maybe2FaRedirect() is the only thing
+     * standing between a correct password and the auth cookie. A theme's popup login
+     * form, or a magic link opened through admin-ajax.php, was a complete bypass of the
+     * emailed code, the authenticator app and the under-attack challenge.
+     *
+     * A WP_Error is the one answer every caller of wp_signon() already knows how to show.
+     * Accounts that owe nothing are untouched, so a login form that never met a second
+     * factor before will not meet one now.
+     *
+     * @param $user \WP_User|\WP_Error|null
+     * @return \WP_User|\WP_Error|null
+     */
+    public function maybeDenyHeadlessLogin($user)
+    {
+        if (self::$completingChallenge || !$user instanceof \WP_User) {
+            return $user;
+        }
+
+        if (!$this->cannotShowChallenge()) {
+            return $user;
+        }
+
+        $method = TwoFaService::getRequiredMethod($user, null, $this->isChallengeRequired($user));
+
+        if (!$method) {
+            return $user;
+        }
+
+        /*
+         * Refused, but not stranded. The challenge is raised exactly as the login form
+         * would have raised it, and the error carries the link to answer it - most login
+         * forms print the message they get back, so the user can carry on from there. A
+         * form that reloads the page instead is caught by the cookie.
+         */
+        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both');
+
+        if (!$raised) {
+            return $user;
+        }
+
+        $this->setPendingCookie($raised['login_hash']);
+
+        return new \WP_Error(
+            'fls_2fa_required',
+            $this->getHandoffMessage($method, $raised['redirect_to']),
+            ['challenge_url' => $raised['redirect_to']]
+        );
+    }
+
+    /**
+     * Withholds the auth cookie from a user who still owes a second factor.
+     *
+     * Every other check here lives on the `authenticate` chain, and a plugin that sets
+     * the cookie itself - a community invitation, a checkout that signs the customer in -
+     * never enters that chain. This filter sits under all of them: nothing core does
+     * reaches it without the chain having already passed, so the only logins it ever
+     * stops are the ones nothing else could see.
+     *
+     * The challenge is raised and left waiting in the cookie, and the calling plugin is
+     * allowed to carry on. Wherever it sends the browser next, the visitor arrives signed
+     * out and is taken to the form; once answered, they are returned to that page.
+     *
+     * @param $send bool
+     * @param $expire int
+     * @param $expiration int
+     * @param $userId int  Named by core since 6.2; taken from `set_auth_cookie` before that.
+     * @return bool
+     */
+    public function maybeWithholdAuthCookies($send, $expire = 0, $expiration = 0, $userId = 0)
+    {
+        $userId = (int)$userId ?: (int)$this->cookieUserId;
+        $this->cookieUserId = null;
+
+        // wp_clear_auth_cookie() runs this filter too, with no user. Nothing to decide.
+        if (!$send || !$userId || self::$completingChallenge) {
+            return $send;
+        }
+
+        // wp_set_auth_cookie() asks more than once per request. Same answer every time.
+        if (isset(self::$withheldUsers[$userId])) {
+            return false;
+        }
+
+        /*
+         * The escape hatch for a site where a direct-cookie flow turns out to matter more
+         * than the policy. Everything the login chain enforces stays enforced.
+         */
+        if (!apply_filters('fluent_auth/enforce_2fa_on_auth_cookie', true, $userId)) {
+            return $send;
+        }
+
+        /*
+         * A cookie re-issued to whoever is already signed in - after a session sweep, say
+         * - proves nothing new and takes nothing away. Only a fresh sign in is examined.
+         */
+        if ($this->isSignedInByCookie($userId)) {
+            return $send;
+        }
+
+        $user = get_user_by('ID', $userId);
+
+        if (!$user) {
+            return $send;
+        }
+
+        $method = TwoFaService::getRequiredMethod($user, null, $this->isChallengeRequired($user));
+
+        if (!$method) {
+            return $send;
+        }
+
+        self::$withheldUsers[$userId] = true;
+
+        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both');
+
+        if ($raised) {
+            $this->setPendingCookie($raised['login_hash']);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param $cookie string
+     * @param $expire int
+     * @param $expiration int
+     * @param $userId int
+     * @return void
+     */
+    public function rememberCookieUser($cookie, $expire = 0, $expiration = 0, $userId = 0)
+    {
+        $this->cookieUserId = (int)$userId;
+    }
+
+    /**
+     * Whether this request arrived with a valid logged-in cookie for this user.
+     *
+     * @param $userId int
+     * @return bool
+     */
+    private function isSignedInByCookie($userId)
+    {
+        if (empty($_COOKIE[LOGGED_IN_COOKIE])) {
+            return false;
+        }
+
+        return (int)wp_validate_auth_cookie($_COOKIE[LOGGED_IN_COOKIE], 'logged_in') === (int)$userId;
+    }
+
+    /**
+     * Whether a sign in for this user was stopped at the cookie in this request.
+     *
+     * The plugin that set the cookie will usually go on to fire `wp_login`, and the
+     * audit log must not record a success that did not happen.
+     *
+     * @param $userId int
+     * @return bool
+     */
+    public static function hasWithheldCookiesFor($userId)
+    {
+        return isset(self::$withheldUsers[(int)$userId]);
+    }
+
+    /**
+     * Forgets everything decided for the request in progress. For tests.
+     *
+     * @return void
+     */
+    public static function resetRequestState()
+    {
+        self::$withheldUsers = [];
+        self::$completingChallenge = false;
+    }
+
+    /**
+     * Sends a signed-out visitor carrying a pending challenge to its form.
+     *
+     * Raised through a headless login or a withheld cookie, the challenge has never been
+     * shown to anyone. Whatever page the other plugin sends the browser to next is where
+     * it gets shown - and, unless the challenge already knows where to return them, where
+     * they are sent back to afterwards.
+     *
+     * One shot: the cookie is cleared before redirecting, so someone who leaves the form
+     * to sign in as somebody else is not dragged back to it on every page for ten minutes.
+     *
+     * @return void
+     */
+    public function maybeResumePendingChallenge()
+    {
+        if (empty($_COOKIE[self::PENDING_COOKIE])) {
+            return;
+        }
+
+        if (wp_doing_ajax() || wp_doing_cron() || (defined('REST_REQUEST') && REST_REQUEST) || (defined('WP_CLI') && WP_CLI)) {
+            return;
+        }
+
+        if (!empty($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET') {
+            return;
+        }
+
+        if (is_user_logged_in()) {
+            $this->clearPendingCookie();
+            return;
+        }
+
+        // Already on the form, or on the login screen for something else entirely.
+        if (isset($_GET['fls_2fa'])) {
+            return;
+        }
+
+        $onLoginScreen = (bool)did_action('login_init');
+
+        if ($onLoginScreen && !empty($_REQUEST['action']) && $_REQUEST['action'] !== 'login') {
+            return;
+        }
+
+        $hash = sanitize_text_field(wp_unslash($_COOKIE[self::PENDING_COOKIE]));
+
+        $this->clearPendingCookie();
+
+        $row = $this->getPendingRow($hash);
+
+        if (!$row || strtotime($row->valid_till) < current_time('timestamp')) {
+            return;
+        }
+
+        if (!$row->redirect_intend && !$onLoginScreen) {
+            $current = $this->getCurrentUrl();
+
+            if ($current) {
+                flsDb()->table('fls_login_hashes')
+                    ->where('id', $row->id)
+                    ->update(['redirect_intend' => $current]);
+            }
+        }
+
+        wp_safe_redirect($this->getChallengeUrl($hash));
+        exit();
+    }
+
+    /**
+     * Where to send the user once the challenge is answered.
+     *
+     * `redirect_to` is what wp-login.php and this plugin's forms send; `redirect` is
+     * what WooCommerce and others send. Failing both, the page the login came from -
+     * which for a form embedded in a page is exactly where they expect to end up. A
+     * referer pointing at the login screen itself is no use, since a signed in visitor
+     * is only bounced off it again.
+     *
+     * Every candidate has to be on this site, or the challenge is an open redirect.
+     *
+     * @return string
+     */
+    private function resolveRedirectIntent()
+    {
+        foreach (['redirect_to', 'redirect'] as $key) {
+            if (empty($_REQUEST[$key]) || !is_string($_REQUEST[$key])) {
+                continue;
+            }
+
+            $url = Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($_REQUEST[$key])), '');
+
+            if ($url) {
+                return $url;
+            }
+        }
+
+        $referer = wp_get_referer();
+
+        if ($referer && !$this->isLoginScreenUrl($referer)) {
+            return $referer;
+        }
+
+        return '';
+    }
+
+    /**
+     * @param $url string
+     * @return bool
+     */
+    private function isLoginScreenUrl($url)
+    {
+        $path = (string)parse_url($url, PHP_URL_PATH);
+        $loginPath = (string)parse_url(wp_login_url(), PHP_URL_PATH);
+
+        return ($loginPath && $path === $loginPath) || substr($path, -13) === '/wp-login.php';
+    }
+
+    /**
+     * The page being requested, if it is one a visitor can be sent back to.
+     *
+     * @return string
+     */
+    private function getCurrentUrl()
+    {
+        if (empty($_SERVER['HTTP_HOST']) || empty($_SERVER['REQUEST_URI'])) {
+            return '';
+        }
+
+        $url = (is_ssl() ? 'https' : 'http') . '://' . sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) . esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']));
+
+        return Helper::getValidatedRedirectUrl($url, '');
+    }
+
+    /**
+     * @param $hash string
+     * @return string
+     */
+    private function getChallengeUrl($hash)
+    {
+        return add_query_arg([
+            'fls_2fa'    => 'email',
+            'login_hash' => $hash,
+            'action'     => 'fls_2fa_email'
+        ], wp_login_url());
+    }
+
+    /**
+     * The error a headless login gets back: what happened, and where to finish.
+     *
+     * A link for a browser, a bare address for anything else - a REST or XML-RPC client
+     * is not rendering HTML, and its user is better served by a URL they can open.
+     *
+     * @param $method \FluentAuth\App\Services\TwoFa\BaseTwoFaMethod
+     * @param $url string
+     * @return string
+     */
+    private function getHandoffMessage($method, $url)
+    {
+        $text = $method->getHandoffText();
+
+        if (wp_doing_ajax()) {
+            return $text . ' <a href="' . esc_url($url) . '">' . esc_html__('Finish signing in', 'fluent-security') . '</a>';
+        }
+
+        /* translators: %s: URL of the second factor form */
+        return $text . ' ' . sprintf(__('Finish signing in at %s', 'fluent-security'), esc_url($url));
+    }
+
+    /**
+     * @param $hash string
+     * @return void
+     */
+    private function setPendingCookie($hash)
+    {
+        $_COOKIE[self::PENDING_COOKIE] = $hash;
+
+        if (headers_sent()) {
+            return;
+        }
+
+        setcookie(self::PENDING_COOKIE, $hash, [
+            'expires'  => time() + self::PENDING_TIMEOUT,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    private function clearPendingCookie()
+    {
+        unset($_COOKIE[self::PENDING_COOKIE]);
+
+        if (headers_sent()) {
+            return;
+        }
+
+        setcookie(self::PENDING_COOKIE, '', [
+            'expires'  => time() - 3600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+
+    /**
+     * Whether this request has anywhere to put a challenge form.
+     *
+     * The plugin's own AJAX forms mark themselves and get the form back as JSON. Anybody
+     * else's AJAX login, a REST call or an XML-RPC call has no such place: a redirect
+     * breaks the caller and a JSON body is not what it was expecting.
+     *
+     * @return bool
+     */
+    private function cannotShowChallenge()
+    {
+        if (wp_doing_ajax()) {
+            return empty($_REQUEST['_is_fls_form']);
+        }
+
+        return (defined('REST_REQUEST') && REST_REQUEST)
+            || (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST);
     }
 
     /**

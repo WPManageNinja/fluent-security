@@ -22,6 +22,7 @@ class Helper
         self::$tokenVerifiedLogin = false;
         self::$satisfiedFactors = null;
         \FluentAuth\App\Services\TwoFa\TwoFaService::resetMethods();
+        \FluentAuth\App\Hooks\Handlers\TwoFaHandler::resetRequestState();
     }
 
     /**
@@ -215,6 +216,9 @@ class Helper
             'magic_login' => __('Magic link', 'fluent-security'),
             'email_2fa'   => __('Email code', 'fluent-security'),
             'totp'        => __('Authenticator app', 'fluent-security'),
+            // What the methods actually record - see BaseTwoFaMethod::getLoginMedia().
+            'two_factor_email' => __('Email code', 'fluent-security'),
+            'two_factor_totp'  => __('Authenticator app', 'fluent-security'),
             'app_password' => __('Application password', 'fluent-security'),
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),

@@ -5,6 +5,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IpRules;
+use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
 
 class LoginSecurityHandler
 {
@@ -386,6 +387,15 @@ class LoginSecurityHandler
             return;
         }
 
+        /*
+         * The password was right; the request just had nowhere to show the second step
+         * (see TwoFaHandler::maybeDenyHeadlessLogin). Counting that as a guess would let
+         * an honest user lock their own address out by retrying a popup login form.
+         */
+        if ($error->get_error_code() === 'fls_2fa_required') {
+            return;
+        }
+
         if (!$media) {
             // `wp_login_failed` passes no media, so honour whatever the flow set.
             $media = Helper::getLoginMedia();
@@ -435,6 +445,14 @@ class LoginSecurityHandler
     public function logAuthSuccess($userName, $user)
     {
         if (!Helper::isLoginSecurityEnabled()) {
+            return;
+        }
+
+        /*
+         * The plugin that fired `wp_login` believes it signed this user in; the cookie
+         * was withheld pending a second factor. The success is logged when that arrives.
+         */
+        if (TwoFaHandler::hasWithheldCookiesFor($user->ID)) {
             return;
         }
 

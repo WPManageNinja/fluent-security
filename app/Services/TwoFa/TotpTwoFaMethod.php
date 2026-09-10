@@ -67,6 +67,11 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         return AuthFactor::DEVICE;
     }
 
+    public function getHandoffText()
+    {
+        return __('Enter the code from your authenticator app to finish signing in.', 'fluent-security');
+    }
+
     public function getLoginMedia()
     {
         return 'two_factor_totp';

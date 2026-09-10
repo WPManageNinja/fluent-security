@@ -5,6 +5,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
 
 class CustomAuthHandler
 {
@@ -873,6 +874,9 @@ class CustomAuthHandler
                         'message' => $isTokenValidated->get_error_message()
                     ], 422);
                 }
+
+                // The mailbox has just been proven; the sign in that follows may rely on it.
+                Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
             }
         }
 

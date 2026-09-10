@@ -131,4 +131,16 @@ abstract class BaseTwoFaMethod
     {
         return 'two_factor_' . $this->getKey();
     }
+
+    /**
+     * One sentence telling a user, from inside somebody else's login form, what has just
+     * happened and what they hold that answers it. The link to the form is added by the
+     * caller.
+     *
+     * @return string
+     */
+    public function getHandoffText()
+    {
+        return __('One more step is needed to finish signing in.', 'fluent-security');
+    }
 }

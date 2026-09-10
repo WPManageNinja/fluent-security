@@ -53,6 +53,11 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         return AuthFactor::EMAIL;
     }
 
+    public function getHandoffText()
+    {
+        return __('We have emailed you a login code.', 'fluent-security');
+    }
+
     public function getLoginMedia()
     {
         return 'two_factor_email';

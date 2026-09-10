@@ -5,6 +5,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
 
 class LoginCustomizerHandler
 {
@@ -316,6 +317,9 @@ class LoginCustomizerHandler
             $errors->add('confirm_token', $isTokenValidated->get_error_message());
             return false;
         }
+
+        // The mailbox has just been proven; the sign in that follows may rely on it.
+        Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
 
         $validationErrors = $this->validateRegistrationData($_POST);
         if ($validationErrors->has_errors()) {
