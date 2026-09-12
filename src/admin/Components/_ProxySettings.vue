@@ -119,9 +119,9 @@ export default {
             <span class="fls_tag is_round" :class="stateTone">{{ headline }}</span>
         </p>
 
-        <p style="margin-bottom: 15px;">{{ summary }}</p>
+        <p style="margin-bottom: 10px;">{{ summary }}</p>
 
-        <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon style="margin-bottom: 15px;">
+        <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon style="margin-bottom: 10px;">
             {{
                 $t('The login attempt limit works per IP address. While every visitor looks like %s, one person failing to log in counts against everybody.', detection.remote_addr)
             }}
@@ -157,7 +157,7 @@ export default {
         </p>
 
         <template v-else>
-            <el-alert v-if="config_locked" type="info" :closable="false" show-icon style="margin: 15px 0;">
+            <el-alert v-if="config_locked" type="info" :closable="false" show-icon style="margin: 10px 0;">
                 {{ $t('These values are defined in wp-config.php and take precedence over the fields below.') }}
             </el-alert>
 
@@ -169,13 +169,13 @@ export default {
             </p>
 
             <SettingRow :label="$t('Trusted proxies')"
-                        :description="$t('One per line or comma separated. CIDR ranges and IPv6 are supported. Leave empty to always use the direct connection address, which cannot be spoofed.')">
+                        :description="$t('One per line. CIDR and IPv6 welcome. Empty means trust only the direct connection.')">
                 <el-input type="textarea" :rows="3" v-model="settings.trusted_proxies"
                           placeholder="127.0.0.1, 10.0.0.0/8"/>
             </SettingRow>
 
             <SettingRow :label="$t('Header carrying the visitor IP')"
-                        :description="$t('Defaults to X-Forwarded-For. This header is only read for requests arriving from one of the trusted proxies above.')">
+                        :description="$t('Only read for requests arriving from a trusted proxy above.')">
                 <el-input v-model="settings.proxy_ip_header" placeholder="X-Forwarded-For"/>
             </SettingRow>
         </template>

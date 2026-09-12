@@ -734,8 +734,8 @@ button.fls_onb_rail_hit {
         background: var(--fls-accent-wash);
     }
 
-    /* The frame supplies the padding; the body only needs to clear the switch. */
-    .fls_toggle_body {
+    /* The frame supplies the padding and the measure. */
+    .fls_row_label {
         max-width: none;
     }
 }
@@ -1186,12 +1186,28 @@ button.fls_onb_rail_hit {
     border-radius: 8px;
 }
 
-.fls_onb_opt .fls_toggle {
+/*
+ * The option card is the frame here, so the row inside it draws neither padding nor the
+ * rule it would draw in a settings card.
+ */
+.fls_onb_opt .fls_row {
     padding: 0;
+    border-bottom: 0;
 }
 
-.fls_onb_opt .fls_toggle_body p {
+.fls_onb_opt .fls_row_label p {
     color: var(--fls-text-mid);
+}
+
+/*
+ * In a settings card the reveal is indented off a rule, to show it hangs from the switch
+ * above it. Inside an option card there is nothing to hang from - the card is already the
+ * grouping - so it is just the next line.
+ */
+.fls_onb_opt .fls_row_below {
+    padding-left: 0;
+    margin-top: 4px;
+    border-left: 0;
 }
 
 .fls_onb_opt.is-on {
@@ -1476,11 +1492,11 @@ button.fls_onb_rail_hit {
 
 
 /*
- * A row this site already satisfies before setup started. Said inside the toggle's own
- * body rather than as a badge on its title, because it is a remark about the site rather
- * than a status of the setting.
+ * A row this site already satisfies before setup started. Said under the toggle rather
+ * than as a badge on its title, because it is a remark about the site rather than a
+ * status of the setting.
  */
-.fls_onb_opt .fls_toggle_body p.fls_onb_already {
+.fls_onb_opt p.fls_onb_already {
     @apply text-ok-fg;
 
     margin-top: 5px;

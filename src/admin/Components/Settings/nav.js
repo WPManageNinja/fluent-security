@@ -1,11 +1,13 @@
 /*
  * The settings sidebar.
  *
- * Two kinds of entry. A group with `sections` is one page: the children scroll to a
- * block on it, because those settings are saved together by one button and splitting
- * them across routes would mean every route loading and posting the whole option
- * anyway. A group with `children` - or with neither - is a route, for the screens that
- * own their own data and their own saving.
+ * One entry per destination. A group with `children` has more than one screen under it
+ * and lists them; everything else is a single route.
+ *
+ * General Settings used to list its seven blocks here as well, and they were only scroll
+ * anchors - the same seven headings the page already shows, read twice. What it bought
+ * was a rail of eighteen entries for eleven places to go. The blocks are still linkable
+ * (the dashboard checklist points at one with `?section=`), they are just not a menu.
  *
  * Icons are inline SVG rather than an icon font or a component per glyph: there are a
  * dozen of them, they never change, and this keeps the sidebar a data structure.
@@ -35,16 +37,7 @@ export const settingsNav = (vm) => [
     {
         route: 'settings_general',
         title: vm.$t('General Settings'),
-        icon: icons.shield,
-        sections: [
-            {id: 'core', title: vm.$t('Core Security')},
-            {id: 'login_security', title: vm.$t('Login Security')},
-            {id: 'two_fa', title: vm.$t('Two-Factor Auth')},
-            {id: 'magic_login', title: vm.$t('Magic Login')},
-            {id: 'notifications', title: vm.$t('Notifications')},
-            {id: 'visitor_ip', title: vm.$t('Visitor IP')},
-            {id: 'advanced', title: vm.$t('Advanced')}
-        ]
+        icon: icons.shield
     },
     {
         route: 'settings_two_fa_enrollment',

@@ -61,7 +61,7 @@ export default {
                     <strong>{{ $t('Authenticator App') }}</strong>
                     <span class="fls_tag is_round is_success">{{ $t('Strongest') }}</span>
                     <p>
-                        {{ $t('A rotating code from an app on the user\'s phone. It proves a device, which neither an inbox nor a social account ever does, so it is asked for however the user signed in - including magic login and Google.') }}
+                        {{ $t('A rotating code from the user\'s phone. It proves a device, so it is always asked for.') }}
                     </p>
                 </div>
                 <el-switch v-model="settings.totp_2fa" active-value="yes" inactive-value="no"/>
@@ -76,7 +76,7 @@ export default {
                                 <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
                                            :key="role.id"></el-option>
                             </el-select>
-                            <p>{{ $t('Users in these roles can set one up, on their profile or on the setup page below. Naming the roles is what turns this on - with none named it applies to nobody.') }}</p>
+                            <p>{{ $t('Naming a role is what turns this on. With none named it applies to nobody.') }}</p>
                         </el-form-item>
                     </el-col>
                     <el-col :md="12" :sm="24">
@@ -115,7 +115,7 @@ export default {
                 -->
                 <el-form-item :label="$t('Setup page')">
                     <el-input readonly :model-value="appVars.totp_setup_url" @focus="$event.target.select()"/>
-                    <p>{{ $t('Any signed in user can set up an authenticator app here without entering the admin area. Send it to members who are kept out of wp-admin.') }}</p>
+                    <p>{{ $t('For members who are kept out of wp-admin - no admin area needed.') }}</p>
                 </el-form-item>
 
                 <p class="fls_action_note">
@@ -135,7 +135,7 @@ export default {
                     <strong>{{ $t('Email Code') }}</strong>
                     <span class="fls_tag is_round is_neutral">{{ $t('Fallback') }}</span>
                     <p>
-                        {{ $t('A one-time code sent to the account address. It proves the mailbox, so it is skipped after a magic link or a social login, which already proved the same thing. It is also the code sent when an account comes under attack.') }}
+                        {{ $t('A code sent to the account address. It proves the mailbox, so a magic link skips it.') }}
                     </p>
                 </div>
                 <el-switch v-model="settings.email2fa" active-value="yes" inactive-value="no"/>

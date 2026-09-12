@@ -1,6 +1,16 @@
 <script type="text/babel">
 import SettingRow from '../_SettingRow.vue';
 
+/**
+ * The attempt limit is two numbers that mean nothing apart, so it is set as the one
+ * sentence they make. As two labelled fields it took three rows - a field, a field, and
+ * a hint underneath restating both as a sentence, which is the form admitting what it
+ * should have been.
+ *
+ * It is the only setting here. The card used to carry a row saying the activity log is
+ * always on, with a badge reading "Always on" where a control would be - a row that
+ * could not be changed, in a form, which is a statement wearing a setting's clothes.
+ */
 export default {
     name: 'LoginSecuritySection',
     components: {SettingRow},
@@ -9,21 +19,15 @@ export default {
 </script>
 
 <template>
-    <div>
-        <SettingRow :label="$t('Failed attempts allowed')"
-                    :description="$t('Counted per IP address. Once the limit is reached, that address is blocked for the rest of the window.')">
-            <el-input type="number" :min="1" v-model="settings.login_try_limit" style="max-width: 160px;"/>
-        </SettingRow>
-
-        <SettingRow :label="$t('Window length')"
-                    :description="$t('How far back the count reaches, in minutes.')"
-                    :hint="$t('%1s failed attempts within %2s minutes will block that address.', settings.login_try_limit, settings.login_try_timing)">
-            <el-input type="number" :min="1" v-model="settings.login_try_timing" style="max-width: 160px;"/>
-        </SettingRow>
-
-        <SettingRow :label="$t('Activity log')"
-                    :description="$t('Login activity is always recorded. The attempt limit, the audit log and the login notifications all read from it, so it is not something that can be switched off.')">
-            <span class="fls_tag is_success">{{ $t('Always on') }}</span>
-        </SettingRow>
-    </div>
+    <SettingRow :description="$t('Counted per IP address. The block lasts until the window passes.')">
+        <template #label>
+            <span class="fls_sentence">
+                {{ $t('Block an address after') }}
+                <el-input type="number" :min="1" v-model="settings.login_try_limit"/>
+                {{ $t('failed attempts within') }}
+                <el-input type="number" :min="1" v-model="settings.login_try_timing"/>
+                {{ $t('minutes') }}
+            </span>
+        </template>
+    </SettingRow>
 </template>

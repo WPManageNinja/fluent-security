@@ -20,13 +20,18 @@ export default {
 
 <template>
     <div>
-        <SettingRow :label="$t('Delete logs older than')"
-                    :description="$t('In days. Use 0 to keep them forever.')">
-            <el-input type="number" :min="0" v-model="settings.auto_delete_logs_day" style="max-width: 160px;"/>
+        <SettingRow :description="$t('Use 0 to keep them forever.')">
+            <template #label>
+                <span class="fls_sentence">
+                    {{ $t('Delete logs older than') }}
+                    <el-input type="number" :min="0" v-model="settings.auto_delete_logs_day"/>
+                    {{ $t('days') }}
+                </span>
+            </template>
         </SettingRow>
 
         <SettingRow :label="$t('Keep these roles out of wp-admin')"
-                    :description="$t('Hides the admin bar, and sends them to the front page if they try to open the dashboard. Leave it empty to let everyone in. Anyone who can publish posts is never kept out.')">
+                    :description="$t('Hides the admin bar and sends them to the front page. Anyone who can publish is never kept out.')">
             <el-select clearable :multiple="true" v-model="settings.disable_bar_roles"
                        :placeholder="$t('Everyone can reach wp-admin')">
                 <el-option v-for="(role, roleId) in low_level_roles" :value="roleId"

@@ -37,7 +37,7 @@ export default {
 <template>
     <div>
         <SettingRow :label="$t('Tell me when these roles sign in')"
-                    :description="$t('A sign-in by a high privilege account is worth knowing about. Leave empty for none.')">
+                    :description="$t('A sign-in by a high privilege account is worth knowing about.')">
             <el-select clearable :multiple="true" v-model="settings.notification_user_roles"
                        :placeholder="$t('No sign-in notifications')">
                 <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
@@ -59,7 +59,7 @@ export default {
         </SettingRow>
 
         <SettingRow v-if="wantsEmail" :label="$t('Send them to')"
-                    :description="$t('Comma separate for more than one. {admin_email} is the site administration address.')">
+                    :description="$t('Comma separate for more than one. {admin_email} is the site address.')">
             <el-input type="text" v-model="settings.notification_email"/>
         </SettingRow>
     </div>

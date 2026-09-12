@@ -106,22 +106,22 @@ export default {
 
             <el-form v-else label-position="top">
                 <SettingsCard id="core" :title="$t('Core Security')"
-                                 :description="$t('The parts of WordPress that are exposed by default.')">
+                                 :description="$t('The parts of WordPress that are open by default.')">
                     <CoreSecuritySection :settings="settings"/>
                 </SettingsCard>
 
                 <SettingsCard id="login_security" :title="$t('Login Security')"
-                                 :description="$t('How many times an address may get a password wrong before it is shut out.')">
+                                 :description="$t('What happens when an address keeps getting the password wrong.')">
                     <LoginSecuritySection :settings="settings"/>
                 </SettingsCard>
 
                 <SettingsCard id="two_fa" :title="$t('Two-Factor Authentication')"
-                                 :description="$t('A second factor is only worth the friction when it proves something the password did not. Each method states what it proves, because that is what decides when it is asked for.')">
+                                 :description="$t('A second proof of identity at sign-in. Each method says what it proves.')">
                     <TwoFaSettings :settings="settings" :user_roles="user_roles"/>
                 </SettingsCard>
 
                 <SettingsCard id="magic_login" :title="$t('Magic Login')"
-                                 :description="$t('Signing in from a link sent to the account address, with no password typed at all.')">
+                                 :description="$t('Signing in from an emailed link instead of a password.')">
                     <MagicLoginSection :settings="settings" :user_roles="user_roles"/>
                 </SettingsCard>
 
@@ -131,7 +131,7 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard id="visitor_ip" :title="$t('Visitor IP')"
-                                 :description="$t('Where a visitor\'s address is read from. The attempt limit counts per address, so this decides whether it counts the right people.')">
+                                 :description="$t('Where a visitor\'s address is read from. The attempt limit counts per address.')">
                     <ProxySettings :settings="settings" :detection="proxy_detection"
                                    :config_locked="proxy_config_locked"/>
                 </SettingsCard>

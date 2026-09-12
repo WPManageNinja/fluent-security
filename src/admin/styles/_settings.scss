@@ -227,17 +227,17 @@
 .fls_card {
     @apply bg-surface rounded border border-solid border-hairline;
 
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 
     &:last-child {
         margin-bottom: 0;
     }
 
     .fls_card_head {
-        @apply flex items-start justify-between gap-4 px-6 border-0 border-b border-solid border-hairline;
+        @apply flex items-center justify-between gap-4 px-5 border-0 border-b border-solid border-hairline;
 
-        padding-top: 16px;
-        padding-bottom: 16px;
+        padding-top: 11px;
+        padding-bottom: 11px;
 
         h2 {
             @apply text-sm font-medium text-ink m-0;
@@ -246,7 +246,7 @@
         p {
             @apply text-xs text-ink-light m-0;
 
-            margin-top: 4px;
+            margin-top: 2px;
         }
 
         /*
@@ -271,16 +271,16 @@
     }
 
     .fls_card_body {
-        @apply px-6;
+        @apply px-5;
 
-        padding-top: 4px;
-        padding-bottom: 4px;
+        padding-top: 2px;
+        padding-bottom: 2px;
     }
 }
 
 /* Alerts inside a settings card sit in the flow of the card, not against its edge. */
 .fls_row_alert.el-alert {
-    margin: 4px 0 12px;
+    margin: 4px 0 10px;
 
     a {
         @apply font-medium;
@@ -292,7 +292,9 @@
 /* ----------------------------------------------------------- the setting row */
 
 /*
- * Label and explanation on the left, the control pinned to the right.
+ * Label and explanation on the left, the control pinned to the right. Every setting is
+ * this shape, switches included, so each card has one column of names down the left and
+ * one column of controls down the right rather than a different arrangement per row.
  *
  * The two columns used to be the other way round: the text was pinned at 300px and the
  * control took everything left over. A switch is 44px wide, so most of a row was empty while
@@ -301,20 +303,24 @@
  * as wide as it needs to be, which halves the height of a typical row.
  */
 .fls_row {
-    @apply flex items-start gap-6 border-0 border-b border-solid border-hairline;
+    @apply border-0 border-b border-solid border-hairline;
 
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 9px;
+    padding-bottom: 9px;
 
     &:last-child {
         @apply border-b-0;
+    }
+
+    .fls_row_main {
+        @apply flex items-center gap-5;
     }
 
     .fls_row_label {
         flex: 1 1 auto;
 
         /* Stops a description running to a line too long to read comfortably. */
-        max-width: 720px;
+        max-width: 680px;
 
         /* Lets it wrap rather than force the row wider than the card. */
         min-width: 0;
@@ -327,15 +333,24 @@
         p {
             @apply text-xs text-ink-light m-0;
 
-            margin-top: 3px;
-            line-height: 1.5;
+            margin-top: 2px;
+            line-height: 1.45;
         }
 
         /* Wins on specificity over the paragraph rule above, which it sits inside. */
         .fls_row_hint {
-            margin-top: 5px;
+            margin-top: 4px;
             font-style: italic;
         }
+    }
+
+    /* Only shown when a setting is not what it ought to be, so it reads as a flag. */
+    .fls_row_flag {
+        @apply text-xs font-normal text-caution-fg bg-caution-bg rounded;
+
+        margin-left: 8px;
+        padding: 1px 7px;
+        white-space: nowrap;
     }
 
     .fls_row_control {
@@ -343,6 +358,11 @@
 
         /* Holds every control against the same right edge, so they read as one column. */
         margin-left: auto;
+
+        /* A row that is all sentence - the inline-field kind - has no control to hold. */
+        &:empty {
+            @apply hidden;
+        }
 
         /*
          * Control widths belong here, not on the element. This column is shrink-to-fit,
@@ -353,7 +373,7 @@
         .el-input,
         .el-select,
         .el-textarea {
-            width: 300px;
+            width: 280px;
         }
 
         .el-form-item {
@@ -367,9 +387,31 @@
         }
     }
 
+    /*
+     * What a setting opens up rather than what it is: the fields a toggle reveals once
+     * it is on. Indented under the row that governs them, so it is clear they belong to
+     * it and they are not mistaken for settings of their own.
+     */
+    .fls_row_below {
+        padding-left: 16px;
+        margin-top: 8px;
+        border-left: 2px solid var(--fls-border);
+
+        .fls_row {
+            padding-top: 7px;
+            padding-bottom: 7px;
+
+            &:first-child {
+                padding-top: 0;
+            }
+        }
+    }
+
     /* For controls that need the whole width: a table, an editor, a group of cards. */
     &.fls_row_stacked {
-        @apply block;
+        .fls_row_main {
+            @apply block;
+        }
 
         .fls_row_label {
             max-width: none;
@@ -386,61 +428,88 @@
             }
         }
     }
+
+    &.is-disabled .fls_row_title {
+        @apply text-ink-light;
+    }
 }
 
-/* -------------------------------------------------------- the setting toggle */
+/* ------------------------------------------------------ two settings abreast */
 
 /*
- * On/off settings put the switch beside the name it belongs to. The explanation hangs
- * underneath, indented to the width of the switch so the text lines up as one column down
- * the card and the switches make a second, narrower one.
+ * A card of nothing but switches does not need a full-width line each. Four on/off
+ * settings with a short line under them read as well in a 2x2 as in a column and take
+ * half the height, which is the difference between a card you take in at a glance and
+ * one you scroll.
+ *
+ * Only for rows that are genuinely small. Anything with a select, a textarea or a
+ * sentence in it wants the width and stays in a single column.
  */
-.fls_toggle {
-    @apply border-0 border-b border-solid border-hairline;
+.fls_grid_2 {
+    @apply grid;
 
-    padding-top: 10px;
-    padding-bottom: 10px;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 36px;
 
-    &:last-child {
+    /* The last row of the grid, not just the last cell, is the one without a rule. */
+    > .fls_row:nth-last-child(-n + 2):nth-child(odd),
+    > .fls_row:nth-last-child(-n + 2):nth-child(odd) + .fls_row {
         @apply border-b-0;
     }
 
-    .fls_toggle_main {
-        @apply flex items-center gap-3;
+    > .fls_row .fls_row_label {
+        max-width: none;
     }
 
-    .fls_toggle_title {
-        @apply text-sm font-medium text-ink cursor-pointer select-none;
-    }
+    /* Too narrow to sit two abreast: the descriptions start wrapping to three lines. */
+    @media (max-width: 1180px) {
+        grid-template-columns: 1fr;
 
-    /* Only shown when the setting is not what it ought to be, so it reads as a flag. */
-    .fls_toggle_tag {
-        @apply text-xs font-normal text-caution-fg bg-caution-bg rounded;
-
-        margin-left: 8px;
-        padding: 1px 7px;
-        white-space: nowrap;
-    }
-
-    .fls_toggle_body {
-        /* The switch (40px) plus the gap beside it, so this starts under the title. */
-        padding-left: 52px;
-        max-width: 772px;
-
-        p {
-            @apply text-xs text-ink-light m-0;
-
-            margin-top: 3px;
-            line-height: 1.5;
-        }
-
-        .fls_toggle_hint {
-            font-style: italic;
+        > .fls_row:nth-last-child(2) {
+            @apply border-b border-solid border-hairline;
         }
     }
+}
 
-    &.is-disabled .fls_toggle_title {
-        @apply text-ink-light cursor-not-allowed;
+/* ------------------------------------------------------- settings as a sentence */
+
+/*
+ * Two numbers that only mean anything together - an attempt limit and the window it is
+ * counted over - said as the sentence they make rather than as two labelled fields and
+ * a note underneath restating them as a sentence anyway. The value is the sentence
+ * stays true as you type: it is the setting, not a description of it.
+ */
+.fls_sentence {
+    @apply flex flex-wrap items-center text-sm font-medium text-ink;
+
+    gap: 8px;
+    line-height: 2;
+
+    .el-input {
+        width: 88px;
+    }
+
+    .el-input__inner {
+        @apply text-center;
+
+        /*
+         * The spinner is noise in a sentence, and it is not free: Chrome reserves its
+         * width inside the field whether or not it is showing one, which clipped "30"
+         * in a box that measured wide enough for it.
+         */
+        appearance: textfield;
+
+        &::-webkit-outer-spin-button,
+        &::-webkit-inner-spin-button {
+            appearance: none;
+            margin: 0;
+        }
+    }
+
+    /* Wide enough for a day name or an address, still inside the sentence. */
+    &.is_wide .el-input,
+    .el-select {
+        width: 180px;
     }
 }
 
@@ -529,16 +598,20 @@
  * background of their own.
  */
 .fls_2fa_methods {
-    padding-top: 16px;
-    padding-bottom: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
 }
 
 .fls_2fa_method {
     @apply bg-surface rounded-xs border border-solid border-hairline;
 
-    padding: 16px 20px;
-    margin-bottom: 15px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
     transition: border-color .3s ease;
+
+    &:last-of-type {
+        margin-bottom: 0;
+    }
 
     /* In force, said with the frame rather than with another badge. */
     &.fls_2fa_method_on {
@@ -551,10 +624,11 @@
         gap: 20px;
 
         p {
-            @apply text-ink-mid;
+            @apply text-xs text-ink-light;
 
-            margin: 6px 0 0;
-            max-width: 720px;
+            margin: 2px 0 0;
+            max-width: 680px;
+            line-height: 1.45;
         }
 
         .fls_tag {
@@ -563,13 +637,39 @@
     }
 
     .fls_2fa_method_body {
-        margin-top: 15px;
-        padding-top: 5px;
+        margin-top: 10px;
+        padding-top: 8px;
         border-top: 1px solid var(--fls-surface-sunk);
+
+        /*
+         * These fields are laid out with el-form-item rather than as setting rows, because
+         * they sit two abreast inside a method rather than one per line. Element Plus
+         * labels its own items a size larger and darker than a row label, which made the
+         * inside of a method read as more important than the card containing it - so they
+         * are brought back to the same scale as everything else on the page.
+         */
+        .el-form-item {
+            margin-bottom: 8px;
+        }
+
+        .el-form-item__label {
+            @apply text-sm font-medium text-ink;
+
+            line-height: 1.4;
+            padding-bottom: 3px;
+        }
+
+        .el-form-item p {
+            @apply text-xs text-ink-light m-0;
+
+            margin-top: 3px;
+            line-height: 1.45;
+        }
 
         /* Specific enough to beat the browser's own margin on a `p`. */
         > .fls_action_note {
-            margin-top: 14px;
+            margin-top: 10px;
+            margin-bottom: 0;
         }
     }
 }
@@ -609,11 +709,24 @@
 /* ---------------------------------------------------------------- proxy panel */
 
 .fls_proxy {
-    padding-top: 16px;
-    padding-bottom: 16px;
+    padding-top: 12px;
+    padding-bottom: 12px;
 
     .fls_proxy_headline {
-        margin: 0 0 8px;
+        margin: 0 0 6px;
+    }
+
+    /*
+     * What the panel worked out about this request. It is prose rather than a setting,
+     * which is why it is a paragraph - but it was the only paragraph on the page still
+     * at body size and body colour, which made the one block that changes nothing look
+     * like the most important thing on the screen.
+     */
+    > p {
+        @apply text-xs text-ink-light;
+
+        line-height: 1.45;
+        max-width: 680px;
     }
 
     /* What the server sees, what the plugin made of it, and who it looks like. */
@@ -646,7 +759,7 @@
 
     /* Specific enough to beat the browser's own margin on a `p`. */
     > .fls_action_note {
-        margin: 15px 0;
+        margin: 10px 0;
     }
 }
 
