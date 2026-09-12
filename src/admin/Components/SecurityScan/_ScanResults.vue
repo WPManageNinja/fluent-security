@@ -75,6 +75,24 @@ export default {
             type: Array,
             default: () => []
         },
+        /* The site's own record of exactly those - see BaselineScanner. */
+        baseline: {
+            type: Object,
+            default: () => ({exists: false, units: 0, files: 0, changed: 0, coverable: 0})
+        },
+        baselineByScope: {
+            type: Object,
+            default: () => ({})
+        },
+        baselineBusy: {
+            type: Boolean,
+            default: false
+        },
+        /* Whether the last scan came back clean - see the snapshot bar in UnverifiedList. */
+        isClean: {
+            type: Boolean,
+            default: false
+        },
         progress: {
             type: Object,
             default: () => ({phase: 'core', done: 0, total: 0, current: ''})
@@ -85,7 +103,7 @@ export default {
             default: () => []
         }
     },
-    emits: ['scan'],
+    emits: ['scan', 'recheck', 'snapshot'],
     data() {
         return {
             icons
@@ -101,6 +119,18 @@ export default {
         },
         pending() {
             return this.scanning ? this.checkingKeys : [];
+        },
+        /*
+         * Files that moved under a snapshotted extension without its version moving.
+         *
+         * Counted alongside the rest rather than kept in its own corner: to a reader these are
+         * changed files on their site, and which mechanism noticed them is not the thing they
+         * are trying to find out from a verdict line.
+         */
+        snapshotFindings() {
+            return Object.keys(this.baselineByScope).reduce(
+                (total, scope) => total + (this.baselineByScope[scope].changed || 0), 0
+            );
         },
         totalFindings() {
             const inExtensions = [...this.plugins, ...this.themes].reduce((total, item) => {
@@ -150,6 +180,20 @@ export default {
                 );
             }
 
+            /*
+             * Said before the WordPress.org findings when there is nothing else to say,
+             * because it is the harder claim: a file that differs from the official release
+             * may be a patch somebody applied on purpose, but a file that moved while its
+             * plugin's version stood still has no ordinary explanation at all.
+             */
+            if (this.snapshotFindings && !this.totalFindings) {
+                return this.$_n(
+                    'A file has changed since your snapshot',
+                    'Files have changed since your snapshot',
+                    this.snapshotFindings
+                );
+            }
+
             return this.$t('Some files are not what WordPress.org published');
         },
         /* Said once at the top, so the size of the problem is known before any of it is opened. */
@@ -173,6 +217,14 @@ export default {
                 parts.push(this.$_n('in %s extension', 'in %s extensions', changed));
             }
 
+            if (this.snapshotFindings) {
+                parts.push(this.$_n(
+                    '%s changed since your snapshot',
+                    '%s changed since your snapshot',
+                    this.snapshotFindings
+                ));
+            }
+
             return parts.join(' · ');
         }
     }
@@ -183,6 +235,7 @@ export default {
     <!-- Where a running scan has got to. Above the sections, which keep filling in beneath it. -->
     <div v-if="scanning" class="fls_dcard">
         <scan-progress :phase="progress.phase"
+                       :has-baseline="baseline.exists"
                        :done="progress.done"
                        :total="progress.total"
                        :current="progress.current"/>
@@ -198,6 +251,22 @@ export default {
             <p v-if="willAlert">{{ $t('__file_change_detected__') }}</p>
             <p v-else>{{ $t('__scanner_result_dec_normal__') }}</p>
             <p class="fls_scan_verdict_count">{{ verdictSummary }}</p>
+            <!--
+                The thing this screen cannot do anything about, said where the evidence is.
+                Every action on this page is about files, and a site that has been broken into
+                has a problem that putting files back does not touch: whoever did it is still
+                signed in, still knows a password, and may have left an account behind.
+
+                Conditional, and deliberately so - plenty of sites have edited files on purpose
+                and this must not read as an accusation. It is shown only alongside findings
+                nobody has accepted, which is the same test the alarm itself uses.
+            -->
+            <p v-if="willAlert" class="fls_scan_verdict_next">
+                {{ $t('__file_change_recovery_note__') }}
+                <router-link :to="{name: 'security_recovery'}">
+                    {{ $t('Been Hacked?') }} <span aria-hidden="true">→</span>
+                </router-link>
+            </p>
         </div>
     </div>
 
@@ -230,14 +299,16 @@ export default {
                        :ignored-files="ignores.files"
                        :ignored-folders="ignores.folders"
                        :checking-keys="pending"
-                       :empty-text="$t('No plugins from the WordPress.org directory are installed.')"/>
+                       :empty-text="$t('No plugins from the WordPress.org directory are installed.')"
+                       @recheck="$emit('recheck', $event)"/>
 
     <extension-section :title="$t('Themes')"
                        :items="themes"
                        :ignored-files="ignores.files"
                        :ignored-folders="ignores.folders"
                        :checking-keys="pending"
-                       :empty-text="$t('No themes from the WordPress.org directory are installed.')"/>
+                       :empty-text="$t('No themes from the WordPress.org directory are installed.')"
+                       @recheck="$emit('recheck', $event)"/>
 
     <!--
         After plugins and themes, because those are what somebody came here to check. This is
@@ -246,5 +317,11 @@ export default {
     -->
     <mu-plugins-section/>
 
-    <unverified-list v-if="unverified.length" :items="unverified"/>
+    <unverified-list v-if="unverified.length"
+                     :items="unverified"
+                     :baseline="baseline"
+                     :baseline-by-scope="baselineByScope"
+                     :busy="baselineBusy"
+                     :is-clean="isClean"
+                     @snapshot="$emit('snapshot', $event)"/>
 </template>

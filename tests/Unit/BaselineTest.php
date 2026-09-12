@@ -245,6 +245,369 @@ class BaselineTest extends BaselineTestCase
         $this->assertNotEmpty($summary['taken_at']);
     }
 
+    /* ----------------------------------------------------- the per-unit ceiling */
+
+    /**
+     * The cap counts what it will not hash.
+     *
+     * A monitor that quietly watches less than it claims to is worse than one that watches
+     * nothing, because the reader cannot tell which they have. So the walk carries on past the
+     * ceiling to count, and the count is what the screens report.
+     */
+    public function test_a_unit_over_the_ceiling_reports_what_it_could_not_reach()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        $walk = BaselineTargets::hashUnit($this->unitPath);
+
+        $this->assertCount(4, $walk['hashes']);
+        $this->assertEquals(9, $walk['total']);
+        $this->assertEquals(5, $walk['skipped']);
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * The day a plugin grows past the ceiling, it must not report every file the walk no longer
+     * reaches as deleted. That is thousands of findings from an ordinary Tuesday, and it is
+     * indistinguishable from the event this whole feature exists to report.
+     */
+    public function test_growing_past_the_ceiling_is_not_reported_as_a_mass_deletion()
+    {
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+
+        /* Nothing on disk changes - only how much of it can be watched. */
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+        BaselineScanner::compare();
+
+        $this->assertEquals(Finding::STATE_PASSED, $this->onlyFinding()['state']);
+        $this->assertEmpty(BaselineStore::changed());
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * The window has to be the same window next time, or a truncated unit reports a churn of
+     * added and removed files on every scan without anything having happened.
+     */
+    public function test_the_watched_window_is_stable_across_runs()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        $first = array_keys(BaselineTargets::hashUnit($this->unitPath)['hashes']);
+        $second = array_keys(BaselineTargets::hashUnit($this->unitPath)['hashes']);
+
+        $this->assertEquals($first, $second);
+        $this->assertEquals(['file-0.php', 'file-1.php', 'file-2.php', 'file-3.php'], $first);
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * Inside the window it still works. Truncation is a limit on reach, not an excuse to stop
+     * reporting - a backdoored file within the watched set is exactly the case this must catch.
+     */
+    public function test_a_change_inside_the_window_is_still_reported()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+
+        $this->writeUnitFile('file-1.php', '<?php // backdoored');
+        BaselineScanner::compare();
+
+        $finding = $this->onlyFinding();
+
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertStringContainsString('file-1.php', implode(' ', $finding['details']));
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * And a genuine deletion inside the window is still a deletion - the boundary suppresses
+     * what was never looked at, not what was.
+     */
+    public function test_a_deletion_inside_the_window_is_still_reported()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+
+        unlink($this->unitPath . '/file-1.php');
+        BaselineScanner::compare();
+
+        $finding = $this->onlyFinding();
+
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertStringContainsString('file-1.php', implode(' ', $finding['details']));
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    public function test_the_snapshot_records_that_a_unit_is_only_partly_watched()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+
+        $summary = BaselineScanner::summary();
+
+        $this->assertEquals(4, $summary['files']);
+        $this->assertEquals(5, $summary['skipped']);
+        $this->assertEquals(1, $summary['partial_units']);
+
+        $units = array_column(BaselineScanner::units(), null, 'scope');
+
+        $this->assertEquals(5, $units[$this->unitScope()]['skipped']);
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * A pass may not say "nothing has changed" over files nobody hashed. That sentence is a
+     * claim about everything, so it is only available when everything was looked at.
+     */
+    public function test_a_clean_result_admits_what_it_did_not_look_at()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+        BaselineScanner::compare();
+
+        $finding = $this->onlyFinding();
+
+        $this->assertEquals(Finding::STATE_PASSED, $finding['state']);
+        $this->assertStringNotContainsString('Nothing has changed since your snapshot', $finding['title']);
+        $this->assertStringContainsString('5', $finding['title']);
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * A unit that grows past the ceiling has to start saying so, and one that shrinks back
+     * under it has to stop - a stale warning about coverage is its own kind of wrong.
+     */
+    public function test_the_warning_appears_and_clears_as_the_unit_grows_and_shrinks()
+    {
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+        $this->assertEquals(0, BaselineScanner::summary()['skipped']);
+
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+        BaselineScanner::compare();
+
+        $this->assertEquals(5, BaselineScanner::summary()['skipped']);
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+        BaselineScanner::compare();
+
+        $this->assertEquals(0, BaselineScanner::summary()['skipped']);
+        $this->assertEmpty(BaselineStore::partials());
+    }
+
+    public function test_clearing_the_snapshot_forgets_the_coverage_warning_too()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        for ($i = 0; $i < 9; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+        $this->assertNotEmpty(BaselineStore::partials());
+
+        BaselineStore::clear();
+
+        $this->assertEmpty(BaselineStore::partials());
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    public function test_an_uninstalled_plugin_takes_its_coverage_warning_with_it()
+    {
+        add_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+
+        $second = $this->addUnit('huge-plugin');
+
+        for ($i = 0; $i < 9; $i++) {
+            file_put_contents($second . '/file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::snapshot();
+        $this->assertArrayHasKey('plugin:huge-plugin/huge-plugin.php', BaselineStore::partials());
+
+        $this->removeUnit($second);
+        BaselineScanner::compare();
+
+        $this->assertArrayNotHasKey('plugin:huge-plugin/huge-plugin.php', BaselineStore::partials());
+
+        remove_filter('fluent_auth/baseline_max_files', [$this, 'tinyCeiling']);
+    }
+
+    /**
+     * @return int
+     */
+    public function tinyCeiling()
+    {
+        return 4;
+    }
+
+    /* ------------------------------------------------- what the screens are told */
+
+    /**
+     * Driven from what is installed, not from what is stored.
+     *
+     * A plugin installed since the snapshot has to appear saying so. A list that quietly
+     * omitted the one extension nobody has a record of would be the opposite of useful.
+     */
+    public function test_the_unit_list_names_what_is_not_recorded()
+    {
+        $this->writeUnitFile('script.php', '<?php // code');
+        BaselineScanner::snapshot();
+
+        $this->addUnit('installed-later');
+
+        $units = BaselineScanner::units();
+        $byScope = array_column($units, null, 'scope');
+
+        $this->assertCount(2, $units);
+        $this->assertTrue($byScope[$this->unitScope()]['in_snapshot']);
+        $this->assertEquals(1, $byScope[$this->unitScope()]['file_count']);
+
+        $later = $byScope['plugin:installed-later/installed-later.php'];
+
+        $this->assertFalse($later['in_snapshot']);
+        $this->assertEquals('none', $later['status']);
+        $this->assertEquals(0, $later['changed']);
+    }
+
+    public function test_the_unit_list_carries_the_changed_files()
+    {
+        $this->writeUnitFile('script.php', '<?php // code');
+        BaselineScanner::snapshot();
+
+        $this->writeUnitFile('script.php', '<?php // edited');
+        $this->writeUnitFile('extra.php', '<?php // arrived');
+        BaselineScanner::compare();
+
+        $units = array_column(BaselineScanner::units(), null, 'scope');
+        $unit = $units[$this->unitScope()];
+
+        $this->assertEquals('changed', $unit['status']);
+        $this->assertEquals(2, $unit['changed']);
+
+        $paths = array_column($unit['changes'], 'status', 'path');
+
+        $this->assertEquals('modified', $paths['script.php']);
+        $this->assertEquals('added', $paths['extra.php']);
+    }
+
+    /**
+     * The count past the cap survives even though the paths do not, so a row cannot report
+     * two hundred changes when the folder holds five thousand.
+     */
+    public function test_a_truncated_change_list_still_counts_every_file()
+    {
+        BaselineScanner::snapshot();
+
+        for ($i = 0; $i < 205; $i++) {
+            $this->writeUnitFile('file-' . $i . '.php', '<?php // ' . $i);
+        }
+
+        BaselineScanner::compare();
+
+        $units = array_column(BaselineScanner::units(), null, 'scope');
+
+        $this->assertEquals(205, $units[$this->unitScope()]['changed']);
+    }
+
+    /* ------------------------------------------------------- one unit at a time */
+
+    /**
+     * Somebody who has reviewed one plugin should be able to vouch for that one without also
+     * vouching for the eleven they have not looked at.
+     */
+    public function test_a_snapshot_can_be_taken_of_one_unit_alone()
+    {
+        $this->writeUnitFile('script.php', '<?php // code');
+        $second = $this->addUnit('other-plugin');
+        file_put_contents($second . '/other.php', '<?php // other');
+
+        $result = BaselineScanner::snapshot([$this->unitScope()]);
+
+        $this->assertEquals(1, $result['taken']);
+        $this->assertNotNull(BaselineStore::find($this->unitScope()));
+        $this->assertNull(BaselineStore::find('plugin:other-plugin/other-plugin.php'));
+    }
+
+    public function test_accepting_one_unit_leaves_the_others_reporting()
+    {
+        $this->writeUnitFile('script.php', '<?php // code');
+        $second = $this->addUnit('other-plugin');
+        file_put_contents($second . '/other.php', '<?php // other');
+
+        BaselineScanner::snapshot();
+
+        $this->writeUnitFile('script.php', '<?php // edited');
+        file_put_contents($second . '/other.php', '<?php // also edited');
+        BaselineScanner::compare();
+
+        $this->assertCount(2, BaselineStore::changed());
+
+        BaselineScanner::snapshot([$this->unitScope()]);
+
+        $changed = BaselineStore::changed();
+
+        $this->assertCount(1, $changed);
+        $this->assertEquals('plugin:other-plugin/other-plugin.php', $changed[0]->scope);
+    }
+
+    /**
+     * A name that matches nothing records nothing, rather than quietly falling back to all of
+     * them - which would turn a button on one row into a snapshot of the whole site.
+     */
+    public function test_an_unknown_scope_records_nothing()
+    {
+        $this->writeUnitFile('script.php', '<?php // code');
+
+        $result = BaselineScanner::snapshot(['plugin:not-installed/not-installed.php']);
+
+        $this->assertEquals(0, $result['taken']);
+        $this->assertEmpty(BaselineStore::summaries());
+    }
+
     /**
      * @return array
      */

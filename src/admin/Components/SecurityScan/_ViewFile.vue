@@ -10,7 +10,7 @@
 export default {
     name: 'ViewFile',
     props: ['viewing_file'],
-    emits: ['restored'],
+    emits: ['restored', 'deleted'],
     data() {
         return {
             filePath: '',
@@ -20,18 +20,29 @@ export default {
             loading: true,
             restoring: false,
             restored: false,
+            deleting: false,
+            deleted: false,
             error: ''
         }
     },
     computed: {
         /*
-         * Only ever offered next to the changes it would undo. A file the scan calls "new"
-         * has no original to go back to - and the button that would deal with one of those
-         * deletes it, which is a different decision than this one and does not belong behind
-         * the same label.
+         * Only ever offered next to the changes it would undo. A file the scan calls "new" has
+         * no original to go back to; what it needs is to be deleted, which is a different
+         * decision with a different consequence and has a button of its own beside this one.
          */
         canRestore() {
             return this.hasDiff && !this.restored && this.viewing_file.status === 'modified';
+        },
+        /*
+         * The other half of that decision, and the reason this panel is worth opening on a new
+         * file at all: having read what is in it, the thing you want next is for it not to be
+         * there. Offered here as well as on the row because this is where somebody finds out
+         * whether it belongs - and the contents on screen are the last chance to keep a copy of
+         * a file that is about to stop existing.
+         */
+        canDelete() {
+            return !this.deleted && this.viewing_file.status === 'new';
         }
     },
     methods: {
@@ -90,6 +101,40 @@ export default {
                 // Dismissed - nothing to do.
             });
         },
+        /*
+         * Says plainly that it cannot be undone, because it cannot: the file is deleted rather
+         * than kept anywhere, and the site's backups are the only copy afterwards.
+         */
+        del() {
+            this.$confirm(this.$t('__delete_file_confirm__', this.filePath), this.$t('Delete this file permanently?'), {
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonText: this.$t('Cancel'),
+                confirmButtonText: this.$t('Yes, delete it')
+            }).then(() => {
+                this.deleting = true;
+
+                this.$post('security-scan-settings/scan/delete-file', {viewing_file: this.viewing_file})
+                    .then(response => {
+                        this.$notify.success(response.message);
+                        this.deleted = true;
+                        /*
+                         * The panel is showing a file that is no longer there, so it says so
+                         * rather than leaving the contents up as though nothing had happened.
+                         */
+                        this.fileContent = '';
+                        this.$emit('deleted', this.viewing_file);
+                    })
+                    .catch(errors => {
+                        this.$handleError(errors);
+                    })
+                    .finally(() => {
+                        this.deleting = false;
+                    });
+            }).catch(() => {
+                // Dismissed - nothing to do.
+            });
+        },
         renderDiff() {
             const target = this.$refs.fls_diff_viewer;
 
@@ -134,10 +179,19 @@ export default {
                        :loading="restoring" @click="restore">
                 {{ $t('Restore this file') }}
             </el-button>
+            <el-button v-else-if="canDelete" type="danger" size="small"
+                       :loading="deleting" @click="del">
+                {{ $t('Delete this file') }}
+            </el-button>
             <span v-else-if="restored" class="fls_tag is_success">{{ $t('Restored') }}</span>
+            <span v-else-if="deleted" class="fls_tag is_success">{{ $t('Deleted') }}</span>
         </div>
 
         <pre v-if="error" class="fls_code">{{ error }}</pre>
+
+        <p v-else-if="deleted" class="fls_file_view_gone">
+            {{ $t('__file_deleted_note__') }}
+        </p>
 
         <el-input v-else-if="!hasDiff" type="textarea" :rows="24" v-model="fileContent"
                   :readonly="true"/>

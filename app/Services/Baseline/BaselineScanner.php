@@ -42,16 +42,18 @@ class BaselineScanner
                 continue;
             }
 
-            $hashes = BaselineTargets::hash($unit['path']);
+            $walk = BaselineTargets::hashUnit($unit['path']);
 
             BaselineStore::put($unit['scope'], [
                 'label'      => $unit['label'],
                 'version'    => $unit['version'],
-                'file_count' => count($hashes),
-                'hashes'     => $hashes,
+                'file_count' => count($walk['hashes']),
+                'hashes'     => $walk['hashes'],
                 'status'     => 'ok',
                 'changes'    => []
             ]);
+
+            BaselineStore::setPartial($unit['scope'], $walk['skipped']);
 
             $taken++;
         }
@@ -133,21 +135,30 @@ class BaselineScanner
          * which is what the coverage panel is for.
          */
         if (!$stored) {
-            $hashes = BaselineTargets::hash($unit['path']);
+            $walk = BaselineTargets::hashUnit($unit['path']);
 
             BaselineStore::put($unit['scope'], [
                 'label'      => $unit['label'],
                 'version'    => $unit['version'],
-                'file_count' => count($hashes),
-                'hashes'     => $hashes,
+                'file_count' => count($walk['hashes']),
+                'hashes'     => $walk['hashes'],
                 'status'     => 'ok',
                 'changes'    => []
             ]);
 
+            BaselineStore::setPartial($unit['scope'], $walk['skipped']);
+
             return false;
         }
 
-        $current = BaselineTargets::hash($unit['path']);
+        $walk = BaselineTargets::hashUnit($unit['path']);
+        $current = $walk['hashes'];
+
+        /*
+         * Re-asked every time rather than carried over from the snapshot: a unit grows, and the
+         * run that first pushes it past the ceiling is the run that has to start saying so.
+         */
+        BaselineStore::setPartial($unit['scope'], $walk['skipped']);
 
         /*
          * The version moved, so whatever differs is an update. Re-recorded in silence - this
@@ -166,7 +177,7 @@ class BaselineScanner
             return false;
         }
 
-        $changes = self::diff(BaselineStore::hashes($unit['scope']), $current);
+        $changes = self::diff(BaselineStore::hashes($unit['scope']), $current, $walk['boundary']);
 
         BaselineStore::put($unit['scope'], [
             'label'      => $unit['label'],
@@ -182,9 +193,10 @@ class BaselineScanner
     /**
      * @param array $before
      * @param array $after
+     * @param string $boundary last path the walk reached, when it could not reach them all
      * @return array
      */
-    protected static function diff($before, $after)
+    protected static function diff($before, $after, $boundary = '')
     {
         $max = apply_filters('fluent_auth/baseline_max_changes', 200);
 
@@ -199,9 +211,21 @@ class BaselineScanner
         }
 
         foreach ($before as $path => $hash) {
-            if (!isset($after[$path])) {
-                $changes[] = ['path' => $path, 'status' => 'removed'];
+            if (isset($after[$path])) {
+                continue;
             }
+
+            /*
+             * Absent from a walk that stopped early is not the same as gone. Past the boundary
+             * the walk never looked, and calling that a deletion is how a plugin growing over
+             * the ceiling reports thousands of removed files on the day it crosses - which is
+             * indistinguishable from the thing being watched for, and ends the feature.
+             */
+            if ($boundary !== '' && strcmp($path, $boundary) > 0) {
+                continue;
+            }
+
+            $changes[] = ['path' => $path, 'status' => 'removed'];
         }
 
         /*
@@ -219,6 +243,66 @@ class BaselineScanner
     }
 
     /**
+     * Every unit a snapshot can cover, with whatever the snapshot knows about it.
+     *
+     * Driven from what is installed now rather than from what is stored, so a plugin added
+     * since the snapshot appears in the list saying it is not recorded, instead of not
+     * appearing at all. A list that quietly omits the one extension nobody has a record of is
+     * the opposite of what this screen is for.
+     *
+     * @return array
+     */
+    public static function units()
+    {
+        $stored = [];
+
+        foreach (BaselineStore::summaries() as $row) {
+            $stored[$row->scope] = $row;
+        }
+
+        $partials = BaselineStore::partials();
+
+        $units = [];
+
+        foreach (BaselineTargets::units() as $unit) {
+            $row = isset($stored[$unit['scope']]) ? $stored[$unit['scope']] : null;
+
+            $changes = $row ? json_decode((string)$row->changes, true) : [];
+            $changes = is_array($changes) ? $changes : [];
+
+            /* The truncated marker stands for the files it replaced, so it counts as all of them. */
+            $changed = 0;
+
+            foreach ($changes as $change) {
+                $changed += (isset($change['status']) && $change['status'] === 'truncated')
+                    ? (int)$change['count']
+                    : 1;
+            }
+
+            $skipped = isset($partials[$unit['scope']]) ? (int)$partials[$unit['scope']] : 0;
+
+            $units[] = [
+                'scope'       => $unit['scope'],
+                'label'       => $unit['label'],
+                'type'        => $unit['type'],
+                'version'     => $unit['version'],
+                'in_snapshot' => (bool)$row,
+                'file_count'  => $row ? (int)$row->file_count : 0,
+                /* Files in this unit the walk never reached - see BaselineTargets::hashUnit(). */
+                'skipped'     => $skipped,
+                'status'      => $row ? $row->status : 'none',
+                'changed'     => $changed,
+                /* Enough to read without opening anything; the finding carries the full list. */
+                'changes'     => array_slice($changes, 0, 25),
+                'checked_at'  => $row ? $row->checked_at : '',
+                'created_at'  => $row ? $row->created_at : ''
+            ];
+        }
+
+        return $units;
+    }
+
+    /**
      * What the snapshot covers and what it has found, for the screens.
      *
      * @return array
@@ -226,7 +310,15 @@ class BaselineScanner
     public static function summary()
     {
         if (!BaselineStore::hasTable()) {
-            return ['exists' => false, 'units' => 0, 'files' => 0, 'changed' => 0, 'taken_at' => ''];
+            return [
+                'exists'  => false,
+                'units'   => 0,
+                'files'   => 0,
+                'changed' => 0,
+                'skipped' => 0,
+                'partial_units' => 0,
+                'taken_at' => ''
+            ];
         }
 
         $units = 0;
@@ -242,11 +334,21 @@ class BaselineScanner
             }
         }
 
+        $partials = BaselineStore::partials();
+
         return [
             'exists'   => $units > 0,
             'units'    => $units,
             'files'    => $files,
             'changed'  => $changed,
+            /*
+             * Files inside a snapshotted unit that the walk never reached, because that unit is
+             * over the per-unit ceiling. Reported beside the number being watched rather than
+             * folded into it: "watching 29,726" and "watching 29,726 of 34,538" are different
+             * claims, and only one of them is true when this is not zero.
+             */
+            'skipped'  => array_sum(array_map('intval', $partials)),
+            'partial_units' => count($partials),
             'taken_at' => BaselineStore::takenAt(),
             /* What a snapshot would cover if taken now - the honest denominator. */
             'coverable' => count(BaselineTargets::units())

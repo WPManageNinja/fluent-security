@@ -10,57 +10,6 @@
  * finding sits in the same red and amber as a blocked login and a failed scan.
  */
 
-/* --------------------------------------------------------------- tabs */
-
-/*
- * Findings and Monitoring. An underline rather than a pill or a segmented control: these are
- * two views of one subject, not two settings, and the tab that is on should read as the page
- * you are on rather than as a choice you have made.
- */
-.fls_sec_tabs {
-    @apply flex items-center border-0 border-b border-solid;
-
-    border-color: var(--fls-border);
-    gap: 24px;
-    margin-bottom: 20px;
-
-    .fls_sec_tab {
-        @apply flex items-center text-sm font-medium no-underline;
-
-        gap: 6px;
-        padding: 0 0 10px;
-        margin-bottom: -1px;
-        color: var(--fls-text-mid);
-        border-bottom: 2px solid transparent;
-        transition: color .15s ease, border-color .15s ease;
-
-        &:hover {
-            color: var(--fls-text);
-        }
-
-        &:focus-visible {
-            outline: 2px solid var(--fls-accent);
-            outline-offset: 2px;
-        }
-
-        &.router-link-active {
-            color: var(--fls-heading);
-            border-bottom-color: var(--fls-accent);
-        }
-    }
-
-    .fls_sec_tab_count {
-        @apply inline-flex items-center justify-center rounded-full text-xs font-medium;
-
-        min-width: 18px;
-        height: 18px;
-        padding: 0 5px;
-        line-height: 18px;
-        background: var(--fls-danger-bg);
-        color: var(--fls-danger-fg);
-    }
-}
-
 /* --------------------------------------------------------------- list */
 
 .fls_find_list {
@@ -552,10 +501,6 @@
         letter-spacing: -.02em;
     }
 
-    .fls_sec_tabs {
-        margin-bottom: 24px;
-    }
-
     .fls_security_refresh {
         display: flex;
         align-items: center;
@@ -895,7 +840,8 @@
 
     .fls_security_aside {
         position: sticky;
-        top: 112px;
+        /* Below the chrome, plus the page's own top gap. See _layout.scss. */
+        top: calc(var(--fls-chrome-bottom) + 24px);
         min-width: 0;
 
         section {

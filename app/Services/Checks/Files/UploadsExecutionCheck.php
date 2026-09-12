@@ -10,9 +10,16 @@ use FluentAuth\App\Services\Checks\Finding;
 /**
  * Whether PHP can be made to run from the uploads folder.
  *
- * Every route into a WordPress site that ends in a shell ends here: something accepts a file,
- * the file lands in uploads, and the attacker asks the web server for it. Blocking execution
- * in a folder meant for pictures costs a site nothing and closes that ending.
+ * Blocking it closes the ending that most WordPress compromises share: something accepts a
+ * file, the file lands in uploads, and the attacker asks the web server for it. In a folder
+ * meant for pictures, refusing to run code costs a site nothing.
+ *
+ * Advice rather than a finding, because this is how most hosts ship and an open uploads
+ * folder is not by itself evidence that anything is wrong. Nothing runs there until something
+ * else on the site has already let a file through, which is the actual defect in every story
+ * that ends here. Drawn in the same amber as a mu-plugin that changed last night, this row
+ * would be teaching the reader that amber does not mean much - so it sits with the
+ * recommendations, is never scored, and never reaches the verdict at the top of the page.
  *
  * The check asks the web server rather than reading .htaccess, and that is the whole design.
  * Reading the file tells you what somebody wrote, not what the server does with it: on nginx
@@ -24,14 +31,8 @@ use FluentAuth\App\Services\Checks\Finding;
  * There are three answers, not two. A probe that cannot complete - loopback requests
  * disabled, HTTP auth on a staging site, a firewall in the way - must say so. Reporting a
  * failed test as either verdict is worse than not testing: one is a false alarm, the other is
- * an assurance nobody checked.
- *
- * Dismissing this one does not do what dismissing does elsewhere. Everywhere else, "not for
- * my site" means the question does not apply and the row is settled. Here the question
- * applies and the answer was measured: PHP ran. What a reader can honestly be saying is "my
- * host will not change this and I have stopped being able to act on it" - so the dismissal
- * takes the row out of the score and out of the red, and leaves it on the list in amber. It
- * would be a lie to file a proven finding under things that are fine.
+ * an assurance nobody checked. Untested is quiet in its own right, and dismissable, so a site
+ * whose loopback requests will never work is not asked about it forever.
  */
 class UploadsExecutionCheck extends Check
 {
@@ -74,64 +75,78 @@ class UploadsExecutionCheck extends Check
                 'group'  => $this->group(),
                 'state'  => Finding::STATE_PASSED,
                 'title'  => __('PHP code cannot run in your uploads folder', 'fluent-security'),
-                'scored' => true
+                'scored' => false
             ])];
         }
 
-        if ($state === self::UNKNOWN) {
-            /*
-             * Not scored. A site we could not reach is not a site with a problem, and marking
-             * it down for our own inability to test it is how a score stops meaning anything.
-             */
+        $untested = $state === self::UNKNOWN;
+
+        if (Dismissals::has($this->id())) {
+            return [new Finding([
+                'id'     => $this->id(),
+                'check'  => $this->id(),
+                'group'  => $this->group(),
+                'state'  => Finding::STATE_ACCEPTED,
+                'title'  => $untested ? $this->untestedTitle() : $this->executesTitle(),
+                'why'    => __('You have said this one is not for your site.', 'fluent-security'),
+                'scored' => false
+            ])];
+        }
+
+        if ($untested) {
             return [new Finding([
                 'id'       => $this->id(),
                 'check'    => $this->id(),
                 'group'    => $this->group(),
                 'state'    => Finding::STATE_OPEN,
-                'severity' => Finding::SEVERITY_LOOK,
-                'title'    => __('We could not test PHP execution in your uploads folder', 'fluent-security'),
-                'why'      => __('Your site would not answer a request from itself, so we cannot tell you whether PHP runs in the folder your uploads go to. This is usually a hosting setting rather than a problem with your site.', 'fluent-security'),
+                'severity' => Finding::SEVERITY_ADVICE,
+                'title'    => $this->untestedTitle(),
+                'why'      => __('Your site would not answer a request from itself, so we cannot tell you whether PHP runs in the folder your uploads go to. This is usually a hosting setting rather than a problem with your site, and blocking PHP there is optional hardening either way.', 'fluent-security'),
                 'details'  => $this->probeDetails($result),
                 'action'   => 'fix',
                 'label'    => __('Try again', 'fluent-security'),
+                'dismiss'  => 'ignore',
                 'scored'   => false
             ])];
         }
 
         $canWrite = $this->canWriteRules();
-        $setAside = Dismissals::has($this->id());
 
         return [new Finding([
             'id'       => $this->id(),
             'check'    => $this->id(),
             'group'    => $this->group(),
             'state'    => Finding::STATE_OPEN,
-            /*
-             * Amber once set aside, never green and never gone. The score is what a site can
-             * be held to; the row is what is true about it, and that has not changed.
-             */
-            'severity' => $setAside ? Finding::SEVERITY_LOOK : Finding::SEVERITY_FIX,
-            'title'    => __('PHP code can run in your uploads folder', 'fluent-security'),
-            'why'      => $setAside
-                ? __('You have set this one aside, so it is no longer counted against your score. It is still true: we put a PHP file in your uploads folder and your server ran it. Worth raising with your host if you ever get the chance.', 'fluent-security')
-                : ($canWrite
-                    ? __('We put a PHP file there and your server ran it. So if anything on your site accepts an upload, a file slipped through it would run too. Blocking PHP in this folder does not affect your images or documents.', 'fluent-security')
-                    : __('We put a PHP file there and your server ran it. So if anything on your site accepts an upload, a file slipped through it would run too. Your web server is not one we can write the rule for, so your host will need to add it.', 'fluent-security')),
+            'severity' => Finding::SEVERITY_ADVICE,
+            'title'    => $this->executesTitle(),
+            'why'      => $canWrite
+                ? __('Most hosts leave this open, so it is not a sign that anything is wrong with your site. It is still worth closing: if anything on your site ever accepts an upload, a file slipped through it could not be run. Blocking PHP in this folder does not affect your images or documents.', 'fluent-security')
+                : __('Most hosts leave this open, so it is not a sign that anything is wrong with your site. It is still worth closing: if anything on your site ever accepts an upload, a file slipped through it could not be run. Your web server is not one we can write the rule for, so your host would need to add it.', 'fluent-security'),
             'details'  => $canWrite ? $this->probeDetails($result) : $this->snippetDetails($result),
-            /*
-             * The fix stays on offer after it is set aside. Somebody who moved host, or whose
-             * host finally answered, should not have to undo a decision before they can act.
-             */
             'action'   => $canWrite ? 'fix' : 'none',
             'label'    => __('Block it', 'fluent-security'),
-            'dismiss'  => $setAside ? 'undo' : 'aside',
-            'scored'   => !$setAside
+            'dismiss'  => 'ignore',
+            'scored'   => false
         ])];
     }
 
     /**
-     * Stop counting this against the site, without pretending it is fixed.
-     *
+     * @return string
+     */
+    protected function executesTitle()
+    {
+        return __('PHP code can run in your uploads folder', 'fluent-security');
+    }
+
+    /**
+     * @return string
+     */
+    protected function untestedTitle()
+    {
+        return __('We could not test PHP execution in your uploads folder', 'fluent-security');
+    }
+
+    /**
      * @param string $findingId
      * @return array|\WP_Error
      */
@@ -147,9 +162,7 @@ class UploadsExecutionCheck extends Check
 
         Dismissals::add($this->id());
 
-        return [
-            'message' => __('Set aside. This no longer counts against your score, and stays on the list because it is still true.', 'fluent-security')
-        ];
+        return ['message' => __('Noted. This will not be mentioned again.', 'fluent-security')];
     }
 
     /**
@@ -168,7 +181,7 @@ class UploadsExecutionCheck extends Check
 
         Dismissals::remove($this->id());
 
-        return ['message' => __('This counts towards your score again.', 'fluent-security')];
+        return ['message' => __('This is back on the list.', 'fluent-security')];
     }
 
     /**

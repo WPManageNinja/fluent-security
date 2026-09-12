@@ -1,6 +1,6 @@
 <script type="text/babel">
 import icons from '../SecurityScan/icons';
-import SecurityTabs from './_SecurityTabs.vue';
+import {counts as subNavCounts} from '@/Bits/subNav';
 
 /*
  * What to do once you think somebody has been in.
@@ -19,9 +19,6 @@ import SecurityTabs from './_SecurityTabs.vue';
  */
 export default {
     name: 'SecurityRecovery',
-    components: {
-        SecurityTabs
-    },
     data() {
         return {
             icons,
@@ -179,6 +176,8 @@ export default {
                     this.progress = response.progress || {running: false};
                     this.history = response.history || [];
                     this.outstanding = response.outstanding || this.outstanding;
+                    /* The number on the Findings tab of the bar above, drawn by the shell. */
+                    subNavCounts.findings = this.outstanding.open;
                     this.files = response.files || null;
                 })
                 .catch(errors => {
@@ -403,14 +402,12 @@ export default {
             <div class="fls_page_main">
                 <div class="fls_page_head">
                     <div>
-                        <h1 class="fls_page_title">{{ $t('Security') }}</h1>
+                        <h1 class="fls_page_title">{{ $t('Been Hacked?') }}</h1>
                         <p class="fls_page_desc">
                             {{ $t('What to do if you think somebody has been into your site.') }}
                         </p>
                     </div>
                 </div>
-
-                <security-tabs :open-count="outstanding.open"/>
 
                 <el-skeleton v-if="loading" :animated="true" :rows="6"/>
 

@@ -20,27 +20,37 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
 {
     /**
      * The confirmed shared secret, base32. Its presence is what enrollment means.
+     *
+     * Deliberately a row of its own rather than part of META_DATA: this is the index
+     * the enrollment list and the dashboard tile filter on, and neither filter survives
+     * the move. A serialised blob exists from the moment setup starts, so EXISTS would
+     * count everybody who ever opened the setup page and walked away, and no LIKE on
+     * the negative side can match a user with no row at all - which on a membership
+     * site is nearly all of them.
      */
     const META_SECRET = '_fls_totp_secret';
 
     /**
-     * A secret that has been shown to the user but not yet proven to have reached their
-     * app. Kept apart from the real one so an abandoned setup never leaves an account
-     * demanding codes from an authenticator that was never added.
+     * Everything else about the enrollment, in one row:
+     *
+     *   pending      a secret shown to the user but not yet proven to have reached
+     *                their app, kept away from the live one so an abandoned setup never
+     *                leaves an account demanding codes from an authenticator that was
+     *                never added
+     *   activated_at when the app was paired
+     *   last_counter the last time step spent, so a code cannot be used twice
+     *   recovery     hashes of the unused recovery codes
+     *
+     * Together rather than a row each because disable() has to clear all of them, and a
+     * field left behind there is not untidiness: stale recovery hashes surviving a
+     * re-enrollment under a fresh secret leave the old codes working on the account. A
+     * single delete has nothing to forget.
+     *
+     * Only ever read and written through getData() and patchData(), so the shape stays
+     * private to this class - callers ask getPendingSecret(), getActivatedAt() and the
+     * rest.
      */
-    const META_PENDING_SECRET = '_fls_totp_pending_secret';
-
-    const META_ACTIVATED_AT = '_fls_totp_activated_at';
-
-    /**
-     * The last time step spent, so a code cannot be used twice.
-     */
-    const META_LAST_COUNTER = '_fls_totp_last_counter';
-
-    /**
-     * Hashes of the unused recovery codes.
-     */
-    const META_RECOVERY_CODES = '_fls_totp_recovery_codes';
+    const META_DATA = '_fls_totp_data';
 
     const RECOVERY_CODE_COUNT = 10;
 
@@ -254,7 +264,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
          * drift window, so without this the same one works again for up to a minute and
          * a half - long enough for anyone who watched it being typed.
          */
-        update_user_meta($user->ID, self::META_LAST_COUNTER, $counter);
+        self::patchData($user->ID, ['last_counter' => $counter]);
 
         return true;
     }
@@ -347,9 +357,12 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         }
 
         update_user_meta($userId, self::META_SECRET, $secret);
-        update_user_meta($userId, self::META_ACTIVATED_AT, current_time('mysql'));
-        update_user_meta($userId, self::META_LAST_COUNTER, (int)$counter);
-        delete_user_meta($userId, self::META_PENDING_SECRET);
+
+        self::patchData($userId, [
+            'activated_at' => current_time('mysql'),
+            'last_counter' => (int)$counter,
+            'pending'      => null
+        ]);
 
         do_action('fluent_auth/totp_activated', $userId);
 
@@ -369,10 +382,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         }
 
         delete_user_meta($userId, self::META_SECRET);
-        delete_user_meta($userId, self::META_PENDING_SECRET);
-        delete_user_meta($userId, self::META_ACTIVATED_AT);
-        delete_user_meta($userId, self::META_LAST_COUNTER);
-        delete_user_meta($userId, self::META_RECOVERY_CODES);
+        delete_user_meta($userId, self::META_DATA);
 
         do_action('fluent_auth/totp_disabled', $userId);
     }
@@ -391,7 +401,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return '';
         }
 
-        $pending = (string)get_user_meta($userId, self::META_PENDING_SECRET, true);
+        $pending = (string)Arr::get(self::getData($userId), 'pending');
 
         if (TotpProvider::isValidSecret($pending)) {
             return $pending;
@@ -403,7 +413,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return '';
         }
 
-        update_user_meta($userId, self::META_PENDING_SECRET, $pending);
+        self::patchData($userId, ['pending' => $pending]);
 
         return $pending;
     }
@@ -420,9 +430,22 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return '';
         }
 
-        $pending = (string)get_user_meta($userId, self::META_PENDING_SECRET, true);
+        $pending = (string)Arr::get(self::getData($userId), 'pending');
 
         return TotpProvider::isValidSecret($pending) ? $pending : '';
+    }
+
+    /**
+     * When the authenticator app was paired, as a mysql datetime.
+     *
+     * @param $user \WP_User|int
+     * @return string empty if it never was
+     */
+    public static function getActivatedAt($user)
+    {
+        $userId = self::resolveUserId($user);
+
+        return $userId ? (string)Arr::get(self::getData($userId), 'activated_at') : '';
     }
 
     /**
@@ -464,7 +487,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             $hashes[] = self::hashRecoveryCode($code);
         }
 
-        update_user_meta($userId, self::META_RECOVERY_CODES, $hashes);
+        self::patchData($userId, ['recovery' => $hashes]);
 
         return $codes;
     }
@@ -481,7 +504,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return 0;
         }
 
-        $hashes = get_user_meta($userId, self::META_RECOVERY_CODES, true);
+        $hashes = Arr::get(self::getData($userId), 'recovery');
 
         return is_array($hashes) ? count($hashes) : 0;
     }
@@ -501,7 +524,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
-        $hashes = get_user_meta($userId, self::META_RECOVERY_CODES, true);
+        $hashes = Arr::get(self::getData($userId), 'recovery');
 
         if (!is_array($hashes) || !$hashes) {
             return false;
@@ -525,7 +548,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
-        update_user_meta($userId, self::META_RECOVERY_CODES, $remaining);
+        self::patchData($userId, ['recovery' => $remaining]);
 
         do_action('fluent_auth/totp_recovery_code_used', $userId, count($remaining));
 
@@ -562,6 +585,58 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
     {
         $userId = self::resolveUserId($user);
 
-        return $userId ? (int)get_user_meta($userId, self::META_LAST_COUNTER, true) : 0;
+        return $userId ? (int)Arr::get(self::getData($userId), 'last_counter') : 0;
+    }
+
+    /**
+     * @param $userId int
+     * @return array
+     */
+    private static function getData($userId)
+    {
+        $data = get_user_meta($userId, self::META_DATA, true);
+
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Merges changes into the row, a null value dropping its key.
+     *
+     * One row means every write is a read followed by a write, and two of the fields
+     * here are spent during a login - the time step on one branch, a recovery code on
+     * the other. Two logins landing together could therefore have one overwrite what
+     * the other had just spent, so the read deliberately misses the object cache and
+     * goes to the database: a request that has been sitting on a page for a minute must
+     * not merge its changes into the enrollment as it was when the page was drawn.
+     *
+     * That narrows the window rather than closing it, which is as far as user meta
+     * goes - update_user_meta was never atomic either, so the same applies to the four
+     * separate rows this replaced.
+     *
+     * @param $userId int
+     * @param $changes array
+     * @return void
+     */
+    private static function patchData($userId, $changes)
+    {
+        wp_cache_delete($userId, 'user_meta');
+
+        $data = self::getData($userId);
+
+        foreach ($changes as $key => $value) {
+            if ($value === null) {
+                unset($data[$key]);
+                continue;
+            }
+
+            $data[$key] = $value;
+        }
+
+        if (!$data) {
+            delete_user_meta($userId, self::META_DATA);
+            return;
+        }
+
+        update_user_meta($userId, self::META_DATA, $data);
     }
 }

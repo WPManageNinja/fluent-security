@@ -41,10 +41,10 @@ class IntegrityHelper
      * What the last scan made of core, kept so the screens that are not the scan screen can
      * say so without hashing wp-includes on every page load.
      *
-     * The scan screen itself still re-runs core on request - it is one cheap request and the
-     * answer should be live while somebody is looking at it. But the findings list and the
-     * recovery screen only need to know what the last look found, and "a file changed in
-     * wp-includes" is not something either of them should have to re-derive to mention.
+     * Read by every screen that mentions core, the scan screen included. That screen re-runs
+     * core when somebody asks it to, but it no longer scans on arrival, and a row that knows
+     * what the last scan found should say so rather than ask to be run again - the findings
+     * list and the recovery screen have always read it this way.
      *
      * Stored unfiltered and capped, like the extension results: the ignore list is applied
      * when read, so accepting a file later does not need a scan to take effect.
@@ -54,6 +54,35 @@ class IntegrityHelper
         $results = get_option('__fls_integrity_core_results', []);
 
         return is_array($results) ? $results : [];
+    }
+
+    /**
+     * The last core scan, in the shape the scan screen draws.
+     *
+     * The same findings getCoreResults() holds, grouped by the folder the scanner looked in -
+     * which is how a live scan hands them over, and so how the screen expects them. Stored
+     * flat because everything else that reads them wants them flat; regrouped here rather
+     * than stored twice.
+     *
+     * Null before the first scan, which is the one case the screen should word as never having
+     * looked rather than as having found nothing.
+     *
+     * @return array|null
+     */
+    public static function getStoredCoreScanResults()
+    {
+        $results = self::getCoreResults();
+
+        if (empty($results['checked_at'])) {
+            return null;
+        }
+
+        return [
+            'files'      => CheckerService::groupFiles((array)Arr::get($results, 'files', [])),
+            'folders'    => array_values((array)Arr::get($results, 'folders', [])),
+            'truncated'  => (int)Arr::get($results, 'truncated', 0),
+            'checked_at' => $results['checked_at']
+        ];
     }
 
     public static function storeCoreResult(CheckerService $checker)

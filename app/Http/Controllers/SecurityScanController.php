@@ -10,6 +10,8 @@ use FluentAuth\App\Services\IntegrityChecker\CheckerService;
 use FluentAuth\App\Services\IntegrityChecker\ExtensionChecker;
 use FluentAuth\App\Services\IntegrityChecker\ExtensionInventory;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
+use FluentAuth\App\Services\Recovery\FileRecovery;
+use FluentAuth\App\Services\Recovery\RecoveryService;
 
 class SecurityScanController
 {
@@ -34,9 +36,12 @@ class SecurityScanController
             'settings' => $settings,
             'ignores'  => IntegrityHelper::getIgnoreLists(),
             /*
-             * What the last scan made of wp-content. Unlike core's findings these are kept, so
-             * arriving on the screen shows the standing picture instead of a blank slate.
+             * What the last scan found, so arriving on the screen shows the standing picture
+             * instead of a blank slate. Core and wp-content alike: both are kept, and a row
+             * that has an answer from the last scan should give it rather than ask to be run
+             * again to say something it already knows.
              */
+            'core_results' => IntegrityHelper::getStoredCoreScanResults(),
             'extension_results' => array_values(array_map(function ($result) {
                 if (!empty($result['reason'])) {
                     $result['reason_label'] = ExtensionInventory::getReasonLabel($result['reason']);
@@ -177,6 +182,15 @@ class SecurityScanController
         $themes = [];
 
         foreach ($targets as $target) {
+            /*
+             * Asked before applyKnownFailure(), which marks a version the directory never
+             * published unverifiable - and that is precisely the case a reinstall answers, by
+             * installing the current release instead. The recovery screen asks the same
+             * question of the same unmodified target, so the two screens offer the button in
+             * the same places.
+             */
+            $blocked = FileRecovery::extensionBlockedReason($target);
+
             $target = self::applyKnownFailure($target, $results);
 
             $item = [
@@ -194,7 +208,10 @@ class SecurityScanController
                  * premium list; a version the directory does not publish stays with the plugins.
                  */
                 'severity'   => $target['reason'] ? ExtensionInventory::getReasonSeverity($target['reason']) : '',
-                'ignored'    => IntegrityHelper::isExtensionIgnored($target['rel_path'])
+                'ignored'    => IntegrityHelper::isExtensionIgnored($target['rel_path']),
+                /* Whether the row may offer to put the official copy back, and why not. */
+                'reinstallable' => !$blocked,
+                'blocked'       => $blocked
             ];
 
             if ($target['type'] === 'theme') {
@@ -397,9 +414,95 @@ class SecurityScanController
      */
     public static function getMuPlugins(\WP_REST_Request $request)
     {
-        $scope = defined('WPMU_PLUGIN_DIR')
+        return self::muPluginsPayload();
+    }
+
+    /**
+     * Record what is in mu-plugins right now, and start watching from here.
+     *
+     * The check itself records this folder silently on its first run, because a plugin that
+     * opened by accusing somebody of their host's own files would be wrong on most sites. That
+     * leaves one thing unsaid, and this is it: the day this plugin was installed is taken on
+     * trust, so a site already broken into records the backdoor as normal. The button exists
+     * so somebody who has now read these files can say so and have the record start from a
+     * state they have actually looked at.
+     *
+     * Whole-folder rather than per file, like accepting is - the reader is answering one
+     * question, and asking it once per file would be asking them to do the sorting.
+     *
+     * @param \WP_REST_Request $request
+     * @return array|\WP_Error
+     */
+    public static function baselineMuPlugins(\WP_REST_Request $request)
+    {
+        $paths = MuPluginsCheck::phpFiles();
+
+        if (!$paths) {
+            return new \WP_Error(
+                'nothing_to_record',
+                __('There are no must-use plugins on this site, so there is nothing to record.', 'fluent-security'),
+                ['status' => 422]
+            );
+        }
+
+        $scope = self::muPluginsScope();
+        $hashes = [];
+
+        foreach ($paths as $path) {
+            $hash = AcceptedFiles::hash($path);
+
+            if ($hash) {
+                $hashes[AcceptedFiles::toRelative($path)] = $hash;
+            }
+        }
+
+        /*
+         * Dropped first, so re-recording cannot leave the hash of a file that is no longer
+         * there sitting in the list. A record that still vouches for a deleted path is one an
+         * attacker can put a file back underneath.
+         */
+        AcceptedFiles::forgetMissing(array_keys($hashes), function ($path) use ($scope) {
+            return strpos($path, $scope) === 0;
+        });
+
+        AcceptedFiles::baseline($scope, $hashes);
+
+        return self::muPluginsPayload([
+            'message' => sprintf(
+                /* translators: %s: number of files */
+                _n(
+                    '%s file recorded. You will hear about it only if it changes.',
+                    '%s files recorded. You will hear about them only if they change.',
+                    count($hashes),
+                    'fluent-security'
+                ),
+                number_format_i18n(count($hashes))
+            )
+        ]);
+    }
+
+    /**
+     * @return string root-relative, leading slash
+     */
+    protected static function muPluginsScope()
+    {
+        return defined('WPMU_PLUGIN_DIR')
             ? AcceptedFiles::toRelative(WPMU_PLUGIN_DIR)
             : '/wp-content/mu-plugins';
+    }
+
+    /**
+     * What is in mu-plugins and what the site has recorded about it.
+     *
+     * One method behind both the listing and the button, so the two can never disagree about
+     * which files are there or when they were recorded.
+     *
+     * @param array $extra
+     * @return array
+     */
+    protected static function muPluginsPayload($extra = [])
+    {
+        $scope = self::muPluginsScope();
 
         $baselinedAt = AcceptedFiles::baselinedAt($scope);
 
@@ -438,14 +541,18 @@ class SecurityScanController
             ];
         }
 
-        return [
+        return array_merge($extra, [
             'files'        => $files,
             'directory'    => $scope,
             'baselined_at' => $baselinedAt,
             'baselined_human' => $baselinedAt
                 ? human_time_diff($baselinedAt, current_time('timestamp'))
-                : ''
-        ];
+                : '',
+            /* How many of them are waiting to be looked at, so the button can say so. */
+            'unrecorded'   => count(array_filter($files, function ($file) {
+                return $file['status'] !== 'recorded';
+            }))
+        ]);
     }
 
     /**
@@ -514,9 +621,10 @@ class SecurityScanController
      * viewer would never have read from.
      *
      * @param array $fileConfig
+     * @param bool $forViewing whether the answer is going on the page - see assertAllowedFile()
      * @return array|\WP_Error
      */
-    protected static function resolveCoreFile($fileConfig)
+    protected static function resolveCoreFile($fileConfig, $forViewing = true)
     {
         $file = $fileConfig['file'];
         $folder = $fileConfig['folder'];
@@ -550,10 +658,12 @@ class SecurityScanController
             return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400, 'data' => $file]);
         }
 
-        $viewable = self::assertViewableFile($realPath, $file);
+        $allowed = $forViewing
+            ? self::assertViewableFile($realPath, $file)
+            : self::assertAllowedFile($realPath, $file);
 
-        if (is_wp_error($viewable)) {
-            return $viewable;
+        if (is_wp_error($allowed)) {
+            return $allowed;
         }
 
         $remotePath = str_replace(ABSPATH, '', $realPath);
@@ -618,9 +728,10 @@ class SecurityScanController
      * resolveCoreFile() is.
      *
      * @param array $fileConfig
+     * @param bool $forViewing whether the answer is going on the page - see assertAllowedFile()
      * @return array|\WP_Error
      */
-    protected static function resolveExtensionFile($fileConfig)
+    protected static function resolveExtensionFile($fileConfig, $forViewing = true)
     {
         $type = Arr::get($fileConfig, 'type') === 'theme' ? 'theme' : 'plugin';
         $key = Arr::get($fileConfig, 'key');
@@ -657,10 +768,12 @@ class SecurityScanController
             return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400]);
         }
 
-        $viewable = self::assertViewableFile($realPath, $file);
+        $allowed = $forViewing
+            ? self::assertViewableFile($realPath, $file)
+            : self::assertAllowedFile($realPath, $file);
 
-        if (is_wp_error($viewable)) {
-            return $viewable;
+        if (is_wp_error($allowed)) {
+            return $allowed;
         }
 
         return [
@@ -768,6 +881,148 @@ class SecurityScanController
         ];
     }
 
+    /**
+     * Delete one file that should not be there.
+     *
+     * Permanent, and the screen says so before it runs. Nothing is kept: the alternative was a
+     * quarantine copy under wp-content/uploads, and a copy of a webshell inside the webroot is
+     * a liability of its own - `.htaccess` denies nothing on nginx, so the thing just taken off
+     * the server would still be readable over HTTP. A file the site's owner wants back comes
+     * back from their backup, which is the one copy that is not sitting where the attacker can
+     * reach it.
+     *
+     * So the guards do the work instead, and there are three.
+     *
+     * Only ever a file the last scan called "new". A modified file has an official copy to be
+     * put back to, and that is what the restore is for; a file that is missing is not there to
+     * delete. "New" is the only finding whose answer is that the file should not exist.
+     *
+     * The browser's word for that is not taken. The finding is looked up in the stored results
+     * of the last scan and has to say "new" there too, so a stale row, a mistyped path or a
+     * request built by hand cannot talk this into deleting a file that belongs to WordPress.
+     * The ignore list is not consulted: ignoring a finding is a decision to stop being told
+     * about it, not a decision about what may be done to the file.
+     *
+     * And the path is resolved the way the viewer resolves it, so the names this refuses to
+     * show are also the names it refuses to delete - wp-config.php above all.
+     *
+     * @param \WP_REST_Request $request
+     * @return array|\WP_Error
+     */
+    public static function deleteFile(\WP_REST_Request $request)
+    {
+        $fileConfig = $request->get_param('viewing_file');
+
+        if (!$fileConfig || empty($fileConfig['file']) || empty($fileConfig['status'])) {
+            return new \WP_Error('invalid_data', __('Please provide a valid file name and status.', 'fluent-security'), ['status' => 400]);
+        }
+
+        if (Arr::get($fileConfig, 'status') !== 'new') {
+            return new \WP_Error(
+                'not_removable',
+                __('Only a file that is not part of the official release can be deleted. This one has an official copy, so put it back instead.', 'fluent-security'),
+                ['status' => 422]
+            );
+        }
+
+        $isExtension = Arr::get($fileConfig, 'scope') === 'extension';
+
+        $resolved = $isExtension
+            ? self::resolveExtensionFile($fileConfig, false)
+            : self::resolveCoreFile($fileConfig, false);
+
+        if (is_wp_error($resolved)) {
+            return $resolved;
+        }
+
+        $label = ltrim($isExtension ? $resolved['display'] : str_replace(ABSPATH, '/', $resolved['path']), '/');
+
+        $confirmed = $isExtension
+            ? self::isExtensionFindingNew($resolved)
+            : self::isCoreFindingNew($label);
+
+        if (!$confirmed) {
+            return new \WP_Error(
+                'not_a_finding',
+                __('The last scan does not list this file as one that is not part of the official release. Run the scan again, then look at it there.', 'fluent-security'),
+                ['status' => 409]
+            );
+        }
+
+        /* WordPress's own, so a host that filters file deletion still gets its say. */
+        wp_delete_file($resolved['path']);
+
+        clearstatcache(true, $resolved['path']);
+
+        /*
+         * Checked by looking, not by trusting a return value - wp_delete_file() has none to
+         * trust. Somebody is clearing up after a break-in and "deleted" has to mean it.
+         */
+        if (file_exists($resolved['path'])) {
+            return new \WP_Error(
+                'delete_failed',
+                __('This file could not be deleted. Your host or your file permissions will need to allow it, and nothing has been changed.', 'fluent-security'),
+                ['status' => 422]
+            );
+        }
+
+        RecoveryService::log(
+            'delete_file',
+            sprintf(
+                /* translators: %s: a file path */
+                __('Permanently deleted %s from the monitoring screen.', 'fluent-security'),
+                '/' . $label
+            )
+        );
+
+        return [
+            'message' => sprintf(
+                /* translators: %s: a file path */
+                __('%s has been deleted from the server.', 'fluent-security'),
+                '/' . $label
+            ),
+            'path'    => '/' . $label
+        ];
+    }
+
+    /**
+     * Whether the last core scan listed this exact path as not part of the release.
+     *
+     * Read from the stored results rather than from getActiveCoreFindings(), which drops
+     * whatever is on the ignore list - see the note in deleteFile() about why that list has
+     * no say here.
+     *
+     * @param string $label root-relative path, no leading slash
+     * @return bool
+     */
+    protected static function isCoreFindingNew($label)
+    {
+        $files = (array)Arr::get(IntegrityHelper::getCoreResults(), 'files', []);
+
+        /*
+         * Indexed directly rather than through Arr::get(), which reads a dot in a key as a
+         * step down into the array - and every one of these keys is a file name.
+         */
+        return isset($files[$label]['status']) && $files[$label]['status'] === 'new';
+    }
+
+    /**
+     * The same question for a file inside a plugin or theme.
+     *
+     * @param array $resolved the answer from resolveExtensionFile()
+     * @return bool
+     */
+    protected static function isExtensionFindingNew($resolved)
+    {
+        $key = IntegrityHelper::getResultKey($resolved['target']);
+        $results = IntegrityHelper::getExtensionResults();
+        $files = isset($results[$key]['files']) ? (array)$results[$key]['files'] : [];
+        $file = $resolved['file'];
+
+        /* Indexed directly, for the reason given in isCoreFindingNew(). */
+        return isset($files[$file]['status']) && $files[$file]['status'] === 'new';
+    }
+
     /*
      * Whether a file is one this screen will ever put on the page.
      *
@@ -776,6 +1031,38 @@ class SecurityScanController
      * be under, and has already established it.
      */
     protected static function assertViewableFile($filePath, $displayName)
+    {
+        $allowed = self::assertAllowedFile($filePath, $displayName);
+
+        if (is_wp_error($allowed)) {
+            return $allowed;
+        }
+
+        $maxFileSize = 2 * 1024 * 1024; // 2MB
+        if (filesize($filePath) > $maxFileSize) {
+            return new \WP_Error('invalid_data', __('This file is too large to be viewed.', 'fluent-security'), ['status' => 400, 'data' => $displayName]);
+        }
+
+        if (!is_readable($filePath)) {
+            return new \WP_Error('invalid_data', __('This file is not readable.', 'fluent-security'), ['status' => 400, 'data' => $displayName]);
+        }
+
+        return true;
+    }
+
+    /*
+     * Whether this screen may act on the file at all - read it, put it back, or move it out
+     * of the way.
+     *
+     * Split out from assertViewableFile() when removal arrived, because the two halves are
+     * asked for different reasons. These rules are about which files this screen is allowed
+     * to touch: a file whose name says it holds credentials is not one of them, whatever is
+     * being done to it, so wp-config.php cannot be removed any more than it can be read. The
+     * rules left with the viewer are about whether a file can usefully be put on a page - a
+     * five megabyte payload is unreadable but perfectly removable, and refusing to move it
+     * because it would not fit in a textarea would be a strange thing to tell somebody.
+     */
+    protected static function assertAllowedFile($filePath, $displayName)
     {
         $sensitivePatterns = [
             'wp-config',
@@ -809,15 +1096,6 @@ class SecurityScanController
 
         if (!file_exists($filePath)) {
             return new \WP_Error('invalid_data', __('This file could not be viewed.', 'fluent-security'), ['status' => 400, 'data' => $displayName]);
-        }
-
-        $maxFileSize = 2 * 1024 * 1024; // 2MB
-        if (filesize($filePath) > $maxFileSize) {
-            return new \WP_Error('invalid_data', __('This file is too large to be viewed.', 'fluent-security'), ['status' => 400, 'data' => $displayName]);
-        }
-
-        if (!is_readable($filePath)) {
-            return new \WP_Error('invalid_data', __('This file is not readable.', 'fluent-security'), ['status' => 400, 'data' => $displayName]);
         }
 
         return true;

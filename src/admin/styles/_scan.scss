@@ -53,6 +53,30 @@
         margin-top: 6px;
     }
 
+    /*
+     * What this screen cannot fix. Ruled off above rather than run on from the summary: it is
+     * about the site rather than about the files, and it points somewhere else.
+     */
+    .fls_scan_verdict_next {
+        @apply text-sm border-0 border-t border-solid;
+
+        border-color: var(--fls-border-strong);
+        margin-top: 14px;
+        padding-top: 12px;
+        line-height: 1.6;
+        max-width: 72ch;
+
+        a {
+            @apply font-medium no-underline whitespace-nowrap;
+
+            color: var(--fls-accent);
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+
     &.is_danger {
         @apply bg-danger-wash border-danger-line;
 
@@ -387,6 +411,166 @@
 
         font-family: Menlo, Consolas, monospace;
     }
+}
+
+/*
+ * The offer to put a whole extension back, above the files it would replace.
+ *
+ * Set on the sunk surface rather than in a card of its own: it belongs to the panel it opened
+ * in, and a second bordered box inside an expanded row reads as a different subject.
+ */
+.fls_scan_ext_action {
+    @apply flex flex-wrap items-center justify-between gap-3 border-0 border-b border-solid border-hairline;
+
+    padding: 14px 20px;
+    background: var(--fls-surface-sunk);
+
+    .fls_scan_ext_action_title {
+        @apply text-sm font-medium;
+
+        color: var(--fls-heading);
+        margin: 0;
+    }
+
+    .fls_scan_ext_action_body {
+        @apply text-xs text-ink-mid;
+
+        margin: 4px 0 0;
+        max-width: 68ch;
+        line-height: 1.6;
+    }
+}
+
+/* Why the button above is not there. Reads as an explanation, not as a finding. */
+.fls_scan_blocked {
+    @apply text-xs text-ink-mid;
+
+    margin: 0;
+    padding: 12px 20px;
+    line-height: 1.6;
+    max-width: 72ch;
+}
+
+/* Side by side, with the one that changes the site first. */
+.fls_scan_explain_actions {
+    @apply flex flex-wrap items-center;
+
+    gap: 8px;
+}
+
+/*
+ * The snapshot bar, above a list of files nothing else can vouch for.
+ *
+ * Sits between the section's explanation and its rows, which is the one place it can be read
+ * as the answer to that explanation rather than as a separate offer. Washed rather than
+ * bordered: another outlined box inside a card reads as a second card, and this is a sentence
+ * about the list below it, not a thing of its own.
+ *
+ * It takes a colour only when something has actually changed. An untaken snapshot is a gap,
+ * not a fault, and colouring the invitation would make a site that has done nothing wrong look
+ * like a site with a problem - which is how a security screen teaches somebody to skim it.
+ */
+.fls_scan_snapshot {
+    /*
+     * Top-aligned, not centred. The text block runs to two or three lines and the actions to
+     * one, and centring a 16px icon against three lines of prose reads as a misplaced icon
+     * rather than as a marker for the sentence it belongs to.
+     */
+    @apply flex flex-wrap items-start border-0 border-b border-solid border-hairline;
+
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--fls-surface-sunk);
+
+    &.is_changed {
+        background: var(--fls-danger-wash);
+
+        box-shadow: inset 3px 0 0 0 var(--fls-danger-line);
+    }
+
+    .fls_scan_snapshot_icon {
+        @apply flex flex-none items-center text-ink-light;
+
+        /* Sat on the first line's optical centre rather than its box. */
+        margin-top: 1px;
+
+        svg {
+            width: 18px;
+            height: 18px;
+        }
+    }
+
+    &.is_changed .fls_scan_snapshot_icon {
+        color: var(--fls-danger-line);
+    }
+
+    .fls_scan_snapshot_text {
+        @apply flex flex-col;
+
+        gap: 2px;
+        min-width: 0;
+        flex: 1 1 280px;
+
+        strong {
+            @apply text-sm font-medium;
+
+            color: var(--fls-heading);
+        }
+
+        span,
+        em {
+            @apply text-xs text-ink-mid;
+
+            line-height: 1.6;
+            max-width: 68ch;
+        }
+
+        /* The advice about when, set apart from the description of what without shouting. */
+        em {
+            @apply text-ink-light;
+
+            font-style: normal;
+        }
+    }
+
+    .fls_scan_snapshot_actions {
+        @apply flex flex-none items-center;
+
+        gap: 8px;
+        margin-left: auto;
+        /* Holds the button level with the heading when the text beside it wraps. */
+        align-self: center;
+    }
+}
+
+/* What the snapshot holds for one extension, inside its opened row. */
+.fls_scan_snapshot_fact {
+    @apply text-sm text-ink-mid;
+
+    margin: 0;
+    padding: 4px 20px 14px;
+    max-width: 72ch;
+
+    /*
+     * The one sentence on this screen that corrects a reassurance rather than reporting a
+     * problem: part of this extension is not being watched at all. Coloured, because a reader
+     * skimming green rows needs to catch it, but not given the danger red - nothing here is
+     * known to be wrong, and claiming otherwise would be the same overstatement in reverse.
+     */
+    &.is_warning {
+        color: var(--fls-warning-fg);
+    }
+}
+
+/* The same correction, in the snapshot bar and in the aside. */
+.fls_scan_snapshot .fls_scan_snapshot_text em.is_warning,
+.fls_aside_block .fls_note.is_warning {
+    color: var(--fls-warning-fg);
+}
+
+/* The same actions row, where there is no padded wrapper around it to inherit from. */
+.fls_scan_explain_actions.is_padded {
+    padding: 0 20px 16px;
 }
 
 .fls_scan_exts_more {
@@ -793,4 +977,34 @@
     font-family: Menlo, Consolas, monospace;
     margin: 0 0 12px;
     word-break: break-all;
+}
+
+/* What stands in for the contents once the file is no longer on the server. */
+.fls_file_view_gone {
+    @apply text-sm text-ink-mid rounded border border-dashed;
+
+    border-color: var(--fls-border-strong);
+    background: var(--fls-surface-sunk);
+    margin: 0;
+    padding: 24px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+/*
+ * The one item in a row's menu that changes the server rather than changing what you are
+ * shown. Marked in the danger colour because it sits directly under "Add to Ignore List",
+ * which is a word away from it and undoes nothing.
+ *
+ * At the top level rather than nested: Element Plus teleports its menus to <body>, so a rule
+ * written inside the app's own scope would never reach this.
+ */
+.fls_menu_danger {
+    color: var(--fls-danger-fg);
+
+    &:hover,
+    &:focus {
+        color: var(--fls-danger-fg);
+        background: var(--fls-danger-bg);
+    }
 }

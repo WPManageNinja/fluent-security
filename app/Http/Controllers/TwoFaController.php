@@ -225,7 +225,7 @@ class TwoFaController
             'totp_enrolled'   => $enrolled,
             'totp_allowed'    => TotpTwoFaMethod::isAllowedForUser($user),
             'totp_required'   => TotpTwoFaMethod::isRequiredForUser($user),
-            'activated_at'    => $enrolled ? get_user_meta($user->ID, TotpTwoFaMethod::META_ACTIVATED_AT, true) : '',
+            'activated_at'    => $enrolled ? TotpTwoFaMethod::getActivatedAt($user) : '',
             'recovery_codes'  => $enrolled ? TotpTwoFaMethod::getRemainingRecoveryCount($user) : 0,
             'recovery_total'  => TotpTwoFaMethod::RECOVERY_CODE_COUNT,
             'email_2fa'       => $emailApplies,

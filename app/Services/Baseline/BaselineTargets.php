@@ -71,18 +71,53 @@ class BaselineTargets
      */
     public static function hash($path)
     {
+        $result = self::hashUnit($path);
+
+        return $result['hashes'];
+    }
+
+    /**
+     * The same walk, and what it could not reach.
+     *
+     * There is a ceiling on how many files one unit may contribute, so a single pathological
+     * directory cannot make every scan on the site time out. The ceiling used to be a bare
+     * `break`: the walk stopped, the rest of the unit went unwatched, and nothing anywhere
+     * said so - the row reported itself covered exactly like a unit that really was.
+     *
+     * A monitor that quietly watches less than it claims to is worse than one that watches
+     * nothing, because the reader has no way to know which they have. So the walk carries on
+     * past the ceiling to count what it is skipping. Counting is a directory read that has
+     * already been paid for; it is the hashing that costs, and that is what stops.
+     *
+     * The window is the sorted first N paths, not the first N the filesystem happened to hand
+     * over. That is what makes a truncated unit comparable with itself at all: an arbitrary
+     * subset shifts between runs, so the same unchanged site would report hundreds of files
+     * added and hundreds removed every single scan. Sorted, the window is the same window next
+     * time, and `boundary` is its last path - everything after it was never looked at, which is
+     * what lets the comparison tell "not reached" apart from "deleted".
+     *
+     * @param string $path
+     * @return array hashes, total, skipped, boundary (last path in the window, '' if complete)
+     */
+    public static function hashUnit($path)
+    {
         if (is_file($path)) {
-            return [basename($path) => (string)@md5_file($path)];
+            return [
+                'hashes'   => [basename($path) => (string)@md5_file($path)],
+                'total'    => 1,
+                'skipped'  => 0,
+                'boundary' => ''
+            ];
         }
 
         if (!is_dir($path)) {
-            return [];
+            return ['hashes' => [], 'total' => 0, 'skipped' => 0, 'boundary' => ''];
         }
 
         $wanted = array_map('strtolower', self::extensions());
         $max = apply_filters('fluent_auth/baseline_max_files', 20000);
 
-        $hashes = [];
+        $paths = [];
 
         try {
             $iterator = new \RecursiveIteratorIterator(
@@ -107,20 +142,33 @@ class BaselineTargets
                     continue;
                 }
 
-                $relative = ltrim(str_replace(wp_normalize_path($path), '', wp_normalize_path($file->getPathname())), '/');
-
-                $hashes[$relative] = (string)@md5_file($file->getPathname());
-
-                if (count($hashes) >= $max) {
-                    break;
-                }
+                /*
+                 * Collected before anything is hashed. Names are cheap - it is the reading of
+                 * file contents that costs, and none of that happens until the window is known.
+                 */
+                $paths[] = ltrim(str_replace(wp_normalize_path($path), '', wp_normalize_path($file->getPathname())), '/');
             }
         } catch (\Exception $exception) {
-            return $hashes;
+            /* Whatever was reached is still worth keeping; what was not is not guessed at. */
+            $paths = [];
         }
 
-        ksort($hashes);
+        sort($paths, SORT_STRING);
 
-        return $hashes;
+        $total = count($paths);
+        $window = $total > $max ? array_slice($paths, 0, $max) : $paths;
+
+        $hashes = [];
+
+        foreach ($window as $relative) {
+            $hashes[$relative] = (string)@md5_file($path . '/' . $relative);
+        }
+
+        return [
+            'hashes'   => $hashes,
+            'total'    => $total,
+            'skipped'  => max(0, $total - count($window)),
+            'boundary' => $total > $max && $window ? end($window) : ''
+        ];
     }
 }

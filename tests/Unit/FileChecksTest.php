@@ -274,14 +274,20 @@ class FileChecksTest extends BaseTestCase
         $finding = $this->only((new UploadsExecutionCheck())->run());
 
         $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
-        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
+        /* Failing to test optional hardening is not itself something to warn a site about. */
+        $this->assertEquals(Finding::SEVERITY_ADVICE, $finding['severity']);
         $this->assertFalse($finding['scored']);
         $this->assertStringContainsString('could not test', strtolower($finding['title']));
 
         remove_all_filters('pre_http_request');
     }
 
-    public function test_a_folder_that_runs_php_is_the_one_thing_here_worth_shouting_about()
+    /**
+     * A folder that runs PHP is how most hosts ship, and nothing runs there until something
+     * else on the site has already let a file through. Worth recommending, not worth a warning
+     * drawn in the same colour as a mu-plugin that changed last night.
+     */
+    public function test_a_folder_that_runs_php_is_a_recommendation_rather_than_a_warning()
     {
         add_filter('pre_http_request', function () {
             return ['response' => ['code' => 200], 'body' => 'FLS-EXECUTED'];
@@ -289,21 +295,21 @@ class FileChecksTest extends BaseTestCase
 
         $finding = $this->only((new UploadsExecutionCheck())->run());
 
-        $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
-        $this->assertTrue($finding['scored']);
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertEquals(Finding::SEVERITY_ADVICE, $finding['severity']);
+        $this->assertFalse($finding['scored']);
+        /* Still says what was measured, and still offers the way to close it. */
+        $this->assertStringContainsString('can run', strtolower($finding['title']));
 
         remove_all_filters('pre_http_request');
     }
 
     /**
-     * Setting this one aside is not the same promise as dismissing anything else on the list.
-     *
-     * The answer here was measured rather than inferred, so the row cannot move to the settled
-     * list without the plugin filing a proven finding under things that are fine. What the
-     * reader is saying is "my host will not change this", and all that can honestly follow is
-     * that it stops being counted.
+     * Dismissing it means what dismissing means everywhere else on the list now that the row
+     * is a recommendation: not for my site, stop mentioning it. Nothing has to be taken out
+     * of the score, because a recommendation was never in it.
      */
-    public function test_setting_the_uploads_finding_aside_stops_it_scoring_without_burying_it()
+    public function test_dismissing_the_uploads_recommendation_settles_the_row()
     {
         add_filter('pre_http_request', function () {
             return ['response' => ['code' => 200], 'body' => 'FLS-EXECUTED'];
@@ -311,31 +317,16 @@ class FileChecksTest extends BaseTestCase
 
         $check = new UploadsExecutionCheck();
 
-        $before = $this->only($check->run());
-
-        $this->assertEquals('aside', $before['dismiss']);
+        $this->assertEquals('ignore', $this->only($check->run())['dismiss']);
         $this->assertFalse(is_wp_error($check->accept($check->id())));
 
         $finding = $this->only($check->run());
 
-        /* Still open, still saying the same thing, and no longer red or counted. */
-        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
-        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
+        $this->assertEquals(Finding::STATE_ACCEPTED, $finding['state']);
         $this->assertFalse($finding['scored']);
-        $this->assertEquals('undo', $finding['dismiss']);
-        $this->assertStringContainsString('still true', $finding['why']);
-
-        /*
-         * Whatever the row could offer before, it still offers - so somebody who moves host,
-         * or whose host finally answers, does not have to undo a decision before they can act.
-         * Asserted against the row as it was rather than against a literal, because what is on
-         * offer depends on whether this server is one the rule can be written for.
-         */
-        $this->assertEquals($before['action'], $finding['action']);
-        $this->assertEquals($before['label'], $finding['label']);
 
         $this->assertFalse(is_wp_error($check->unaccept($check->id())));
-        $this->assertEquals(Finding::SEVERITY_FIX, $this->only($check->run())['severity']);
+        $this->assertEquals(Finding::STATE_OPEN, $this->only($check->run())['state']);
 
         remove_all_filters('pre_http_request');
     }
@@ -382,8 +373,9 @@ class FileChecksTest extends BaseTestCase
 
         $finding = $this->only((new UploadsExecutionCheck())->run());
 
-        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
+        $this->assertEquals(Finding::SEVERITY_ADVICE, $finding['severity']);
         $this->assertFalse($finding['scored']);
+        $this->assertStringContainsString('could not test', strtolower($finding['title']));
 
         remove_all_filters('pre_http_request');
     }

@@ -51,7 +51,9 @@ export default {
             viewing: false,
             viewingFile: null,
             /* Files put back during this visit, so the rows can say so before the next scan. */
-            restoredFiles: []
+            restoredFiles: [],
+            /* And the ones deleted from the server, for the same reason. */
+            deletedFiles: []
         }
     },
     computed: {
@@ -91,6 +93,18 @@ export default {
         statusTag(status) {
             return status === 'new' ? 'is_blocked' : 'is_warning';
         },
+        /*
+         * The menu has more than one item now, so what it sends is the action as well as the
+         * file. Element Plus passes whatever `command` holds straight through.
+         */
+        onCommand({action, file}) {
+            if (action === 'delete') {
+                this.deleteFile(file);
+                return;
+            }
+
+            this.toggleIgnore(file);
+        },
         toggleIgnore(file) {
             this.workingFile = file.file;
 
@@ -116,10 +130,54 @@ export default {
                     this.workingFile = '';
                 });
         },
-        viewFile(file) {
-            this.viewing = true;
+        /*
+         * Only ever offered for a file that is not part of the official release. A modified
+         * file has an original to be put back to, which is what the viewer's restore does;
+         * deleting one would take a working part of WordPress off the server.
+         */
+        canDelete(file) {
+            return file.status === 'new' && !this.deletedFiles.includes(file.relativeName);
+        },
+        /*
+         * Confirmed, and the confirmation says plainly that this cannot be undone - because it
+         * cannot. The file is deleted rather than kept anywhere, so the only copy left is
+         * whatever the site's backups hold, and somebody about to press this should be reading
+         * that rather than finding it out afterwards. The path is named in the question so the
+         * file being deleted is the file on screen.
+         */
+        deleteFile(file) {
+            this.$confirm(this.$t('__delete_file_confirm__', file.file), this.$t('Delete this file permanently?'), {
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonText: this.$t('Cancel'),
+                confirmButtonText: this.$t('Yes, delete it')
+            }).then(() => {
+                this.workingFile = file.file;
 
-            this.viewingFile = this.scope
+                this.$post('security-scan-settings/scan/delete-file', {
+                    viewing_file: this.fileConfig(file)
+                })
+                    .then(response => {
+                        this.$notify.success(response.message);
+                        this.onDeleted(file.relativeName);
+                    })
+                    .catch(errors => {
+                        this.$handleError(errors);
+                    })
+                    .finally(() => {
+                        this.workingFile = '';
+                    });
+            }).catch(() => {
+                // Dismissed - nothing to do.
+            });
+        },
+        /*
+         * What the server needs to find one file, in the shape the viewer and the restore
+         * already use. Built here rather than in each caller so the three of them cannot come
+         * to disagree about how a file is named.
+         */
+        fileConfig(file) {
+            return this.scope
                 ? {
                     scope: 'extension',
                     type: this.scope.type,
@@ -132,6 +190,10 @@ export default {
                     folder: this.folderType,
                     status: file.status
                 };
+        },
+        viewFile(file) {
+            this.viewing = true;
+            this.viewingFile = this.fileConfig(file);
         },
         closeViewer() {
             this.viewing = false;
@@ -152,6 +214,12 @@ export default {
             if (!this.restoredFiles.includes(viewingFile.file)) {
                 this.restoredFiles.push(viewingFile.file);
             }
+        },
+        /* The same, for a file that has just been deleted from the server. */
+        onDeleted(name) {
+            if (!this.deletedFiles.includes(name)) {
+                this.deletedFiles.push(name);
+            }
         }
     }
 }
@@ -170,6 +238,9 @@ export default {
                 <span v-if="restoredFiles.includes(file.relativeName)" class="fls_tag is_success">
                     {{ $t('Restored') }}
                 </span>
+                <span v-if="deletedFiles.includes(file.relativeName)" class="fls_tag is_success">
+                    {{ $t('Deleted') }}
+                </span>
                 <span class="fls_scan_file_name" :title="file.file">{{ file.relativeName }}</span>
             </div>
 
@@ -184,13 +255,22 @@ export default {
                             :title="$t('View File')" @click="viewFile(file)"
                             v-html="icons.eye"></button>
 
-                    <el-dropdown trigger="click" @command="toggleIgnore">
+                    <el-dropdown trigger="click" @command="onCommand">
                         <button type="button" class="fls_icon_btn" :title="$t('More')"
                                 v-html="icons.more"></button>
                         <template #dropdown>
                             <el-dropdown-menu>
-                                <el-dropdown-item :command="file">
+                                <el-dropdown-item :command="{action: 'ignore', file}">
                                     {{ file.isIgnored ? $t('Remove from Ignore List') : $t('Add to Ignore List') }}
+                                </el-dropdown-item>
+                                <!--
+                                    Divided off and marked, because it is the only item here
+                                    that cannot be undone - and it sits next to one that reads
+                                    very like it and undoes nothing.
+                                -->
+                                <el-dropdown-item v-if="canDelete(file)" divided class="fls_menu_danger"
+                                                  :command="{action: 'delete', file}">
+                                    {{ $t('Delete this file…') }}
                                 </el-dropdown-item>
                             </el-dropdown-menu>
                         </template>
@@ -206,6 +286,7 @@ export default {
 
     <el-dialog :title="$t('View File')" v-model="viewing" width="70%" :append-to-body="true"
                :before-close="(done) => { closeViewer(); done(); }" :close-on-click-modal="false">
-        <view-file v-if="viewingFile" :viewing_file="viewingFile" @restored="onRestored"/>
+        <view-file v-if="viewingFile" :viewing_file="viewingFile"
+                   @restored="onRestored" @deleted="onDeleted($event.file)"/>
     </el-dialog>
 </template>

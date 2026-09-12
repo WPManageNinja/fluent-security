@@ -12,11 +12,26 @@
 /* ------------------------------------------------------------------ app bar */
 
 /*
- * The bar is out of flow, so the page below it needs the space kept clear by hand.
- * Settings does not use it - its pane is pinned too - but every other screen flows here.
+ * The bar is out of flow, so the page below it needs the space kept clear by hand. A
+ * destination with sections is two bars deep rather than one, and anything that has to sit
+ * clear of the chrome - the padding here, every sticky column below - measures itself off
+ * these two names instead of counting the bars itself.
+ *
+ * `--fls-chrome` is how tall the pinned chrome is; `--fls-chrome-bottom` is how far its
+ * underside is from the top of the viewport, which is that plus wp-admin's own bar.
+ *
+ * Settings does not use the padding - its pane is pinned too - but every other screen
+ * flows here.
  */
 .fframe_app {
-    padding-top: 56px;
+    --fls-chrome: 56px;
+    --fls-chrome-bottom: calc(32px + var(--fls-chrome));
+
+    padding-top: var(--fls-chrome);
+
+    &.has-subnav {
+        --fls-chrome: 104px;
+    }
 }
 
 .fls_app_bar {
@@ -90,6 +105,80 @@
 
     .fls_app_bar_toggle {
         display: none;
+    }
+}
+
+/* -------------------------------------------------------------- section bar */
+
+/*
+ * The sections of one destination, in a bar of their own under the app bar.
+ *
+ * Underlines rather than pills or a segmented control: these are views of one subject, not
+ * settings, so the section that is on should read as the page you are on rather than as a
+ * choice you have made. It is chrome, so it is pinned with the bar above it rather than
+ * scrolling away with the page it labels - and for the same reason it repeats that bar's
+ * left offset and its hairline.
+ */
+.fls_sub_bar {
+    @apply flex items-stretch bg-surface px-6 border-0 border-b border-solid border-hairline;
+
+    height: 48px;
+    position: fixed;
+    top: 88px;
+    left: var(--fls-shell-left, 160px);
+    right: 0;
+    /* Under the bar above it, so a menu opened up there is not cut off by this one. */
+    z-index: 1999;
+    overflow-x: auto;
+
+    .fls_sub_nav {
+        @apply flex items-stretch m-0 p-0 list-none;
+
+        gap: 28px;
+
+        li {
+            @apply flex m-0;
+        }
+
+        a {
+            @apply flex items-center text-sm font-medium no-underline text-ink-mid whitespace-nowrap;
+
+            gap: 6px;
+            /* Over the bar's own rule, so the live section joins the two. */
+            margin-bottom: -1px;
+            border-bottom: 2px solid transparent;
+            transition: color .15s ease, border-color .15s ease;
+
+            &:hover {
+                @apply text-ink;
+            }
+
+            &:focus {
+                box-shadow: none;
+                outline: none;
+            }
+
+            &:focus-visible {
+                outline: 2px solid var(--fls-accent);
+                outline-offset: -4px;
+            }
+
+            &.is_active {
+                color: var(--fls-heading);
+                border-bottom-color: var(--fls-accent);
+            }
+        }
+    }
+
+    .fls_sub_nav_count {
+        @apply inline-flex items-center justify-center rounded-full text-xs font-medium;
+
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        line-height: 18px;
+        background: var(--fls-danger-bg);
+        color: var(--fls-danger-fg);
     }
 }
 
@@ -185,9 +274,9 @@
 
 /*
  * FluentCart's aside is a full-height scrolling column of its own. Here the page scrolls as
- * one - the app bar is the only pinned thing on these screens - so the aside sticks below
- * that bar instead and scrolls internally only if it is taller than what is left of the
- * viewport. 88px is the admin bar plus the app bar; 116px is that plus the bottom gap.
+ * one - the bars are the only pinned things on these screens - so the aside sticks below
+ * them instead and scrolls internally only if it is taller than what is left of the
+ * viewport. 28px is the page's own bottom gap.
  */
 .fls_page_aside {
     @apply bg-surface rounded;
@@ -196,8 +285,8 @@
     min-width: 0;
     padding: 20px;
     position: sticky;
-    top: 88px;
-    max-height: calc(100vh - 116px);
+    top: var(--fls-chrome-bottom);
+    max-height: calc(100vh - var(--fls-chrome-bottom) - 28px);
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -313,10 +402,22 @@
         left: auto;
         right: auto;
     }
+
+    .fls_sub_bar {
+        position: sticky;
+        top: 88px;
+        left: auto;
+        right: auto;
+    }
 }
 
 @media (max-width: 782px) {
     .fls_page {
         padding: 20px 12px;
+    }
+
+    /* Kept level with the page gutter it sits above. */
+    .fls_sub_bar {
+        @apply px-3;
     }
 }

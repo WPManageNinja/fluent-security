@@ -1,10 +1,13 @@
 <script type="text/babel">
 import ThemeSwitch from './Bits/ThemeSwitch.vue';
+import SubNav from './Bits/SubNav.vue';
+import {sectionFor} from './Bits/subNav';
 
 export default {
     name: 'FluentAuthApp',
     components: {
-        ThemeSwitch
+        ThemeSwitch,
+        SubNav
     },
     data() {
         return {
@@ -30,6 +33,14 @@ export default {
          */
         isBare() {
             return !!(this.$route.meta && this.$route.meta.bare);
+        },
+        /*
+         * Whether a second bar is drawn under the first one. The shell has to know, and not
+         * only the bar itself: both bars are pinned, so the page below them is only clear of
+         * them because it is padded by the height of whatever is up there.
+         */
+        hasSubNav() {
+            return !this.isBare && !!sectionFor(this.$route);
         }
     },
     methods: {
@@ -118,7 +129,7 @@ export default {
 </script>
 
 <template>
-    <div class="fframe_app" :class="{'is-bare': isBare}">
+    <div class="fframe_app" :class="{'is-bare': isBare, 'has-subnav': hasSubNav}">
         <div v-if="!isBare" class="fls_app_bar" :class="{'is-scrolled': scrolled}">
             <div class="fls_app_logo">
                 <router-link :to="{name: 'dashboard'}">
@@ -145,6 +156,8 @@ export default {
                 <theme-switch/>
             </div>
         </div>
+
+        <sub-nav v-if="!isBare"/>
 
         <div class="ff_app_body">
             <router-view></router-view>

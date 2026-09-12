@@ -52,12 +52,22 @@ class BaselineCheck extends Check
         $changed = BaselineStore::changed();
 
         if (!$changed) {
+            /*
+             * "Nothing has changed" is a claim about everything, so it may only be made when
+             * everything was looked at. A unit over the per-unit ceiling leaves files unhashed,
+             * and a pass that did not mention that would be the most damaging sentence this
+             * plugin can print: a clean bill of health over a part of the site nobody read.
+             */
+            $skipped = (int)$summary['skipped'];
+
             return [new Finding([
                 'id'     => $this->id(),
                 'check'  => $this->id(),
                 'group'  => $this->group(),
                 'state'  => Finding::STATE_PASSED,
-                'title'  => __('Nothing has changed since your snapshot', 'fluent-security'),
+                'title'  => $skipped
+                    ? $this->partialTitle($skipped)
+                    : __('Nothing has changed since your snapshot', 'fluent-security'),
                 'scored' => true
             ])];
         }
@@ -148,6 +158,26 @@ class BaselineCheck extends Check
         return [
             'message' => __('Noted. These files are the new normal, and you will hear about the next change to them.', 'fluent-security')
         ];
+    }
+
+    /**
+     * The pass that has to admit its own blind spot.
+     *
+     * @param int $skipped
+     * @return string
+     */
+    protected function partialTitle($skipped)
+    {
+        return sprintf(
+            /* translators: %s: number of files */
+            _n(
+                'Nothing has changed, but %s file is too large a set to watch',
+                'Nothing has changed, but %s files are too many to watch',
+                $skipped,
+                'fluent-security'
+            ),
+            number_format_i18n($skipped)
+        );
     }
 
     /**

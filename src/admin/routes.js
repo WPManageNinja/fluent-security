@@ -129,12 +129,16 @@ export var routes = [
         }
     },
     /*
-     * Security is one destination with two views of the same subject: what needs doing, and
-     * what is being watched. They share `active` so the top bar highlights Security on both.
+     * Security is one destination with three views of the same subject: what needs doing,
+     * what is being watched, and what to do if the worst has happened. They share `active`,
+     * which is what puts them in one section bar under a single Security tab - see
+     * Bits/subNav.js, which is also where the labels live.
      *
-     * Monitoring keeps the `security_scans` name and its old path. The name is what the
-     * checklist points at (see SecurityChecks::definitions) and the path is what a year of
-     * bookmarks point at; neither is worth breaking to make the two routes look like a pair.
+     * The names and paths are all older than the labels and none of them match: Monitoring
+     * is still `security_scans` at `/security-scans`, and Been Hacked? is still
+     * `security_recovery` at `/security/recovery`. The names are what findings point at (see
+     * IntegrityCheck and the rest of app/Services/Checks) and the paths are what a year of
+     * bookmarks point at; neither is worth breaking to make a route agree with a menu.
      */
     {
         path: '/security',
@@ -142,7 +146,7 @@ export var routes = [
         component: SecurityFindings,
         meta: {
             active: 'security',
-            title: 'Security'
+            title: 'Findings'
         }
     },
     {
@@ -151,7 +155,7 @@ export var routes = [
         component: SecurityRecovery,
         meta: {
             active: 'security',
-            title: 'Recovery'
+            title: 'Been Hacked?'
         }
     },
     {
@@ -160,7 +164,7 @@ export var routes = [
         component: SecurityScans,
         meta: {
             active: 'security',
-            title: 'Security Scans'
+            title: 'Monitoring'
         }
     },
     {
@@ -169,7 +173,7 @@ export var routes = [
         component: RegisterPromt,
         meta: {
             active: 'security',
-            title: 'Security Scans'
+            title: 'Monitoring'
         }
     },
     /*

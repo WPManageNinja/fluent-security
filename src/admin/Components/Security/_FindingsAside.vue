@@ -53,7 +53,7 @@ export default {
         <section class="fls_security_help">
             <h2>{{ $t('Suspect a compromised account?') }}</h2>
             <p>{{ $t('Review active sessions and account recovery options.') }}</p>
-            <router-link :to="{name: 'security_recovery'}" class="fls_security_aside_link">{{ $t('Open recovery') }} <span aria-hidden="true">→</span></router-link>
+            <router-link :to="{name: 'security_recovery'}" class="fls_security_aside_link">{{ $t('Been Hacked?') }} <span aria-hidden="true">→</span></router-link>
         </section>
     </aside>
 </template>

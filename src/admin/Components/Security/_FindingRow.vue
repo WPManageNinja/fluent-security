@@ -34,9 +34,6 @@ export default {
             if (this.finding.dismiss === 'expected') {
                 return this.$t('Mark the current state as expected. This check can report a finding again when that state changes.');
             }
-            if (this.finding.dismiss === 'aside') {
-                return this.$t('Remove this item from the score. It will remain visible so you can keep track of it.');
-            }
             return this.$t('This finding will stop being reported while it is dismissed. You can restore it from Dismissed. This does not fix the underlying issue.');
         },
         isCritical() {
@@ -99,19 +96,9 @@ export default {
         primaryLabel() {
             return this.finding.label || (this.finding.action === 'fix' ? this.$t('Turn on') : this.$t('Set up'));
         },
-        /*
-         * `undo` is the row after it has been set aside - the only dismissal state that draws
-         * its own way back, because the row stays on the list rather than moving to the
-         * settled ones where every other undo lives.
-         */
-        isSetAside() {
-            return this.finding.dismiss === 'undo';
-        },
         dismissLabel() {
             const labels = {
-                expected: this.$t('Mark as expected'),
-                aside: this.$t('Not mine to fix'),
-                undo: this.$t('Count it again')
+                expected: this.$t('Mark as expected')
             };
 
             return labels[this.finding.dismiss] || this.$t('Dismiss');
@@ -125,11 +112,8 @@ export default {
     methods: {
         requestDismiss() {
             if (this.disabled) return;
-            if (this.isSetAside) {
-                this.$emit('unaccept', this.finding);
-            } else {
-                this.confirmDismiss = true;
-            }
+
+            this.confirmDismiss = true;
         },
         onPrimary() {
             if (this.disabled) return;
@@ -152,7 +136,6 @@ export default {
             <div class="fls_finding_meta">
                 <span class="fls_finding_group">{{ groupLabel }}</span>
                 <span v-if="!isPassed && !isAccepted" class="fls_tag" :class="severityTagClass">{{ severityLabel }}</span>
-                <span v-if="isSetAside" class="fls_tag is_neutral">{{ $t('Excluded from score') }}</span>
             </div>
             <h3 class="fls_finding_title">{{ finding.title }}</h3>
             <p v-if="finding.why && !isPassed" class="fls_finding_why">{{ finding.why }}</p>

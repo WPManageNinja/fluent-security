@@ -96,7 +96,7 @@ class TotpProfileHandler
      */
     private function renderEnrolled($user, $isSelf)
     {
-        $activatedAt = get_user_meta($user->ID, TotpTwoFaMethod::META_ACTIVATED_AT, true);
+        $activatedAt = TotpTwoFaMethod::getActivatedAt($user);
         $remaining = TotpTwoFaMethod::getRemainingRecoveryCount($user);
 
         ?>

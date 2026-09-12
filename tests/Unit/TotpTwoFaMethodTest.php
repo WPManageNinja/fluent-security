@@ -216,6 +216,35 @@ class TotpTwoFaMethodTest extends BaseTestCase
         $this->assertFalse(TotpTwoFaMethod::isEnrolled($this->user));
         $this->assertSame(0, TotpTwoFaMethod::getRemainingRecoveryCount($this->user));
         $this->assertSame('', TotpTwoFaMethod::getSecret($this->user));
+        $this->assertSame('', TotpTwoFaMethod::getActivatedAt($this->user));
+        $this->assertSame('', TotpTwoFaMethod::getPendingSecret($this->user));
+
+        // Not merely unreadable through the accessors - the row itself is gone.
+        $this->assertEmpty(get_user_meta($this->user->ID, TotpTwoFaMethod::META_DATA, true));
+        $this->assertEmpty(get_user_meta($this->user->ID, TotpTwoFaMethod::META_SECRET, true));
+    }
+
+    /**
+     * The hazard that keeps every field of an enrollment in one row: a recovery code
+     * outliving the secret it was issued alongside. An administrator turns off a lost
+     * phone, the user pairs a new one, and a code from the old set still opens the
+     * account - past both the new authenticator and the reset that was supposed to have
+     * closed it.
+     */
+    public function testARecoveryCodeDoesNotSurviveAResetAndReEnrollment()
+    {
+        $this->enroll();
+        $old = TotpTwoFaMethod::generateRecoveryCodes($this->user);
+
+        TotpTwoFaMethod::disable($this->user);
+
+        $this->secret = TotpProvider::generateSecret();
+        $this->enroll();
+
+        $this->assertFalse(
+            $this->method->verifyProof($this->user, null, ['login_passcode' => $old[0]]),
+            'A recovery code from before the reset must not work against the new enrollment.'
+        );
     }
 
     /**

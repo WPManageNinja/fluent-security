@@ -24,6 +24,16 @@ class BaselineStore
     const VERSION_OPTION = '__fls_baseline_db_version';
 
     /**
+     * Units the walk could not finish, as scope => how many files it never reached.
+     *
+     * An option rather than a column, because this is an exception and not an attribute. Almost
+     * no site will ever have an entry here - it takes one plugin carrying twenty thousand
+     * executable files - and a column would mean a schema version bump, which every existing
+     * install would pay for on upgrade so that virtually none of them could store a zero.
+     */
+    const PARTIAL_OPTION = '__fls_baseline_partial';
+
+    /**
      * @return string
      */
     public static function table()
@@ -176,6 +186,45 @@ class BaselineStore
     }
 
     /**
+     * @return array scope => files not reached
+     */
+    public static function partials()
+    {
+        $partials = get_option(self::PARTIAL_OPTION, []);
+
+        return is_array($partials) ? $partials : [];
+    }
+
+    /**
+     * Record, or take back, the fact that a unit is only partly watched.
+     *
+     * @param string $scope
+     * @param int $skipped
+     * @return void
+     */
+    public static function setPartial($scope, $skipped)
+    {
+        $partials = self::partials();
+        $skipped = (int)$skipped;
+
+        if ($skipped > 0) {
+            if (isset($partials[$scope]) && (int)$partials[$scope] === $skipped) {
+                return;
+            }
+
+            $partials[$scope] = $skipped;
+        } else {
+            if (!isset($partials[$scope])) {
+                return;
+            }
+
+            unset($partials[$scope]);
+        }
+
+        update_option(self::PARTIAL_OPTION, $partials, false);
+    }
+
+    /**
      * @param string $scope
      * @return object|null
      */
@@ -276,6 +325,12 @@ class BaselineStore
                 flsDb()->table('fls_file_baselines')->where('scope', $row->scope)->delete();
             }
         }
+
+        $partials = array_intersect_key(self::partials(), array_flip($scopes));
+
+        if (count($partials) !== count(self::partials())) {
+            update_option(self::PARTIAL_OPTION, $partials, false);
+        }
     }
 
     /**
@@ -288,6 +343,8 @@ class BaselineStore
      */
     public static function clear()
     {
+        delete_option(self::PARTIAL_OPTION);
+
         if (!self::hasTable()) {
             return;
         }

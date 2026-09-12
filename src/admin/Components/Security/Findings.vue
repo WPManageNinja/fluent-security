@@ -1,12 +1,12 @@
 <script type="text/babel">
 import icons from '../SecurityScan/icons';
-import SecurityTabs from './_SecurityTabs.vue';
 import FindingRow from './_FindingRow.vue';
 import FindingsAside from './_FindingsAside.vue';
+import {counts as subNavCounts} from '@/Bits/subNav';
 
 export default {
     name: 'SecurityFindings',
-    components: {SecurityTabs, FindingRow, FindingsAside},
+    components: {FindingRow, FindingsAside},
     data() {
         return {
             icons,
@@ -31,9 +31,13 @@ export default {
         };
     },
     computed: {
+        /* What the section bar counts: everything open that is more than advice. */
+        attentionCount() {
+            return this.findings.filter(item => item.severity !== 'advice').length;
+        },
         views() {
             return [
-                {id: 'attention', label: this.$t('Needs attention'), count: this.findings.filter(item => item.severity !== 'advice').length},
+                {id: 'attention', label: this.$t('Needs attention'), count: this.attentionCount},
                 {id: 'advice', label: this.$t('Recommendations'), count: this.findings.filter(item => item.severity === 'advice').length},
                 {id: 'passed', label: this.$t('Passed'), count: this.passed.length},
                 {id: 'accepted', label: this.$t('Dismissed'), count: this.accepted.length}
@@ -127,6 +131,13 @@ export default {
             this.counts = response.counts || this.counts;
             this.score = response.score || this.score;
             if (this.group !== 'all' && !this.groups.some(item => item.key === this.group)) this.group = 'all';
+            /*
+             * The section bar is drawn by the shell, above this screen, so the number on its
+             * Findings tab is published rather than passed down. Here rather than after a load
+             * because acting on a finding lands here too, which is what keeps the badge in step
+             * with a list somebody is working through.
+             */
+            subNavCounts.findings = this.attentionCount;
         },
         async getScanState() {
             this.scanLoading = true;
@@ -191,7 +202,7 @@ export default {
         <div class="fls_security_inner">
             <div class="fls_page_head">
                 <div>
-                    <h1 class="fls_page_title">{{ $t('Security') }}</h1>
+                    <h1 class="fls_page_title">{{ $t('Findings') }}</h1>
                     <p class="fls_page_desc">{{ $t('Review your site’s checks and take the next step.') }}</p>
                 </div>
                 <div class="fls_security_refresh">
@@ -201,7 +212,6 @@ export default {
                     </el-button>
                 </div>
             </div>
-            <security-tabs :open-count="views[0].count"/>
             <p class="screen-reader-text" role="status">{{ announcement }}</p>
 
             <el-skeleton v-if="loading" :animated="true" :rows="8"/>

@@ -44,7 +44,7 @@ class CheckerService
     public function getGroupedModifiedItems()
     {
         $modifiedItems = $this->getModifiedFiles();
-        return $this->groupFiles($modifiedItems);
+        return self::groupFiles($modifiedItems);
     }
 
     public function getModifiedFiles()
@@ -105,7 +105,7 @@ class CheckerService
         $modifiedFiles = Arr::except($modifiedFiles, $ignoredFiles);
 
         if ($grouped) {
-            return $this->groupFiles($modifiedFiles);
+            return self::groupFiles($modifiedFiles);
         }
 
         return $modifiedFiles;
@@ -186,7 +186,12 @@ class CheckerService
         ];
     }
 
-    private function groupFiles($files)
+    /*
+     * Static and public because the stored results are regrouped by the same rules when the
+     * scan screen loads them back - see IntegrityHelper::getStoredCoreScanResults(). Two
+     * copies of this would be two ways for a file to land in a group the screen never draws.
+     */
+    public static function groupFiles($files)
     {
         // let's grouped the files by folders
         $groupedFiles = [];

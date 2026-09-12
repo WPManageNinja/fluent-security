@@ -642,10 +642,16 @@ class FileRecovery
     /**
      * Why this extension cannot be reinstalled from here, or nothing if it can.
      *
+     * Public because the monitoring screen offers the same reinstall beside the changed files
+     * it found, and the two screens must agree about which extensions it is on offer for. Ask
+     * it of the inventory's own view of a target, before anything downgrades `verifiable` on
+     * the strength of a scan result: a version WordPress.org never published is unverifiable
+     * and reinstallable at the same time, and that is the whole point of offering it.
+     *
      * @param array $target
      * @return string
      */
-    protected static function extensionBlockedReason($target)
+    public static function extensionBlockedReason($target)
     {
         if (empty($target['verifiable'])) {
             if (Arr::get($target, 'reason') === 'no_version') {

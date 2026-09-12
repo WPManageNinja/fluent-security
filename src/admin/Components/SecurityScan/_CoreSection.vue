@@ -32,10 +32,10 @@ export default {
             default: false
         },
         /*
-         * Whether any scan has ever run. Core's per-file findings are not stored the way an
-         * extension's are, so arriving on this screen after a scan leaves this row with a
-         * verdict it cannot show - which is different from never having been checked, and
-         * should not be worded as though it were.
+         * Whether any scan has ever run. Only reached when a scan has run but its findings
+         * could not be read back - the stored results having been cleared, say. That is
+         * different from never having been checked and should not be worded as though it
+         * were, so the row asks for a re-scan rather than claiming nothing has happened.
          */
         everScanned: {
             type: Boolean,

@@ -28,8 +28,18 @@ export default {
         coverage: {
             type: Object,
             default: null
+        },
+        /* The site's own record of what the directory cannot vouch for. Owned by the screen. */
+        baseline: {
+            type: Object,
+            default: () => ({exists: false, units: 0, files: 0, changed: 0, taken_at: '', coverable: 0})
+        },
+        baselineBusy: {
+            type: Boolean,
+            default: false
         }
     },
+    emits: ['snapshot', 'clear-baseline'],
     data() {
         return {
             icons,
@@ -289,7 +299,9 @@ export default {
             checked against WordPress.org, and this is the only other thing there is to check
             those against - the site's own record of them.
         -->
-        <baseline-panel :is-clean="settings.is_ok === 'yes' && !!settings.last_checked_human"/>
+        <baseline-panel :baseline="baseline" :busy="baselineBusy"
+                        @snapshot="$emit('snapshot', $event)"
+                        @clear="$emit('clear-baseline')"/>
 
         <div v-if="hasIgnores" class="fls_aside_block">
             <h3>
