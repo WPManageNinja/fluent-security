@@ -41,12 +41,15 @@ export default {
             return tones[this.status] || 'is_neutral';
         },
         /*
-         * Cloudflare needs nothing configured, and a site with no sign of a proxy
-         * needs nothing either - but "no evidence" is not proof, and a proxy that
-         * strips its own headers would look exactly like this. So the fields are
-         * folded away rather than taken off the page.
+         * Nothing is relaying this site's requests, or Cloudflare is and handles itself.
+         * Almost every WordPress site is in one of those two states, and in neither is
+         * there anything to read, decide or type - so the panel is one line saying which
+         * one it is, and the diagnostic that argues the case is not drawn at all.
+         *
+         * Not removed, though: "no evidence" is not proof, and somebody who knows a proxy
+         * is there needs a way in. The line carries it.
          */
-        collapsed() {
+        quiet() {
             if (this.revealed || this.config_locked) {
                 return false;
             }
@@ -56,6 +59,29 @@ export default {
             }
 
             return this.status === 'none' || this.status === 'cloudflare';
+        },
+        quietTitle() {
+            return this.status === 'cloudflare'
+                ? this.$t('Read from Cloudflare')
+                : this.$t('Read directly from the visitor');
+        },
+        /*
+         * Carries the address, which is the one fact the diagnostic this replaces was
+         * worth reading for. Everything else it said was an argument for a conclusion
+         * that now fits in the title.
+         */
+        quietNote() {
+            if (this.status === 'cloudflare') {
+                return this.$t('Checked against Cloudflare\'s own ranges, so addresses are already accurate.');
+            }
+
+            return this.$t('Nothing is relaying requests to this site. Yours arrived from %s.', this.detection.remote_addr || '—');
+        },
+        /* Cloudflare is a proxy already, so there is nothing to set up - only to add to. */
+        quietAction() {
+            return this.status === 'cloudflare'
+                ? this.$t('Add another proxy')
+                : this.$t('Set up a proxy');
         },
         headline() {
             const map = {
@@ -114,50 +140,56 @@ export default {
 </script>
 
 <template>
-    <div class="fls_proxy">
-        <p class="fls_proxy_headline">
-            <span class="fls_tag is_round" :class="stateTone">{{ headline }}</span>
-        </p>
-
-        <p style="margin-bottom: 10px;">{{ summary }}</p>
-
-        <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon style="margin-bottom: 10px;">
-            {{
-                $t('The login attempt limit works per IP address. While every visitor looks like %s, one person failing to log in counts against everybody.', detection.remote_addr)
-            }}
-        </el-alert>
-
-        <div class="fls_proxy_facts">
-            <span>
-                <em class="fls_eyebrow">{{ $t('Connection from') }}</em>
-                <code>{{ detection.remote_addr || '—' }}</code>
-            </span>
-            <span>
-                <em class="fls_eyebrow">{{ $t('Recorded as your IP') }}</em>
-                <code>{{ detection.resolved_ip || '—' }}</code>
-            </span>
-            <span v-if="detection.vendor">
-                <em class="fls_eyebrow">{{ $t('Looks like') }}</em>
-                <code>{{ detection.vendor }}</code>
-            </span>
-        </div>
-
-        <div v-if="detection.headers && detection.headers.length" class="fls_proxy_headers">
-            <em class="fls_eyebrow">{{ $t('Forwarding headers on this request') }}</em>
-            <ul>
-                <li v-for="header in detection.headers" :key="header.header">
-                    <code>{{ header.header }}</code>: {{ header.value }}
-                </li>
-            </ul>
-        </div>
-
-        <p v-if="collapsed" class="fls_action_note">
-            <a href="#" @click.prevent="revealed = true">{{ $t('Configure a reverse proxy anyway') }}</a>
-            <span>{{ $t('Only needed if you know one is there and it is not being detected.') }}</span>
-        </p>
+    <div class="fls_proxy" :class="{'is_quiet': quiet}">
+        <!--
+            The 99% case, in one row: what is being read, and the way in if that is wrong.
+        -->
+        <SettingRow v-if="quiet" :label="quietTitle" :description="quietNote">
+            <el-button size="small" @click="revealed = true">
+                {{ quietAction }}
+            </el-button>
+        </SettingRow>
 
         <template v-else>
-            <el-alert v-if="config_locked" type="info" :closable="false" show-icon style="margin: 10px 0;">
+            <p class="fls_proxy_headline">
+                <span class="fls_tag is_round" :class="stateTone">{{ headline }}</span>
+            </p>
+
+            <p>{{ summary }}</p>
+
+            <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon
+                      style="margin-bottom: 10px;">
+                {{
+                    $t('The login attempt limit works per IP address. While every visitor looks like %s, one person failing to log in counts against everybody.', detection.remote_addr)
+                }}
+            </el-alert>
+
+            <div class="fls_proxy_facts">
+                <span>
+                    <em class="fls_eyebrow">{{ $t('Connection from') }}</em>
+                    <code>{{ detection.remote_addr || '—' }}</code>
+                </span>
+                <span>
+                    <em class="fls_eyebrow">{{ $t('Recorded as your IP') }}</em>
+                    <code>{{ detection.resolved_ip || '—' }}</code>
+                </span>
+                <span v-if="detection.vendor">
+                    <em class="fls_eyebrow">{{ $t('Looks like') }}</em>
+                    <code>{{ detection.vendor }}</code>
+                </span>
+            </div>
+
+            <div v-if="detection.headers && detection.headers.length" class="fls_proxy_headers">
+                <em class="fls_eyebrow">{{ $t('Forwarding headers on this request') }}</em>
+                <ul>
+                    <li v-for="header in detection.headers" :key="header.header">
+                        <code>{{ header.header }}</code>: {{ header.value }}
+                    </li>
+                </ul>
+            </div>
+
+            <el-alert v-if="config_locked" type="info" :closable="false" show-icon
+                      style="margin: 10px 0;">
                 {{ $t('These values are defined in wp-config.php and take precedence over the fields below.') }}
             </el-alert>
 

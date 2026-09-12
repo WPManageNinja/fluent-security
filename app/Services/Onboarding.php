@@ -170,6 +170,14 @@ class Onboarding
                  * Cloudflare proves itself against published ranges, so the resolver
                  * already handles it and there is nothing to ask.
                  *
+                 * Nor is it asked where nothing is relaying at all - the request arrived
+                 * from a public address carrying no forwarding headers, which is nearly
+                 * every WordPress site. The reader would be opening their setup on a
+                 * question about reverse proxies, a thing their site does not have, and
+                 * the only available answer is the one already true. The settings screen
+                 * still carries the way in for somebody who knows better than the
+                 * detection does.
+                 *
                  * A site with a proxy already declared is skipped for a subtler reason.
                  * "Is this your address?" reads yes in two different situations - no proxy
                  * at all, and a proxy that is declared and working - because in both the
@@ -183,6 +191,10 @@ class Onboarding
                     $detection = ProxyDetection::detect();
 
                     if ($detection['status'] === ProxyDetection::STATUS_CLOUDFLARE) {
+                        return false;
+                    }
+
+                    if ($detection['status'] === ProxyDetection::STATUS_NONE) {
                         return false;
                     }
 

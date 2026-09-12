@@ -712,6 +712,12 @@
     padding-top: 12px;
     padding-bottom: 12px;
 
+    /* One row is the whole panel; it needs no padding of its own and no rule under it. */
+    &.is_quiet {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
     .fls_proxy_headline {
         margin: 0 0 6px;
     }

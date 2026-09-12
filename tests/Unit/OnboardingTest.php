@@ -42,6 +42,21 @@ class OnboardingTest extends BaseTestCase
         Helper::resetStatics();
     }
 
+    /**
+     * Puts this request behind an undeclared proxy.
+     *
+     * The connection step is only offered where a relay is plausible - a site with
+     * nothing in front of it is not asked about reverse proxies at all - so a test of
+     * what the step does has to put the site in a state where it is asked.
+     */
+    private function behindAnUndeclaredProxy()
+    {
+        $_SERVER['REMOTE_ADDR'] = '10.0.0.5';
+        $_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.9';
+
+        Helper::resetStatics();
+    }
+
     public function tearDown(): void
     {
         delete_option(Onboarding::OPTION);
@@ -286,6 +301,8 @@ class OnboardingTest extends BaseTestCase
 
     public function test_declaring_a_proxy_writes_it()
     {
+        $this->behindAnUndeclaredProxy();
+
         Onboarding::complete([
             'connection' => [
                 'mode'            => 'proxy',
@@ -300,6 +317,8 @@ class OnboardingTest extends BaseTestCase
 
     public function test_a_proxy_answer_with_nothing_to_trust_is_refused()
     {
+        $this->behindAnUndeclaredProxy();
+
         $error = Onboarding::complete([
             'connection' => ['mode' => 'proxy', 'trusted_proxies' => '']
         ]);
@@ -310,6 +329,8 @@ class OnboardingTest extends BaseTestCase
     /** Anything that is not an address or a range is dropped before it is written. */
     public function test_junk_in_the_proxy_list_is_discarded()
     {
+        $this->behindAnUndeclaredProxy();
+
         $error = Onboarding::complete([
             'connection' => [
                 'mode'            => 'proxy',
@@ -477,12 +498,27 @@ class OnboardingTest extends BaseTestCase
      */
     public function test_the_connection_step_is_dropped_once_a_proxy_is_declared()
     {
+        $this->behindAnUndeclaredProxy();
+
         $this->assertArrayHasKey('connection', $this->keyedSteps());
 
         update_option('__fls_auth_settings', array_merge(
             get_option('__fls_auth_settings'),
             ['trusted_proxies' => '10.0.0.1']
         ));
+        Helper::resetStatics();
+
+        $this->assertArrayNotHasKey('connection', $this->keyedSteps());
+    }
+
+    /**
+     * Nearly every WordPress site is in this state, and in it the question has one
+     * available answer: the one already true. So it is not asked.
+     */
+    public function test_the_connection_step_is_not_offered_without_a_proxy()
+    {
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.24';
+        unset($_SERVER['HTTP_X_FORWARDED_FOR']);
         Helper::resetStatics();
 
         $this->assertArrayNotHasKey('connection', $this->keyedSteps());
