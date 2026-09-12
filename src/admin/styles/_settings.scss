@@ -249,6 +249,22 @@
             margin-top: 4px;
         }
 
+        /*
+         * A mark left of the title - a provider's logo on the social login screen. It
+         * is sized by whatever goes in it, so a card can head itself with a 20px glyph
+         * or a 36px plate without this having an opinion.
+         */
+        .fls_card_head_icon {
+            @apply flex flex-none items-center justify-center;
+        }
+
+        /* Takes the leftover width, so the actions stay on the right edge with an icon
+           beside the title as well as without one. */
+        .fls_card_head_text {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
         .fls_card_head_actions {
             @apply flex items-center gap-2 flex-shrink-0;
         }
@@ -328,6 +344,12 @@
         /* Holds every control against the same right edge, so they read as one column. */
         margin-left: auto;
 
+        /*
+         * Control widths belong here, not on the element. This column is shrink-to-fit,
+         * so a `width: 100%` written in a template - the habit from a form laid out in
+         * rows - has nothing to be a percentage of and collapses the control to its
+         * chevron. Use `fls_row_stacked` for something that wants the whole width.
+         */
         .el-input,
         .el-select,
         .el-textarea {

@@ -480,7 +480,7 @@ class IntegrityHelper
             'api_key'          => $settings['api_key'],
             'api_id'           => $settings['api_id'],
             'user_email'       => Arr::get($settings, 'account_email_id'),
-            'site_url'         => str_replace(['https://', 'http://'], '', site_url()),
+            'site_url'         => site_url(),
             'admin_url'        => admin_url('admin.php?page=fluent-auth#/'),
             'site_title'       => get_bloginfo('name'),
             'modified_files'   => array_merge($modifiedFiles, $modifiedExtensionFiles),
@@ -494,7 +494,13 @@ class IntegrityHelper
             'unpublished_versions' => $suspiciousExtensions
         ];
 
-        return Api::sendPostRequest('send-security-email/', $payload);
+        /*
+         * The relay decides whether this is worth sending to anyone - see the fingerprint
+         * check in its reports route. A site that has been modified and left modified posts
+         * the same findings on every run, and suppressing the repeat there rather than here
+         * means the dashboard still records that the scan happened and still found them.
+         */
+        return Api::sendPostRequest('reports', $payload);
     }
 
     /*

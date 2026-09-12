@@ -22,7 +22,7 @@ export default {
             <SettingRow :label="$t('Roles it is not offered to')"
                         :description="$t('Leave empty to offer it to everyone.')">
                 <el-select :placeholder="$t('Offered to every role')" clearable :multiple="true"
-                           v-model="settings.magic_restricted_roles" style="width: 100%;">
+                           v-model="settings.magic_restricted_roles">
                     <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
                                :key="role.id"></el-option>
                 </el-select>

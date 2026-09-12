@@ -97,7 +97,7 @@ export default {
                 <template v-if="enabled">
                     <SocialProvider :settings="settings" provider="google"
                                     :title="$t('Google')"
-                                    :description="$t('Signs in with a Google account.')"
+                                    :description="$t('Needs an OAuth client from the Google Cloud console.')"
                                     :id-label="$t('Google Client ID')"
                                     :secret-label="$t('Google Client Secret')"
                                     :info="auth_info.google"
@@ -112,14 +112,14 @@ export default {
 
                     <SocialProvider :settings="settings" provider="github"
                                     :title="$t('GitHub')"
-                                    :description="$t('Signs in with a GitHub account.')"
+                                    :description="$t('Needs an OAuth app from your GitHub developer settings.')"
                                     :id-label="$t('GitHub Client ID')"
                                     :secret-label="$t('GitHub Client Secret')"
                                     :info="auth_info.github"/>
 
                     <SocialProvider :settings="settings" provider="facebook"
                                     :title="$t('Facebook')"
-                                    :description="$t('Signs in with a Facebook account.')"
+                                    :description="$t('Needs an app from the Meta developer dashboard.')"
                                     :id-label="$t('Facebook App ID')"
                                     :secret-label="$t('Facebook App Secret')"
                                     :info="auth_info.facebook"/>

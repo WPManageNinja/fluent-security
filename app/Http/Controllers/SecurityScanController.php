@@ -79,6 +79,43 @@ class SecurityScanController
 
         }
 
+        /*
+         * The dashboard path. Somebody who already has an alerts account creates a key there
+         * and pastes it here, which skips the emailed-key handshake entirely: the key proves
+         * who they are, and what comes back is this site's own credential.
+         *
+         * Automatic scanning goes on with it. Connecting a site to an alert relay and leaving
+         * the schedule off would mean nothing is ever sent - it is the only reason to paste a
+         * key at all.
+         */
+        if ($request->get_param('status') == 'connect') {
+            $apiKey = sanitize_text_field($request->get_param('api_key'));
+
+            if (!$apiKey) {
+                return new \WP_Error('invalid_data', __('Please provide your API key.', 'fluent-security'), ['status' => 400]);
+            }
+
+            $connection = Api::connectSite($apiKey);
+
+            if (is_wp_error($connection)) {
+                return $connection;
+            }
+
+            $settings = IntegrityHelper::getSettings();
+
+            $settings['api_id'] = $connection['api_id'];
+            $settings['api_key'] = $connection['api_key'];
+            $settings['status'] = 'active';
+            $settings['auto_scan'] = 'yes';
+
+            IntegrityHelper::saveSettings($settings);
+
+            return [
+                'message'  => __('This site is connected. Scheduled scans will now be reported to your alert channels.', 'fluent-security'),
+                'settings' => $settings
+            ];
+        }
+
         $info = $request->get_param('info');
 
         if (!is_array($info)) {
