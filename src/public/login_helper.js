@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (twoFaForm) {
             twoFaForm.addEventListener('submit', (event) => {
                 event.preventDefault();
-                handleFormSubmission(twoFaForm, 'fls_2fa_confirm', 'fluent_auth_2fa_email');
+                handleFormSubmission(twoFaForm, 'fls_2fa_confirm', 'fluent_auth_2fa_verify');
             });
         }
     }

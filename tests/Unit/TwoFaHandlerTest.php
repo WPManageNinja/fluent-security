@@ -5,6 +5,7 @@ namespace FluentAuth\Tests\Unit;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 /**
  * The emailed 2FA code is only ~800k possible values, so the number of guesses
@@ -104,7 +105,7 @@ class TwoFaHandlerTest extends BaseTestCase
     }
 
     /**
-     * verify2FaEmailCode() terminates through wp_send_json(); capture what it emitted.
+     * verifyChallenge() terminates through wp_send_json(); capture what it emitted.
      */
     private function verify($code, $hash)
     {
@@ -116,7 +117,7 @@ class TwoFaHandlerTest extends BaseTestCase
 
         ob_start();
         try {
-            $this->handler->verify2FaEmailCode();
+            $this->handler->verifyChallenge();
         } catch (\WPDieException $e) {
             // expected: wp_send_json() ends the request
         }
@@ -237,7 +238,7 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertSame('email_2_fa', $row->use_type);
 
         $url = $result->get_error_data()['challenge_url'];
-        $this->assertStringContainsString('fls_2fa=email', $url);
+        $this->assertStringContainsString('action=' . TwoFaService::LOGIN_ACTION, $url);
         $this->assertStringContainsString('login_hash=' . $row->login_hash, $url);
 
         // A browser gets a link it can click...
@@ -248,6 +249,43 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertSame($row->login_hash, $_COOKIE[TwoFaHandler::PENDING_COOKIE]);
     }
 
+    /**
+     * The screen and its endpoint are reachable only under the current names - the ones
+     * that shipped in 2.1.0 were replaced rather than joined. A hook name is a string
+     * nothing else checks, so a typo in one would leave a challenge with no way to be
+     * answered and nothing failing until somebody tried to log in.
+     */
+    public function testTheChallengeRouteIsRegisteredUnderItsOwnNameOnly()
+    {
+        $this->assertNotFalse(has_action('login_form_' . TwoFaService::LOGIN_ACTION));
+        $this->assertNotFalse(has_action('wp_ajax_nopriv_' . TwoFaService::AJAX_ACTION));
+        $this->assertNotFalse(has_action('wp_ajax_' . TwoFaService::AJAX_ACTION));
+
+        $this->assertFalse(has_action('login_form_fls_2fa_email'));
+        $this->assertFalse(has_action('wp_ajax_nopriv_fluent_auth_2fa_email'));
+        $this->assertFalse(has_action('wp_ajax_fluent_auth_2fa_email'));
+
+        $this->assertFalse(method_exists($this->handler, 'verify2FaEmailCode'));
+        $this->assertTrue(method_exists($this->handler, 'verifyChallenge'));
+    }
+
+    /**
+     * One shape, used by the redirect and by the emailed auto-login link alike.
+     */
+    public function testTheChallengeUrlIsShapedInOnePlace()
+    {
+        $url = TwoFaService::getChallengeUrl('abc');
+
+        $this->assertStringContainsString('action=' . TwoFaService::LOGIN_ACTION, $url);
+        $this->assertStringContainsString('fls_2fa=' . TwoFaService::CHALLENGE_MARKER, $url);
+        $this->assertStringContainsString('login_hash=abc', $url);
+
+        $withCode = TwoFaService::getChallengeUrl('abc', ['auto_code' => '123456']);
+
+        $this->assertStringContainsString('auto_code=123456', $withCode);
+        $this->assertStringContainsString('action=' . TwoFaService::LOGIN_ACTION, $withCode);
+    }
+
     public function testAPlainTextHandoffCarriesAUsableUrl()
     {
         // Not ajax and not a page: what a REST client would be shown.
@@ -256,7 +294,7 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $method = new \ReflectionMethod($this->handler, 'getHandoffMessage');
         $method->setAccessible(true);
-        $url = add_query_arg(['fls_2fa' => 'email', 'login_hash' => 'abc', 'action' => 'fls_2fa_email'], wp_login_url());
+        $url = \FluentAuth\App\Services\TwoFa\TwoFaService::getChallengeUrl('abc');
 
         add_filter('wp_doing_ajax', '__return_true');
         try {
@@ -267,7 +305,7 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertStringContainsString('href="' . esc_url($url) . '"', $html);
 
         $plain = $method->invoke($this->handler, new \FluentAuth\App\Services\TwoFa\EmailTwoFaMethod(), $url);
-        $this->assertStringContainsString('login_hash=abc&action=fls_2fa_email', $plain);
+        $this->assertStringContainsString('login_hash=abc&action=fls_2fa_verify', $plain);
         $this->assertStringNotContainsString('&#038;', $plain);
         $this->assertStringNotContainsString('<a ', $plain);
     }

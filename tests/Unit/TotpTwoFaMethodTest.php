@@ -47,6 +47,7 @@ class TotpTwoFaMethodTest extends BaseTestCase
     {
         remove_all_filters('fluent_auth/2fa_methods');
         remove_all_filters('fluent_auth/totp_enabled');
+        remove_all_filters('fluent_auth/2fa_challenge_required');
         TwoFaService::resetMethods();
         parent::tearDown();
     }
@@ -245,6 +246,60 @@ class TotpTwoFaMethodTest extends BaseTestCase
             $this->method->verifyProof($this->user, null, ['login_passcode' => $old[0]]),
             'A recovery code from before the reset must not work against the new enrollment.'
         );
+    }
+
+    /**
+     * Whether the account is under attack costs two queries over the auth log, and for a
+     * user with an authenticator app enrolled it cannot change the answer - the app is
+     * what they will be asked for either way. So it must not be measured at all.
+     */
+    public function testAnEnrolledUserIsNotMeasuredForAnAttackThatCannotChangeTheOutcome()
+    {
+        $this->enroll();
+
+        $asked = 0;
+
+        add_filter('fluent_auth/2fa_challenge_required', function ($required) use (&$asked) {
+            $asked++;
+
+            return $required;
+        }, 10, 2);
+
+        $handler = new TwoFaHandler();
+        $return = $handler->sendAndGet2FaConfirmFormUrl($this->user, 'both');
+
+        $this->assertNotFalse($return);
+
+        $row = flsDb()->table('fls_login_hashes')->where('login_hash', $return['login_hash'])->first();
+
+        $this->assertSame('totp', $row->use_type);
+        $this->assertSame(0, $asked, 'An enrolled user must not be measured against the attack threshold.');
+    }
+
+    /**
+     * The other side of it: where the answer is recorded, it is still asked for. An
+     * emailed code distinguishes a challenge from an ordinary one, and the row has to
+     * say which it was or it cannot authorise itself at verify time.
+     */
+    public function testAChallengeIsStillMeasuredForAMethodThatRecordsIt()
+    {
+        $asked = 0;
+
+        add_filter('fluent_auth/2fa_challenge_required', function ($required) use (&$asked) {
+            $asked++;
+
+            return true;
+        }, 10, 2);
+
+        $handler = new TwoFaHandler();
+        $return = $handler->sendAndGet2FaConfirmFormUrl($this->user, 'both');
+
+        $this->assertNotFalse($return);
+
+        $row = flsDb()->table('fls_login_hashes')->where('login_hash', $return['login_hash'])->first();
+
+        $this->assertSame('2fa_challenge', $row->use_type);
+        $this->assertSame(1, $asked, 'The answer is recorded here, so it has to be measured - once.');
     }
 
     /**

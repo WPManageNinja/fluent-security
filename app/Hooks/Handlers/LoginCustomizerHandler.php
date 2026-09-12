@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
+use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 class LoginCustomizerHandler
 {
@@ -463,8 +464,8 @@ class LoginCustomizerHandler
              * login form is, so a site that has dressed its login page should not drop
              * somebody onto bare WordPress grey halfway through the process.
              */
-            'fls_2fa_email',
-            TotpSetupPageHandler::LOGIN_ACTION
+            TotpSetupPageHandler::LOGIN_ACTION,
+            TwoFaService::LOGIN_ACTION
         );
 
         if (!in_array($action, $default_actions, true)) {

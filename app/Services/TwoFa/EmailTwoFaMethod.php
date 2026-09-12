@@ -135,12 +135,9 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
     {
         $code = Arr::get($challenge, 'secret');
 
-        $autoLoginUrl = add_query_arg([
-            'fls_2fa'    => 'email',
-            'login_hash' => Arr::get($context, 'login_hash'),
-            'action'     => 'fls_2fa_email',
-            'auto_code'  => $code
-        ], wp_login_url());
+        $autoLoginUrl = TwoFaService::getChallengeUrl(Arr::get($context, 'login_hash'), [
+            'auto_code' => $code
+        ]);
 
         $data = Arr::get($context, 'row', []);
         $data['two_fa_code'] = $code;

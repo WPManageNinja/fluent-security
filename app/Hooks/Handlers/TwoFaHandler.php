@@ -46,7 +46,7 @@ class TwoFaHandler
     private $challengeCache = [];
 
     /**
-     * True only while verify2FaEmailCode() completes a sign in whose proof has just been
+     * True only while verifyChallenge() completes a sign in whose proof has just been
      * checked. Static because the wp_signon() it runs goes back through the `authenticate`
      * chain, where every registered instance of this class would otherwise see a login
      * that still looks like it owes a second factor.
@@ -111,6 +111,28 @@ class TwoFaHandler
         return $this->challengeCache[$user->ID];
     }
 
+    /**
+     * The use_type to record for a challenge about to be raised.
+     *
+     * A row marked with the challenge key authorises itself at verify time, so it keeps
+     * working even if the attack has died down or the method was never enabled for the
+     * role. That only has to be recorded for a method that distinguishes the two - the
+     * base implementation returns its own key for both - so the expensive question of
+     * whether the account is under attack is asked only where the answer is recorded.
+     *
+     * @param $user \WP_User
+     * @param $method \FluentAuth\App\Services\TwoFa\BaseTwoFaMethod
+     * @return string
+     */
+    private function resolveUseType($user, $method)
+    {
+        if ($method->getChallengeKey() === $method->getKey()) {
+            return $method->getKey();
+        }
+
+        return $this->isChallengeRequired($user) ? $method->getChallengeKey() : $method->getKey();
+    }
+
     public function register()
     {
         add_action('fluent_auth/login_attempts_checked', [$this, 'maybe2FaRedirect'], 1, 1);
@@ -135,33 +157,42 @@ class TwoFaHandler
         add_action('template_redirect', [$this, 'maybeResumePendingChallenge'], 1);
         add_action('login_init', [$this, 'maybeResumePendingChallenge'], 1);
 
-        add_action('login_form_fls_2fa_email', [$this, 'render2FaForm'], 1);
-        add_action('wp_ajax_nopriv_fluent_auth_2fa_email', [$this, 'verify2FaEmailCode']);
-        add_action('wp_ajax_fluent_auth_2fa_email', function () {
-            $hash = sanitize_text_field(Arr::get($_REQUEST, 'login_hash'));
+        add_action('login_form_' . TwoFaService::LOGIN_ACTION, [$this, 'render2FaForm'], 1);
+        add_action('wp_ajax_nopriv_' . TwoFaService::AJAX_ACTION, [$this, 'verifyChallenge']);
 
-            $logHash = flsDb()->table('fls_login_hashes')
-                ->where('login_hash', $hash)
-                ->whereIn('use_type', TwoFaService::getAllUseTypes())
-                ->orderBy('id', 'DESC')
-                ->first();
+        // Already signed in: nothing to verify, just tell the form where to go.
+        add_action('wp_ajax_' . TwoFaService::AJAX_ACTION, [$this, 'reportChallengeRedirect']);
+    }
 
-            $user = get_user_by('ID', get_current_user_id());
-            $redirectTo = admin_url();
-            if ($logHash && $logHash->redirect_intend) {
-                $redirectTo = $logHash->redirect_intend;
-                $redirectTo = apply_filters('login_redirect', $redirectTo, $logHash->redirect_intend, $user);
-            }
+    /**
+     * @return void
+     */
+    public function reportChallengeRedirect()
+    {
+        $hash = sanitize_text_field(Arr::get($_REQUEST, 'login_hash'));
 
-            wp_send_json([
-                'redirect' => $redirectTo
-            ]);
-        });
+        $logHash = flsDb()->table('fls_login_hashes')
+            ->where('login_hash', $hash)
+            ->whereIn('use_type', TwoFaService::getAllUseTypes())
+            ->orderBy('id', 'DESC')
+            ->first();
+
+        $user = get_user_by('ID', get_current_user_id());
+        $redirectTo = admin_url();
+
+        if ($logHash && $logHash->redirect_intend) {
+            $redirectTo = $logHash->redirect_intend;
+            $redirectTo = apply_filters('login_redirect', $redirectTo, $logHash->redirect_intend, $user);
+        }
+
+        wp_send_json([
+            'redirect' => $redirectTo
+        ]);
     }
 
     public function render2FaForm()
     {
-        if (!isset($_GET['fls_2fa']) || $_GET['fls_2fa'] != 'email') {
+        if (Arr::get($_GET, 'fls_2fa') !== TwoFaService::CHALLENGE_MARKER) {
             return;
         }
 
@@ -228,9 +259,14 @@ class TwoFaHandler
      */
     public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null)
     {
-        $challengeRequired = $this->isChallengeRequired($user);
-
-        $method = TwoFaService::getRequiredMethod($user, null, $challengeRequired);
+        /*
+         * Passed unresolved: whether the account is under attack costs two queries over
+         * the auth log, and for the common login - a user with a method already enrolled
+         * - it cannot change which method is asked for. See getRequiredMethod().
+         */
+        $method = TwoFaService::getRequiredMethod($user, null, function () use ($user) {
+            return $this->isChallengeRequired($user);
+        });
 
         if (!$method) {
             return false;
@@ -257,7 +293,7 @@ class TwoFaHandler
             'status'          => 'issued',
             'ip_address'      => Helper::getIp(),
             'redirect_intend' => $redirectIntend,
-            'use_type'        => $challengeRequired ? $method->getChallengeKey() : $method->getKey(),
+            'use_type'        => $this->resolveUseType($user, $method),
             'valid_till'      => date('Y-m-d H:i:s', current_time('timestamp') + self::PENDING_TIMEOUT),
             'created_at'      => current_time('mysql'),
             'updated_at'      => current_time('mysql')
@@ -274,7 +310,7 @@ class TwoFaHandler
             'row'         => $data
         ]);
 
-        $redirectTo = $this->getChallengeUrl($hash);
+        $redirectTo = TwoFaService::getChallengeUrl($hash);
 
         if ($return === 'url') {
             return $redirectTo;
@@ -286,7 +322,7 @@ class TwoFaHandler
         ];
     }
 
-    public function verify2FaEmailCode()
+    public function verifyChallenge()
     {
         $hash = sanitize_text_field(Arr::get($_REQUEST, 'login_hash'));
 
@@ -461,7 +497,9 @@ class TwoFaHandler
             return $user;
         }
 
-        $method = TwoFaService::getRequiredMethod($user, null, $this->isChallengeRequired($user));
+        $method = TwoFaService::getRequiredMethod($user, null, function () use ($user) {
+            return $this->isChallengeRequired($user);
+        });
 
         if (!$method) {
             return $user;
@@ -553,7 +591,9 @@ class TwoFaHandler
             return $send;
         }
 
-        $method = TwoFaService::getRequiredMethod($user, null, $this->isChallengeRequired($user));
+        $method = TwoFaService::getRequiredMethod($user, null, function () use ($user) {
+            return $this->isChallengeRequired($user);
+        });
 
         if (!$method) {
             return $send;
@@ -724,7 +764,7 @@ class TwoFaHandler
             }
         }
 
-        wp_safe_redirect($this->getChallengeUrl($hash));
+        wp_safe_redirect(TwoFaService::getChallengeUrl($hash));
         exit();
     }
 
@@ -790,19 +830,6 @@ class TwoFaHandler
         $url = (is_ssl() ? 'https' : 'http') . '://' . sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) . esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']));
 
         return Helper::getValidatedRedirectUrl($url, '');
-    }
-
-    /**
-     * @param $hash string
-     * @return string
-     */
-    private function getChallengeUrl($hash)
-    {
-        return add_query_arg([
-            'fls_2fa'    => 'email',
-            'login_hash' => $hash,
-            'action'     => 'fls_2fa_email'
-        ], wp_login_url());
     }
 
     /**
