@@ -16,11 +16,11 @@ class Api
      * it simply has nowhere to send the result.
      *
      * Filterable so a self-hosted relay can be pointed at instead. The endpoint contract is
-     * documented in the fluentauth-alerts repository.
+     * documented in the fluentauth-dash repository.
      */
     public static function getApiUrl()
     {
-        return apply_filters('fluent_auth/alerts_api_url', 'https://alerts.fluentauth.com/api/v1/');
+        return apply_filters('fluent_auth/alerts_api_url', 'https://dash.fluentauth.com/api/v1/');
     }
 
     public static function registerSite($infoData)
