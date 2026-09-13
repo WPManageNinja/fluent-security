@@ -505,16 +505,7 @@ class DashboardController
      */
     private static function getTwoFaCounts()
     {
-        $enrolled = new \WP_User_Query([
-            'number'     => 1,
-            'fields'     => 'ID',
-            'meta_query' => [
-                [
-                    'key'     => TotpTwoFaMethod::META_SECRET,
-                    'compare' => 'EXISTS'
-                ]
-            ]
-        ]);
+        $enrolled = TwoFaController::countEnrolledUsers();
 
         $all = new \WP_User_Query([
             'number' => 1,
@@ -522,7 +513,7 @@ class DashboardController
         ]);
 
         return [
-            'enrolled' => (int)$enrolled->get_total(),
+            'enrolled' => $enrolled,
             'total'    => (int)$all->get_total()
         ];
     }

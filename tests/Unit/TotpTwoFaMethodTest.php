@@ -221,8 +221,9 @@ class TotpTwoFaMethodTest extends BaseTestCase
         $this->assertSame('', TotpTwoFaMethod::getPendingSecret($this->user));
 
         // Not merely unreadable through the accessors - the row itself is gone.
-        $this->assertEmpty(get_user_meta($this->user->ID, TotpTwoFaMethod::META_DATA, true));
-        $this->assertEmpty(get_user_meta($this->user->ID, TotpTwoFaMethod::META_SECRET, true));
+        $this->assertSame('', TotpTwoFaMethod::getSecret($this->user->ID));
+        $this->assertSame('', TotpTwoFaMethod::getPendingSecret($this->user->ID));
+        $this->assertSame(0, TotpTwoFaMethod::getRemainingRecoveryCount($this->user->ID));
     }
 
     /**

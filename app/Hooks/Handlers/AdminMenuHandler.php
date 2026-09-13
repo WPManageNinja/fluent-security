@@ -5,6 +5,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\Onboarding;
 use FluentAuth\App\Services\TransStrings;
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 class AdminMenuHandler
 {
@@ -203,6 +204,12 @@ class AdminMenuHandler
              * address you can put in a welcome email or a member menu.
              */
             'totp_setup_url'  => TotpSetupPageHandler::getUrl(),
+            /*
+             * Browsers refuse WebAuthn outside a secure context, so on a plain http site
+             * the switch would turn on a feature that cannot work. The screen says so
+             * rather than letting an administrator discover it from a user's report.
+             */
+            'passkey_supported' => RelyingParty::isSupported(),
             // Used as the example in the redirect URL fields, so the example is real.
             'site_url'        => site_url('/'),
             'me'              => [

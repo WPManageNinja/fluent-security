@@ -159,7 +159,7 @@ class TwoFaAdminTest extends BaseTestCase
         $request = new \WP_REST_Request();
 
         $this->assertSame(
-            ['totp' => true, 'email' => false],
+            ['totp' => true, 'email' => false, 'passkey' => false],
             TwoFaController::getUsers($request)['methods']
         );
 

@@ -17,12 +17,15 @@ class BaseTestCase extends \WP_UnitTestCase
         global $wpdb;
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fls_auth_logs");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fls_login_hashes");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}fls_auth_factors");
     }
 
     public function setUp(): void
     {
         parent::setUp();
         Helper::resetStatics();
+        \FluentAuth\App\Services\TwoFa\FactorStore::resetTableState();
+        \FluentAuth\App\Services\Baseline\BaselineStore::resetTableState();
     }
 
     public function assertWpErrorWithCode($error, $code)

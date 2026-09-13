@@ -14,6 +14,7 @@ defined('ABSPATH') || exit;
 (new \FluentAuth\App\Hooks\Handlers\GoogleOneTapAuthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TwoFaHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpProfileHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\PasskeyProfileHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpSetupPageHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpNudgeHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpEnforcementHandler())->register();

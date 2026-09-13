@@ -111,6 +111,9 @@ class Helper
             'totp_2fa_roles'          => [],
             // Roles that must have one before they can use the admin area.
             'totp_required_roles'     => [],
+            'passkey_2fa'             => 'no',
+            // Roles that may register a passkey. Empty means none of them can.
+            'passkey_2fa_roles'       => [],
             'disable_admin_bar'       => 'no',
             'disable_bar_roles'       => [
                 'subscriber'

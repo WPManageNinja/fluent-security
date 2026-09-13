@@ -30,6 +30,18 @@ class TwoFaService
     const AJAX_ACTION = 'fluent_auth_2fa_verify';
 
     /**
+     * The login screen action that trades an outstanding challenge for one the user can
+     * actually answer.
+     *
+     * A second factor can be unanswerable through no fault of the account holder - a
+     * passkey on a browser with no WebAuthn, a phone left at home - and a challenge form
+     * with no way past it is a lockout whatever raised it. This is the way past it, and
+     * it only ever moves sideways: the replacement has to prove the same factor, so
+     * switching can never be a way to be asked for less.
+     */
+    const SWITCH_ACTION = 'fls_2fa_switch';
+
+    /**
      * Marks a login screen request as a challenge rather than an ordinary sign in. Its
      * value is not read - see maybeResumePendingChallenge(), which only asks whether the
      * browser is already on the form.
@@ -58,6 +70,20 @@ class TwoFaService
     }
 
     /**
+     * Where an outstanding challenge can be swapped for a different method.
+     *
+     * @param $hash string
+     * @return string
+     */
+    public static function getSwitchUrl($hash)
+    {
+        return add_query_arg([
+            'login_hash' => $hash,
+            'action'     => self::SWITCH_ACTION
+        ], wp_login_url());
+    }
+
+    /**
      * Registered methods, keyed by method key.
      *
      * Order is significant: the dispatcher asks for the first one that fits, so a
@@ -74,12 +100,19 @@ class TwoFaService
         $methods = [];
 
         /*
-         * An authenticator app comes first deliberately. Where a user has enrolled one
-         * it is the stronger of the two, and it is the one an attacker holding the
-         * mailbox cannot answer - so it should be what they are asked for, not a code
-         * mailed to an address that may already be lost.
+         * Strongest first, and the order is the whole policy: the dispatcher asks for
+         * the first method that fits, so this is what decides which one a user with
+         * several enrolled actually sees.
+         *
+         * A passkey leads because the browser binds it to this site's domain, so it is
+         * the only one of the three that a user standing on a convincing copy of the
+         * login page cannot be talked through. An authenticator app follows - still
+         * proof of a device, still unanswerable by whoever holds the mailbox, but six
+         * digits that work wherever they are typed. A mailed code is last because it
+         * proves only the mailbox, which is often the thing already lost.
          */
         $registered = apply_filters('fluent_auth/2fa_methods', [
+            new PasskeyTwoFaMethod(),
             new TotpTwoFaMethod(),
             new EmailTwoFaMethod()
         ]);
@@ -198,6 +231,41 @@ class TwoFaService
         }
 
         return $fallback;
+    }
+
+    /**
+     * Another method this user could answer instead of the one they were given.
+     *
+     * Constrained to methods proving the same factor as the one being replaced. Letting
+     * a user swap a device factor for a mailed code would turn every challenge into an
+     * invitation to downgrade it, which is the opposite of what getRequiredMethod()
+     * spends its time preventing.
+     *
+     * @param $user \WP_User
+     * @param $current BaseTwoFaMethod
+     * @return BaseTwoFaMethod|null
+     */
+    public static function getAlternativeMethod($user, $current)
+    {
+        if (!$user instanceof \WP_User || !$current instanceof BaseTwoFaMethod) {
+            return null;
+        }
+
+        foreach (self::getMethods() as $method) {
+            if ($method->getKey() === $current->getKey()) {
+                continue;
+            }
+
+            if ($method->getSatisfiedFactor() !== $current->getSatisfiedFactor()) {
+                continue;
+            }
+
+            if ($method->isAvailableForUser($user)) {
+                return $method;
+            }
+        }
+
+        return null;
     }
 
     /**

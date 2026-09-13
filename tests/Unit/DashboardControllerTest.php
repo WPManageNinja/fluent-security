@@ -127,7 +127,7 @@ class DashboardControllerTest extends BaseTestCase
     public function testAuthenticatorStatusDoesNotInferEnabledFromEnrollment()
     {
         $userId = $this->factory->user->create();
-        update_user_meta($userId, TotpTwoFaMethod::META_SECRET, 'ABCDEFGHIJKLMNOP');
+        TotpTwoFaMethod::activate($userId, 'ABCDEFGHIJKLMNOP');
         $protection = $this->dashboard()['protection'];
         $this->assertEquals(1, $protection['two_fa']['enrolled']);
         $this->assertFalse($protection['two_fa_enabled']);
@@ -142,7 +142,7 @@ class DashboardControllerTest extends BaseTestCase
     public function testTwoFaTileCountsEnrolledUsers()
     {
         $userId = $this->factory->user->create();
-        update_user_meta($userId, TotpTwoFaMethod::META_SECRET, 'ABCDEFGHIJKLMNOP');
+        TotpTwoFaMethod::activate($userId, 'ABCDEFGHIJKLMNOP');
 
         $tile = null;
 

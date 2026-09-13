@@ -4,6 +4,7 @@ namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Services\ProxyDetection;
 
@@ -44,6 +45,24 @@ class SettingsController
         }
 
         update_option('__fls_auth_settings', $settings, false);
+
+        /*
+         * Both device factors ship switched off, so on most sites the table they share
+         * is one nobody will ever have a row in. It is created here, the first time
+         * somebody says they want one of them, rather than at activation - where it
+         * would be made on every install that will never use it, and, because
+         * activation does not run when a plugin updates, still be missing on the sites
+         * that would.
+         *
+         * Asked on the saved state rather than on a change to it. The two differ only
+         * when the table has gone missing under a site that already had the setting on,
+         * and in that case re-saving the screen repairing it is better than re-saving
+         * the screen doing nothing. ensureTable() is a single option read once the
+         * table exists, so there is nothing to save by being cleverer.
+         */
+        if (Arr::get($settings, 'totp_2fa') === 'yes' || Arr::get($settings, 'passkey_2fa') === 'yes') {
+            FactorStore::ensureTable();
+        }
 
         return [
             'settings' => $settings,
@@ -91,6 +110,7 @@ class SettingsController
             'email2fa_roles',
             'totp_2fa_roles',
             'totp_required_roles',
+            'passkey_2fa_roles',
             'disable_bar_roles'
         ];
 

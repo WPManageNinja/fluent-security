@@ -26,6 +26,18 @@ export default {
         isEnabledForNobody() {
             return this.settings.totp_2fa === 'yes' && !(this.settings.totp_2fa_roles || []).length;
         },
+        isPasskeyEnabledForNobody() {
+            return this.settings.passkey_2fa === 'yes' && !(this.settings.passkey_2fa_roles || []).length;
+        },
+        /* WebAuthn does not exist outside a secure context, so neither does this switch. */
+        passkeySupported() {
+            return !!this.appVars.passkey_supported;
+        },
+        hasAnyMethod() {
+            return this.settings.totp_2fa === 'yes'
+                || this.settings.email2fa === 'yes'
+                || this.settings.passkey_2fa === 'yes';
+        },
         requiredRoleTitles() {
             return this.user_roles
                 .filter(role => (this.settings.totp_required_roles || []).includes(role.id))
@@ -55,11 +67,69 @@ export default {
 <template>
     <div class="fls_2fa_methods">
 
+        <div class="fls_2fa_method" :class="{'fls_2fa_method_on': settings.passkey_2fa === 'yes'}">
+            <div class="fls_2fa_method_head">
+                <div>
+                    <strong>{{ $t('Passkey') }}</strong>
+                    <span class="fls_tag is_round is_success">{{ $t('Strongest') }}</span>
+                    <p>
+                        {{ $t('Touch ID, Windows Hello, a password manager or a security key. The browser ties it to this domain, so it cannot be used on a copy of your login page.') }}
+                    </p>
+                </div>
+                <el-switch v-model="settings.passkey_2fa" active-value="yes" inactive-value="no"
+                           :disabled="!passkeySupported"/>
+            </div>
+
+            <!--
+                Said before the switch is reached rather than after it fails. A site on
+                plain http cannot run the ceremony at all, and the browser gives no error
+                anyone but the user would ever see.
+            -->
+            <div v-if="!passkeySupported" class="fls_2fa_method_body">
+                <el-alert type="warning" :closable="false" show-icon
+                          :title="$t('This site cannot use passkeys yet')">
+                    {{ $t('Passkeys need the site to be served over https. Once it is, this can be switched on.') }}
+                </el-alert>
+            </div>
+
+            <div v-else-if="settings.passkey_2fa === 'yes'" class="fls_2fa_method_body">
+                <el-row :gutter="30">
+                    <el-col :md="12" :sm="24">
+                        <el-form-item :label="$t('Roles allowed to register one')">
+                            <el-select :placeholder="$t('Pick at least one role')" clearable :multiple="true"
+                                       v-model="settings.passkey_2fa_roles" style="width: 100%;">
+                                <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
+                                           :key="role.id"></el-option>
+                            </el-select>
+                            <p>{{ $t('Naming a role is what turns this on. With none named it applies to nobody.') }}</p>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-alert v-if="isPasskeyEnabledForNobody" type="info" :closable="false" show-icon
+                          style="margin-bottom: 10px;"
+                          :title="$t('Nobody can use this yet')">
+                    {{ $t('Passkeys are switched on but offered to no role, so nothing changes for anyone. Pick the roles that should be able to register one.') }}
+                </el-alert>
+
+                <el-alert type="info" :closable="false" show-icon style="margin-bottom: 10px;"
+                          :title="$t('A single passkey is not asked for')">
+                    {{ $t('Until someone has registered a second passkey, or set up an authenticator app, theirs is not used at login. One device on its own would lock them out of the account if it were lost.') }}
+                </el-alert>
+
+                <p class="fls_action_note">
+                    <span>
+                        {{ $t('Users register their own passkeys from their profile screen. Nobody can add one to somebody else\'s account, though an administrator can remove one.') }}
+                    </span>
+                </p>
+            </div>
+        </div>
+
         <div class="fls_2fa_method" :class="{'fls_2fa_method_on': settings.totp_2fa === 'yes'}">
             <div class="fls_2fa_method_head">
                 <div>
                     <strong>{{ $t('Authenticator App') }}</strong>
-                    <span class="fls_tag is_round is_success">{{ $t('Strongest') }}</span>
+                    <span class="fls_tag is_round is_success">{{ $t('Strong') }}</span>
                     <p>
                         {{ $t('A rotating code from the user\'s phone. It proves a device, so it is always asked for.') }}
                     </p>
@@ -157,7 +227,7 @@ export default {
             </div>
         </div>
 
-        <p v-if="settings.totp_2fa !== 'yes' && settings.email2fa !== 'yes'" class="fls_2fa_none">
+        <p v-if="!hasAnyMethod" class="fls_2fa_none">
             {{ $t('No second factor is enabled, so a password is all that stands between an attacker and these accounts.') }}
         </p>
     </div>

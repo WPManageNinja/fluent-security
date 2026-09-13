@@ -52,9 +52,48 @@ class BaselineStore
      *
      * @return bool
      */
+    /**
+     * Whether the option says the table exists and the database agrees.
+     *
+     * @var bool|null
+     */
+    private static $confirmed = null;
+
     public static function hasTable()
     {
-        return get_option(self::VERSION_OPTION) === self::DB_VERSION;
+        if (get_option(self::VERSION_OPTION) !== self::DB_VERSION) {
+            return false;
+        }
+
+        /*
+         * The option says the table was made, which is not the same as it being there
+         * now: a restore from a partial dump, or a stray DROP, leaves the option behind.
+         * Every caller of this then goes on to query the table, so an unconfirmed yes is
+         * a database error on the scan screen rather than the empty state it should be.
+         *
+         * Confirmed once and remembered, because summary() and compare() both ask, and
+         * BaselineCheck asks again on every scan.
+         */
+        if (self::$confirmed === null) {
+            self::$confirmed = self::tableExists();
+        }
+
+        return self::$confirmed;
+    }
+
+    /**
+     * Forgets what was confirmed.
+     *
+     * The answer changes within a single run in both directions - the table is made
+     * partway through by ensureTable(), or dropped under a long process - and a
+     * remembered "no" surviving its own creation would have every read afterwards
+     * reporting no baseline while the rows sit right there.
+     *
+     * @return void
+     */
+    public static function resetTableState()
+    {
+        self::$confirmed = null;
     }
 
     /**
@@ -104,6 +143,9 @@ class BaselineStore
         }
 
         update_option(self::VERSION_OPTION, self::DB_VERSION, false);
+
+        // Just proved above; leaving it null would have the next read ask again.
+        self::$confirmed = true;
 
         return true;
     }

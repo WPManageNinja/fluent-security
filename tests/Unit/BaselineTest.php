@@ -619,4 +619,44 @@ class BaselineTest extends BaselineTestCase
 
         return $findings[0]->toArray();
     }
+
+    /**
+     * The option recording that the table was made survives the table itself - a
+     * restore from a partial dump, a stray DROP. Every caller of hasTable() goes on to
+     * query, so an unconfirmed yes turns the scan screen into a database error instead
+     * of the empty state it should show.
+     */
+    public function test_a_missing_table_is_reported_as_missing_even_when_the_option_says_otherwise()
+    {
+        global $wpdb;
+
+        BaselineStore::ensureTable();
+        $this->assertTrue(BaselineStore::hasTable());
+
+        $table = BaselineStore::table();
+        $wpdb->query("DROP TABLE IF EXISTS {$table}");
+        BaselineStore::resetTableState();
+
+        $this->assertSame('yes', get_option(BaselineStore::VERSION_OPTION) === BaselineStore::DB_VERSION ? 'yes' : 'no');
+        $this->assertFalse(BaselineStore::hasTable(), 'the option alone must not be taken as proof');
+
+        $summary = BaselineScanner::summary();
+        $this->assertFalse($summary['exists']);
+    }
+
+    public function test_creating_the_table_is_visible_to_reads_in_the_same_run()
+    {
+        global $wpdb;
+
+        $table = BaselineStore::table();
+        $wpdb->query("DROP TABLE IF EXISTS {$table}");
+        delete_option(BaselineStore::VERSION_OPTION);
+        BaselineStore::resetTableState();
+
+        $this->assertFalse(BaselineStore::hasTable());
+
+        BaselineStore::ensureTable();
+
+        $this->assertTrue(BaselineStore::hasTable(), 'a remembered no must not outlive the table being made');
+    }
 }

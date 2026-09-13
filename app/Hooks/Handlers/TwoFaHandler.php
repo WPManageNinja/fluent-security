@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
 
@@ -158,6 +159,7 @@ class TwoFaHandler
         add_action('login_init', [$this, 'maybeResumePendingChallenge'], 1);
 
         add_action('login_form_' . TwoFaService::LOGIN_ACTION, [$this, 'render2FaForm'], 1);
+        add_action('login_form_' . TwoFaService::SWITCH_ACTION, [$this, 'switchMethod'], 1);
         add_action('wp_ajax_nopriv_' . TwoFaService::AJAX_ACTION, [$this, 'verifyChallenge']);
 
         // Already signed in: nothing to verify, just tell the form where to go.
@@ -220,6 +222,50 @@ class TwoFaHandler
         exit();
     }
 
+    /**
+     * Trades an outstanding challenge for one the user can actually answer.
+     *
+     * Reached from a link on the challenge form itself. There is no nonce because there
+     * is no session yet to tie one to - the pending hash is the only credential this
+     * screen has, and it is the same one that authorises answering the challenge in the
+     * first place. Whoever holds it can already attempt the login.
+     *
+     * The old row is spent before the new one is raised, so a switch cannot be used to
+     * keep several live challenges open for one account and answer whichever lands.
+     *
+     * @return void
+     */
+    public function switchMethod()
+    {
+        $logHash = $this->getPendingRow(Arr::get($_REQUEST, 'login_hash'));
+
+        if (!$logHash) {
+            wp_safe_redirect(wp_login_url());
+            exit();
+        }
+
+        $user = get_user_by('ID', $logHash->user_id);
+        $current = TwoFaService::getMethodByUseType($logHash->use_type);
+        $alternative = ($user && $current) ? TwoFaService::getAlternativeMethod($user, $current) : null;
+
+        if (!$alternative) {
+            wp_safe_redirect(TwoFaService::getChallengeUrl($logHash->login_hash));
+            exit();
+        }
+
+        $this->invalidate2FaCode($logHash);
+
+        $redirectTo = $this->sendAndGet2FaConfirmFormUrl(
+            $user,
+            'url',
+            $logHash->redirect_intend,
+            $alternative
+        );
+
+        wp_safe_redirect($redirectTo ? $redirectTo : wp_login_url());
+        exit();
+    }
+
     public function maybe2FaRedirect($user)
     {
         if (self::$completingChallenge) {
@@ -257,16 +303,22 @@ class TwoFaHandler
      *                                    it in $_REQUEST, such as social login
      * @return array|string|false
      */
-    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null)
+    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null)
     {
         /*
          * Passed unresolved: whether the account is under attack costs two queries over
          * the auth log, and for the common login - a user with a method already enrolled
          * - it cannot change which method is asked for. See getRequiredMethod().
+         *
+         * A method given by the caller is one switchMethod() has already established the
+         * user can answer, so the dispatcher is not asked again - it would only return
+         * the method being switched away from.
          */
-        $method = TwoFaService::getRequiredMethod($user, null, function () use ($user) {
-            return $this->isChallengeRequired($user);
-        });
+        if (!$method instanceof BaseTwoFaMethod) {
+            $method = TwoFaService::getRequiredMethod($user, null, function () use ($user) {
+                return $this->isChallengeRequired($user);
+            });
+        }
 
         if (!$method) {
             return false;

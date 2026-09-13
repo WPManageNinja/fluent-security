@@ -19,48 +19,11 @@ use FluentAuth\App\Helpers\Helper;
 class TotpTwoFaMethod extends BaseTwoFaMethod
 {
     /**
-     * The confirmed shared secret, base32. Its presence is what enrollment means.
-     *
-     * Deliberately a row of its own rather than part of META_DATA: this is the index
-     * the enrollment list and the dashboard tile filter on, and neither filter survives
-     * the move. A serialised blob exists from the moment setup starts, so EXISTS would
-     * count everybody who ever opened the setup page and walked away, and no LIKE on
-     * the negative side can match a user with no row at all - which on a membership
-     * site is nearly all of them.
+     * Recovery codes live on the account rather than here - see RecoveryCodes. They
+     * used to be part of this method's own record, which is why a user with only
+     * passkeys had nothing to fall back on.
      */
-    const META_SECRET = '_fls_totp_secret';
-
-    /**
-     * Everything else about the enrollment, in one row:
-     *
-     *   pending      a secret shown to the user but not yet proven to have reached
-     *                their app, kept away from the live one so an abandoned setup never
-     *                leaves an account demanding codes from an authenticator that was
-     *                never added
-     *   activated_at when the app was paired
-     *   last_counter the last time step spent, so a code cannot be used twice
-     *   recovery     hashes of the unused recovery codes
-     *
-     * Together rather than a row each because disable() has to clear all of them, and a
-     * field left behind there is not untidiness: stale recovery hashes surviving a
-     * re-enrollment under a fresh secret leave the old codes working on the account. A
-     * single delete has nothing to forget.
-     *
-     * Only ever read and written through getData() and patchData(), so the shape stays
-     * private to this class - callers ask getPendingSecret(), getActivatedAt() and the
-     * rest.
-     */
-    const META_DATA = '_fls_totp_data';
-
-    const RECOVERY_CODE_COUNT = 10;
-
-    const RECOVERY_CODE_LENGTH = 10;
-
-    /**
-     * No I, O, 0 or 1: these codes get copied down by hand under stress, usually
-     * because the phone that held the other factor is gone.
-     */
-    const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const RECOVERY_CODE_COUNT = RecoveryCodes::CODE_COUNT;
 
     public function getKey()
     {
@@ -249,8 +212,8 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         }
 
         // A recovery code is longer than a generated one, which is what tells them apart.
-        if (strlen($normalised) === self::RECOVERY_CODE_LENGTH) {
-            return self::consumeRecoveryCode($user, $normalised);
+        if (RecoveryCodes::looksLikeCode($normalised)) {
+            return RecoveryCodes::consume($user, $normalised);
         }
 
         $counter = TotpProvider::verify($secret, $normalised, self::getLastCounter($user));
@@ -264,7 +227,11 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
          * drift window, so without this the same one works again for up to a minute and
          * a half - long enough for anyone who watched it being typed.
          */
-        self::patchData($user->ID, ['last_counter' => $counter]);
+        $row = FactorStore::firstForUser($user, FactorStore::TYPE_TOTP, FactorStore::STATUS_ACTIVE);
+
+        if ($row) {
+            FactorStore::touch($row->id, $counter);
+        }
 
         return true;
     }
@@ -323,18 +290,40 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
     }
 
     /**
+     * The confirmed secret, or an empty string if setup was never finished.
+     *
+     * A row that is still `pending` deliberately does not answer here. That distinction
+     * is what keeps somebody who opened the setup page once and walked away from
+     * counting as enrolled - and it is now a status the database can filter on rather
+     * than the absence of a second meta key.
+     *
      * @param $user \WP_User|int
      * @return string
      */
     public static function getSecret($user)
     {
-        $userId = self::resolveUserId($user);
+        $row = FactorStore::firstForUser($user, FactorStore::TYPE_TOTP, FactorStore::STATUS_ACTIVE);
 
-        if (!$userId) {
+        /*
+         * Nothing in the table, but this user may predate it. Moved on the way past
+         * rather than left for the batch, because the alternative is not a lockout - it
+         * is this account quietly ceasing to be asked for a second factor, which nobody
+         * would report. The check costs one cached meta read and stops entirely once
+         * the batch has confirmed there is nothing left to find.
+         */
+        if (!$row && FactorMigration::isPending()) {
+            $userId = self::resolveUserId($user);
+
+            if ($userId && FactorMigration::migrateUser($userId)) {
+                $row = FactorStore::firstForUser($userId, FactorStore::TYPE_TOTP, FactorStore::STATUS_ACTIVE);
+            }
+        }
+
+        if (!$row) {
             return '';
         }
 
-        $secret = (string)get_user_meta($userId, self::META_SECRET, true);
+        $secret = (string)$row->secret;
 
         return TotpProvider::isValidSecret($secret) ? $secret : '';
     }
@@ -356,13 +345,31 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
-        update_user_meta($userId, self::META_SECRET, $secret);
+        if (!FactorStore::ensureTable()) {
+            return false;
+        }
 
-        self::patchData($userId, [
-            'activated_at' => current_time('mysql'),
-            'last_counter' => (int)$counter,
-            'pending'      => null
+        /*
+         * The live row is replaced rather than added to - an account has one
+         * authenticator app, and a second would mean getSecret() answering with
+         * whichever happened to be first. The pending row goes too, since this is what
+         * it was waiting to become.
+         */
+        FactorStore::deleteForUser($userId, FactorStore::TYPE_TOTP, FactorStore::STATUS_ACTIVE);
+        FactorStore::deleteForUser($userId, FactorStore::TYPE_TOTP, FactorStore::STATUS_PENDING);
+
+        $stored = FactorStore::insert([
+            'user_id' => $userId,
+            'type'    => FactorStore::TYPE_TOTP,
+            'status'  => FactorStore::STATUS_ACTIVE,
+            'secret'  => $secret,
+            'counter' => (int)$counter,
+            'label'   => __('Authenticator app', 'fluent-security')
         ]);
+
+        if (is_wp_error($stored)) {
+            return false;
+        }
 
         do_action('fluent_auth/totp_activated', $userId);
 
@@ -381,8 +388,17 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return;
         }
 
-        delete_user_meta($userId, self::META_SECRET);
-        delete_user_meta($userId, self::META_DATA);
+        FactorStore::deleteForUser($userId, FactorStore::TYPE_TOTP);
+
+        /*
+         * Recovery codes outlive this method only if something else can still use them.
+         * Where the authenticator app was the account\'s only factor, codes left behind
+         * would be a way in that nobody is watching and that the user believes they
+         * turned off.
+         */
+        if (!PasskeyTwoFaMethod::isEnrolled($userId)) {
+            RecoveryCodes::clear($userId);
+        }
 
         do_action('fluent_auth/totp_disabled', $userId);
     }
@@ -401,21 +417,33 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return '';
         }
 
-        $pending = (string)Arr::get(self::getData($userId), 'pending');
+        $pending = self::getPendingSecret($userId);
 
-        if (TotpProvider::isValidSecret($pending)) {
+        if ($pending) {
             return $pending;
         }
 
         $pending = TotpProvider::generateSecret();
 
-        if (!$pending) {
+        if (!$pending || !FactorStore::ensureTable()) {
             return '';
         }
 
-        self::patchData($userId, ['pending' => $pending]);
+        /*
+         * Only the abandoned attempt goes. An account that is already enrolled may open
+         * the setup screen again - to re-pair a replacement phone - and the secret it is
+         * still signing in with has to survive that until a new one is confirmed.
+         */
+        FactorStore::deleteForUser($userId, FactorStore::TYPE_TOTP, FactorStore::STATUS_PENDING);
 
-        return $pending;
+        $stored = FactorStore::insert([
+            'user_id' => $userId,
+            'type'    => FactorStore::TYPE_TOTP,
+            'status'  => FactorStore::STATUS_PENDING,
+            'secret'  => $pending
+        ]);
+
+        return is_wp_error($stored) ? '' : $pending;
     }
 
     /**
@@ -424,15 +452,15 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
      */
     public static function getPendingSecret($user)
     {
-        $userId = self::resolveUserId($user);
+        $row = FactorStore::firstForUser($user, FactorStore::TYPE_TOTP, FactorStore::STATUS_PENDING);
 
-        if (!$userId) {
+        if (!$row) {
             return '';
         }
 
-        $pending = (string)Arr::get(self::getData($userId), 'pending');
+        $secret = (string)$row->secret;
 
-        return TotpProvider::isValidSecret($pending) ? $pending : '';
+        return TotpProvider::isValidSecret($secret) ? $secret : '';
     }
 
     /**
@@ -443,53 +471,24 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
      */
     public static function getActivatedAt($user)
     {
-        $userId = self::resolveUserId($user);
+        $row = FactorStore::firstForUser($user, FactorStore::TYPE_TOTP, FactorStore::STATUS_ACTIVE);
 
-        return $userId ? (string)Arr::get(self::getData($userId), 'activated_at') : '';
+        return $row ? (string)$row->created_at : '';
     }
 
     /**
-     * Issues a fresh set, replacing any that are left.
+     * Issues a fresh set of recovery codes.
      *
-     * Only the hashes are kept, so this is the one moment the codes can be shown. They
-     * are hashed with a site salt rather than bcrypt because each one already carries
-     * fifty bits of entropy - there is nothing to brute force - and a login has to be
-     * able to check all ten without stalling.
+     * Kept here as well as on RecoveryCodes because the setup screen calls it by this
+     * name, and because generating them is part of finishing an enrollment rather than
+     * something a user does on its own.
      *
      * @param $user \WP_User|int
      * @return array the plaintext codes, to display once
      */
     public static function generateRecoveryCodes($user)
     {
-        $userId = self::resolveUserId($user);
-
-        if (!$userId) {
-            return [];
-        }
-
-        $codes = [];
-        $hashes = [];
-
-        for ($i = 0; $i < self::RECOVERY_CODE_COUNT; $i++) {
-            $code = '';
-
-            for ($c = 0; $c < self::RECOVERY_CODE_LENGTH; $c++) {
-                try {
-                    $index = random_int(0, strlen(self::RECOVERY_ALPHABET) - 1);
-                } catch (\Exception $e) {
-                    return [];
-                }
-
-                $code .= self::RECOVERY_ALPHABET[$index];
-            }
-
-            $codes[] = $code;
-            $hashes[] = self::hashRecoveryCode($code);
-        }
-
-        self::patchData($userId, ['recovery' => $hashes]);
-
-        return $codes;
+        return RecoveryCodes::generate($user);
     }
 
     /**
@@ -498,70 +497,18 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
      */
     public static function getRemainingRecoveryCount($user)
     {
-        $userId = self::resolveUserId($user);
-
-        if (!$userId) {
-            return 0;
-        }
-
-        $hashes = Arr::get(self::getData($userId), 'recovery');
-
-        return is_array($hashes) ? count($hashes) : 0;
+        return RecoveryCodes::countRemaining($user);
     }
 
     /**
-     * Spends a recovery code if it matches an unused one.
-     *
      * @param $user \WP_User|int
-     * @param $code string already normalised
-     * @return bool
+     * @return int
      */
-    private static function consumeRecoveryCode($user, $code)
+    private static function getLastCounter($user)
     {
-        $userId = self::resolveUserId($user);
+        $row = FactorStore::firstForUser($user, FactorStore::TYPE_TOTP, FactorStore::STATUS_ACTIVE);
 
-        if (!$userId) {
-            return false;
-        }
-
-        $hashes = Arr::get(self::getData($userId), 'recovery');
-
-        if (!is_array($hashes) || !$hashes) {
-            return false;
-        }
-
-        $candidate = self::hashRecoveryCode($code);
-        $matched = false;
-        $remaining = [];
-
-        foreach ($hashes as $hash) {
-            // Every entry is compared, so the time taken does not depend on which matched.
-            if (hash_equals((string)$hash, $candidate) && !$matched) {
-                $matched = true;
-                continue;
-            }
-
-            $remaining[] = $hash;
-        }
-
-        if (!$matched) {
-            return false;
-        }
-
-        self::patchData($userId, ['recovery' => $remaining]);
-
-        do_action('fluent_auth/totp_recovery_code_used', $userId, count($remaining));
-
-        return true;
-    }
-
-    /**
-     * @param $code string
-     * @return string
-     */
-    private static function hashRecoveryCode($code)
-    {
-        return hash_hmac('sha256', $code, wp_salt('secure_auth'));
+        return $row ? (int)$row->counter : 0;
     }
 
     /**
@@ -575,68 +522,5 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         }
 
         return is_numeric($user) ? (int)$user : 0;
-    }
-
-    /**
-     * @param $user \WP_User|int
-     * @return int
-     */
-    private static function getLastCounter($user)
-    {
-        $userId = self::resolveUserId($user);
-
-        return $userId ? (int)Arr::get(self::getData($userId), 'last_counter') : 0;
-    }
-
-    /**
-     * @param $userId int
-     * @return array
-     */
-    private static function getData($userId)
-    {
-        $data = get_user_meta($userId, self::META_DATA, true);
-
-        return is_array($data) ? $data : [];
-    }
-
-    /**
-     * Merges changes into the row, a null value dropping its key.
-     *
-     * One row means every write is a read followed by a write, and two of the fields
-     * here are spent during a login - the time step on one branch, a recovery code on
-     * the other. Two logins landing together could therefore have one overwrite what
-     * the other had just spent, so the read deliberately misses the object cache and
-     * goes to the database: a request that has been sitting on a page for a minute must
-     * not merge its changes into the enrollment as it was when the page was drawn.
-     *
-     * That narrows the window rather than closing it, which is as far as user meta
-     * goes - update_user_meta was never atomic either, so the same applies to the four
-     * separate rows this replaced.
-     *
-     * @param $userId int
-     * @param $changes array
-     * @return void
-     */
-    private static function patchData($userId, $changes)
-    {
-        wp_cache_delete($userId, 'user_meta');
-
-        $data = self::getData($userId);
-
-        foreach ($changes as $key => $value) {
-            if ($value === null) {
-                unset($data[$key]);
-                continue;
-            }
-
-            $data[$key] = $value;
-        }
-
-        if (!$data) {
-            delete_user_meta($userId, self::META_DATA);
-            return;
-        }
-
-        update_user_meta($userId, self::META_DATA, $data);
     }
 }
