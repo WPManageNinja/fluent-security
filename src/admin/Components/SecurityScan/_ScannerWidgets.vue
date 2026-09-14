@@ -69,6 +69,17 @@ export default {
         isScheduled() {
             return this.settings.status === 'active' && this.settings.auto_scan === 'yes';
         },
+        /*
+         * Disowned from the alerts dashboard. Two states, because the way back differs: a
+         * disabled site keeps a working key and needs one click, a deleted one has to be set
+         * up from scratch.
+         */
+        relayDisabled() {
+            return this.settings.relay_rejection === 'disabled';
+        },
+        relayRevoked() {
+            return this.settings.relay_rejection === 'revoked';
+        },
         intervalLabel() {
             return this.settings.scan_interval === 'hourly' ? this.$t('Every hour') : this.$t('Daily');
         },
@@ -129,6 +140,40 @@ export default {
                 })
                 .catch(errors => {
                     this.$handleError(errors);
+                })
+                .finally(() => {
+                    this.saving = false;
+                });
+        },
+        /*
+         * The owner re-enabled this site on the dashboard; find out whether they actually did.
+         *
+         * The server posts a report as the probe rather than taking the click at its word - a
+         * still-disabled site answers with the same refusal, and the panel goes back to saying
+         * so instead of showing a connection that is not there.
+         */
+        resumeReporting() {
+            this.saving = true;
+
+            this.$post('security-scan-settings/scan/resume-reporting')
+                .then(response => {
+                    this.$notify.success(response.message);
+                    window.location.reload();
+                })
+                .catch(errors => {
+                    this.$handleError(errors);
+
+                    /*
+                     * A refusal still moves this site: still-disabled puts it back where it
+                     * was, and an unreachable relay leaves it reporting but unconfirmed. Take
+                     * the state the server reports rather than reloading, which would throw
+                     * away the message explaining why.
+                     */
+                    const settings = errors && errors.data && errors.data.settings;
+
+                    if (settings) {
+                        Object.assign(this.settings, settings);
+                    }
                 })
                 .finally(() => {
                     this.saving = false;
@@ -222,9 +267,21 @@ export default {
                 </div>
             </template>
 
+            <!-- Switched off on the dashboard. The key still works, so this is one click away. -->
+            <template v-else-if="relayDisabled">
+                <p class="fls_relay_notice">{{ $t('__relay_disabled_desc__') }}</p>
+
+                <div class="fls_scan_aside_actions">
+                    <el-button type="primary" size="small" :disabled="saving" @click="resumeReporting">
+                        {{ $t('Resume Reporting') }}
+                    </el-button>
+                </div>
+            </template>
+
             <!-- Scanning without the service: no key, so no alerts to send. -->
             <template v-else>
-                <p>
+                <p v-if="relayRevoked" class="fls_relay_notice">{{ $t('__relay_revoked_desc__') }}</p>
+                <p v-else>
                     {{ $t('Please get a free API key to enable Scheduled Scanning and get notified when FluentAuth detects file changes.') }}
                 </p>
 

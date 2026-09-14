@@ -125,7 +125,13 @@ class CheckerService
             return $folders;
         }
 
-        $folders = array_diff($folders, $ignoredFolders);
+        /*
+         * Re-indexed: array_diff keeps the original keys, and a list with a hole in it is no
+         * longer a JSON array once it reaches the relay - it arrives as an object, which the
+         * report parser discards. Only ever visible on a site that has accepted a folder,
+         * which is why it went unnoticed.
+         */
+        $folders = array_values(array_diff($folders, $ignoredFolders));
 
         return $folders;
     }

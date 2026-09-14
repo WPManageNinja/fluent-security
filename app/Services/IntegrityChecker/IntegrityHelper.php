@@ -7,18 +7,37 @@ use FluentAuth\App\Helpers\Arr;
 
 class IntegrityHelper
 {
+    /*
+     * The two ways an owner can disown a site from the alerts dashboard, as this install
+     * learns of them - which is only ever by being refused mid-report.
+     *
+     * Kept apart because the way back differs. A disabled site's key still works, so its owner
+     * re-enabling it there is the whole fix. A deleted site's row is gone, and no credential
+     * this install holds will ever work again.
+     */
+    const RELAY_DISABLED = 'disabled';
+
+    const RELAY_REVOKED = 'revoked';
+
     public static function getSettings()
     {
         $defaults = [
-            'status'           => 'unregistered',
-            'api_id'           => '',
-            'api_key'          => '',
-            'last_checked'     => '',
-            'account_email_id' => '',
-            'is_ok'            => 'yes',
-            'auto_scan'        => 'no',
-            'scan_interval'    => 'daily',
-            'last_report_sent' => ''
+            'status'              => 'unregistered',
+            'api_id'              => '',
+            'api_key'             => '',
+            'last_checked'        => '',
+            'account_email_id'    => '',
+            'is_ok'               => 'yes',
+            'auto_scan'           => 'no',
+            'scan_interval'       => 'daily',
+            'last_report_sent'    => '',
+            /*
+             * Why the relay stopped accepting this site's reports, if it has. Empty on a site
+             * in good standing. See handleReportResponse().
+             */
+            'relay_rejection'     => '',
+            'relay_rejected_at'   => '',
+            'relay_auth_failures' => 0
         ];
 
         $settings = get_option('__fls_integrity_settings', []);
@@ -414,7 +433,13 @@ class IntegrityHelper
     public static function maybeSendScanReport()
     {
         $settings = self::getSettings();
-        if ($settings['auto_scan'] != 'yes') {
+
+        /*
+         * Both halves of the condition the cron checks, repeated here rather than trusted to
+         * the caller: this is what actually posts, and a site the relay has disowned must not
+         * post from anywhere.
+         */
+        if ($settings['auto_scan'] != 'yes' || $settings['status'] != 'active') {
             return;
         }
 
@@ -472,27 +497,20 @@ class IntegrityHelper
             : 'no';
         self::saveSettings($settings);
 
-        if ($settings['is_ok'] === 'yes') {
-            return false;
-        }
-
-        $payload = [
-            'api_key'          => $settings['api_key'],
-            'api_id'           => $settings['api_id'],
-            'user_email'       => Arr::get($settings, 'account_email_id'),
-            'site_url'         => site_url(),
-            'admin_url'        => admin_url('admin.php?page=fluent-auth#/'),
-            'site_title'       => get_bloginfo('name'),
-            'modified_files'   => array_merge($modifiedFiles, $modifiedExtensionFiles),
-            'modified_folders' => $modifiedFolders,
-            /*
-             * Sent as its own key rather than folded into modified_files: it is a different kind
-             * of claim - "this whole extension is not the one WordPress.org published" - and the
-             * report should be able to say so even if the email template only knows the two
-             * older keys.
-             */
-            'unpublished_versions' => $suspiciousExtensions
-        ];
+        /*
+         * A clean run is posted too, and deliberately.
+         *
+         * The relay records it without notifying anybody - an all-clear every night is how a
+         * service teaches people to filter it - but the record is what keeps "last seen"
+         * honest. Reporting only the bad runs made every healthy site look abandoned on the
+         * dashboard, and it meant a site the owner had disconnected went on believing it was
+         * connected until the day it happened to find something.
+         */
+        $payload = self::buildReportPayload(
+            array_merge($modifiedFiles, $modifiedExtensionFiles),
+            $modifiedFolders,
+            $suspiciousExtensions
+        );
 
         /*
          * The relay decides whether this is worth sending to anyone - see the fingerprint
@@ -500,7 +518,182 @@ class IntegrityHelper
          * the same findings on every run, and suppressing the repeat there rather than here
          * means the dashboard still records that the scan happened and still found them.
          */
-        return Api::sendPostRequest('reports', $payload);
+        $response = Api::sendPostRequest('reports', $payload);
+
+        self::handleReportResponse($response);
+
+        return $response;
+    }
+
+    /*
+     * The wire shape of a report, built in one place so the scheduled send and the reconnect
+     * probe cannot drift apart in what they claim about this site.
+     */
+    public static function buildReportPayload($modifiedFiles, $modifiedFolders, $suspiciousExtensions)
+    {
+        $settings = self::getSettings();
+
+        return [
+            'api_key'          => $settings['api_key'],
+            'api_id'           => $settings['api_id'],
+            'user_email'       => Arr::get($settings, 'account_email_id'),
+            'site_url'         => site_url(),
+            'admin_url'        => admin_url('admin.php?page=fluent-auth#/'),
+            'site_title'       => get_bloginfo('name'),
+            'modified_files'   => $modifiedFiles,
+            /*
+             * Re-indexed on the way out. The relay reads this key only when it is a JSON array,
+             * and a list with a hole in it encodes as an object - which costs the whole section
+             * of the alert without costing the count in its subject line.
+             */
+            'modified_folders' => array_values((array)$modifiedFolders),
+            /*
+             * Sent as its own key rather than folded into modified_files: it is a different kind
+             * of claim - "this whole extension is not the one WordPress.org published" - and the
+             * report should be able to say so even if the email template only knows the two
+             * older keys.
+             *
+             * Re-indexed for the same reason the folders are, though nothing filters this list
+             * today: the cost of being wrong is a whole finding type that encodes as an object
+             * and is read as no findings at all, and one array_values is cheaper than relying on
+             * everyone who edits getSuspiciousExtensions() knowing that.
+             */
+            'unpublished_versions' => array_values((array)$suspiciousExtensions)
+        ];
+    }
+
+    /*
+     * A report built from what the last scan already found, sent now.
+     *
+     * The scheduled path re-scans first, which means fetching core checksums and walking
+     * wp-content - seconds of work that a request holding a browser open cannot afford. This
+     * says exactly the same thing about the site using the stored results, which is all the
+     * reconnect probe needs: the answer it is waiting for is the relay's, not the scanner's.
+     */
+    public static function sendStoredReport()
+    {
+        $folders = array_values(array_diff(
+            (array)Arr::get(self::getCoreResults(), 'folders', []),
+            (array)Arr::get(self::getIgnoreLists(), 'folders', [])
+        ));
+
+        $payload = self::buildReportPayload(
+            array_merge(self::getActiveCoreFindings(), self::getActiveExtensionFindings()),
+            $folders,
+            self::getSuspiciousExtensions()
+        );
+
+        $response = Api::sendPostRequest('reports', $payload);
+
+        self::handleReportResponse($response);
+
+        return $response;
+    }
+
+    /*
+     * What the relay made of the report, as far as this site's standing is concerned.
+     *
+     * Only two answers mean anything here. A 403 says the owner disabled this site on the
+     * dashboard; a 401 says the credentials no longer name a site it knows. Everything else -
+     * a timeout, a 429, a 500 - is this run's problem and not this site's, and reporting
+     * carries on unchanged.
+     *
+     * Returns the rejection it recorded, or null if there was nothing to record.
+     */
+    public static function handleReportResponse($response)
+    {
+        if (is_wp_error($response)) {
+            /* The network, not the relay. Nothing has been said about this site at all. */
+            return null;
+        }
+
+        $code = (int)wp_remote_retrieve_response_code($response);
+
+        if ($code >= 200 && $code < 300) {
+            self::clearRelayRejection();
+
+            return null;
+        }
+
+        if ($code !== 401 && $code !== 403) {
+            return null;
+        }
+
+        if ($code === 403) {
+            return self::markRelayRejected(self::RELAY_DISABLED);
+        }
+
+        /*
+         * A 401 is the one ambiguous answer: a site deleted from the dashboard and a stored key
+         * that has been corrupted look identical from here. So it costs one more report before
+         * the credentials are thrown away - but only one, because the alternative is an install
+         * that re-posts a key nothing will ever accept until somebody notices.
+         */
+        $settings = self::getSettings();
+        $strikes = (int)Arr::get($settings, 'relay_auth_failures', 0) + 1;
+
+        if ($strikes < 2) {
+            $settings['relay_auth_failures'] = $strikes;
+            self::saveSettings($settings);
+
+            return null;
+        }
+
+        return self::markRelayRejected(self::RELAY_REVOKED);
+    }
+
+    /*
+     * Stop reporting, and leave the screen able to say why.
+     *
+     * Reporting stops by way of `status`, which the cron already guards on - so there is no
+     * second switch that can disagree with this one about whether the site is connected.
+     */
+    public static function markRelayRejected($reason)
+    {
+        $settings = self::getSettings();
+
+        $settings['relay_rejection'] = $reason;
+        $settings['relay_rejected_at'] = date('Y-m-d H:i:s');
+        $settings['relay_auth_failures'] = 0;
+
+        if ($reason === self::RELAY_REVOKED) {
+            /*
+             * Nothing survives: the relay has no row for these credentials, so keeping them
+             * would only let the screen offer a reconnect that cannot work. Back to the state
+             * a never-registered site is in, which is the one the screen knows how to offer
+             * registration from.
+             */
+            $settings['status'] = 'unregistered';
+            $settings['api_id'] = '';
+            $settings['api_key'] = '';
+            $settings['account_email_id'] = '';
+            $settings['auto_scan'] = 'no';
+        } else {
+            /*
+             * Disabled, not deleted - the key is still good. The schedule is left switched on
+             * so that resuming is one click here and not a re-run of the whole setup.
+             */
+            $settings['status'] = 'disabled';
+        }
+
+        self::saveSettings($settings);
+
+        return $reason;
+    }
+
+    public static function clearRelayRejection()
+    {
+        $settings = self::getSettings();
+
+        if (empty($settings['relay_rejection']) && empty($settings['relay_auth_failures'])) {
+            return false;
+        }
+
+        $settings['relay_rejection'] = '';
+        $settings['relay_rejected_at'] = '';
+        $settings['relay_auth_failures'] = 0;
+
+        return self::saveSettings($settings);
     }
 
     /*

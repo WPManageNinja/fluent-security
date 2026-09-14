@@ -1193,11 +1193,73 @@ class SecurityScanController
         $settings['auto_scan'] = 'no';
         $settings['scan_interval'] = 'daily';
         $settings['account_email_id'] = '';
+        $settings['relay_rejection'] = '';
+        $settings['relay_rejected_at'] = '';
+        $settings['relay_auth_failures'] = 0;
 
         IntegrityHelper::saveSettings($settings);
 
         return [
             'message'  => __('API has been reset successfully.', 'fluent-security'),
+            'settings' => $settings
+        ];
+    }
+
+    /*
+     * Start reporting again after the owner re-enabled this site on the alerts dashboard.
+     *
+     * Verified rather than assumed. The stored key is still the right one - a disabled site
+     * keeps its row - so a report is the probe: if the site is live again the relay takes it,
+     * and if it is still disabled the same 403 puts the screen straight back where it was
+     * instead of leaving it claiming a connection that does not work.
+     *
+     * Built from the last scan's findings rather than a fresh scan. Re-scanning would mean
+     * fetching core checksums and walking wp-content while the browser waits, to learn
+     * something this request is not asking about.
+     */
+    public static function resumeReporting(\WP_REST_Request $request)
+    {
+        $settings = IntegrityHelper::getSettings();
+
+        if ($settings['relay_rejection'] !== IntegrityHelper::RELAY_DISABLED) {
+            return new \WP_Error('invalid_state', __('This site is not waiting to be reconnected.', 'fluent-security'), ['status' => 400]);
+        }
+
+        /*
+         * Put back in good standing first, so the probe below is sent as a connected site
+         * would send it - and so a relay that refuses it again writes the rejection over
+         * this, rather than this being written over the rejection.
+         */
+        $settings['status'] = 'active';
+        $settings['auto_scan'] = 'yes';
+        $settings['relay_rejection'] = '';
+        $settings['relay_rejected_at'] = '';
+        $settings['relay_auth_failures'] = 0;
+
+        IntegrityHelper::saveSettings($settings);
+
+        $response = IntegrityHelper::sendStoredReport();
+
+        $settings = IntegrityHelper::getSettings();
+
+        if ($settings['relay_rejection'] === IntegrityHelper::RELAY_DISABLED) {
+            return new \WP_Error('still_disabled', __('This site is still disabled on your alerts dashboard. Re-enable it there, then try again.', 'fluent-security'), ['status' => 409, 'data' => ['settings' => $settings]]);
+        }
+
+        /*
+         * The relay was unreachable, or answered with something that says nothing about this
+         * site - a timeout, a 429, a 500. Reporting is switched back on and the schedule will
+         * settle it, but saying "your dashboard is receiving this site again" on the strength
+         * of a request that failed would be a claim nothing here can make.
+         */
+        $code = is_wp_error($response) ? 0 : (int)wp_remote_retrieve_response_code($response);
+
+        if ($code < 200 || $code >= 300) {
+            return new \WP_Error('probe_failed', __('Reporting has been switched back on, but your alerts dashboard could not be reached to confirm it. The next scheduled scan will try again.', 'fluent-security'), ['status' => 502, 'data' => ['settings' => $settings]]);
+        }
+
+        return [
+            'message'  => __('Reporting has resumed. Your alerts dashboard is receiving this site again.', 'fluent-security'),
             'settings' => $settings
         ];
     }

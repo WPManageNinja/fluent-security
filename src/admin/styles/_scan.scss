@@ -855,6 +855,24 @@
     margin-top: 16px;
 }
 
+/*
+ * The site was disowned from the alerts dashboard - disabled or deleted there.
+ *
+ * Tinted rather than left as body copy: the panel around it is a settings panel, and this is
+ * the one thing in it that reports a state the administrator did not set from here and has to
+ * act on before any alert is sent again.
+ */
+.fls_aside_block .fls_relay_notice {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--fls-warning-fg);
+    background: var(--fls-warning-bg);
+    color: var(--fls-warning-fg);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
 /* --------------------------------------------------------------- registration */
 
 /*

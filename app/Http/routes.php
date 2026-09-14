@@ -80,6 +80,7 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('security-scan-settings/scan/delete-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'deleteFile'], $permissions)
     ->post('security-scan-settings/scan/update-schedule-scan', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'updateScheduleScan'], $permissions)
     ->post('security-scan-settings/scan/reset-api', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resetApi'], $permissions)
+    ->post('security-scan-settings/scan/resume-reporting', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resumeReporting'], $permissions)
     ->post('security-scan-settings/scan/reset-ignores', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resetIgnores'], $permissions)
     ->get('auth-customizer', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getAuthCustomizerSetting'], $permissions)
     ->post('auth-customizer', ['\FluentAuth\App\Http\Controllers\SettingsController', 'saveAuthCustomizerSetting'], $permissions)
