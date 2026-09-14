@@ -155,20 +155,38 @@ export default {
                     this.saving = false;
                 });
         },
+        /*
+         * Disconnecting, which is a good deal more than the link used to admit.
+         *
+         * It tells the relay to stop accepting this site and then clears the credentials here,
+         * and the key is the only copy - there is no reconnecting afterwards, only registering
+         * again and confirming a new key by email. It was a bare link reading "please click
+         * here" at the end of a sentence about changing an email address, with no confirmation
+         * at all, next to a reset of the ignore list that asks for one.
+         */
         resetApi() {
-            this.saving = true;
+            this.$confirm(this.$t('__disconnect_confirm__'), {
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonText: this.$t('Cancel'),
+                confirmButtonText: this.$t('Yes, disconnect')
+            }).then(() => {
+                this.saving = true;
 
-            this.$post('security-scan-settings/scan/reset-api')
-                .then(response => {
-                    this.$notify.success(response.message);
-                    window.location.reload();
-                })
-                .catch(errors => {
-                    this.$handleError(errors);
-                })
-                .finally(() => {
-                    this.saving = false;
-                });
+                this.$post('security-scan-settings/scan/reset-api')
+                    .then(response => {
+                        this.$notify.success(response.message);
+                        window.location.reload();
+                    })
+                    .catch(errors => {
+                        this.$handleError(errors);
+                    })
+                    .finally(() => {
+                        this.saving = false;
+                    });
+            }).catch(() => {
+                // Dismissed - nothing to do.
+            });
         },
         /*
          * The owner re-enabled this site on the dashboard; find out whether they actually did.
@@ -346,8 +364,8 @@ export default {
             </ul>
 
             <p v-if="settings.status === 'active'" class="fls_note">
-                {{ $t('If you want to change the notification email address or disable scanning service,') }}
-                <a href="#" @click.prevent="resetApi()">{{ $t('please click here') }}</a>.
+                {{ $t('__disconnect_note__') }}
+                <a href="#" @click.prevent="resetApi()">{{ $t('Disconnect this site') }}</a>.
             </p>
         </div>
 
