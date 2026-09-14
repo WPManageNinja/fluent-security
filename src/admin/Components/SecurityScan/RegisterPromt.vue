@@ -77,6 +77,13 @@ export default {
                     this.settings.api_key = response.settings.api_key;
                     this.settings.api_id = response.settings.api_id;
                     this.settings.account_email_id = response.settings.account_email_id;
+                    /*
+                     * Connecting switches daily scanning on at the server. Carried over so the
+                     * panel behind this one says so straight away, instead of offering to
+                     * enable something that is already running until the next page load.
+                     */
+                    this.settings.auto_scan = response.settings.auto_scan;
+                    this.settings.scan_interval = response.settings.scan_interval;
 
                     if (response.settings.status === 'active') {
                         this.$router.push({name: 'security_scans', query: {auto_scan: 'yes'}});

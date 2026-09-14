@@ -107,11 +107,16 @@ class SecurityScanController
             $settings['api_key'] = $connection['api_key'];
             $settings['status'] = 'active';
             $settings['auto_scan'] = 'yes';
+            /* Stated rather than inherited, so both ways in land on the same schedule. */
+            $settings['scan_interval'] = 'daily';
+            $settings['relay_rejection'] = '';
+            $settings['relay_rejected_at'] = '';
+            $settings['relay_auth_failures'] = 0;
 
             IntegrityHelper::saveSettings($settings);
 
             return [
-                'message'  => __('This site is connected. Scheduled scans will now be reported to your alert channels.', 'fluent-security'),
+                'message'  => __('This site is connected. Daily scans will now be reported to your alert channels.', 'fluent-security'),
                 'settings' => $settings
             ];
         }
@@ -153,6 +158,25 @@ class SecurityScanController
         if ($isConfirmed) {
             $settings['api_key'] = $infoData['api_key'];
             $settings['status'] = 'active';
+
+            /*
+             * Scheduling goes on with the key, daily.
+             *
+             * Connecting a site to an alert relay and leaving the schedule off means nothing is
+             * ever sent, which is the only reason to connect one. It used to be a second step on
+             * the screen behind this, easy to miss and invisible when missed: the site looked
+             * connected, the dashboard listed it, and no report ever arrived.
+             */
+            $settings['auto_scan'] = 'yes';
+            $settings['scan_interval'] = 'daily';
+
+            /*
+             * Cleared in case this key is replacing one the relay had stopped accepting - the
+             * site has just proved otherwise.
+             */
+            $settings['relay_rejection'] = '';
+            $settings['relay_rejected_at'] = '';
+            $settings['relay_auth_failures'] = 0;
         } else {
             $settings['api_id'] = $apiId;
             $settings['status'] = 'pending';
@@ -162,7 +186,9 @@ class SecurityScanController
         IntegrityHelper::saveSettings($settings);
 
         return [
-            'message'  => 'Your site has been successfully registered. Please provide the API token.',
+            'message'  => $isConfirmed
+                ? __('This site is connected. Daily scans will now be reported to your alert channels.', 'fluent-security')
+                : __('Your site has been successfully registered. Please provide the API token.', 'fluent-security'),
             'settings' => $settings
         ];
 
