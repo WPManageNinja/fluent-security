@@ -114,6 +114,7 @@ class SecurityScanController
             $settings['relay_auth_failures'] = 0;
             /* See the note on the other connection path: a new row reports from scratch. */
             $settings['last_report_sent'] = '';
+            $settings['extensions_hash'] = '';
 
             IntegrityHelper::saveSettings($settings);
 
@@ -185,8 +186,12 @@ class SecurityScanController
              * with nothing reported to it yet - so the old connection's timestamp must not gate
              * the first report. Left in place it silences a freshly connected site for most of a
              * day and leaves the dashboard saying it is awaiting its first scan.
+             *
+             * The inventory hash goes with it for the same reason: it records what the relay has
+             * accepted, and the new row has accepted nothing.
              */
             $settings['last_report_sent'] = '';
+            $settings['extensions_hash'] = '';
         } else {
             $settings['api_id'] = $apiId;
             $settings['status'] = 'pending';
@@ -1238,6 +1243,7 @@ class SecurityScanController
         $settings['relay_rejection'] = '';
         $settings['relay_rejected_at'] = '';
         $settings['relay_auth_failures'] = 0;
+        $settings['extensions_hash'] = '';
 
         IntegrityHelper::saveSettings($settings);
 

@@ -197,14 +197,14 @@ class ExtensionInventory
      * these plugins are on wordpress.org", which would report the whole site as unverifiable.
      * One update check is the difference between that and a real answer.
      */
-    protected static function getUpdateTransient($type)
+    protected static function getUpdateTransient($type, $force = true)
     {
         $transient = get_site_transient('update_' . $type);
 
         $hasEntries = is_object($transient)
             && (!empty($transient->response) || !empty($transient->no_update));
 
-        if (!$hasEntries) {
+        if (!$hasEntries && $force) {
             require_once ABSPATH . 'wp-admin/includes/update.php';
 
             if ($type === 'themes') {
@@ -294,5 +294,293 @@ class ExtensionInventory
         }
 
         return 'unknown';
+    }
+
+    /*
+     * Everything installed, in the shape the alerts relay stores it.
+     *
+     * Separate from getTargets() on purpose. That list answers "what can be checked against
+     * wordpress.org", so it drops the things there is nothing to compare - a theme WordPress
+     * cannot parse, the must-use plugins, the drop-ins. This answers "what is on this site".
+     *
+     * What is named and what is merely counted is decided by one test: does the extension have
+     * somewhere it gets updates from. An extension that asks wordpress.org, or asks a vendor's
+     * own server, has already told a third party its name and version - and those are the ones
+     * a vulnerability feed can match, wordpress.org through WPScan and the commercial ones
+     * through Patchstack. An extension that asks nobody is a client's bespoke plugin or some
+     * agency glue: no feed will ever carry an advisory for it, so naming it buys nothing and
+     * costs the one genuinely private thing in the list. Those are counted, not named.
+     *
+     * Returns the report's two keys, so the caller does not have to know how they relate.
+     */
+    public static function getReportInventory()
+    {
+        /*
+         * A short circuit before the walk rather than a filter after it, so a caller that
+         * already knows the answer - a test, or a site supplying its own - does not pay for
+         * get_plugins(), wp_get_themes() and an update check to have the result thrown away.
+         */
+        $pre = apply_filters('fluent_auth/pre_report_extension_inventory', null);
+
+        if (is_array($pre)) {
+            return $pre;
+        }
+
+        /*
+         * Without WordPress's update data there is no way to tell a directory plugin from a
+         * vendor one from a bespoke one, and every entry would fall to the bottom of that test
+         * and be withheld. That is not an inventory of a site with no plugins - it is no
+         * inventory - so say nothing and let the relay keep what it has until a run that knows.
+         *
+         * Deliberately does not trigger an update check to fix it. A report is not the place to
+         * make WordPress talk to wordpress.org; the scan populates these transients on its own
+         * schedule, and the next report picks the answer up.
+         */
+        if (!self::hasUpdateData()) {
+            return null;
+        }
+
+        $named = array_merge(self::getPluginInventory(), self::getThemeInventory());
+
+        /*
+         * Must-use plugins and drop-ins are always counted. Nothing writes an update entry for a
+         * file dropped into mu-plugins or for object-cache.php, so by the test above they have
+         * no source - and in practice they are the most site-specific code on a site.
+         */
+        $untracked = count(self::getMuPlugins()) + count(self::getDropins());
+
+        foreach ($named as $item) {
+            if (empty($item['named'])) {
+                $untracked++;
+            }
+        }
+
+        $named = array_values(array_filter($named, function ($item) {
+            return !empty($item['named']);
+        }));
+
+        $named = array_map(function ($item) {
+            unset($item['named']);
+
+            return $item;
+        }, $named);
+
+        return apply_filters('fluent_auth/report_extension_inventory', [
+            'extensions'           => $named,
+            'extensions_untracked' => $untracked
+        ]);
+    }
+
+    protected static function getPluginInventory()
+    {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+        $sources = self::getPluginUpdateSources();
+        $updates = self::getAvailableVersions('plugins');
+        $items = [];
+
+        foreach (get_plugins() as $pluginFile => $data) {
+            $source = isset($sources[$pluginFile]) ? $sources[$pluginFile] : null;
+
+            $item = [
+                'type'    => 'plugin',
+                'slug'    => $source ? $source['slug'] : self::guessSlug($pluginFile),
+                'file'    => $pluginFile,
+                'name'    => isset($data['Name']) && $data['Name'] ? $data['Name'] : $pluginFile,
+                'version' => isset($data['Version']) ? trim($data['Version']) : '',
+                'status'  => self::getPluginStatus($pluginFile),
+                'wp_org'  => $source && $source['source'] === 'wp_org',
+                'named'   => (bool)$source
+            ];
+
+            /*
+             * Only ever the version that is actually waiting. An echo of the installed version
+             * would read as an available update to anything counting rows where the two differ.
+             */
+            if (isset($updates[$pluginFile])) {
+                $item['latest'] = $updates[$pluginFile];
+            }
+
+            $items[] = $item;
+        }
+
+        return $items;
+    }
+
+    /*
+     * Every installed theme, including the ones WordPress cannot parse.
+     *
+     * The scan skips those because a theme it cannot read has no file list to diff. Here they
+     * are the point: a broken theme is still a directory of PHP on disk, still reachable by some
+     * classes of bug, and leaving it out would report a site as running less code than it does.
+     */
+    protected static function getThemeInventory()
+    {
+        $sources = self::getThemeUpdateSources();
+        $updates = self::getAvailableVersions('themes');
+        $active = get_stylesheet();
+        $template = get_template();
+        $items = [];
+
+        foreach (wp_get_themes() as $stylesheet => $theme) {
+            if ($stylesheet === $active) {
+                $status = 'active';
+            } elseif ($stylesheet === $template) {
+                /* The parent of the active child theme: not chosen, but running. */
+                $status = 'active-parent';
+            } else {
+                $status = 'inactive';
+            }
+
+            $source = isset($sources[$stylesheet]) ? $sources[$stylesheet] : '';
+            $name = $theme->get('Name');
+
+            $item = [
+                'type'    => 'theme',
+                'slug'    => $stylesheet,
+                'name'    => $name ? $name : $stylesheet,
+                'version' => trim((string)$theme->get('Version')),
+                'status'  => $status,
+                'parent'  => $theme->parent() ? $theme->get_template() : '',
+                'wp_org'  => $source === 'wp_org',
+                /* Said rather than dropped: a theme WordPress cannot read is a finding of its own. */
+                'broken'  => (bool)$theme->errors(),
+                'named'   => (bool)$source
+            ];
+
+            if (isset($updates[$stylesheet])) {
+                $item['latest'] = $updates[$stylesheet];
+            }
+
+            $items[] = $item;
+        }
+
+        return $items;
+    }
+
+    /*
+     * Where each installed plugin gets its updates, and under what slug.
+     *
+     * WordPress asks api.wordpress.org about every installed plugin on its own schedule and
+     * files the answers in a transient. An entry stamped `w.org/plugins/` came from the
+     * directory; an entry stamped anything else is a plugin updating from a vendor's own
+     * server, which is how a paid plugin announces itself without anybody being asked. A plugin
+     * with no entry at all asks nobody, and is the case this returns nothing for.
+     */
+    protected static function getPluginUpdateSources()
+    {
+        $transient = self::getUpdateTransient('plugins', false);
+        $sources = [];
+
+        foreach (['response', 'no_update'] as $bucket) {
+            $items = isset($transient->$bucket) ? (array)$transient->$bucket : [];
+
+            foreach ($items as $pluginFile => $item) {
+                $id = is_object($item) && isset($item->id) ? (string)$item->id : '';
+                $slug = is_object($item) && !empty($item->slug) ? (string)$item->slug : '';
+
+                if (strpos($id, self::WP_ORG_PLUGIN_PREFIX) === 0) {
+                    $sources[$pluginFile] = [
+                        'source' => 'wp_org',
+                        'slug'   => $slug ? $slug : substr($id, strlen(self::WP_ORG_PLUGIN_PREFIX))
+                    ];
+
+                    continue;
+                }
+
+                $sources[$pluginFile] = [
+                    'source' => 'vendor',
+                    'slug'   => $slug ? $slug : self::guessSlug($pluginFile)
+                ];
+            }
+        }
+
+        return $sources;
+    }
+
+    /*
+     * The same question for themes, which carry no `id` to read it off.
+     *
+     * WordPress sends every installed theme to api.wordpress.org and only hears back about the
+     * ones it hosts, so presence in `no_update` is directory membership itself. A theme that
+     * updates itself pushes into `response` with its own package URL, which is what separates a
+     * vendor theme from a directory one there.
+     */
+    protected static function getThemeUpdateSources()
+    {
+        $transient = self::getUpdateTransient('themes', false);
+        $sources = [];
+
+        $items = isset($transient->no_update) ? (array)$transient->no_update : [];
+        foreach ($items as $stylesheet => $item) {
+            $sources[$stylesheet] = 'wp_org';
+        }
+
+        $items = isset($transient->response) ? (array)$transient->response : [];
+        foreach ($items as $stylesheet => $item) {
+            $item = (array)$item;
+            $package = isset($item['package']) ? (string)$item['package'] : '';
+            $url = isset($item['url']) ? (string)$item['url'] : '';
+
+            $sources[$stylesheet] = (strpos($package, '//downloads.wordpress.org/') !== false
+                || strpos($url, '//wordpress.org/themes/') !== false) ? 'wp_org' : 'vendor';
+        }
+
+        return $sources;
+    }
+
+    protected static function hasUpdateData()
+    {
+        $plugins = self::getUpdateTransient('plugins', false);
+
+        return is_object($plugins) && (!empty($plugins->response) || !empty($plugins->no_update));
+    }
+
+    protected static function getMuPlugins()
+    {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+        return get_mu_plugins();
+    }
+
+    protected static function getDropins()
+    {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+        return get_dropins();
+    }
+
+    /*
+     * What WordPress already knows is waiting, keyed by plugin file or stylesheet.
+     *
+     * Read out of the update transient the scan populates anyway, so "installed 2.1, latest 2.9"
+     * costs nothing beyond a look at an option that is already there. Only `response` carries a
+     * new version - `no_update` means the site is current, which is said by the absence of an
+     * entry rather than by echoing the installed version back.
+     */
+    protected static function getAvailableVersions($type)
+    {
+        $transient = self::getUpdateTransient($type, false);
+        $items = isset($transient->response) ? (array)$transient->response : [];
+        $versions = [];
+
+        foreach ($items as $key => $item) {
+            $item = (array)$item;
+
+            if (!empty($item['new_version'])) {
+                $versions[$key] = (string)$item['new_version'];
+            }
+        }
+
+        return $versions;
+    }
+
+    protected static function getPluginStatus($pluginFile)
+    {
+        if (is_multisite() && is_plugin_active_for_network($pluginFile)) {
+            return 'network-active';
+        }
+
+        return is_plugin_active($pluginFile) ? 'active' : 'inactive';
     }
 }

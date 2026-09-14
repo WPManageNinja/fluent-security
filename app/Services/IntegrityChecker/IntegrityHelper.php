@@ -37,7 +37,14 @@ class IntegrityHelper
              */
             'relay_rejection'     => '',
             'relay_rejected_at'   => '',
-            'relay_auth_failures' => 0
+            'relay_auth_failures' => 0,
+            /*
+             * A hash of the extension inventory the relay has actually accepted, so the list is
+             * only carried when it has changed. Empty means it has never taken one - which is
+             * also the state a reconnection puts this back to, since a new row over there knows
+             * nothing about this site.
+             */
+            'extensions_hash'     => ''
         ];
 
         $settings = get_option('__fls_integrity_settings', []);
@@ -518,11 +525,7 @@ class IntegrityHelper
          * the same findings on every run, and suppressing the repeat there rather than here
          * means the dashboard still records that the scan happened and still found them.
          */
-        $response = Api::sendPostRequest('reports', $payload);
-
-        self::handleReportResponse($response);
-
-        return $response;
+        return self::postReport(self::withInventory($payload));
     }
 
     /*
@@ -560,6 +563,98 @@ class IntegrityHelper
              */
             'unpublished_versions' => array_values((array)$suspiciousExtensions)
         ];
+    }
+
+    /*
+     * Send a report and act on what comes back.
+     *
+     * The one place a report is posted, so the standing of this site and the relay's record of
+     * what is installed are updated on the same answer rather than in two places that can
+     * disagree about whether the request succeeded.
+     */
+    protected static function postReport($payload)
+    {
+        $response = Api::sendPostRequest('reports', $payload);
+
+        self::handleReportResponse($response);
+
+        $code = is_wp_error($response) ? 0 : (int)wp_remote_retrieve_response_code($response);
+
+        /*
+         * The inventory counts as delivered only when the relay took it. Marking it sent on the
+         * way out would mean one failed request silently withholds the list until something else
+         * about the site changes - which, for a list that changes when a plugin is updated,
+         * could be months.
+         */
+        if ($code >= 200 && $code < 300 && isset($payload['extensions'])) {
+            $settings = self::getSettings();
+            $settings['extensions_hash'] = self::inventoryHash([
+                'extensions'           => $payload['extensions'],
+                'extensions_untracked' => Arr::get($payload, 'extensions_untracked', 0)
+            ]);
+            self::saveSettings($settings);
+        }
+
+        return $response;
+    }
+
+    /*
+     * Add the extension inventory, but only when the relay's copy is out of date.
+     *
+     * The list is the same on almost every run - a site's plugins change when somebody updates
+     * one - so sending it every time would be the same few kilobytes over and over. Comparing a
+     * hash of what would be sent against what was last accepted costs one option read.
+     */
+    public static function withInventory($payload)
+    {
+        $inventory = ExtensionInventory::getReportInventory();
+
+        /* Nothing trustworthy to say this run - see getReportInventory. */
+        if (!is_array($inventory) || !Arr::get($inventory, 'extensions')) {
+            return $payload;
+        }
+
+        if (self::inventoryHash($inventory) === (string)Arr::get(self::getSettings(), 'extensions_hash', '')) {
+            return $payload;
+        }
+
+        /*
+         * Both keys travel together. The count is part of what changed, so sending it without the
+         * list it was counted alongside would leave the relay holding two halves of different
+         * snapshots.
+         */
+        $payload['extensions'] = Arr::get($inventory, 'extensions', []);
+        $payload['extensions_untracked'] = (int)Arr::get($inventory, 'extensions_untracked', 0);
+
+        return $payload;
+    }
+
+    /*
+     * Order-independent, so a plugin list that comes back from get_plugins() in a different
+     * order is not mistaken for a site that has changed.
+     */
+    public static function inventoryHash($inventory)
+    {
+        /*
+         * The count is hashed too. A bespoke plugin being added or removed changes nothing in the
+         * named list, and without this the relay would never be told its number had moved.
+         */
+        $parts = ['untracked:' . (int)Arr::get((array)$inventory, 'extensions_untracked', 0)];
+
+        foreach ((array)Arr::get((array)$inventory, 'extensions', []) as $item) {
+            $parts[] = implode('|', [
+                Arr::get($item, 'type', ''),
+                Arr::get($item, 'slug', ''),
+                Arr::get($item, 'file', ''),
+                Arr::get($item, 'version', ''),
+                Arr::get($item, 'status', ''),
+                Arr::get($item, 'latest', '')
+            ]);
+        }
+
+        sort($parts);
+
+        return md5(implode("\n", $parts));
     }
 
     /*
@@ -615,11 +710,7 @@ class IntegrityHelper
             self::getSuspiciousExtensions()
         );
 
-        $response = Api::sendPostRequest('reports', $payload);
-
-        self::handleReportResponse($response);
-
-        return $response;
+        return self::postReport(self::withInventory($payload));
     }
 
     /*
