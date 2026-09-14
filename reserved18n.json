@@ -52,5 +52,10 @@
   "__recovery_secure_keyword__": "SIGN OUT",
   "__recovery_salts_warning__": "This cannot be undone. Any OTHER plugin that encrypted something with a key derived from these — an SMTP password, a payment gateway secret, a stored API token — will not be able to read it again, and there is no list of which plugins did that. You find out the next time one of them tries to use what it stored.",
   "__recovery_salts_safe__": "FluentAuth is not affected either way: the security scanner stays connected to the alerts service, and everyone's authenticator apps and recovery codes keep working. Neither is encrypted against these keys, deliberately.",
-  "__recovery_salts_signout__": "You will be signed out along with everyone else — there is no staying signed in through this one — so have your password to hand and sign back in straight away."
+  "__recovery_salts_signout__": "You will be signed out along with everyone else — there is no staying signed in through this one — so have your password to hand and sign back in straight away.",
+  "__disconnect_note__": "This site sends its scan results to the alerts service, which is what emails you when a file changes.",
+  "__disconnect_confirm__": "Scheduled scanning stops and no more alert emails are sent. Your key is destroyed here and at the service, and there is no way back to it: reconnecting means registering again and confirming a new key by email. Scanning this site by hand is not affected. Disconnect anyway?",
+  "__relay_disabled_desc__": "This site has been switched off on the alerts dashboard, so your scan reports are not being accepted and no emails are going out. Your key still works. Switch the site back on there, then use the button below.",
+  "__relay_revoked_desc__": "The alerts service no longer recognises this site, so its key has been cleared. This usually means the site was deleted from the alerts dashboard. Scanning here still works. Connect again to get scheduled scans and email alerts back.",
+  "__scan_without_connecting__": "You can scan this site whenever you like and read the results here without connecting to anything. What you give up is the scheduled scan and the email alert, so you will only hear about a change when you come and look."
 }

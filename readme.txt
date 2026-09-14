@@ -164,7 +164,7 @@ Use one site as the login provider for your other sites. Users sign in once on t
 
 = Guided Setup =
 
-A short setup wizard runs the first time you open FluentAuth. It asks a handful of questions, shows you what each answer changes, and turns on a sensible set of options. You can rerun it or skip it at any time.
+A short setup wizard runs the first time you open FluentAuth. It asks a handful of questions, shows you what each answer changes, and turns on a sensible set of options. Skip it and nothing is written, and every answer is an ordinary setting you can change later.
 
 = Built to Be Fast =
 
@@ -185,35 +185,24 @@ Nothing is sent unless you choose to connect on the Monitoring screen, which lis
 Privacy policy: [https://fluentauth.com/privacy-policy/](https://fluentauth.com/privacy-policy/)
 Terms and conditions: [https://wpmanageninja.com/terms-and-conditions/](https://wpmanageninja.com/terms-and-conditions/)
 
-= 2. WordPress.org (for file scanning) =
+= 2. WordPress.org and GitHub (for file scanning) =
 
-To tell whether a file has changed, the plugin asks WordPress.org for the official copy. This happens when you run a scan and when you view or restore a file.
+To tell whether a file has changed, the plugin fetches the official copy to compare against. This happens when you run a scan, and when you view or restore a file.
 
-- `api.wordpress.org` for the official WordPress core checksums and for plugin and theme version information.
-- `downloads.wordpress.org` for plugin checksums, for the official theme package when a theme is checked, and for the official plugin, theme and core files when you reinstall one.
-- `plugins.svn.wordpress.org` and `themes.svn.wordpress.org` for a single original plugin or theme file when you view a diff.
+- `api.wordpress.org` and `downloads.wordpress.org` for the official core checksums, plugin checksums, theme packages, and the files themselves when you reinstall one.
+- `plugins.svn.wordpress.org`, `themes.svn.wordpress.org` and `raw.githubusercontent.com` for a single original file when you view a diff. The last of these is the official WordPress mirror on GitHub.
 
-All that is sent is the name and version of the item being checked, and the path of the file you asked to see. No information about your site or your users is sent.
+All that is sent is the name, version and file path of the item being checked. Nothing about your site or your users goes with it.
 
-WordPress.org privacy policy: [https://wordpress.org/about/privacy/](https://wordpress.org/about/privacy/)
+WordPress.org [Privacy Policy](https://wordpress.org/about/privacy/). GitHub [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
 
-= 3. GitHub (for WordPress core file diffs) =
+= 3. Social login providers (only if you turn them on) =
 
-When you view a diff of a changed WordPress core file, the original copy of that one file is fetched from the official WordPress mirror on GitHub, at `raw.githubusercontent.com`. This only happens when you click to view a diff.
-
-All that is sent is your WordPress version number and the path of the file you asked to see. No information about your site or your users is sent.
-
-GitHub [Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)
-
-= 4. Social login providers (only if you turn them on) =
-
-If you enable a social login provider, your site talks to that provider when a user chooses to sign in with it. Nothing is sent unless you set the provider up and a user clicks its button.
+If you enable a provider, your site talks to it when a user clicks its button to sign in. What is exchanged is the standard OAuth handshake, plus the user's name and email address so the account can be matched or created. Nothing is sent unless you set the provider up yourself.
 
 - Google, at `accounts.google.com` and `oauth2.googleapis.com`. [Terms](https://policies.google.com/terms) and [Privacy Policy](https://policies.google.com/privacy)
 - GitHub, at `github.com` and `api.github.com`. [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Policy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)
 - Facebook, at `facebook.com` and `graph.facebook.com`. [Terms](https://www.facebook.com/terms.php) and [Privacy Policy](https://www.facebook.com/privacy/policy/)
-
-What is exchanged is the standard OAuth handshake, plus the user's name and email address from the provider so the account can be matched or created.
 
 == Why FluentAuth? ==
 
@@ -339,7 +328,7 @@ It is not a malware scanner. It tells you which files no longer match the offici
 == Screenshots ==
 1. Reporting Dashboard
 2. Login Security Settings
-3. Social Logins Frontend
+3. Passkey, Authenticator App and Email Two-Factor Authentication
 4. Custom Login/Signup Shortcodes
 5. Dynamic Login Redirects
 6. Detailed Audit Logs
@@ -347,6 +336,7 @@ It is not a malware scanner. It tells you which files no longer match the offici
 8. System Emails Customization
 9. Login/Signup Page Customizer
 10. WordPress Core Files Integrity Check
+11. Account and File Recovery Tools
 
 == Changelog ==
 

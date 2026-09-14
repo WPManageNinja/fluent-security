@@ -32,31 +32,7 @@ export default {
         TwoFaSettings,
         ProxySettings
     },
-    data() {
-        return {
-            reopening: false
-        };
-    },
     methods: {
-        /**
-         * Reopens the wizard and goes to it.
-         *
-         * The flag is cleared on the server rather than in the browser, so a second tab
-         * with the app already open agrees about what state this site is in.
-         */
-        rerunSetup() {
-            this.reopening = true;
-
-            this.$post('onboarding/reopen')
-                .then(() => {
-                    this.appVars.is_onboarding = true;
-                    this.$router.push({name: 'onboarding'});
-                })
-                .catch(error => this.$handleError(error))
-                .finally(() => {
-                    this.reopening = false;
-                });
-        },
         applyRecommended() {
             /*
              * The recommendations come from the server, not from a literal here. They are
@@ -85,16 +61,6 @@ export default {
                         :description="$t('Everything saved together, in one place.')"
                         :saving="saving" :disabled="!settings" @save="saveSettings()">
             <template #actions>
-                <!--
-                    Setup is a tool rather than a one-shot: the questions it asks are worth
-                    walking again when a site changes hands or moves behind a CDN, and a
-                    wizard that can only ever run once is one people wish they had not
-                    skipped. It reopens rather than applying anything, so nothing is
-                    written until it is walked through again.
-                -->
-                <el-button size="small" :loading="reopening" @click="rerunSetup()">
-                    {{ $t('Run setup again') }}
-                </el-button>
                 <el-button size="small" @click="applyRecommended()">
                     {{ $t('Apply recommended') }}
                 </el-button>

@@ -84,14 +84,6 @@ class OnboardingTest extends BaseTestCase
         $this->assertSame($before, get_option('__fls_auth_settings'));
     }
 
-    public function test_reopening_clears_the_flag()
-    {
-        Onboarding::skip();
-        Onboarding::reopen();
-
-        $this->assertFalse(Onboarding::isDone());
-    }
-
     public function test_completing_stamps_a_date_rather_than_a_boolean()
     {
         Onboarding::complete([]);
@@ -105,22 +97,6 @@ class OnboardingTest extends BaseTestCase
         Onboarding::complete([]);
 
         $this->assertWpErrorWithCode(Onboarding::complete([]), 'already_onboarded');
-    }
-
-    /**
-     * A re-run is an ordinary settings change and is allowed to happen on a site that has
-     * already been through setup - which is the whole point of the button that reaches it.
-     */
-    public function test_a_rerun_is_allowed_after_completion()
-    {
-        Onboarding::complete([]);
-
-        $result = Onboarding::rerun([
-            'hardening' => ['disable_xmlrpc' => true]
-        ]);
-
-        $this->assertNotWPError($result);
-        $this->assertSame('yes', Helper::getSetting('disable_xmlrpc'));
     }
 
     /* ------------------------------------------------------------- the answers */

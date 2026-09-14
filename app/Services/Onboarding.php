@@ -143,8 +143,8 @@ class Onboarding
      *
      * `answer` produces what the screen should open with: the recommended value, except
      * where the site has already been configured, in which case what it already has -
-     * a wizard re-run from the settings screen should not propose undoing the answers
-     * given the first time.
+     * somebody who changed a setting before walking the wizard should not be shown a
+     * screen proposing to undo it.
      *
      * @return array
      */
@@ -336,17 +336,6 @@ class Onboarding
             );
         }
 
-        return self::write(is_array($answers) ? $answers : []);
-    }
-
-    /**
-     * The same write, from the settings screen, on a site that has been through this before.
-     *
-     * @param array $answers
-     * @return array|\WP_Error
-     */
-    public static function rerun($answers)
-    {
         return self::write(is_array($answers) ? $answers : []);
     }
 
@@ -571,18 +560,6 @@ class Onboarding
     public static function skip()
     {
         update_option(self::OPTION, 'skipped', false);
-
-        return ['state' => self::state()];
-    }
-
-    /**
-     * Reopens the wizard, so it can be walked again from the settings screen.
-     *
-     * @return array
-     */
-    public static function reopen()
-    {
-        delete_option(self::OPTION);
 
         return ['state' => self::state()];
     }

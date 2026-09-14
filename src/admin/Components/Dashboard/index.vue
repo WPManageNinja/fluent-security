@@ -22,8 +22,6 @@ export default {
             dashboard: false,
             /* Which address is mid-request, so only its own button spins. */
             blocking: '',
-            /* TEMP: only backs the "Test setup flow" button below. Remove with it. */
-            reopening: false,
             range: '-30 days',
             ranges: [
                 {value: '-0 days', label: this.$t('Today')},
@@ -103,26 +101,6 @@ export default {
                     this.blocking = '';
                 });
         },
-        /*
-         * TEMP - remove before release. Reopens the setup wizard from the dashboard so
-         * the flow can be walked without hunting for "Run setup again" on the settings
-         * screen. Same call as GeneralSettings.rerunSetup(): the server flag is cleared
-         * first, because onboarding/complete refuses a site that is already set up.
-         */
-        testSetupFlow() {
-            if (this.reopening) return;
-            this.reopening = true;
-
-            this.$post('onboarding/reopen')
-                .then(() => {
-                    this.appVars.is_onboarding = true;
-                    this.$router.push({name: 'onboarding'});
-                })
-                .catch(errors => this.$handleError(errors))
-                .finally(() => {
-                    this.reopening = false;
-                });
-        },
         /* Tiles link into the logs table with their own status already selected. */
         statTarget(stat) {
             const target = {name: stat.route};
@@ -148,8 +126,6 @@ export default {
                 <p>{{ greeting }}. {{ $t('Your site’s login activity and security status, in one place.') }}</p>
             </div>
             <div class="fls_dashboard__actions">
-                <!-- TEMP: remove before release. See testSetupFlow(). -->
-                <el-button text :loading="reopening" @click="testSetupFlow">{{ $t('Test setup flow') }}</el-button>
                 <el-button @click="$router.push({name: 'settings_general'})">{{ $t('Security settings') }}</el-button>
                 <el-button type="primary" @click="$router.push({name: 'security_scans'})">{{ $t('Scan files') }}</el-button>
             </div>

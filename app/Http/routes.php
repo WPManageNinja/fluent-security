@@ -25,9 +25,7 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
      */
     ->get('onboarding', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'getOnboarding'], $permissions)
     ->post('onboarding/complete', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'complete'], $permissions)
-    ->post('onboarding/rerun', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'rerun'], $permissions)
     ->post('onboarding/skip', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'skip'], $permissions)
-    ->post('onboarding/reopen', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'reopen'], $permissions)
     ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $permissions)
     ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $permissions)
     /*
