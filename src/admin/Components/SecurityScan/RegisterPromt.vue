@@ -146,7 +146,12 @@ export default {
 
 <template>
     <div :class="{fls_page: !is_main}">
-        <div :class="{fls_scan_register_page: !is_main}">
+        <!--
+            Capped and centred in both places. Inline it used to take the full width of the
+            main column and hold a 620px form adrift inside it; the standalone route has always
+            capped it, and there was never a reason for the two to differ.
+        -->
+        <div class="fls_scan_register_page">
             <div v-if="!is_main" class="fls_page_head">
                 <div>
                     <h1 class="fls_page_title">{{ $t('Scanning Service') }}</h1>

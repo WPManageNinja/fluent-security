@@ -393,6 +393,24 @@
 /* ------------------------------------------------------------- narrow screens */
 
 /*
+ * A page whose aside is not rendered should not keep its column.
+ *
+ * The grid reserves the aside track whether or not anything fills it, so a screen that drops
+ * the aside for one of its states - the scans screen before a site has chosen how to scan -
+ * left its content sitting in the left two thirds with the reserved column empty beside it.
+ * Centred within its own column and visibly off-centre on the page, which is the kind of
+ * wrong that is easier to see than to name.
+ *
+ * Written as a condition on the grid rather than a class the screen remembers to pass, so it
+ * holds for whatever renders its aside conditionally next. Where :has() is not supported this
+ * simply does not apply and the layout is what it was before.
+ */
+.fls_page_inner:not(:has(> .fls_page_aside)) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main";
+}
+
+/*
  * The aside is a column beside the content, not a panel that belongs anywhere in particular,
  * so below the width where two columns fit it becomes a block at the end of the page. It
  * needs nothing else said about it here: it scrolls with the page at every width.
