@@ -274,21 +274,27 @@
 
 /*
  * FluentCart's aside is a full-height scrolling column of its own. Here the page scrolls as
- * one - the bars are the only pinned things on these screens - so the aside sticks below
- * them instead and scrolls internally only if it is taller than what is left of the
- * viewport. 28px is the page's own bottom gap.
+ * one - the bars are the only pinned things on these screens - and so does the aside.
+ *
+ * It used to stick below the bars and scroll inside itself once it outgrew the viewport,
+ * which is a scrollbar within a scrollbar: the wheel stops working where the pointer happens
+ * to be, and the part left below the fold is reachable only by finding and dragging a second
+ * bar. On the Monitoring screen it outgrows the viewport in the ordinary case rather than the
+ * extreme one - the snapshot panel alone takes it past a 900px window - so it was the normal
+ * state and not an edge. Pinning it without the inner scroll is not the alternative: an
+ * element taller than the viewport pins at the top and its bottom becomes unreachable
+ * altogether.
+ *
+ * `align-self: start` is what keeps it from being stretched to the main column's height by
+ * the grid, which is the whole reason it needed a height of its own before.
  */
 .fls_page_aside {
     @apply bg-surface rounded;
 
     grid-area: aside;
+    align-self: start;
     min-width: 0;
     padding: 20px;
-    position: sticky;
-    top: var(--fls-chrome-bottom);
-    max-height: calc(100vh - var(--fls-chrome-bottom) - 28px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
 }
 
 /*
@@ -371,20 +377,14 @@
 /* ------------------------------------------------------------- narrow screens */
 
 /*
- * The aside is a column beside the content, not a panel that belongs anywhere in
- * particular, so below the width where two columns fit it goes back to being a block at the
- * end of the page rather than trying to stay stuck to anything.
+ * The aside is a column beside the content, not a panel that belongs anywhere in particular,
+ * so below the width where two columns fit it becomes a block at the end of the page. It
+ * needs nothing else said about it here: it scrolls with the page at every width.
  */
 @media (max-width: 1180px) {
     .fls_page_inner {
         grid-template-columns: minmax(0, 1fr);
         grid-template-areas: "main" "aside";
-    }
-
-    .fls_page_aside {
-        position: static;
-        max-height: none;
-        overflow: visible;
     }
 }
 

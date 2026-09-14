@@ -592,7 +592,6 @@
 
     .fls_page_inner { max-width: none; grid-template-areas: "main aside"; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
     .fls_page_main { min-width: 0; }
-    .fls_page_aside { position: static; max-height: none; overflow: visible; align-self: start; }
     .fls_dcard { box-shadow: none; margin-bottom: 20px; }
     .fls_dcard_head { min-height: 0; padding: 18px 22px; }
     .fls_dcard_head h2 { font-size: 15px; font-weight: 600; line-height: 1.5; }
