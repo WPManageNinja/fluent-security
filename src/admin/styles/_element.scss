@@ -101,3 +101,53 @@
     top: auto !important;
     bottom: 10px;
 }
+
+/* --------------------------------------------------------------- pagination */
+
+/*
+ * The page you are on.
+ *
+ * Element Plus fills this one with --el-color-primary and writes on it in a hardcoded
+ * white. That holds while the primary colour is dark, which it is in light mode - but the
+ * dark theme inverts the accent to a pale grey (see the note on --fls-accent), and white
+ * on #D9DADC is 1.4:1. The number naming the current page was the least readable thing on
+ * the screen in the theme that is meant to be easier on the eyes.
+ *
+ * --fls-accent-contrast is the colour that is already defined as "what goes on top of the
+ * accent" in both themes, so this is the same rule in light as it ever was.
+ */
+.el-pagination .el-pager li.is-active,
+.el-pagination .el-pager li.is-active.number {
+    color: var(--fls-accent-contrast);
+}
+
+/* ------------------------------------------------------------ danger button */
+
+/*
+ * The button that does something you cannot take back.
+ *
+ * Element Plus fills this with #F56C6C and writes on it in white, which is 2.9:1 - and
+ * this is the button on "Sign everyone out" and on every delete confirmation in the
+ * plugin. The one control that most needs reading was the hardest to read.
+ *
+ * One fill for both themes rather than a token per theme: it has to carry a white label
+ * (4.7:1) and still stand away from the card it sits on, and the cards are white in one
+ * theme and near-black in the other. #D0412B clears both - 4.7:1 against white and 3.2:1
+ * against the dark card, against the 3:1 a control's own edge has to meet.
+ *
+ * Scoped to the button rather than done by moving --el-color-danger, which also colours
+ * error text, where a fill this dark would be going the wrong way in the dark theme.
+ */
+.el-button--danger {
+    --el-button-bg-color: #D0412B;
+    --el-button-border-color: #D0412B;
+    --el-button-text-color: #FFFFFF;
+
+    --el-button-hover-bg-color: #BC3A26;
+    --el-button-hover-border-color: #BC3A26;
+    --el-button-hover-text-color: #FFFFFF;
+
+    --el-button-active-bg-color: #A83320;
+    --el-button-active-border-color: #A83320;
+    --el-button-active-text-color: #FFFFFF;
+}

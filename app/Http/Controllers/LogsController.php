@@ -63,6 +63,28 @@ class LogsController
             $log->created_at_human = date_i18n($dateFormat, $timestamp);
 
             $log->media_label = Helper::getLoginMediaLabel($log->media);
+
+            /*
+             * The screen renders this as HTML, because WordPress's own login errors are
+             * written with <strong> around the name and a "Lost your password?" link, and
+             * showing the tags to the reader would be worse than showing the markup.
+             *
+             * So it is cut down to exactly that here rather than trusted. A description is
+             * whatever the WP_Error that reached `wp_login_failed` carried, and only core's
+             * own messages are known to have escaped the username they quote - any other
+             * plugin on the site can put a WP_Error into that hook, and the row is written
+             * before anybody has looked at it. Filtered on the way out rather than on the
+             * way in, so rows already in the table are covered too.
+             */
+            $log->description = wp_kses($log->description, [
+                'strong' => [],
+                'b'      => [],
+                'em'     => [],
+                'i'      => [],
+                'code'   => [],
+                'br'     => [],
+                'a'      => ['href' => [], 'title' => []]
+            ]);
         }
 
         return [

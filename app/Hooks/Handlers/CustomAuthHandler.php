@@ -1143,11 +1143,46 @@ class CustomAuthHandler
         do_action('fluent_auth/after_logging_in_user', $userId);
     }
 
+    /**
+     * The address being viewed, with the host taken from the site rather than the request.
+     *
+     * @return string
+     */
+    protected static function currentUrl()
+    {
+        $host = wp_parse_url(home_url(), PHP_URL_HOST);
+
+        if (!$host) {
+            return home_url('/');
+        }
+
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+
+        if (strpos($uri, '/') !== 0) {
+            $uri = '/' . $uri;
+        }
+
+        return set_url_scheme('http://' . $host . $uri);
+    }
+
     protected function nativeLoginForm($args = array())
     {
         $defaults = array(
             'echo'           => true,
-            'redirect'       => (is_ssl() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'],
+            /*
+             * The host comes from the site's own address, not from the Host header, which
+             * is the client's to set. Core's wp_login_form() reads HTTP_HOST here; on a
+             * site that does not pin the header at the web server that puts whatever was
+             * sent into the form's redirect_to. wp_safe_redirect() refuses it later, so
+             * the visitor lands somewhere harmless either way - but the form should not be
+             * quoting a stranger's hostname back at them in the first place.
+             *
+             * Assembled rather than passed to home_url(), which would prepend the path of
+             * an install in a subdirectory to a REQUEST_URI that already carries it.
+             */
+            'redirect'       => self::currentUrl(),
             'form_id'        => 'loginform',
             'label_username' => __('Username or Email Address', 'fluent-security'),
             'label_password' => __('Password', 'fluent-security'),

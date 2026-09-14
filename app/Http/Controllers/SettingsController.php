@@ -333,8 +333,9 @@ class SettingsController
 
     public static function uploadImage(\WP_REST_Request $request)
     {
-        $file = $_FILES['file'];
-        if (empty($file)) {
+        $file = isset($_FILES['file']) ? $_FILES['file'] : null;
+
+        if (empty($file) || !is_array($file) || empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
             return new \WP_Error('invalid_file', __('Invalid file', 'fluent-security'));
         }
 
@@ -344,7 +345,6 @@ class SettingsController
             $file['name'],
             null // we’ll supply our own list of allowed types below
         );
-        $ext = $checked['ext'];
         $type = $checked['type'];
 
 
@@ -515,8 +515,19 @@ class SettingsController
         }
 
         $sites = get_option('__fls_child_sites', []);
-        $site = Arr::get($sites, $data['site_id'], null);
-        if (empty($site)) {
+
+        /*
+         * Indexed directly rather than through Arr::get(), which reads a dot in the key as
+         * a step down into the array. The id arrives from the network on the one route here
+         * that answers without a signed-in user, and a dotted one walked into a child site's
+         * own record - reaching a string where an array was expected, and taking the
+         * secret_key comparison below with it.
+         */
+        $site = isset($sites[$data['site_id']]) && is_array($sites[$data['site_id']])
+            ? $sites[$data['site_id']]
+            : null;
+
+        if (empty($site) || empty($site['secret_key'])) {
             return new \WP_Error('invalid_request', __('Invalid Site ID', 'fluent-security'));
         }
 
@@ -563,7 +574,7 @@ class SettingsController
         ];
     }
 
-    public function installPlugin(\WP_REST_Request $request)
+    public static function installPlugin(\WP_REST_Request $request)
     {
         $plugin = $request->get_param('plugin');
 
@@ -586,7 +597,7 @@ class SettingsController
             'file'      => 'fluent-smtp.php',
         ];
 
-        $this->backgroundInstaller($plugin, $plugin_id);
+        self::backgroundInstaller($plugin, $plugin_id);
 
         if (!defined('FLUENTMAIL_PLUGIN_FILE')) {
             return new \WP_Error('installation_failed', __('Plugin installation failed. Please try again.', 'fluent-security'));
@@ -599,7 +610,7 @@ class SettingsController
     }
 
 
-    private function backgroundInstaller($plugin_to_install, $plugin_id)
+    private static function backgroundInstaller($plugin_to_install, $plugin_id)
     {
         if (!empty($plugin_to_install['repo-slug'])) {
             require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -611,7 +622,7 @@ class SettingsController
 
             $skin = new \Automatic_Upgrader_Skin();
             $upgrader = new \WP_Upgrader($skin);
-            $installed_plugins = array_reduce(array_keys(\get_plugins()), array($this, 'associate_plugin_file'), array());
+            $installed_plugins = array_reduce(array_keys(\get_plugins()), array(self::class, 'associate_plugin_file'), array());
             $plugin_slug = $plugin_to_install['repo-slug'];
             $plugin_file = isset($plugin_to_install['file']) ? $plugin_to_install['file'] : $plugin_slug . '.php';
             $installed = false;
@@ -715,7 +726,7 @@ class SettingsController
         }
     }
 
-    private function associate_plugin_file($plugins, $key)
+    private static function associate_plugin_file($plugins, $key)
     {
         $path = explode('/', $key);
         $filename = end($path);

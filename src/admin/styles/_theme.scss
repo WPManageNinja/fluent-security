@@ -61,8 +61,16 @@
     /* A label beside a value, a description under a setting. */
     --fls-text-mid: #565865;
 
-    /* A timestamp, a count, a hint - present but not to be read first. */
-    --fls-text-light: #9D9FAC;
+    /*
+     * A timestamp, a count, a hint - present but not to be read first.
+     *
+     * Not to be read first is not the same as not to be read. This was #9D9FAC, which is
+     * 2.6:1 on a white card - below the 4.5:1 small text has to meet, and the eighty-odd
+     * places that use it are timestamps and counts, all of them small. Darkened until it
+     * passes on every surface it is drawn on, including the raised grey; it still sits a
+     * clear step below --fls-text-mid, which is what the token is for.
+     */
+    --fls-text-light: #676979;
 
     /* Something to click that is not a button. */
     --fls-link: #253241;
@@ -102,7 +110,12 @@
     --fls-warning-wash: #FFF9F3;
     --fls-warning-bg: #FEF4E6;
     --fls-warning-line: #FDE8CD;
-    --fls-warning-fg: #C47206;
+    /*
+     * Darkened from #C47206, which read at 3.4:1 on its own tint - the one colour in the
+     * three ramps that did not clear 4.5:1, and the one that says something needs looking
+     * at. Danger and success already sat above it.
+     */
+    --fls-warning-fg: #A35F05;
 
     --fls-success-wash: #F3FAF8;
     --fls-success-bg: #E8F5F1;
@@ -221,6 +234,34 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
  */
 body.toplevel_page_fluent-auth {
     --el-color-primary: var(--fls-accent);
+
+    /*
+     * Element Plus's own #909399 and #A8ABB2, darkened until they clear 4.5:1 on the greys
+     * they are drawn on - its tag fill and its input fill as well as a white card. They
+     * stood at 2.8:1 and 2.3:1 because only the dark theme below had ever restated them,
+     * and neither is decoration: the secondary colour is the text inside a multi-select's
+     * tags, and the placeholder is where several of these fields say what happens if you
+     * choose nothing at all ("Nobody is forced", "Offered to every role").
+     *
+     * Overridden again in dark, which follows.
+     */
+    --el-text-color-secondary: #6B6E75;
+    --el-text-color-placeholder: #6A6E78;
+
+    /*
+     * The chips inside a multi-select.
+     *
+     * Said once for both themes rather than only in dark, which is where it used to live.
+     * Every value here is a theme token, so the one block is correct in both - and in light
+     * the chips were falling back to Element Plus's own "info" grey, which put the role
+     * names in a role picker at 2.8:1 against the chip they sit on.
+     */
+    .el-tag {
+        --el-tag-bg-color: var(--fls-surface-raised);
+        --el-tag-border-color: var(--fls-border);
+        --el-tag-text-color: var(--fls-text-mid);
+        --el-tag-hover-color: var(--fls-text);
+    }
 }
 
 .fluent_theme_dark body.toplevel_page_fluent-auth,
@@ -234,7 +275,8 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
     --el-text-color-primary: var(--fls-text);
     --el-text-color-regular: var(--fls-text-mid);
     --el-text-color-secondary: var(--fls-text-light);
-    --el-text-color-placeholder: #758195;
+    /* Lifted from #758195, which read at 3.85:1 on a card - see the note in light. */
+    --el-text-color-placeholder: #909AAA;
     --el-text-color-disabled: #5A5F66;
 
     --el-border-color: var(--fls-border);
@@ -295,14 +337,6 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
         --el-button-border-color: var(--fls-accent);
         --el-button-hover-border-color: #C0C2C4;
         --el-button-active-border-color: #C0C2C4;
-    }
-
-    /* The chips inside a multi-select, which are tinted from the primary ramp. */
-    .el-tag {
-        --el-tag-bg-color: var(--fls-surface-raised);
-        --el-tag-border-color: var(--fls-border);
-        --el-tag-text-color: var(--fls-text-mid);
-        --el-tag-hover-color: var(--fls-text);
     }
 
     .el-table {

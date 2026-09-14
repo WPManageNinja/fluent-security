@@ -10,14 +10,18 @@
                         <span>{{ $t('Back') }}</span>
                     </el-button>
                     <div class="fcom_editor_menu object_menu">
-                        <ul class="fcom_space_menu_ul">
-                            <li @click.prevent="currentTab = 'login'">
-                                <a :class="{ 'router-link-exact-active': currentTab == 'login' }" href="#">
+                        <ul class="fcom_space_menu_ul" role="tablist">
+                            <li role="presentation">
+                                <a :class="{ 'router-link-exact-active': currentTab == 'login' }" href="#"
+                                   role="tab" :aria-selected="currentTab == 'login' ? 'true' : 'false'"
+                                   @click.prevent="currentTab = 'login'">
                                     {{ $t('Login') }}
                                 </a>
                             </li>
-                            <li @click.prevent="currentTab = 'signup'">
-                                <a :class="{ 'router-link-exact-active': currentTab == 'signup' }" href="#">
+                            <li role="presentation">
+                                <a :class="{ 'router-link-exact-active': currentTab == 'signup' }" href="#"
+                                   role="tab" :aria-selected="currentTab == 'signup' ? 'true' : 'false'"
+                                   @click.prevent="currentTab = 'signup'">
                                     {{ $t('Sign Up') }}
                                 </a>
                             </li>

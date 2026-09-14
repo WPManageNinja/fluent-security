@@ -181,6 +181,28 @@
         vertical-align: middle;
     }
 
+    /*
+     * wp-admin's own buttons, standing on our card rather than on its grey.
+     *
+     * "Add media" is WordPress's button, not ours, and it comes coloured #3858E9 with no
+     * background - which is wp-admin's blue on wp-admin's light grey. On the dark theme's
+     * card that reads at 2.7:1. Recoloured to the app's own link token, which is already
+     * right in both themes, rather than left to a colour chosen for a different page.
+     */
+    .wp-core-ui .button,
+    .wp-core-ui .button.insert-media {
+        color: var(--fls-link);
+        border-color: var(--fls-border);
+        background: var(--fls-surface-raised);
+
+        &:hover,
+        &:focus {
+            color: var(--fls-heading);
+            border-color: var(--fls-border-strong);
+            background: var(--fls-surface-sunk);
+        }
+    }
+
     .wp-editor-tabs {
         float: left;
     }

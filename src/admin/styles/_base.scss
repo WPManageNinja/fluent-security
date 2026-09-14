@@ -50,6 +50,24 @@ body.toplevel_page_fluent-auth {
     color: var(--fls-text);
 
     /*
+     * The same thing again for links, which were left behind when the line above was
+     * written. wp-admin colours every anchor #3858E9, which is its own blue on its own
+     * grey - on a dark card it reads at 2.7:1. --fls-link is the token that already
+     * answers this in both themes; nothing was applying it.
+     *
+     * Element Plus colours its own anchors, and so do the rules that make a link look like
+     * a button, so this stays a plain fallback and loses to all of them.
+     */
+    a:not([class*="el-"]) {
+        color: var(--fls-link);
+
+        &:hover,
+        &:focus-visible {
+            color: var(--fls-heading);
+        }
+    }
+
+    /*
      * Tailwind's preflight normally sets the box model, but preflight is off here because
      * it would restyle the whole of wp-admin. Without it these elements inherit wp-admin's
      * content-box, which makes every `min-h-*` and `h-*` utility add its padding on top of

@@ -51,6 +51,58 @@ function modifyAndReconstructSprintf(s) {
 }
 
 
+/*
+ * Strings that are translated where they are *used* rather than where they are written.
+ *
+ * A handful of screens keep their labels in a plain data structure - the route table, the
+ * section bar, the colour groups on the email template screen - and render them through
+ * `$t(item.title)`. That call is correct, but the string it looks up never appears inside
+ * a `$t()` in the source, so the pass below could not see it and the lookup quietly fell
+ * back to English. Whether such a string was translated came down to whether the same
+ * words happened to be written out literally on some other screen.
+ *
+ * So each of those files names the keys whose literal values are shown to somebody. Adding
+ * a route or a section picks its title up on the next run; nothing has to be listed by hand.
+ */
+const dynamicLabelSources = {
+    'src/admin/routes.js': ['title'],
+    'src/admin/Bits/subNav.js': ['label', 'title'],
+    'src/admin/Bits/searchIndex.js': ['group'],
+    'src/admin/Components/CustomWpEmails/TemplateSettings.vue': ['title', 'note', 'label', 'hint']
+};
+
+// Collect `key: 'literal'` for the declared keys of the declared files.
+function extractDynamicLabels() {
+    const results = {};
+
+    for (const [file, keys] of Object.entries(dynamicLabelSources)) {
+        if (!fs.existsSync(file)) {
+            console.warn('i18n: ' + file + ' is listed as a label source but does not exist');
+            continue;
+        }
+
+        const content = fs.readFileSync(file, 'utf8');
+
+        keys.forEach(key => {
+            const regex = new RegExp(key + "\\s*:\\s*'((?:[^'\\\\]|\\\\.)*)'", 'g');
+            let match;
+
+            while ((match = regex.exec(content)) !== null) {
+                const value = match[1];
+
+                // Route names, slugs and other identifiers share these keys; words do not.
+                if (!/[A-Z]/.test(value) && !/\s/.test(value)) {
+                    continue;
+                }
+
+                results[value] = true;
+            }
+        });
+    }
+
+    return Object.keys(results);
+}
+
 // Function to read directory contents recursively
 function readDirRecursively(dir, allFiles = []) {
     const files = fs.readdirSync(dir);
@@ -139,6 +191,12 @@ function writeResults(strings) {
 function processVueFiles() {
     const vueFiles = readDirRecursively(targetDir);
     const uniqueStrings = extractStrings(vueFiles);
+
+    extractDynamicLabels().forEach(label => {
+        if (!uniqueStrings.includes(label)) {
+            uniqueStrings.push(label);
+        }
+    });
 
     writeResults(uniqueStrings);
 }

@@ -63,7 +63,17 @@ class FluentAuthPlugin
                 $class
             );
 
-            require FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
+            $path = FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
+
+            /*
+             * Checked rather than required blind. An autoloader that fatals on a name it
+             * does not have turns every class_exists() on a FluentAuth\ class - ours or
+             * another plugin's guess at one - into a white screen, and a half-copied
+             * update into an unrecoverable site rather than one broken feature.
+             */
+            if (file_exists($path)) {
+                require $path;
+            }
         });
 
         require_once FLUENT_AUTH_PLUGIN_PATH . 'app/Services/DB/wpfluent.php';

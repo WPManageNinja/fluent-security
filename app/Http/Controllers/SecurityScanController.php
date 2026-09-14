@@ -711,11 +711,18 @@ class SecurityScanController
     protected static function resolveCoreFile($fileConfig, $forViewing = true)
     {
         $file = $fileConfig['file'];
-        $folder = $fileConfig['folder'];
+
+        /*
+         * Read with a default rather than indexed: only `file` and `status` are checked by
+         * the callers, so a request without a folder reached this as an undefined key -
+         * a warning on every such call, and a null that only passed the check below by
+         * comparing loosely equal to the empty string.
+         */
+        $folder = (string)Arr::get($fileConfig, 'folder', '');
 
         $validFolders = ['', 'wp-admin', 'wp-includes', WPINC];
 
-        if (!in_array($folder, $validFolders)) {
+        if (!in_array($folder, $validFolders, true)) {
             return new \WP_Error('invalid_data', __('Invalid folder name.', 'fluent-security'), ['status' => 400, 'data' => $fileConfig]);
         }
 

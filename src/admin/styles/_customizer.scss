@@ -159,6 +159,12 @@
 /* ------------------------------------------------------------- the side panel */
 
 .fcom_edit_title {
+    i:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
     @apply flex items-center;
 
     gap: 4px;
@@ -271,7 +277,14 @@
         }
     }
 
-    &:hover {
+    /*
+     * Shown on focus as well as on hover. These controls are drawn hidden and brought in
+     * when the row is pointed at, which left them unreachable for anyone not using a
+     * mouse: tabbing moved focus onto an `invisible` button and a control scaled to
+     * nothing, so the ring landed somewhere the reader could not see.
+     */
+    &:hover,
+    &:focus-within {
         .fcom_block_action {
             @apply visible;
         }
@@ -279,6 +292,23 @@
         .fcom_meta_sorting {
             transform: translateX(-50%) scale(1);
         }
+    }
+
+    /*
+     * The row itself, its label and the small controls are all operable, so each says
+     * where focus is. Offset inwards on the label because it fills the row and an outset
+     * ring would be clipped by the row's own border.
+     */
+    .fcom_block_label:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: -2px;
+        border-radius: 4px;
+    }
+
+    .fcom_block_action i:focus-visible,
+    .fcom_meta_sorting i:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 2px;
     }
 
     /* Still in the list and still reorderable, just not drawn on the page. */
@@ -320,13 +350,26 @@
             vertical-align: middle;
         }
 
-        /* Only worth reading when you are on the row it belongs to. */
+        /*
+         * Quieter than the row it belongs to, but still legible on its own. It was drawn
+         * at .2, which against this background is a mark you cannot read and can only find
+         * by sweeping a pointer over the row - and it is the handle for the only
+         * explanation of what the colour does.
+         */
         .fcom_tip {
-            opacity: .2;
+            opacity: .55;
+            transition: opacity .15s ease;
         }
 
-        &:hover .fcom_tip {
+        &:hover .fcom_tip,
+        .fcom_tip:focus-visible {
             opacity: 1;
+        }
+
+        .fcom_tip:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+            border-radius: 4px;
         }
     }
 }

@@ -252,11 +252,13 @@ export default {
 
                 <div class="fls_scan_file_actions">
                     <button v-if="file.status !== 'deleted'" type="button" class="fls_icon_btn"
-                            :title="$t('View File')" @click="viewFile(file)"
+                            :title="$t('View File')" :aria-label="$t('View File')"
+                            @click="viewFile(file)"
                             v-html="icons.eye"></button>
 
                     <el-dropdown trigger="click" @command="onCommand">
                         <button type="button" class="fls_icon_btn" :title="$t('More')"
+                                :aria-label="$t('More actions for this file')" aria-haspopup="menu"
                                 v-html="icons.more"></button>
                         <template #dropdown>
                             <el-dropdown-menu>
