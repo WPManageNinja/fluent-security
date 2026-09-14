@@ -210,6 +210,75 @@ class Helper
      * @param string $media
      * @return string
      */
+    /**
+     * The views on the log, in the order the bar shows them.
+     *
+     * Kept here rather than inline in the admin screen because it has to stay level with
+     * what is actually inserted: a status written but not declared gets no view of its
+     * own and shows the admin a raw slug where the status word should be.
+     *
+     * A view can cover more than one status, which is what carries the rows written
+     * before site activity had a name. `group` is what the bar draws its rule on: the
+     * login outcomes are how one sign-in attempt ended, the rest are other things the
+     * same table keeps.
+     *
+     * @return array<string, array{label: string, statuses: array<int, string>, group: string}>
+     */
+    public static function getLogViews()
+    {
+        return [
+            'success'        => [
+                'label'    => __('Successful', 'fluent-security'),
+                'statuses' => ['success'],
+                'group'    => 'login'
+            ],
+            'failed'         => [
+                'label'    => __('Failed', 'fluent-security'),
+                'statuses' => ['failed'],
+                'group'    => 'login'
+            ],
+            'blocked'        => [
+                'label'    => __('Blocked', 'fluent-security'),
+                'statuses' => ['blocked'],
+                'group'    => 'login'
+            ],
+            'password_reset' => [
+                'label'    => __('Password resets', 'fluent-security'),
+                'statuses' => ['password_reset'],
+                'group'    => 'site'
+            ],
+            'site_activity'  => [
+                'label' => __('Site activity', 'fluent-security'),
+                /*
+                 * `recovery` is what this was called before it covered anything but the
+                 * recovery screen. Rows carrying it are still on sites that have been
+                 * running a while, and nothing rewrites them, so the view reads both.
+                 */
+                'statuses' => ['site_activity', 'recovery'],
+                'group'    => 'site'
+            ]
+        ];
+    }
+
+    /**
+     * Every status the log can hold, against the word the screen shows for it. Derived
+     * from the views so the two cannot drift apart.
+     *
+     * @return array<string, string>
+     */
+    public static function getLogStatuses()
+    {
+        $statuses = [];
+
+        foreach (self::getLogViews() as $view) {
+            foreach ($view['statuses'] as $status) {
+                $statuses[$status] = $view['label'];
+            }
+        }
+
+        return $statuses;
+    }
+
     public static function getLoginMediaLabel($media)
     {
         $media = $media ?: 'web';
@@ -225,7 +294,26 @@ class Helper
             'app_password' => __('Application password', 'fluent-security'),
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),
-            'facebook'    => __('Facebook', 'fluent-security')
+            'facebook'    => __('Facebook', 'fluent-security'),
+
+            /*
+             * The log keeps more than logins, and the same column has to name those rows.
+             * RecoveryService::log() puts the action in `media`, so it arrives here too -
+             * unnamed it fell through to the slug, which is how the log came to say
+             * "Reinstall Plugin" where every other row says what happened.
+             */
+            'secure_now'           => __('Sessions cleared', 'fluent-security'),
+            'password_resets'      => __('Bulk password reset started', 'fluent-security'),
+            'password_resets_done' => __('Bulk password reset finished', 'fluent-security'),
+            'delete_file'          => __('File deleted', 'fluent-security'),
+            'remove_file'          => __('File quarantined', 'fluent-security'),
+            'restore_file'         => __('File restored', 'fluent-security'),
+            'reinstall_core'       => __('WordPress reinstalled', 'fluent-security'),
+            'reinstall_plugin'     => __('Plugin reinstalled', 'fluent-security'),
+            'reinstall_theme'      => __('Theme reinstalled', 'fluent-security'),
+            'plugin_activated'     => __('Plugin activated', 'fluent-security'),
+            'plugin_deactivated'   => __('Plugin deactivated', 'fluent-security'),
+            'plugin_updated'       => __('Plugin updated', 'fluent-security')
         ]);
 
         if (isset($labels[$media])) {

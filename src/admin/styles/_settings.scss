@@ -3,8 +3,9 @@
  *
  * Every settings page is the same four things - a card, a header on it, a row per setting,
  * and a toggle for the ones that are only on or off. Anything more specific than that
- * (the two-factor cards, the proxy panel, the redirect rules) sits at the bottom of this
- * file, because it only ever appears inside one of those rows.
+ * (the two-factor cards, the proxy panel) sits at the bottom of this file, because it only
+ * ever appears inside one of those rows. A screen with enough of its own parts to need a
+ * layout - the redirect rules - has its own partial instead.
  */
 
 /* ------------------------------------------------------------------ the pane */
@@ -568,7 +569,8 @@
 
 /*
  * Sits below the rows, separated by the same hairline the header uses, so the button reads
- * as the end of the list rather than another row in it.
+ * as the end of the list rather than another row in it. Shared with the redirect rules,
+ * which are a list of the same shape and want the same button in the same place.
  */
 .fls_rules_add {
     @apply border-0 border-t border-solid border-hairline;
@@ -577,6 +579,7 @@
     margin-top: 4px;
 }
 
+/* A quiet line under a field saying something about it - expired, ignored, your own. */
 .fls_rules_flag {
     @apply inline-block text-xs text-ink-light;
 
@@ -769,61 +772,6 @@
     }
 }
 
-/* ------------------------------------------------------------ redirect rules */
-
-/*
- * One rule per box: who it applies to, then where they go. The rules are read down the page
- * in order, so each needs a visible edge to be counted by.
- */
-.fls_rule {
-    @apply rounded-xs border border-solid border-hairline;
-
-    padding: 16px;
-    margin: 16px 0;
-
-    &:last-child {
-        margin-bottom: 4px;
-    }
-
-    .fls_rule_head {
-        @apply flex items-center justify-between;
-
-        margin-bottom: 12px;
-    }
-
-    .fls_rule_number {
-        @apply text-sm font-medium;
-    }
-
-    /* The hinge between the condition above it and the destination below. */
-    .fls_then {
-        @apply text-xs text-ink-light;
-
-        margin: 12px 0;
-    }
-}
-
-/* The fields of one condition, laid out as a sentence rather than as a form. */
-.fls_rule_items {
-    @apply flex items-center;
-
-    .fls_rule_item {
-        padding: 0 10px;
-
-        &:first-child {
-            padding-left: 0;
-        }
-
-        &:last-child {
-            padding-right: 0;
-        }
-    }
-
-    .fls_values {
-        width: 100%;
-    }
-}
-
 /* ------------------------------------------------------------------ shortcodes */
 
 /* A shortcode and the button that copies it, on one line. */
@@ -884,6 +832,14 @@
      */
     .fls_row {
         display: block;
+
+        /*
+         * The flex is on the inner element, so stacking the row itself changed nothing -
+         * the label stayed pinned beside a control squeezed to a couple of characters.
+         */
+        .fls_row_main {
+            display: block;
+        }
 
         .fls_row_label {
             max-width: none;

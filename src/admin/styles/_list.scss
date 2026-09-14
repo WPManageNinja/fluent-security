@@ -83,6 +83,17 @@
         @apply m-0;
     }
 
+    /*
+     * Where the login outcomes stop and the log's other records begin. A hairline rather
+     * than a heading, because it separates two kinds of the same thing.
+     */
+    li.is_divided {
+        @apply border-0 border-l border-solid border-hairline;
+
+        margin-left: 5px;
+        padding-left: 9px;
+    }
+
     button {
         @apply cursor-pointer bg-transparent font-medium;
 

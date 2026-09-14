@@ -3,6 +3,7 @@
 namespace FluentAuth\App\Services\Recovery;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Hooks\Handlers\SiteActivityHandler;
 
 /**
  * What to do once you think somebody has been in.
@@ -428,7 +429,7 @@ class RecoveryService
             'username'    => $user ? $user->user_login : '',
             'user_id'     => $user ? $user->ID : null,
             'ip'          => Helper::getIp(),
-            'status'      => 'recovery',
+            'status'      => SiteActivityHandler::STATUS,
             'media'       => $action,
             'description' => $description,
             'created_at'  => current_time('mysql'),

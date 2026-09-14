@@ -2,7 +2,11 @@
 import icons from './Dashboard/icons';
 
 /**
- * The auth log.
+ * The activity log.
+ *
+ * Not only logins: the same table records a password reset being asked for, and what an
+ * administrator did from the recovery screen. The views bar shows all five and divides
+ * after the three that are outcomes of one login attempt.
  *
  * Laid out like FluentCart's Orders screen: a page heading with the actions that apply to
  * the whole screen, then one card holding the views, the search and the table. The status
@@ -25,7 +29,7 @@ export default {
              * The dashboard's tiles and "view all" links land here already filtered - a
              * count you clicked should open the rows it counted, not every row there is.
              */
-            status: this.appVars.auth_statuses[this.$route.query.status] ? this.$route.query.status : 'all',
+            status: this.hasView(this.$route.query.status) ? this.$route.query.status : 'all',
             searchOpen: false,
             loading: false,
             sortBy: 'created_at',
@@ -36,14 +40,28 @@ export default {
         }
     },
     computed: {
-        /* "All" first, then one view per status, in the order the statuses are declared. */
+        /* "All" first, then the views the server declares, in the order it declares them. */
         views() {
-            return [{key: 'all', label: this.$t('All')}].concat(
-                Object.keys(this.appVars.auth_statuses).map(key => ({
-                    key: key,
-                    label: this.appVars.auth_statuses[key]
+            const declared = this.appVars.auth_log_views || [];
+
+            return [{key: 'all', label: this.$t('All'), statuses: ['all']}].concat(
+                declared.map((view, index) => ({
+                    key: view.key,
+                    label: view.label,
+                    statuses: view.statuses,
+                    /*
+                     * A rule where the login outcomes stop and the rest begin, so the two
+                     * kinds of row read as two kinds rather than as five equal tabs.
+                     */
+                    divided: index > 0 && declared[index - 1].group !== view.group
                 }))
             );
+        },
+        /* A view can cover more than one status, so the query follows the view, not the key. */
+        currentStatuses() {
+            const view = this.views.find(candidate => candidate.key === this.status);
+
+            return view ? view.statuses : ['all'];
         },
         /*
          * How long these rows last, said on the page that shows them. Without it, a log
@@ -70,6 +88,9 @@ export default {
         }
     },
     methods: {
+        hasView(key) {
+            return !!key && (this.appVars.auth_log_views || []).some(view => view.key === key);
+        },
         selectView(key) {
             if (this.status === key) {
                 return;
@@ -89,6 +110,13 @@ export default {
             if (this.searchOpen) {
                 this.$nextTick(() => this.$refs.searchInput && this.$refs.searchInput.focus());
             }
+        },
+        /*
+         * Recovery rows are written by an administrator's own click, not by a sign-in, so
+         * they carry no user agent. Joining two empty halves left a bare "/" in the cell.
+         */
+        browserLabel(log) {
+            return [log.device_os, log.browser].filter(part => !!part).join(' / ');
         },
         /*
          * Closing the search clears it. Leaving a hidden term applied is how a list ends up
@@ -121,7 +149,7 @@ export default {
             this.$get('auth-logs', {
                 per_page: this.paginate.per_page,
                 page: this.paginate.page,
-                statuses: [this.status],
+                statuses: this.currentStatuses,
                 sortBy: this.sortBy,
                 search: this.search,
                 sortType: (this.sortType === 'descending') ? 'DESC' : 'ASC'
@@ -203,7 +231,7 @@ export default {
     <div class="fls_list_page">
         <div class="fls_list_inner">
             <div class="fls_page_head">
-                <h1 class="fls_page_title">{{ $t('Auth Logs') }}</h1>
+                <h1 class="fls_page_title">{{ $t('Activity Log') }}</h1>
 
                 <div class="fls_page_actions">
                     <el-popconfirm :width="240" @confirm="deleteAllLogs()"
@@ -219,7 +247,8 @@ export default {
                 <div class="fls_list_head">
                     <div class="fls_list_head_top">
                         <ul class="fls_tabs">
-                            <li v-for="view in views" :key="view.key">
+                            <li v-for="view in views" :key="view.key"
+                                :class="{is_divided: view.divided}">
                                 <button type="button" :class="{is_active: status === view.key}"
                                         @click="selectView(view.key)">
                                     {{ view.label }}
@@ -249,7 +278,7 @@ export default {
                             </a>
                         </div>
                         <p class="fls_list_search_hint">
-                            {{ $t('Search by username, IP address or login method. Press Enter to search.') }}
+                            {{ $t('Search by user, IP address or event. Press Enter to search.') }}
                         </p>
                     </div>
                 </div>
@@ -282,8 +311,13 @@ export default {
                             </template>
                         </el-table-column>
 
+                        <!--
+                            "User" and "Event" rather than "Login Username" and "Method":
+                            both have to be true of a blocked login and of a file being
+                            quarantined, and only these read correctly for both.
+                        -->
                         <el-table-column sortable prop="username" min-width="200"
-                                         :label="$t('Login Username')">
+                                         :label="$t('User')">
                             <template #default="scope">
                                 <div class="fls_cell_stack">
                                     <div class="fls_cell_main">{{ scope.row.username }}</div>
@@ -302,7 +336,7 @@ export default {
                             </template>
                         </el-table-column>
 
-                        <el-table-column sortable prop="media" :label="$t('Method')" width="170">
+                        <el-table-column sortable prop="media" :label="$t('Event')" width="190">
                             <template #default="scope">{{ scope.row.media_label }}</template>
                         </el-table-column>
 
@@ -315,7 +349,8 @@ export default {
 
                         <el-table-column sortable prop="browser" :label="$t('Browser')" min-width="170">
                             <template #default="scope">
-                                {{ scope.row.device_os }} / {{ scope.row.browser }}
+                                <span v-if="browserLabel(scope.row)">{{ browserLabel(scope.row) }}</span>
+                                <span v-else class="fls_cell_muted" :title="$t('Not a sign-in')">&mdash;</span>
                             </template>
                         </el-table-column>
 
@@ -350,7 +385,7 @@ export default {
                         <template #empty>
                             <div class="fls_empty">
                                 <span v-html="icons.empty"></span>
-                                {{ search ? $t('Nothing matches that search') : $t('No login activity has been recorded yet') }}
+                                {{ search ? $t('Nothing matches that search') : $t('Nothing has been recorded yet') }}
                             </div>
                         </template>
                     </el-table>

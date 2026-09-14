@@ -8,6 +8,17 @@ use FluentAuth\App\Services\Libs\Emogrifier\Emogrifier;
 
 class SystemEmailService
 {
+    private static $formattedSettings = null;
+
+    /**
+     * Drops the in-request settings cache. Only the test suite needs this;
+     * a real request reads the option once and is done.
+     */
+    public static function resetStatics()
+    {
+        self::$formattedSettings = null;
+    }
+
     public static function getEmailIndexes()
     {
         $systemEmails = [
@@ -82,6 +93,18 @@ class SystemEmailService
                     '##user.profile_edit_url##' => __('User Profile Edit URL', 'fluent-security'),
                 ]
             ],
+            'password_change_to_admin'                    => [
+                'name'                  => 'password_change_to_admin',
+                'title'                 => __('Password Change Notification', 'fluent-security'),
+                'description'           => __('Sent to the admin every time a user resets their password. Worth turning off on a site with a lot of users.', 'fluent-security'),
+                'recipient'             => 'site_admin',
+                'hook'                  => 'after_password_reset',
+                'can_disable'           => 'yes',
+                'required_smartcodes'   => [],
+                'additional_smartcodes' => [
+                    '##user.profile_edit_url##' => __('User Profile Edit URL', 'fluent-security'),
+                ]
+            ],
             'two_fa_email_to_user'                        => [
                 'name'                  => 'two_fa_email_to_user',
                 'title'                 => __('Two-Factor Authentication (2FA) Code Email', 'fluent-security'),
@@ -122,10 +145,8 @@ class SystemEmailService
 
     public static function getGlobalSettings($cached = true)
     {
-        static $formattedSettings = null;
-
-        if ($cached && $formattedSettings) {
-            return $formattedSettings;
+        if ($cached && self::$formattedSettings) {
+            return self::$formattedSettings;
         }
 
         $emailsDefault = self::getEmailDefaults();
@@ -150,12 +171,12 @@ class SystemEmailService
         $settings = get_option('fa_system_email_settings', []);
 
         if (empty($settings)) {
-            $formattedSettings = [
+            self::$formattedSettings = [
                 'emails'          => $emailsDefault,
                 'global_settings' => $emailConfig
             ];
 
-            return $formattedSettings;
+            return self::$formattedSettings;
         }
 
         $emails = $settings['emails'] ?? [];
@@ -164,12 +185,12 @@ class SystemEmailService
         $emails = wp_parse_args($emails, $emailsDefault);
         $globalSettings = wp_parse_args($globalSettings, $emailConfig);
 
-        $formattedSettings = [
+        self::$formattedSettings = [
             'emails'            => $emails,
             'template_settings' => $globalSettings
         ];
 
-        return $formattedSettings;
+        return self::$formattedSettings;
     }
 
     public static function getEmailSettingsByType($emailType)
@@ -226,6 +247,13 @@ class SystemEmailService
                 'email'  => [
                     'subject' => 'Welcome to {{site.name}} - Your Account is Ready',
                     'body'    => self::getDefaultEmailBody('fluent_auth_welcome_email_to_user'),
+                ]
+            ],
+            'password_change_to_admin'                    => [
+                'status' => 'system',
+                'email'  => [
+                    'subject' => '[{{site.name}}] Password Changed',
+                    'body'    => self::getDefaultEmailBody('password_change_to_admin'),
                 ]
             ],
             'two_fa_email_to_user'                        => [
@@ -382,6 +410,25 @@ class SystemEmailService
                    href="##user.profile_edit_url##">View User Profile</a></p>
             <hr/>
             <p>This is an automated message from the fluentAuth plugin.</p>
+            <?php
+            return ob_get_clean();
+        } else if ($type == 'password_change_to_admin') {
+            ob_start();
+            ?>
+            <p>Hello there,</p>
+            <p>The password for a user account on {{site.name}} has just been changed.</p>
+            <p><strong>Account Details:</strong></p>
+            <blockquote>
+                <p><strong>Username: </strong>{{user.user_login}}</p>
+                <p><strong>User Email:</strong> {{user.user_email}}</p>
+                <p><strong>Display Name:</strong> {{user.display_name}}</p>
+                <p><strong>User Role:</strong> {{user.roles}}</p>
+            </blockquote>
+            <p>
+                <a style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"
+                   href="##user.profile_edit_url##">View User Profile</a></p>
+            <hr/>
+            <p>This is an automated message from the FluentAuth plugin.</p>
             <?php
             return ob_get_clean();
         } else if ($type == 'fluent_auth_welcome_email_to_user') {

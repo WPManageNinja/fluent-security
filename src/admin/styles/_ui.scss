@@ -65,7 +65,16 @@
     }
 
     /* Nothing is wrong and nothing has happened - it should not draw the eye either way. */
-    &.is_neutral {
+    &.is_neutral,
+    /*
+     * Neither of these is an alarm: a reset was asked for, or an administrator ran a
+     * recovery action on purpose. They belong in the same column as the three login
+     * outcomes and should read as quieter than all of them.
+     */
+    &.is_password_reset,
+    &.is_site_activity,
+    /* What site activity rows were written with before it had a name. */
+    &.is_recovery {
         @apply bg-surface-raised text-ink-mid;
     }
 

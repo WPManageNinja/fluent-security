@@ -7,7 +7,7 @@ import EnrolledUsers from './Components/TwoFa/EnrolledUsers.vue';
 import IpRulesSettings from './Components/Settings/Pages/IpRules.vue';
 
 import AuthShortcodes from './Components/AuthShortcodes.vue';
-import LoginRedirects from './Components/LoginRedirects.vue';
+import LoginRedirects from './Components/Redirects/LoginRedirects.vue';
 import SocialAuthSettings from './Components/SocialAuthSettings.vue';
 import CustomWpEmails from './Components/CustomWpEmails/AllEmails.vue';
 import EditWpEmail from './Components/CustomWpEmails/EditWpEmail.vue';
@@ -125,7 +125,7 @@ export var routes = [
         component: Logs,
         meta: {
             active: 'logs',
-            title: 'Auth Logs'
+            title: 'Activity Log'
         }
     },
     /*

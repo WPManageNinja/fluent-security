@@ -26,6 +26,7 @@ class WPSystemEmailHandler
         add_filter('email_change_email', [$this, 'maybeAlterEmailChangedEmailToUser'], 99, 3);
 
         add_filter('wp_new_user_notification_email_admin', [$this, 'maybeAlterUserRegistrationEmailToAdmin'], 99, 3);
+        add_filter('wp_password_change_notification_email', [$this, 'maybeAlterPasswordChangeEmailToAdmin'], 99, 3);
 
         add_action('fluent_auth/after_creating_user', [$this, 'maybeSendCustomizedEmailOnFluentAuthSignup'], 10, 1);
 
@@ -44,6 +45,17 @@ class WPSystemEmailHandler
             }
             return $status;
         }, 100, 2);
+
+        /*
+         * Core has no wp_send_* filter for the admin's password change notice,
+         * so the only way to silence it is to take the action off.
+         */
+        add_action('init', function () {
+            $setting = SystemEmailService::getEmailSettingsByType('password_change_to_admin');
+            if ($setting && Arr::get($setting, 'status', '') === 'disabled') {
+                remove_action('after_password_reset', 'wp_password_change_notification');
+            }
+        }, 9);
 
         /*
          * If we want to disable the email to admin when a new user is registered
@@ -180,6 +192,32 @@ class WPSystemEmailHandler
         // Let's change these now
         $email = Arr::get($setting, 'email', []);
         $defaults['subject'] = $this->parseCode(Arr::get($email, 'subject', $defaults['subject']), $userObj);
+        $defaults['message'] = $this->withHtmlTemplate($this->parseCode(Arr::get($email, 'body', $defaults['message']), $userObj), null, $userObj);
+
+        $defaults['headers'] = $this->getEmailHeaders($defaults['headers']);
+
+        return $defaults;
+    }
+
+    public function maybeAlterPasswordChangeEmailToAdmin($defaults, $userObj, $blogname)
+    {
+        $setting = SystemEmailService::getEmailSettingsByType('password_change_to_admin');
+
+        if (!$setting || Arr::get($setting, 'status', '') !== 'active') {
+            return $defaults;
+        }
+
+        // Let's change these now
+        $email = Arr::get($setting, 'email', []);
+
+        $subject = $this->parseCode(Arr::get($email, 'subject', $defaults['subject']), $userObj);
+
+        /*
+         * Core runs this subject through sprintf() with the site title afterwards,
+         * so any percent sign the admin typed has to survive as a literal.
+         */
+        $defaults['subject'] = str_replace('%', '%%', $subject);
+
         $defaults['message'] = $this->withHtmlTemplate($this->parseCode(Arr::get($email, 'body', $defaults['message']), $userObj), null, $userObj);
 
         $defaults['headers'] = $this->getEmailHeaders($defaults['headers']);

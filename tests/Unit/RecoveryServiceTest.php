@@ -104,7 +104,7 @@ class RecoveryServiceTest extends BaseTestCase
         $this->assertEquals('secure_now', $history[0]['action']);
         $this->assertEquals(wp_get_current_user()->user_login, $history[0]['by']);
 
-        $row = flsDb()->table('fls_auth_logs')->where('status', 'recovery')->first();
+        $row = flsDb()->table('fls_auth_logs')->where('status', 'site_activity')->first();
 
         $this->assertNotNull($row);
         $this->assertEquals($this->admin, (int)$row->user_id);

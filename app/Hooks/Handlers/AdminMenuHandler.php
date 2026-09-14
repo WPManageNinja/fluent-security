@@ -189,11 +189,14 @@ class AdminMenuHandler
                 'namespace' => 'fluent-auth',
                 'version'   => '1'
             ],
-            'auth_statuses'   => [
-                'failed'  => __('Failed', 'fluent-security'),
-                'blocked' => __('Blocked', 'fluent-security'),
-                'success' => __('Successful', 'fluent-security')
-            ],
+            /*
+             * What word to print for a row's status. Every status the log is written
+             * with is in here - two of them were not, which left those rows with a raw
+             * slug where the status word should be.
+             */
+            'auth_statuses'   => Helper::getLogStatuses(),
+            // The views bar: what each one is called, what it queries, and where the rule goes.
+            'auth_log_views'  => self::getLogViews(),
             'auth_settings'   => Helper::getAuthSettings(),
             // What "apply recommended" writes, and what the dashboard checklist scores against.
             'recommended_settings' => Helper::getRecommendedSettings(),
@@ -233,6 +236,22 @@ class AdminMenuHandler
         ]));
 
         echo '<div id="fluent_auth_app"><h3 style="text-align: center; margin-top: 100px;">Loading Settings..</h3></div>';
+    }
+
+    /**
+     * The views bar as the screen wants it: a list in order, each carrying its own key.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function getLogViews()
+    {
+        $views = [];
+
+        foreach (Helper::getLogViews() as $key => $view) {
+            $views[] = array_merge(['key' => $key], $view);
+        }
+
+        return $views;
     }
 
     private function getMenuIcon()

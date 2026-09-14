@@ -109,6 +109,75 @@ class SettingsControllerTest extends BaseTestCase
         $this->assertArrayHasKey('message', $result);
     }
 
+    public function testGetAuthFormSettingsOffersDestinations()
+    {
+        $request = new \WP_REST_Request();
+
+        $result = SettingsController::getAuthFormSettings($request);
+
+        $this->assertArrayHasKey('destinations', $result);
+        $this->assertNotEmpty($result['destinations']['login']);
+        $this->assertNotEmpty($result['destinations']['logout']);
+
+        foreach ($result['destinations'] as $group) {
+            foreach ($group as $destination) {
+                $this->assertArrayHasKey('label', $destination);
+                $this->assertArrayHasKey('url', $destination);
+            }
+        }
+    }
+
+    /*
+     * Clearing a destination used to be impossible: an empty value was skipped rather than
+     * written, so the screen saved successfully and came back with the old address in it.
+     */
+    public function testSaveAuthFormSettingsClearsAnEmptiedDefault()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                 => 'yes',
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => 'https://example.com/members/',
+            'default_logout_redirect' => 'https://example.com/bye/',
+            'redirect_rules'          => []
+        ]);
+
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', [
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => '',
+            'default_logout_redirect' => 'https://example.com/bye/'
+        ]);
+
+        SettingsController::saveAuthFormSettings($request);
+
+        $saved = get_option('__fls_auth_forms_settings');
+
+        $this->assertSame('', $saved['default_login_redirect']);
+        $this->assertSame('https://example.com/bye/', $saved['default_logout_redirect']);
+    }
+
+    public function testSaveAuthFormSettingsKeepsRulesWithoutConditions()
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', [
+            'login_redirects' => 'yes',
+            'redirect_rules'  => [
+                [
+                    'login'  => '/members/',
+                    'logout' => ''
+                ]
+            ]
+        ]);
+
+        SettingsController::saveAuthFormSettings($request);
+
+        $saved = get_option('__fls_auth_forms_settings');
+
+        $this->assertCount(1, $saved['redirect_rules']);
+        $this->assertSame('/members/', $saved['redirect_rules'][0]['login']);
+        $this->assertSame([], $saved['redirect_rules'][0]['conditions']);
+    }
+
     public function testGetAuthCustomizerSetting()
     {
         $request = new \WP_REST_Request();

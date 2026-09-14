@@ -196,8 +196,65 @@ class SettingsController
         return [
             'settings'          => $settings,
             'roles'             => Helper::getUserRoles(true),
-            'user_capabilities' => Helper::getWpPermissions(true)
+            'user_capabilities' => Helper::getWpPermissions(true),
+            'destinations'      => self::getRedirectDestinations()
         ];
+    }
+
+    /**
+     * The handful of places a redirect is actually pointed at.
+     *
+     * Offered as a list rather than left to a blank URL box: three of these four addresses
+     * are ones an administrator would otherwise have to remember and type exactly right,
+     * and getting one wrong is only discovered by signing out. Anything else is still typed
+     * in by hand.
+     *
+     * @return array
+     */
+    private static function getRedirectDestinations()
+    {
+        return [
+            'login'  => [
+                [
+                    'label' => __('Admin dashboard', 'fluent-security'),
+                    'url'   => admin_url()
+                ],
+                [
+                    'label' => __('Site home page', 'fluent-security'),
+                    'url'   => home_url('/')
+                ],
+                [
+                    'label' => __('Their profile page', 'fluent-security'),
+                    'url'   => admin_url('profile.php')
+                ]
+            ],
+            'logout' => [
+                [
+                    'label' => __('Site home page', 'fluent-security'),
+                    'url'   => home_url('/')
+                ],
+                [
+                    'label' => __('The login page', 'fluent-security'),
+                    'url'   => wp_login_url()
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * A redirect target, or an empty string for "leave it to whatever applies next".
+     *
+     * Relative paths survive this on purpose - `/members/` is a perfectly good answer and
+     * one that keeps working when the site moves domain.
+     *
+     * @param mixed $url
+     * @return string
+     */
+    private static function sanitizeRedirectUrl($url)
+    {
+        $url = trim((string)$url);
+
+        return $url ? sanitize_url($url) : '';
     }
 
     public static function saveAuthFormSettings(\WP_REST_Request $request)
@@ -208,38 +265,33 @@ class SettingsController
         if (!$settings) {
             $settings = (array)$request->get_param('redirect_settings');
 
-            $oldSettings['login_redirects'] = sanitize_text_field($settings['login_redirects']);
+            $oldSettings['login_redirects'] = sanitize_text_field(Arr::get($settings, 'login_redirects', 'no'));
 
-            if (!empty($settings['default_login_redirect'])) {
-                $oldSettings['default_login_redirect'] = sanitize_url($settings['default_login_redirect']);
-            }
-
-            if (!empty($settings['default_logout_redirect'])) {
-                $oldSettings['default_logout_redirect'] = sanitize_url($settings['default_logout_redirect']);
-            }
+            /*
+             * Written every time, empty or not. These used to be skipped when blank, which
+             * meant an address could be set but never cleared: choosing "let WordPress
+             * decide" saved silently and came back with the old address still in it.
+             */
+            $oldSettings['default_login_redirect'] = self::sanitizeRedirectUrl(Arr::get($settings, 'default_login_redirect'));
+            $oldSettings['default_logout_redirect'] = self::sanitizeRedirectUrl(Arr::get($settings, 'default_logout_redirect'));
 
             $redirectRules = Arr::get($settings, 'redirect_rules', []);
 
             $sanitizedRules = [];
 
             if ($redirectRules) {
-                foreach ($redirectRules as $redirectIndex => $redirect) {
+                foreach ($redirectRules as $redirect) {
                     $item = [
-                        'login'  => '',
-                        'logout' => ''
+                        'login'  => self::sanitizeRedirectUrl(Arr::get($redirect, 'login')),
+                        'logout' => self::sanitizeRedirectUrl(Arr::get($redirect, 'logout'))
                     ];
-                    if (!empty($redirect['login'])) {
-                        $item['login'] = sanitize_url($redirect['login']);
-                    }
-                    if (!empty($redirect['logout'])) {
-                        $item['logout'] = sanitize_url($redirect['logout']);
-                    }
-                    $conditions = $redirect['conditions'];
+
+                    $conditions = (array)Arr::get($redirect, 'conditions', []);
                     foreach ($conditions as $index => $condition) {
                         $conditions[$index] = map_deep($condition, 'sanitize_text_field');
                     }
 
-                    $item['conditions'] = $conditions;
+                    $item['conditions'] = array_values($conditions);
 
                     $sanitizedRules[] = $item;
                 }

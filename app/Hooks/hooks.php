@@ -19,6 +19,7 @@ defined('ABSPATH') || exit;
 (new \FluentAuth\App\Hooks\Handlers\TotpNudgeHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpEnforcementHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\BasicTasksHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\SiteActivityHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\WPSystemEmailHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\LoginCustomizerHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\ServerModeHandler())->register();

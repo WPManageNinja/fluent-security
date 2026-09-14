@@ -26,6 +26,7 @@ class BaseTestCase extends \WP_UnitTestCase
         Helper::resetStatics();
         \FluentAuth\App\Services\TwoFa\FactorStore::resetTableState();
         \FluentAuth\App\Services\Baseline\BaselineStore::resetTableState();
+        \FluentAuth\App\Services\SystemEmailService::resetStatics();
     }
 
     public function assertWpErrorWithCode($error, $code)

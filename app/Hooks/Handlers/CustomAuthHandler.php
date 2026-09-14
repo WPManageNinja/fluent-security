@@ -609,7 +609,7 @@ class CustomAuthHandler
         $caps = array_filter(array_keys(array_filter($caps)));
 
         foreach ($rules as $rule) {
-            $result = $this->isConditionsMatched($rule['conditions'], $user, $caps);
+            $result = $this->isConditionsMatched((array)Arr::get($rule, 'conditions', []), $user, $caps);
             if ($result && !empty($rule['login'])) {
                 return $rule['login'];
             }
@@ -641,7 +641,7 @@ class CustomAuthHandler
         $caps = array_filter(array_keys(array_filter($caps)));
 
         foreach ($rules as $rule) {
-            $result = $this->isConditionsMatched($rule['conditions'], $user, $caps);
+            $result = $this->isConditionsMatched((array)Arr::get($rule, 'conditions', []), $user, $caps);
             if ($result && !empty($rule['logout'])) {
                 return $rule['logout'];
             }
@@ -661,14 +661,19 @@ class CustomAuthHandler
         $isMatched = false;
 
         foreach ($conditions as $condition) {
-            if (!$condition['values']) {
+            // A condition with nothing picked is skipped rather than failing the rule -
+            // and rules saved before the screen always sent one have no `values` at all.
+            $values = (array)Arr::get($condition, 'values', []);
+
+            if (!$values) {
                 continue;
             }
-            $key = $condition['condition'];
+
+            $key = Arr::get($condition, 'condition');
             if ($key == 'user_role') {
-                $isMatched = (bool)array_intersect((array)$condition['values'], (array)$user->roles);
+                $isMatched = (bool)array_intersect($values, (array)$user->roles);
             } else if ($key == 'user_capability') {
-                $isMatched = (bool)array_intersect((array)$condition['values'], (array)$caps);
+                $isMatched = (bool)array_intersect($values, (array)$caps);
             }
 
             if (!$isMatched) {
