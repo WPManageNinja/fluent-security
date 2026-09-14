@@ -469,7 +469,24 @@ class DashboardController
                  */
                 'is_ok'        => Arr::get($scan, 'is_ok') !== 'no'
                     && !IntegrityHelper::hasExtensionIssues(),
-                'last_checked' => self::timeAgo(Arr::get($scan, 'last_checked'), current_time('timestamp'))
+                'last_checked' => self::timeAgo(Arr::get($scan, 'last_checked'), current_time('timestamp')),
+                /*
+                 * Whether anything is scheduled, said apart from when the last scan ran.
+                 *
+                 * A connected site with the schedule switched off reports nothing at all, and
+                 * a row that only says "last scan: 3 days ago" cannot tell that apart from a
+                 * schedule that is running and simply has not come round yet.
+                 *
+                 * Both halves of the condition the cron actually guards on, so this cannot
+                 * claim a schedule the cron would decline to run - see BasicTasksHandler.
+                 */
+                'scheduled'    => Arr::get($scan, 'auto_scan') === 'yes'
+                    && Arr::get($scan, 'status') === 'active',
+                'interval'     => Arr::get($scan, 'scan_interval') === 'hourly' ? 'hourly' : 'daily',
+                /* Scanning without the alerts service: there is no schedule to have here. */
+                'self_managed' => Arr::get($scan, 'status') === 'self',
+                /* '', 'disabled' or 'revoked' - see IntegrityHelper::markRelayRejected. */
+                'disconnected' => (string)Arr::get($scan, 'relay_rejection', '')
             ],
             'retention' => (int)Arr::get($settings, 'auto_delete_logs_day', 0),
             'digest'    => Arr::get($settings, 'digest_summary', '')

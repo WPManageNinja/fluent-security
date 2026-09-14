@@ -319,6 +319,64 @@ class DashboardControllerTest extends BaseTestCase
         $this->assertArrayHasKey('enrolled', $protection['two_fa']);
     }
 
+    /**
+     * The schedule the dashboard reports has to be the one the cron would actually run.
+     *
+     * `auto_scan` alone is not it: the cron declines unless the site is also connected, so a
+     * site left with the flag set after being disconnected would otherwise be shown a daily
+     * schedule that never runs.
+     *
+     * @dataProvider scheduleProvider
+     */
+    public function testProtectionReportsTheScheduleTheCronWouldRun($settings, $scheduled, $interval)
+    {
+        update_option('__fls_integrity_settings', $settings);
+
+        $scan = $this->dashboard()['protection']['scan'];
+
+        $this->assertSame($scheduled, $scan['scheduled']);
+        $this->assertSame($interval, $scan['interval']);
+    }
+
+    public function scheduleProvider()
+    {
+        return [
+            'connected and daily'   => [['status' => 'active', 'auto_scan' => 'yes', 'scan_interval' => 'daily'], true, 'daily'],
+            'connected and hourly'  => [['status' => 'active', 'auto_scan' => 'yes', 'scan_interval' => 'hourly'], true, 'hourly'],
+            'connected, switched off' => [['status' => 'active', 'auto_scan' => 'no', 'scan_interval' => 'daily'], false, 'daily'],
+            'never set up'          => [['status' => 'unregistered', 'auto_scan' => 'no'], false, 'daily'],
+            /* The flag survives being disowned; the cron still would not run. */
+            'disowned but flagged'  => [['status' => 'disabled', 'auto_scan' => 'yes', 'scan_interval' => 'hourly'], false, 'hourly'],
+            'an unknown interval falls back to daily' => [['status' => 'active', 'auto_scan' => 'yes', 'scan_interval' => 'weekly'], true, 'daily'],
+        ];
+    }
+
+    public function testProtectionSaysWhenTheRelayDisownedTheSite()
+    {
+        update_option('__fls_integrity_settings', [
+            'status'          => 'disabled',
+            'auto_scan'       => 'yes',
+            'relay_rejection' => 'disabled'
+        ]);
+
+        $scan = $this->dashboard()['protection']['scan'];
+
+        $this->assertEquals('disabled', $scan['disconnected']);
+        $this->assertFalse($scan['scheduled']);
+        $this->assertFalse($scan['registered']);
+    }
+
+    public function testProtectionMarksAScanServiceTheSiteRunsItself()
+    {
+        update_option('__fls_integrity_settings', ['status' => 'self', 'auto_scan' => 'no']);
+
+        $scan = $this->dashboard()['protection']['scan'];
+
+        $this->assertTrue($scan['self_managed']);
+        $this->assertFalse($scan['scheduled']);
+        $this->assertSame('', $scan['disconnected']);
+    }
+
     public function testRecentListsAreCappedAndNewestFirst()
     {
         for ($i = 0; $i < 10; $i++) {

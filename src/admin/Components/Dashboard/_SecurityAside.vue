@@ -63,6 +63,18 @@ export default {
                     route: 'security_scans'
                 },
                 {
+                    key: 'auto_scan',
+                    label: this.$t('Auto scanning'),
+                    value: this.autoScanLabel,
+                    /*
+                     * A site that deliberately scans without the alerts service has no schedule
+                     * to be missing, so "Off" there is the arrangement rather than something to
+                     * put right.
+                     */
+                    warning: !scan.self_managed && !scan.scheduled,
+                    route: 'security_scans'
+                },
+                {
                     key: 'retention',
                     label: this.$t('Logs kept for'),
                     value: this.protection.retention
@@ -88,7 +100,24 @@ export default {
                 });
             }
 
-            return items;
+            return items.filter(item => item.key !== 'auto_scan' || scan.registered || scan.disconnected);
+        },
+        /*
+         * How often, or why never. Kept apart from the fact list so the four cases read as four
+         * cases rather than as a nested ternary inside an object literal.
+         */
+        autoScanLabel() {
+            const scan = this.protection.scan;
+
+            if (scan.disconnected) {
+                return this.$t('Disconnected');
+            }
+
+            if (!scan.scheduled) {
+                return this.$t('Off');
+            }
+
+            return scan.interval === 'hourly' ? this.$t('Every hour') : this.$t('Every day');
         }
     },
     methods: {
