@@ -31,6 +31,15 @@ export default {
         /* The key has been emailed and is waiting to be pasted back in. */
         awaitingKey() {
             return this.settings && this.settings.status === 'pending';
+        },
+        /*
+         * Both halves of this screen - the disclosure and the way out of it - belong to the
+         * one moment where connecting is still a decision. Keyed on that state rather than on
+         * which route drew the form, so the choice is not reachable from one and hidden on the
+         * other.
+         */
+        isDeciding() {
+            return this.settings && this.settings.status === 'unregistered';
         }
     },
     methods: {
@@ -166,6 +175,32 @@ export default {
                         <p v-else>{{ $t('__free_api_desc__') }}</p>
                     </div>
 
+                    <!--
+                        What connecting actually sends, before the form rather than linked from
+                        it. The decision being made on this screen is whether to send it, and a
+                        disclosure somebody has to go looking for is not one. The second column
+                        is the half that answers what people actually worry about.
+                    -->
+                    <div v-if="isDeciding" class="fls_scan_disclosure">
+                        <div class="fls_scan_disclosure_col">
+                            <h4>{{ $t('What this site would send') }}</h4>
+                            <ul>
+                                <li>{{ $t('Your name and email address') }}</li>
+                                <li>{{ $t('This site\'s address, title and admin link') }}</li>
+                                <li>{{ $t('Scan results: paths of files and folders that differ from the official release') }}</li>
+                                <li>{{ $t('Installed plugins and themes, with their version numbers') }}</li>
+                            </ul>
+                        </div>
+                        <div class="fls_scan_disclosure_col is_never">
+                            <h4>{{ $t('What it never sends') }}</h4>
+                            <ul>
+                                <li>{{ $t('The contents of any file') }}</li>
+                                <li>{{ $t('Anything from your database, including users and passwords') }}</li>
+                                <li>{{ $t('Anything about your visitors or their activity') }}</li>
+                            </ul>
+                        </div>
+                    </div>
+
                     <el-form label-position="top">
                         <template v-if="!awaitingKey">
                             <el-row :gutter="20">
@@ -214,15 +249,22 @@ export default {
                             <span v-html="$t('__api_key_form_consent__', `<a target=&quot;_blank&quot; rel=&quot;noopener&quot; href=&quot;https://fluentauth.com/privacy-policy/&quot;>` + $t('privacy policy and terms and conditions') + `</a>`)"></span>
                         </p>
 
-                        <!--
-                            The service is optional. Saying so here, rather than hiding it,
-                            keeps the form from reading like a paywall.
-                        -->
-                        <p v-if="is_main">
-                            {{ $t('Or if you don\'t want automatic scanning with the API service,') }}
-                            <a href="#" @click.prevent="processRegularScanService()">{{ $t('click here') }}</a>
-                            {{ $t('to use the regular scan service.') }}
-                        </p>
+                    </div>
+
+                    <!--
+                        The way out, kept as a real choice rather than a sentence with a link in
+                        it - somebody who does not want to connect should not have to read past
+                        it twice to find out they do not have to. Secondary on purpose all the
+                        same: the cost of this option is the part that is easy to miss, so it is
+                        stated rather than implied.
+                    -->
+                    <div v-if="isDeciding" class="fls_scan_alt">
+                        <h4>{{ $t('Prefer not to connect?') }}</h4>
+                        <p>{{ $t('__scan_without_connecting__') }}</p>
+                        <el-button size="small" :loading="submitting" :disabled="submitting"
+                                   @click="processRegularScanService()">
+                            {{ $t('Scan without connecting') }}
+                        </el-button>
                     </div>
                 </div>
 

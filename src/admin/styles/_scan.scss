@@ -876,6 +876,105 @@
 /* --------------------------------------------------------------- registration */
 
 /*
+ * What connecting sends, and what it does not.
+ *
+ * Two columns rather than one list with ticks and crosses: the question people arrive with is
+ * "does this read my database", and an answer buried as the seventh item of a mixed list is a
+ * worse answer than one with its own heading. Stacks on narrow screens, where the columns
+ * would be two words wide.
+ */
+.fls_scan_disclosure {
+    @apply grid;
+
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 0 0 24px;
+    padding: 16px 18px;
+    border-radius: 8px;
+    background: var(--fls-surface-sunk);
+
+    h4 {
+        @apply font-medium m-0;
+
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--fls-text-mid);
+        margin-bottom: 8px;
+    }
+
+    ul {
+        @apply list-none m-0 p-0;
+    }
+
+    li {
+        @apply m-0;
+
+        position: relative;
+        padding-left: 16px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--fls-text);
+    }
+
+    li + li {
+        margin-top: 5px;
+    }
+
+    li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--fls-text-mid);
+    }
+
+    /* The reassuring half, marked as such rather than left to read like more of the same. */
+    .is_never li::before {
+        background: var(--fls-success-fg, var(--fls-text-mid));
+    }
+}
+
+@media (max-width: 680px) {
+    .fls_scan_disclosure {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+/*
+ * Scanning without connecting.
+ *
+ * Below the form and quieter than it, because connecting is the arrangement that actually
+ * watches a site - but a real block with its own button, because somebody who does not want to
+ * connect should not have to find a link inside a sentence to discover they need not.
+ */
+.fls_scan_alt {
+    padding: 16px 20px 20px;
+    border-top: 1px solid var(--fls-border-strong);
+
+    h4 {
+        @apply font-medium m-0;
+
+        font-size: 14px;
+        color: var(--fls-text);
+        margin-bottom: 4px;
+    }
+
+    p {
+        @apply m-0;
+
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--fls-text-mid);
+        margin-bottom: 12px;
+    }
+}
+
+/*
  * Getting an API key. A form in the middle of the column rather than a page of its own,
  * because it is one step and the screen behind it is the point.
  */
