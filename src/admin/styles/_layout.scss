@@ -372,6 +372,22 @@
             margin-bottom: 0;
         }
     }
+
+    /*
+     * A paragraph that follows something needs room above it.
+     *
+     * The zero top margin above is for the usual case, a paragraph directly under the heading,
+     * which is already spaced by the heading's own margin. A sentence explaining the block sits
+     * after the facts list instead, and with no margin of its own it ran straight on from the
+     * last row at the list's 10px rhythm - reading as one more fact rather than as prose about
+     * all of them.
+     *
+     * The heading is excluded rather than the list named, so this holds for whatever a block
+     * puts a paragraph after.
+     */
+    > :not(h3) + p {
+        margin-top: 14px;
+    }
 }
 
 /* ------------------------------------------------------------- narrow screens */
