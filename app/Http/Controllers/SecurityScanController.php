@@ -112,6 +112,8 @@ class SecurityScanController
             $settings['relay_rejection'] = '';
             $settings['relay_rejected_at'] = '';
             $settings['relay_auth_failures'] = 0;
+            /* See the note on the other connection path: a new row reports from scratch. */
+            $settings['last_report_sent'] = '';
 
             IntegrityHelper::saveSettings($settings);
 
@@ -177,6 +179,14 @@ class SecurityScanController
             $settings['relay_rejection'] = '';
             $settings['relay_rejected_at'] = '';
             $settings['relay_auth_failures'] = 0;
+
+            /*
+             * A connection is a different site as far as the relay is concerned - a new row,
+             * with nothing reported to it yet - so the old connection's timestamp must not gate
+             * the first report. Left in place it silences a freshly connected site for most of a
+             * day and leaves the dashboard saying it is awaiting its first scan.
+             */
+            $settings['last_report_sent'] = '';
         } else {
             $settings['api_id'] = $apiId;
             $settings['status'] = 'pending';
@@ -220,6 +230,12 @@ class SecurityScanController
         }
 
         IntegrityHelper::saveSettings($settings);
+
+        /*
+         * Tell the relay what this scan found. Does nothing on a site that is not connected or
+         * has the schedule off; see IntegrityHelper::reportScanIfConnected.
+         */
+        IntegrityHelper::reportScanIfConnected();
 
         return [
             'scan_results'  => $scanResults,

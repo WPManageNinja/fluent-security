@@ -139,6 +139,115 @@ class ScanConnectionTest extends BaseTestCase
     }
 
     /**
+     * Reconnecting mints a new row on the relay, with nothing reported to it. The previous
+     * connection's timestamp must not gate the first report of the new one, or a freshly
+     * connected site stays silent for most of a day while the dashboard says it is still
+     * awaiting a first scan.
+     */
+    public function testConnectingClearsTheIntervalGateFromAnEarlierConnection()
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status'           => 'pending',
+            'api_id'           => 'api-123',
+            'last_report_sent' => gmdate('Y-m-d H:i:s', strtotime('-20 minutes'))
+        ]));
+
+        $handler = $this->relayReturns(200, ['status' => 'success', 'data' => ['api_id' => 'api-123']]);
+
+        SecurityScanController::registerSite($this->request([
+            'status' => 'pending',
+            'info'   => ['email' => 'owner@example.com', 'full_name' => 'Site Owner', 'api_key' => 'key-456']
+        ]));
+
+        remove_filter('pre_http_request', $handler);
+
+        $this->assertSame('', IntegrityHelper::getSettings()['last_report_sent']);
+    }
+
+    public function testPastingAnAccountKeyAlsoClearsTheIntervalGate()
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'last_report_sent' => gmdate('Y-m-d H:i:s', strtotime('-20 minutes'))
+        ]));
+
+        $handler = $this->relayReturns(200, [
+            'status' => 'success',
+            'data'   => ['api_id' => 'api-789', 'api_key' => 'site-key-789']
+        ]);
+
+        SecurityScanController::registerSite($this->request([
+            'status'  => 'connect',
+            'api_key' => 'fa_live_accountkey'
+        ]));
+
+        remove_filter('pre_http_request', $handler);
+
+        $this->assertSame('', IntegrityHelper::getSettings()['last_report_sent']);
+    }
+
+    /**
+     * A scan somebody ran themselves has to reach the relay too, or "I scanned and the
+     * dashboard still says it is waiting" is the accurate description of a working system.
+     */
+    public function testAScanRunByHandIsReported()
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status'    => 'active',
+            'api_id'    => 'api-123',
+            'api_key'   => 'key-456',
+            'auto_scan' => 'yes'
+        ]));
+
+        $urls = [];
+        $record = function ($preempt, $args, $url) use (&$urls) {
+            $urls[] = $url;
+
+            return ['response' => ['code' => 200, 'message' => ''], 'body' => json_encode(['status' => 'success']), 'headers' => []];
+        };
+
+        add_filter('pre_http_request', $record, 10, 3);
+        IntegrityHelper::reportScanIfConnected();
+        remove_filter('pre_http_request', $record, 10);
+
+        $this->assertCount(1, $urls);
+        $this->assertStringContainsString('/reports', $urls[0]);
+
+        /* And it counts against the interval, so the cron does not repeat it minutes later. */
+        $this->assertNotEmpty(IntegrityHelper::getSettings()['last_report_sent']);
+    }
+
+    /**
+     * @dataProvider unreportedProvider
+     */
+    public function testAScanIsNotReportedWhenTheSiteDoesNotReport($settings)
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), $settings));
+
+        $posted = false;
+        $spy = function () use (&$posted) {
+            $posted = true;
+
+            return new \WP_Error('blocked', 'should not be called');
+        };
+
+        add_filter('pre_http_request', $spy);
+        $this->assertNull(IntegrityHelper::reportScanIfConnected());
+        remove_filter('pre_http_request', $spy);
+
+        $this->assertFalse($posted);
+    }
+
+    public function unreportedProvider()
+    {
+        return [
+            'never connected'      => [['status' => 'unregistered', 'auto_scan' => 'no']],
+            'schedule switched off' => [['status' => 'active', 'auto_scan' => 'no']],
+            'scanning without the service' => [['status' => 'self', 'auto_scan' => 'yes']],
+            'disowned by the relay' => [['status' => 'disabled', 'auto_scan' => 'yes']],
+        ];
+    }
+
+    /**
      * The first step only registers - the key arrives by email and nothing is connected yet,
      * so there is nothing to schedule.
      */

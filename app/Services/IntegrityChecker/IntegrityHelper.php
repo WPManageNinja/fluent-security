@@ -563,6 +563,38 @@ class IntegrityHelper
     }
 
     /*
+     * Report the scan that has just finished, if this site reports at all.
+     *
+     * A scan somebody ran from the screen used to tell the relay nothing: only the scheduled
+     * path posted, so "I scanned, and the dashboard still says it is waiting for a first scan"
+     * was the accurate description of a working system. A scan is a scan whoever asked for it.
+     *
+     * Guarded on both halves of the cron's own condition, so there is one rule for whether a
+     * site reports rather than two that can disagree - a site with the schedule switched off
+     * has said it does not want its results sent anywhere.
+     */
+    public static function reportScanIfConnected()
+    {
+        $settings = self::getSettings();
+
+        if ($settings['auto_scan'] != 'yes' || $settings['status'] != 'active') {
+            return null;
+        }
+
+        $response = self::sendStoredReport();
+
+        /*
+         * Counts against the interval, so a scan run by hand a minute before the cron comes
+         * round does not become two reports of the same findings.
+         */
+        $settings = self::getSettings();
+        $settings['last_report_sent'] = date('Y-m-d H:i:s');
+        self::saveSettings($settings);
+
+        return $response;
+    }
+
+    /*
      * A report built from what the last scan already found, sent now.
      *
      * The scheduled path re-scans first, which means fetching core checksums and walking
