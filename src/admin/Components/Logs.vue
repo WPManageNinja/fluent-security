@@ -30,6 +30,12 @@ export default {
              * count you clicked should open the rows it counted, not every row there is.
              */
             status: this.hasView(this.$route.query.status) ? this.$route.query.status : 'all',
+            /*
+             * Which kind of event, within whatever view is open. The list comes back with
+             * the rows, so it only ever offers events the log actually holds.
+             */
+            event: 'all',
+            eventOptions: [],
             searchOpen: false,
             loading: false,
             sortBy: 'created_at',
@@ -49,6 +55,8 @@ export default {
                     key: view.key,
                     label: view.label,
                     statuses: view.statuses,
+                    /* Whether this view wants the event dropdown. Only site activity does. */
+                    events: !!view.events,
                     /*
                      * A rule where the login outcomes stop and the rest begin, so the two
                      * kinds of row read as two kinds rather than as five equal tabs.
@@ -57,11 +65,20 @@ export default {
                 }))
             );
         },
+        currentView() {
+            return this.views.find(candidate => candidate.key === this.status);
+        },
         /* A view can cover more than one status, so the query follows the view, not the key. */
         currentStatuses() {
-            const view = this.views.find(candidate => candidate.key === this.status);
-
-            return view ? view.statuses : ['all'];
+            return this.currentView ? this.currentView.statuses : ['all'];
+        },
+        /*
+         * Site activity only - it is the one view holding several kinds of event. On the
+         * others the view name already says what the rows are, so a dropdown would only
+         * repeat it. The server decides; this follows.
+         */
+        showEventFilter() {
+            return !!(this.currentView && this.currentView.events) && this.eventOptions.length > 1;
         },
         /*
          * How long these rows last, said on the page that shows them. Without it, a log
@@ -97,6 +114,16 @@ export default {
             }
 
             this.status = key;
+            this.paginate.page = 1;
+            /*
+             * A view carries its own kinds of event, so one picked in the last view would
+             * usually match nothing here - and an empty table with the reason hidden in a
+             * control you have already forgotten is the worst way to say so.
+             */
+            this.event = 'all';
+            this.fetchLogs();
+        },
+        selectEvent() {
             this.paginate.page = 1;
             this.fetchLogs();
         },
@@ -150,6 +177,9 @@ export default {
                 per_page: this.paginate.per_page,
                 page: this.paginate.page,
                 statuses: this.currentStatuses,
+                /* Which view is open, so the server knows whether to look for its events. */
+                view: this.status,
+                events: [this.event],
                 sortBy: this.sortBy,
                 search: this.search,
                 sortType: (this.sortType === 'descending') ? 'DESC' : 'ASC'
@@ -158,6 +188,7 @@ export default {
                     this.logs = response.logs.data;
                     this.paginate.total = response.logs.total;
                     this.retention = response.retention;
+                    this.eventOptions = response.events || [];
                 })
                 .catch(errors => {
                     this.$handleError(errors);
@@ -257,6 +288,12 @@ export default {
                         </ul>
 
                         <div class="fls_list_head_actions">
+                            <el-select v-if="showEventFilter" v-model="event" size="small"
+                                       class="fls_event_filter" @change="selectEvent()">
+                                <el-option value="all" :label="$t('All events')"/>
+                                <el-option v-for="option in eventOptions" :key="option.value"
+                                           :value="option.value" :label="option.label"/>
+                            </el-select>
                             <button type="button" class="fls_icon_btn" :class="{is_active: searchOpen}"
                                     :title="$t('Search')" :aria-label="$t('Search')" @click="toggleSearch()">
                                 <span v-html="icons.search"></span>

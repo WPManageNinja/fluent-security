@@ -46,10 +46,14 @@ class ActivityLogVocabularyTest extends BaseTestCase
 
     public function test_no_status_is_declared_that_nothing_ever_writes()
     {
-        $this->assertEquals(
-            array_keys($this->writtenStatuses()),
-            array_keys(Helper::getLogStatuses())
-        );
+        $written = array_keys($this->writtenStatuses());
+        $declared = array_keys(Helper::getLogStatuses());
+
+        /* A lookup, so only membership matters - the views decide what order anything reads in. */
+        sort($written);
+        sort($declared);
+
+        $this->assertEquals($written, $declared);
     }
 
     /**
@@ -77,7 +81,33 @@ class ActivityLogVocabularyTest extends BaseTestCase
             return $view['group'];
         }, Helper::getLogViews()));
 
-        $this->assertEquals(['login', 'login', 'login', 'site', 'site'], $groups);
+        $this->assertEquals(['login', 'login', 'login', 'site'], $groups);
+    }
+
+    /**
+     * A reset request is anonymous and aimed at an account rather than an administrator
+     * acting on the site, but it reads under site activity by choice. Pinned because the
+     * only thing holding it there is one entry in one list.
+     */
+    public function test_reset_requests_read_under_site_activity()
+    {
+        $views = Helper::getLogViews();
+
+        $this->assertArrayNotHasKey('password_reset', $views, 'It should not also have a tab of its own.');
+        $this->assertContains('password_reset', $views['site_activity']['statuses']);
+        $this->assertEquals('Site activity', Helper::getLogStatuses()['password_reset']);
+    }
+
+    /** The event dropdown belongs to site activity and to nothing else. */
+    public function test_only_site_activity_offers_an_event_filter()
+    {
+        foreach (Helper::getLogViews() as $key => $view) {
+            $this->assertEquals(
+                $key === 'site_activity',
+                !empty($view['events']),
+                $key . ' disagrees about whether it has an event filter.'
+            );
+        }
     }
 
     public function test_every_view_asks_for_statuses_that_exist()
@@ -104,6 +134,7 @@ class ActivityLogVocabularyTest extends BaseTestCase
         $this->assertEquals('Plugin activated', Helper::getLoginMediaLabel('plugin_activated'));
         $this->assertEquals('Plugin deactivated', Helper::getLoginMediaLabel('plugin_deactivated'));
         $this->assertEquals('Plugin updated', Helper::getLoginMediaLabel('plugin_updated'));
+        $this->assertEquals('Password reset requested', Helper::getLoginMediaLabel('password_reset_request'));
     }
 
     /** Naming the recovery actions must not have disturbed the login methods. */

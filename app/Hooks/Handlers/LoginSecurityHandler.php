@@ -350,7 +350,13 @@ class LoginSecurityHandler
                 'browser'    => $browserDetection->getBrowser($userAgent)['browser_name'],
                 'device_os'  => $browserDetection->getOS($userAgent)['os_family'],
                 'status'     => 'password_reset',
-                'media'      => 'web',
+                /*
+                 * What happened, not which form it came through. These rows read in the
+                 * same Event column as plugin updates and file quarantines, where "Login
+                 * form" described the door rather than the event and no reader could tell
+                 * a reset request from a sign-in.
+                 */
+                'media'      => 'password_reset_request',
                 'created_at' => current_time('mysql'),
                 'updated_at' => current_time('mysql'),
             ];

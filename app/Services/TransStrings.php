@@ -119,6 +119,7 @@ class TransStrings
             'All' => __('All', 'fluent-security'),
             'All Emails' => __('All Emails', 'fluent-security'),
             'All categories' => __('All categories', 'fluent-security'),
+            'All events' => __('All events', 'fluent-security'),
             'All time' => __('All time', 'fluent-security'),
             'Allow list' => __('Allow list', 'fluent-security'),
             'An old publishing API. One request can carry many guesses.' => __('An old publishing API. One request can carry many guesses.', 'fluent-security'),

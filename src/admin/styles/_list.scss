@@ -67,6 +67,14 @@
     gap: 8px;
 }
 
+/*
+ * Narrowing within the open view. Sized to the longest event name rather than left to
+ * grow, so the row does not change width as you move between views.
+ */
+.fls_event_filter {
+    width: 180px;
+}
+
 /* ------------------------------------------------------------------ views */
 
 /*

@@ -222,7 +222,7 @@ class Helper
      * login outcomes are how one sign-in attempt ended, the rest are other things the
      * same table keeps.
      *
-     * @return array<string, array{label: string, statuses: array<int, string>, group: string}>
+     * @return array<string, array{label: string, statuses: array<int, string>, group: string, events?: bool}>
      */
     public static function getLogViews()
     {
@@ -242,20 +242,28 @@ class Helper
                 'statuses' => ['blocked'],
                 'group'    => 'login'
             ],
-            'password_reset' => [
-                'label'    => __('Password resets', 'fluent-security'),
-                'statuses' => ['password_reset'],
-                'group'    => 'site'
-            ],
             'site_activity'  => [
                 'label' => __('Site activity', 'fluent-security'),
                 /*
-                 * `recovery` is what this was called before it covered anything but the
-                 * recovery screen. Rows carrying it are still on sites that have been
-                 * running a while, and nothing rewrites them, so the view reads both.
+                 * One view for everything that is not the outcome of a login attempt.
+                 *
+                 * `recovery` is what site activity was called before it covered anything
+                 * but the recovery screen. Rows carrying it are still on sites that have
+                 * been running a while, and nothing rewrites them, so the view reads both.
+                 *
+                 * `password_reset` is a request for a reset link, which the rate limiter
+                 * counts alongside failed and blocked logins - see
+                 * LoginSecurityHandler::maybeBlockPasswordReset(). It reads under this
+                 * view by choice rather than because it is an administrator's doing.
                  */
-                'statuses' => ['site_activity', 'recovery'],
-                'group'    => 'site'
+                'statuses' => ['site_activity', 'recovery', 'password_reset'],
+                'group'    => 'site',
+                /*
+                 * The only view holding several kinds of event, so the only one worth a
+                 * second control. Everywhere else the view name already says what the
+                 * rows are, and a dropdown would repeat it.
+                 */
+                'events'   => true
             ]
         ];
     }
@@ -313,7 +321,8 @@ class Helper
             'reinstall_theme'      => __('Theme reinstalled', 'fluent-security'),
             'plugin_activated'     => __('Plugin activated', 'fluent-security'),
             'plugin_deactivated'   => __('Plugin deactivated', 'fluent-security'),
-            'plugin_updated'       => __('Plugin updated', 'fluent-security')
+            'plugin_updated'       => __('Plugin updated', 'fluent-security'),
+            'password_reset_request' => __('Password reset requested', 'fluent-security')
         ]);
 
         if (isset($labels[$media])) {
