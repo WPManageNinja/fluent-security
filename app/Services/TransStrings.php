@@ -174,6 +174,7 @@ class TransStrings
             'Button Text and URL are required.' => __('Button Text and URL are required.', 'fluent-security'),
             'Button URL' => __('Button URL', 'fluent-security'),
             'Cancel' => __('Cancel', 'fluent-security'),
+            'Change interval' => __('Change interval', 'fluent-security'),
             'Changed since' => __('Changed since', 'fluent-security'),
             'Check enrollment across your users, and turn it off for anyone who has lost their device.' => __('Check enrollment across your users, and turn it off for anyone who has lost their device.', 'fluent-security'),
             'Check summary' => __('Check summary', 'fluent-security'),

@@ -92,6 +92,19 @@ export default {
         }
     },
     methods: {
+        /*
+         * Always opened on what is actually saved. The picker is reachable twice over now, and
+         * a second visit that still showed the first visit's abandoned choice would be offering
+         * to save something nobody asked for.
+         */
+        startEditingSchedule() {
+            this.scheduling.scan_interval = this.settings.scan_interval;
+            this.editingSchedule = true;
+        },
+        cancelEditingSchedule() {
+            this.scheduling.scan_interval = this.settings.scan_interval;
+            this.editingSchedule = false;
+        },
         saveSchedulingSettings() {
             this.saving = true;
             this.scheduling.auto_scan = 'yes';
@@ -212,8 +225,35 @@ export default {
         <div class="fls_aside_block">
             <h3>{{ $t('Scheduled Scanning') }}</h3>
 
-            <!-- Running on a schedule: what it does, and how to stop it. -->
-            <template v-if="isScheduled">
+            <!--
+                Choosing the interval. Reached from either state - switching scheduling on for
+                the first time, and changing how often it runs afterwards - so the form is one
+                block rather than a copy inside each.
+            -->
+            <template v-if="editingSchedule">
+                <el-form label-position="top">
+                    <el-form-item :label="$t('Scanning Interval')">
+                        <el-select v-model="scheduling.scan_interval"
+                                   :placeholder="$t('Select Interval')">
+                            <el-option :label="$t('Every Hour')" value="hourly"/>
+                            <el-option :label="$t('Daily')" value="daily"/>
+                        </el-select>
+                    </el-form-item>
+                </el-form>
+
+                <div class="fls_scan_aside_actions">
+                    <el-button type="primary" size="small" :disabled="saving"
+                               @click="saveSchedulingSettings">
+                        {{ $t('Save') }}
+                    </el-button>
+                    <el-button size="small" @click="cancelEditingSchedule">
+                        {{ $t('Cancel') }}
+                    </el-button>
+                </div>
+            </template>
+
+            <!-- Running on a schedule: what it does, how often, and how to stop it. -->
+            <template v-else-if="isScheduled">
                 <ul class="fls_scan_facts">
                     <li>
                         <span class="fls_scan_fact_label">{{ $t('Runs') }}</span>
@@ -228,6 +268,9 @@ export default {
                 <p class="fls_note">{{ $t('__autoscan_active_desc__') }}</p>
 
                 <div class="fls_scan_aside_actions">
+                    <el-button size="small" @click="startEditingSchedule">
+                        {{ $t('Change interval') }}
+                    </el-button>
                     <el-button size="small" :disabled="saving" @click="disableSchedule">
                         {{ $t('Turn off') }}
                     </el-button>
@@ -238,30 +281,8 @@ export default {
             <template v-else-if="settings.status === 'active'">
                 <p>{{ $t('__autoscan_promo__') }}</p>
 
-                <template v-if="editingSchedule">
-                    <el-form label-position="top">
-                        <el-form-item :label="$t('Scanning Interval')">
-                            <el-select v-model="scheduling.scan_interval"
-                                       :placeholder="$t('Select Interval')">
-                                <el-option :label="$t('Every Hour')" value="hourly"/>
-                                <el-option :label="$t('Daily')" value="daily"/>
-                            </el-select>
-                        </el-form-item>
-                    </el-form>
-
-                    <div class="fls_scan_aside_actions">
-                        <el-button type="primary" size="small" :disabled="saving"
-                                   @click="saveSchedulingSettings">
-                            {{ $t('Save') }}
-                        </el-button>
-                        <el-button size="small" @click="editingSchedule = false">
-                            {{ $t('Cancel') }}
-                        </el-button>
-                    </div>
-                </template>
-
-                <div v-else class="fls_scan_aside_actions">
-                    <el-button type="primary" size="small" @click="editingSchedule = true">
+                <div class="fls_scan_aside_actions">
+                    <el-button type="primary" size="small" @click="startEditingSchedule">
                         {{ $t('Enable Auto Scanning') }}
                     </el-button>
                 </div>
