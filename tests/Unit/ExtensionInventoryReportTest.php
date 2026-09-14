@@ -16,8 +16,8 @@ class ExtensionInventoryReportTest extends BaseTestCase
     {
         return [
             'extensions' => [
-                ['type' => 'plugin', 'slug' => 'fluent-smtp', 'file' => 'fluent-smtp/fluent-smtp.php', 'version' => $version, 'status' => 'active'],
-                ['type' => 'theme', 'slug' => 'twentytwentyfour', 'version' => '1.2', 'status' => 'active']
+                ['type' => 'plugin', 'slug' => 'fluent-smtp', 'file' => 'fluent-smtp/fluent-smtp.php', 'version' => $version, 'status' => 'active', 'update_source' => true],
+                ['type' => 'theme', 'slug' => 'twentytwentyfour', 'version' => '1.2', 'status' => 'active', 'update_source' => true]
             ],
             'extensions_untracked' => $untracked
         ];
@@ -98,6 +98,20 @@ class ExtensionInventoryReportTest extends BaseTestCase
         remove_all_filters('fluent_auth/pre_report_extension_inventory');
 
         $this->assertArrayHasKey('extensions', $payload);
+    }
+
+    /**
+     * A licence lapsing changes nothing else about an extension - same slug, same version,
+     * same status - so if it did not move the hash the relay would go on believing the plugin
+     * is still being offered updates, and keep counting it as checked.
+     */
+    public function testALicenceLapsingIsACHange()
+    {
+        $live = $this->inventory();
+        $lapsed = $live;
+        $lapsed['extensions'][0]['update_source'] = false;
+
+        $this->assertNotEquals(IntegrityHelper::inventoryHash($live), IntegrityHelper::inventoryHash($lapsed));
     }
 
     /**

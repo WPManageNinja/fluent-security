@@ -303,13 +303,20 @@ class ExtensionInventory
      * wordpress.org", so it drops the things there is nothing to compare - a theme WordPress
      * cannot parse, the must-use plugins, the drop-ins. This answers "what is on this site".
      *
-     * What is named and what is merely counted is decided by one test: does the extension have
-     * somewhere it gets updates from. An extension that asks wordpress.org, or asks a vendor's
-     * own server, has already told a third party its name and version - and those are the ones
-     * a vulnerability feed can match, wordpress.org through WPScan and the commercial ones
-     * through Patchstack. An extension that asks nobody is a client's bespoke plugin or some
-     * agency glue: no feed will ever carry an advisory for it, so naming it buys nothing and
-     * costs the one genuinely private thing in the list. Those are counted, not named.
+     * Anything with a slug somebody could look up is named. That deliberately includes an
+     * extension nothing is currently offering updates to, which is the lapsed-licence case: a
+     * commercial plugin whose subscription has run out registers no update source, and is
+     * therefore both the hardest to see and the least likely to be patched. A rule that
+     * withheld those would select for "currently receiving updates" rather than for "private",
+     * and hide precisely the population worth knowing about.
+     *
+     * Whether anything will actually offer a newer version is said separately, in
+     * `update_source`, so that reading is not lost by naming the extension. It is not the same
+     * statement as `latest`: one is "nothing will ever offer this an update", the other is
+     * "nothing is waiting right now".
+     *
+     * Only code with no identity to report stays a bare count - the must-use plugins and the
+     * drop-ins, which no vulnerability feed keys on.
      *
      * Returns the report's two keys, so the caller does not have to know how they relate.
      */
@@ -343,27 +350,11 @@ class ExtensionInventory
         $named = array_merge(self::getPluginInventory(), self::getThemeInventory());
 
         /*
-         * Must-use plugins and drop-ins are always counted. Nothing writes an update entry for a
-         * file dropped into mu-plugins or for object-cache.php, so by the test above they have
-         * no source - and in practice they are the most site-specific code on a site.
+         * Counted rather than named, and the only things that are. A file dropped into
+         * mu-plugins or an object-cache.php has no slug any directory or advisory feed would
+         * recognise, so a name here would be a string nobody can look anything up with.
          */
         $untracked = count(self::getMuPlugins()) + count(self::getDropins());
-
-        foreach ($named as $item) {
-            if (empty($item['named'])) {
-                $untracked++;
-            }
-        }
-
-        $named = array_values(array_filter($named, function ($item) {
-            return !empty($item['named']);
-        }));
-
-        $named = array_map(function ($item) {
-            unset($item['named']);
-
-            return $item;
-        }, $named);
 
         return apply_filters('fluent_auth/report_extension_inventory', [
             'extensions'           => $named,
@@ -390,7 +381,13 @@ class ExtensionInventory
                 'version' => isset($data['Version']) ? trim($data['Version']) : '',
                 'status'  => self::getPluginStatus($pluginFile),
                 'wp_org'  => $source && $source['source'] === 'wp_org',
-                'named'   => (bool)$source
+                /*
+                 * Whether anything will offer this a newer version - the directory, or a vendor
+                 * whose licence is still live. False is the lapsed subscription, which is why
+                 * this is worth a field of its own rather than being inferred from the absence
+                 * of `latest`.
+                 */
+                'update_source' => (bool)$source
             ];
 
             /*
@@ -445,7 +442,7 @@ class ExtensionInventory
                 'wp_org'  => $source === 'wp_org',
                 /* Said rather than dropped: a theme WordPress cannot read is a finding of its own. */
                 'broken'  => (bool)$theme->errors(),
-                'named'   => (bool)$source
+                'update_source' => $source !== ''
             ];
 
             if (isset($updates[$stylesheet])) {

@@ -680,7 +680,13 @@ class IntegrityHelper
                 Arr::get($item, 'file', ''),
                 Arr::get($item, 'version', ''),
                 Arr::get($item, 'status', ''),
-                Arr::get($item, 'latest', '')
+                Arr::get($item, 'latest', ''),
+                /*
+                 * A licence lapsing or being renewed changes nothing else about an extension -
+                 * same slug, same version, same status - so without this the relay would go on
+                 * believing something is still being offered updates when it is not.
+                 */
+                Arr::get($item, 'update_source') ? '1' : '0'
             ]);
         }
 
