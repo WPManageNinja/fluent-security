@@ -117,7 +117,12 @@ export default {
                 return this.$t('Off');
             }
 
-            return scan.interval === 'hourly' ? this.$t('Every hour') : this.$t('Every day');
+            return {
+                hourly: this.$t('Every hour'),
+                six_hourly: this.$t('Every 6 hours'),
+                twelve_hourly: this.$t('Every 12 hours'),
+                daily: this.$t('Every day')
+            }[scan.interval] || this.$t('Every day');
         }
     },
     methods: {

@@ -80,8 +80,20 @@ export default {
         relayRevoked() {
             return this.settings.relay_rejection === 'revoked';
         },
+        /*
+         * One map, so the picker and the row that reports the choice cannot drift into naming
+         * the same interval two different ways.
+         */
+        intervalLabels() {
+            return {
+                hourly: this.$t('Every hour'),
+                six_hourly: this.$t('Every 6 hours'),
+                twelve_hourly: this.$t('Every 12 hours'),
+                daily: this.$t('Every day')
+            };
+        },
         intervalLabel() {
-            return this.settings.scan_interval === 'hourly' ? this.$t('Every hour') : this.$t('Daily');
+            return this.intervalLabels[this.settings.scan_interval] || this.intervalLabels.daily;
         },
         lastScan() {
             if (!this.settings.last_checked_human) {
@@ -235,8 +247,8 @@ export default {
                     <el-form-item :label="$t('Scanning Interval')">
                         <el-select v-model="scheduling.scan_interval"
                                    :placeholder="$t('Select Interval')">
-                            <el-option :label="$t('Every Hour')" value="hourly"/>
-                            <el-option :label="$t('Daily')" value="daily"/>
+                            <el-option v-for="(label, value) in intervalLabels"
+                                       :key="value" :label="label" :value="value"/>
                         </el-select>
                     </el-form-item>
                 </el-form>

@@ -19,6 +19,44 @@ class IntegrityHelper
 
     const RELAY_REVOKED = 'revoked';
 
+    /*
+     * The schedules a site can be put on, and how long each waits, in seconds.
+     *
+     * Every one is shaved by half an hour. The cron driving this runs hourly and never exactly
+     * on the hour, so an interval equal to a whole number of its own periods is a coin toss: a
+     * tick arriving a second early fails the check and the next one is an hour later, which
+     * turns "daily" into "every other day" and "hourly" into "every two hours". The daily value
+     * has carried that shave since it was written; the rest have it for the same reason.
+     *
+     * One place, because the interval is decided in the cron, validated on save, and named on
+     * two screens - and a list that lives in four ternaries grows a fifth.
+     */
+    const SCAN_INTERVALS = [
+        'hourly'        => 3300,
+        'six_hourly'    => 19800,
+        'twelve_hourly' => 41400,
+        'daily'         => 84600
+    ];
+
+    public static function getScanIntervals()
+    {
+        return self::SCAN_INTERVALS;
+    }
+
+    /*
+     * The stored interval, or the default if it is one this version does not know - a value
+     * written by a newer release, or by hand.
+     */
+    public static function normaliseScanInterval($interval)
+    {
+        return isset(self::SCAN_INTERVALS[$interval]) ? $interval : 'daily';
+    }
+
+    public static function getScanIntervalSeconds($interval)
+    {
+        return self::SCAN_INTERVALS[self::normaliseScanInterval($interval)];
+    }
+
     public static function getSettings()
     {
         $defaults = [
@@ -450,13 +488,7 @@ class IntegrityHelper
             return;
         }
 
-        $scanInterval = $settings['scan_interval'];
-
-        if ($scanInterval == 'hourly') {
-            $interval = 3600;
-        } else {
-            $interval = 84600; // 23.5 hours
-        }
+        $interval = self::getScanIntervalSeconds($settings['scan_interval']);
 
         if ($settings['last_report_sent'] && (time() - strtotime($settings['last_report_sent'])) < $interval) {
             return;

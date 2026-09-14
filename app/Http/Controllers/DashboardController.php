@@ -482,7 +482,7 @@ class DashboardController
                  */
                 'scheduled'    => Arr::get($scan, 'auto_scan') === 'yes'
                     && Arr::get($scan, 'status') === 'active',
-                'interval'     => Arr::get($scan, 'scan_interval') === 'hourly' ? 'hourly' : 'daily',
+                'interval'     => IntegrityHelper::normaliseScanInterval(Arr::get($scan, 'scan_interval')),
                 /* Scanning without the alerts service: there is no schedule to have here. */
                 'self_managed' => Arr::get($scan, 'status') === 'self',
                 /* '', 'disabled' or 'revoked' - see IntegrityHelper::markRelayRejected. */

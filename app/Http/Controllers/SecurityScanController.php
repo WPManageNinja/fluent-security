@@ -1206,7 +1206,11 @@ class SecurityScanController
         $globalSettings = IntegrityHelper::getSettings();
 
         $globalSettings['auto_scan'] = $enabled ? 'yes' : 'no';
-        $globalSettings['scan_interval'] = $interval == 'hourly' ? 'hourly' : 'daily';
+        if (!isset(IntegrityHelper::getScanIntervals()[$interval])) {
+            return new \WP_Error('invalid_data', __('That is not a scanning interval.', 'fluent-security'), ['status' => 400, 'data' => $interval]);
+        }
+
+        $globalSettings['scan_interval'] = $interval;
 
         IntegrityHelper::saveSettings($globalSettings);
 

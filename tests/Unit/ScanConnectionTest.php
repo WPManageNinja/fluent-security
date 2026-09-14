@@ -139,6 +139,57 @@ class ScanConnectionTest extends BaseTestCase
     }
 
     /**
+     * @dataProvider intervalProvider
+     */
+    public function testEachScheduleWaitsLessThanItsOwnPeriod($interval, $period)
+    {
+        $seconds = IntegrityHelper::getScanIntervalSeconds($interval);
+
+        $this->assertLessThan($period, $seconds, 'An interval equal to its own period is a coin toss against an hourly cron.');
+        $this->assertGreaterThan($period - 3600, $seconds, 'And it must not be short enough to fire a whole tick early.');
+    }
+
+    public function intervalProvider()
+    {
+        return [
+            'hourly'        => ['hourly', 3600],
+            'every 6 hours' => ['six_hourly', 21600],
+            'every 12 hours' => ['twelve_hourly', 43200],
+            'daily'         => ['daily', 86400],
+        ];
+    }
+
+    public function testAnUnknownIntervalFallsBackToDaily()
+    {
+        $this->assertEquals('daily', IntegrityHelper::normaliseScanInterval('fortnightly'));
+        $this->assertEquals('daily', IntegrityHelper::normaliseScanInterval(''));
+        $this->assertEquals(IntegrityHelper::getScanIntervalSeconds('daily'), IntegrityHelper::getScanIntervalSeconds('fortnightly'));
+    }
+
+    public function testTheScheduleFormRefusesAnIntervalItDoesNotKnow()
+    {
+        $result = SecurityScanController::updateScheduleScan($this->request([
+            'auto_scan'     => 'yes',
+            'scan_interval' => 'every_other_tuesday'
+        ]));
+
+        $this->assertWpErrorWithCode($result, 'invalid_data');
+    }
+
+    public function testTheScheduleFormAcceptsEveryKnownInterval()
+    {
+        foreach (array_keys(IntegrityHelper::getScanIntervals()) as $interval) {
+            $result = SecurityScanController::updateScheduleScan($this->request([
+                'auto_scan'     => 'yes',
+                'scan_interval' => $interval
+            ]));
+
+            $this->assertIsArray($result, $interval . ' should be accepted');
+            $this->assertEquals($interval, IntegrityHelper::getSettings()['scan_interval']);
+        }
+    }
+
+    /**
      * Reconnecting mints a new row on the relay, with nothing reported to it. The previous
      * connection's timestamp must not gate the first report of the new one, or a freshly
      * connected site stays silent for most of a day while the dashboard says it is still
