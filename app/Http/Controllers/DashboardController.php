@@ -397,7 +397,7 @@ class DashboardController
                 'usernames' => (int)$row->usernames,
                 'last_seen' => self::timeAgo($row->last_seen, $wpTimestamp),
                 // So the card can offer to block an address, or say that it already is.
-                'is_blocked' => IpRules::isBlocked($row->ip)
+                'is_blocked' => IpRules::isOnBlockList($row->ip)
             ];
         }
 

@@ -625,7 +625,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
             'login_error'
         );
 
-        \FluentAuth\App\Services\IpRules::save(['allow' => [['ip' => $ip]], 'block' => []]);
+        \FluentAuth\App\Services\IpRules::save(['allow' => [$ip], 'block' => []]);
 
         $this->assertSame(
             $user,
@@ -644,7 +644,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
 
         $this->assertFalse($this->handler->maybeBlockAppPasswordAuth(true));
 
-        \FluentAuth\App\Services\IpRules::save(['allow' => [['ip' => $ip]], 'block' => []]);
+        \FluentAuth\App\Services\IpRules::save(['allow' => [$ip], 'block' => []]);
 
         $this->assertTrue((new LoginSecurityHandler())->maybeBlockAppPasswordAuth(true));
     }
@@ -661,7 +661,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $_SERVER['REMOTE_ADDR'] = '198.51.100.20';
         Helper::resetStatics();
 
-        $saved = \FluentAuth\App\Services\IpRules::save(['allow' => [], 'block' => [['ip' => $range]]]);
+        $saved = \FluentAuth\App\Services\IpRules::save(['allow' => [], 'block' => [$range]]);
 
         $this->assertIsArray($saved, 'the block list should have saved');
     }
@@ -744,7 +744,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
         Helper::resetStatics();
 
         $saved = \FluentAuth\App\Services\IpRules::save([
-            'allow'            => [['ip' => '198.51.100.20', 'label' => 'Office']],
+            'allow'            => ['198.51.100.20'],
             'block'            => [],
             'restricted_roles' => [$role]
         ]);
@@ -858,6 +858,89 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertEquals(1, $this->countRows('blocked'));
     }
 
+    // ----------------------------------------- what a blocked address is actually told
+
+    /**
+     * The message that stops the support ticket.
+     *
+     * Somebody typing the right password into a site that refuses them is owed more than
+     * "not permitted": which address is being refused, and - if they run the place - how to
+     * get back in without us.
+     */
+    public function testAnAdministratorWithTheRightPasswordIsToldTheAddressAndTheWayBackIn()
+    {
+        $admin = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->blockFromElsewhere('45.148.10.0/24');
+        $this->arriveFrom('45.148.10.72');
+
+        $error = (new LoginSecurityHandler())->maybeCheckLoginAttempts($admin, $admin->user_login, 'pw');
+
+        $this->assertWpErrorWithCode($error, 'login_error');
+
+        $message = $error->get_error_message();
+
+        $this->assertStringContainsString('45.148.10.72', $message);
+        $this->assertStringContainsString('FLUENT_AUTH_DISABLE_IP_RESTRICTION', $message);
+    }
+
+    /**
+     * The constant is only useful to somebody who can edit wp-config.php, and telling a
+     * subscriber to go and do that is how a support ticket becomes two support tickets.
+     */
+    public function testAnOrdinaryUserIsPointedAtTheAdministratorInstead()
+    {
+        $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        $this->blockFromElsewhere('45.148.10.0/24');
+        $this->arriveFrom('45.148.10.72');
+
+        $error = (new LoginSecurityHandler())->maybeCheckLoginAttempts($subscriber, $subscriber->user_login, 'pw');
+
+        $message = $error->get_error_message();
+
+        $this->assertStringContainsString('45.148.10.72', $message);
+        $this->assertStringNotContainsString('FLUENT_AUTH_DISABLE_IP_RESTRICTION', $message);
+        $this->assertStringContainsString('contact', $message);
+    }
+
+    /**
+     * The explanation is earned by proving you hold the account. Without that, naming the
+     * rule only tells whoever is guessing which network to move to next.
+     */
+    public function testAWrongPasswordIsToldNothingItCouldNotGuess()
+    {
+        $this->blockFromElsewhere('45.148.10.0/24');
+        $this->arriveFrom('45.148.10.72');
+
+        $error = (new LoginSecurityHandler())->maybeCheckLoginAttempts(
+            new \WP_Error('incorrect_password', 'nope'),
+            'admin',
+            'pw'
+        );
+
+        $message = $error->get_error_message();
+
+        $this->assertStringNotContainsString('45.148.10.72', $message);
+        $this->assertStringNotContainsString('FLUENT_AUTH_DISABLE_IP_RESTRICTION', $message);
+    }
+
+    /**
+     * The log is where an administrator who is not locked out goes to find out why somebody
+     * else is, so it names the rule rather than saying "blocked".
+     */
+    public function testTheLogNamesTheRuleThatRefusedTheLogin()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->blockFromElsewhere('45.148.10.0/24');
+        $this->arriveFrom('45.148.10.72');
+
+        (new LoginSecurityHandler())->maybeCheckLoginAttempts($user, $user->user_login, 'pw');
+
+        $this->assertEquals('Blocked by IP rule 45.148.10.0/24', $this->blockedRow()->description);
+    }
+
     /**
      * The wp-config escape hatch, the way back in when the list is wrong and nobody can log
      * in to change it.
@@ -873,12 +956,28 @@ class LoginSecurityHandlerTest extends BaseTestCase
     {
         $admin = $this->restrictRoleToOfficeAddress();
 
+        // Appended, not saved over the top: save() replaces both lists and the roles with it.
+        $this->assertIsArray(\FluentAuth\App\Services\IpRules::add('block', '45.148.10.0/24'));
+
         $this->arriveFrom('45.148.10.72');
 
         $this->assertTrue(\FluentAuth\App\Services\IpRules::deniesSignIn($admin));
+        $this->assertTrue(\FluentAuth\App\Services\IpRules::isBlocked('45.148.10.72'));
 
         define('FLUENT_AUTH_DISABLE_IP_RESTRICTION', true);
 
         $this->assertFalse(\FluentAuth\App\Services\IpRules::deniesSignIn($admin));
+
+        /*
+         * The half that was missing: the escape hatch used to stand down the role
+         * restriction only, so an administrator who had blocked their own network had
+         * nothing to edit wp-config.php *for*.
+         */
+        $this->assertFalse(\FluentAuth\App\Services\IpRules::isBlocked('45.148.10.72'));
+
+        $this->assertSame(
+            $admin,
+            (new LoginSecurityHandler())->maybeCheckLoginAttempts($admin, $admin->user_login, 'pw')
+        );
     }
 }

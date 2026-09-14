@@ -30,6 +30,16 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('onboarding/reopen', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'reopen'], $permissions)
     ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $permissions)
     ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $permissions)
+    /*
+     * Encryption of the authenticator secrets. Two calls to switch on rather than one,
+     * because the key lives in wp-config.php and this request cannot see a line added to
+     * it - see TwoFaEncryptionController.
+     */
+    ->get('two-fa/encryption', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'getStatus'], $permissions)
+    ->post('two-fa/encryption/write-config', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'writeConfig'], $permissions)
+    ->post('two-fa/encryption/enable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'enable'], $permissions)
+    ->post('two-fa/encryption/disable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'disable'], $permissions)
+    ->post('two-fa/encryption/rekey', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'rekey'], $permissions)
     ->get('auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'getLogs'], $permissions)
     ->get('dashboard', ['\FluentAuth\App\Http\Controllers\DashboardController', 'getDashboard'], $permissions)
     ->post('security-checks/{key}/apply', ['\FluentAuth\App\Http\Controllers\DashboardController', 'applySecurityCheck'], $permissions)

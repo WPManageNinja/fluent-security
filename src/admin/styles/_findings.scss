@@ -163,47 +163,11 @@
 
 /* ----------------------------------------------------------- recovery */
 
-/*
- * The one action on this screen that is safe to take without reading the rest of it. Given
- * the weight to be found by somebody who is not reading carefully, and the wording to be
- * understood by them - the sequence below is for people who are.
- */
-.fls_recover_hero {
-    @apply flex flex-wrap items-start justify-between rounded border border-solid;
-
-    gap: 16px;
-    padding: 18px 20px;
-    margin-bottom: 16px;
-    background: var(--fls-danger-wash);
-    border-color: var(--fls-danger-line);
-
-    .fls_recover_hero_body {
-        @apply flex-1;
-
-        min-width: 260px;
-    }
-
-    h2 {
-        @apply text-sm font-medium m-0;
-
-        line-height: 20px;
-        color: var(--fls-danger-fg);
-    }
-
-    p {
-        @apply text-xs m-0;
-
-        margin-top: 6px;
-        line-height: 1.6;
-        color: var(--fls-text-mid);
-        max-width: 62ch;
-    }
-}
-
+/* Sits at the end of the footnote under the list, not above it: context, not a heading. */
 .fls_recover_last {
-    @apply text-xs m-0;
+    @apply block text-xs;
 
-    margin-bottom: 20px;
+    margin-top: 4px;
     color: var(--fls-text-light);
 }
 
@@ -246,6 +210,11 @@
         @apply bg-caution-bg text-caution-fg;
     }
 
+    /* Only step one, and only on a site where it would delete something. */
+    .is_danger .fls_recover_num {
+        @apply bg-danger-bg text-danger-fg;
+    }
+
     .fls_recover_body {
         min-width: 0;
 
@@ -281,6 +250,140 @@
 
         margin-top: 8px;
         color: var(--fls-text-light);
+    }
+
+    /*
+     * What step one would cost here, and what it leaves alone. Two paragraphs rather than one
+     * because they are two different claims and people stop reading a red box early - the number
+     * that decides whether to press the button has to be the first thing in it.
+     *
+     * Red only when there is something irreversible to be red about. A site with no application
+     * passwords gets the same two paragraphs in a plain box, because colouring an ordinary action
+     * like a dangerous one is how people learn to click past the colour.
+     */
+    .fls_recover_impact {
+        @apply rounded border border-solid;
+
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: var(--fls-surface-sunk);
+        border-color: var(--fls-border);
+
+        &.is_danger {
+            background: var(--fls-danger-wash);
+            border-color: var(--fls-danger-line);
+        }
+
+        p {
+            @apply text-xs m-0;
+
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+            max-width: 62ch;
+        }
+
+        &.is_danger p:first-child {
+            @apply font-medium;
+
+            color: var(--fls-danger-fg);
+        }
+
+        p + p {
+            margin-top: 6px;
+        }
+    }
+}
+
+/*
+ * The confirmation for step one. Reads top to bottom as the decision it is: what this costs
+ * here, what it leaves alone, the one thing that would change that answer, and then the word.
+ *
+ * The typed field is last on purpose. It appears when something irreversible has been chosen
+ * and sits below everything that explains why - so the act of typing comes after the reading
+ * rather than beside it.
+ */
+.fls_secure_dialog {
+    .fls_secure_impact {
+        @apply text-sm m-0;
+
+        line-height: 1.6;
+        color: var(--fls-text-mid);
+
+        &.is_danger {
+            @apply font-medium;
+
+            color: var(--fls-danger-fg);
+        }
+    }
+
+    .fls_secure_keeps {
+        @apply text-xs m-0;
+
+        margin-top: 8px;
+        line-height: 1.6;
+        color: var(--fls-text-light);
+    }
+
+    /* The opt-in, boxed off so it reads as a separate decision from the one above it. */
+    .fls_secure_option {
+        @apply rounded border border-solid;
+
+        margin-top: 14px;
+        padding: 12px;
+        background: var(--fls-surface-sunk);
+        border-color: var(--fls-border);
+
+        .fls_secure_option_reason {
+            @apply text-xs m-0;
+
+            margin-top: 6px;
+            padding-left: 24px;
+            line-height: 1.6;
+            color: var(--fls-text-light);
+        }
+    }
+
+    /*
+     * Only on screen while the box is ticked, which is the only time any of it is true. The
+     * first line is the one somebody has to weigh and the other two are what stops them
+     * abandoning the recovery over it, so the colour goes on the first line alone.
+     */
+    .fls_secure_salts {
+        @apply rounded border border-solid;
+
+        margin-top: 10px;
+        margin-left: 24px;
+        padding: 10px 12px;
+        background: var(--fls-danger-wash);
+        border-color: var(--fls-danger-line);
+
+        p {
+            @apply text-xs m-0;
+
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+        }
+
+        p + p {
+            margin-top: 6px;
+        }
+
+        .fls_secure_salts_warn {
+            @apply font-medium;
+
+            color: var(--fls-danger-fg);
+        }
+    }
+
+    .fls_secure_gate {
+        margin-top: 16px;
+
+        label {
+            @apply block text-xs font-medium;
+
+            margin-bottom: 6px;
+            color: var(--fls-heading);
+        }
     }
 }
 

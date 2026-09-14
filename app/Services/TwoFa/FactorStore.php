@@ -27,6 +27,19 @@ namespace FluentAuth\App\Services\TwoFa;
  *             row with status `pending`, which is what keeps an abandoned one from
  *             counting as an enrollment
  *   recovery  identifier = the code's hash, one row per code, status `used` once spent
+ *
+ * Only the authenticator app's secret is ever encrypted, and only when the site has a key
+ * for it - see SecretCipher. The passkey column named `secret` holds a *public* key, which
+ * is public by definition and has nothing to hide, and a recovery code is a one-way hash.
+ * So this is the single seam where encryption happens: secrets are protected on the way
+ * into insert() and revealed on the way out of every read, and nothing above this class
+ * knows whether the row it is holding came back from ciphertext or not.
+ *
+ * A secret that cannot be decrypted comes back as an empty string with
+ * `secret_unreadable` set on the row, rather than as a hard failure. That is deliberate:
+ * an unreadable secret makes isEnrolled() false, which sends the user to re-pair their
+ * phone instead of to a code prompt that can never be satisfied. A lost key costs
+ * everybody an enrollment; it must never cost anybody their account.
  */
 class FactorStore
 {
@@ -218,7 +231,64 @@ class FactorStore
             $query = $query->where('status', $status);
         }
 
-        return $query->orderBy('id', 'ASC')->get();
+        return self::hydrate($query->orderBy('id', 'ASC')->get());
+    }
+
+    /**
+     * Turns stored rows into rows the rest of the plugin can use.
+     *
+     * One place, called by every read, so that a caller cannot get at an encrypted secret
+     * by using a query path somebody forgot to update. A plaintext row passes through
+     * untouched, which is what a site that has never switched encryption on always gets.
+     *
+     * @param $rows array|object|null
+     * @return array|object|null whatever shape it was given
+     */
+    protected static function hydrate($rows)
+    {
+        if (!$rows) {
+            return $rows;
+        }
+
+        if (!is_array($rows)) {
+            self::hydrateRow($rows);
+
+            return $rows;
+        }
+
+        foreach ($rows as $row) {
+            self::hydrateRow($row);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param $row object
+     * @return void
+     */
+    protected static function hydrateRow($row)
+    {
+        if (!is_object($row) || !isset($row->secret)) {
+            return;
+        }
+
+        $row->secret_unreadable = false;
+
+        if (!SecretCipher::isProtected($row->secret)) {
+            return;
+        }
+
+        $revealed = SecretCipher::revealFromStorage($row->secret);
+
+        if ($revealed === false) {
+            $row->secret = '';
+            $row->secret_unreadable = true;
+
+            return;
+        }
+
+        $row->secret = $revealed;
     }
 
     /**
@@ -263,7 +333,7 @@ class FactorStore
             ->where('identifier', $identifier)
             ->first();
 
-        return $row ? $row : null;
+        return $row ? self::hydrate($row) : null;
     }
 
     /**
@@ -282,7 +352,7 @@ class FactorStore
             ->where('user_id', (int)$userId)
             ->first();
 
-        return $row ? $row : null;
+        return $row ? self::hydrate($row) : null;
     }
 
     /**
@@ -312,6 +382,30 @@ class FactorStore
 
         if (is_array($row['meta'])) {
             $row['meta'] = $row['meta'] ? wp_json_encode($row['meta']) : null;
+        }
+
+        /*
+         * The authenticator app's secret is the only reversible one, so it is the only one
+         * encrypted. A site with no key stores it as it always did; the prefix on the
+         * stored value is what tells the two apart later, so no flag has to be kept in
+         * step with the data.
+         */
+        if ($row['type'] === self::TYPE_TOTP && !empty($row['secret'])) {
+            $protected = SecretCipher::protectForStorage((string)$row['secret']);
+
+            /*
+             * Encryption is in force and the key is unreachable. Refused rather than
+             * written in the clear: a site that asked for its secrets to be encrypted must
+             * not silently get one that is not, least of all without being told.
+             */
+            if ($protected === '') {
+                return new \WP_Error(
+                    'secret_not_protected',
+                    __('The authenticator secret could not be encrypted, so it has not been saved. Check the encryption key in your wp-config.php.', 'fluent-security')
+                );
+            }
+
+            $row['secret'] = $protected;
         }
 
         /*
@@ -356,6 +450,27 @@ class FactorStore
 
         if (isset($changes['meta']) && is_array($changes['meta'])) {
             $changes['meta'] = $changes['meta'] ? wp_json_encode($changes['meta']) : null;
+        }
+
+        /*
+         * Nothing replaces a live secret today - activate() removes the row and writes a
+         * new one - so this costs a query on a path nothing currently takes. It is here so
+         * that the day something does, the secret is encrypted by the same rule as every
+         * other write rather than by whoever remembers.
+         */
+        if (isset($changes['secret']) && $changes['secret'] !== '') {
+            $existing = flsDb()->table('fls_auth_factors')->where('id', (int)$id)->first();
+
+            if ($existing && $existing->type === self::TYPE_TOTP) {
+                $protected = SecretCipher::protectForStorage((string)$changes['secret']);
+
+                // Same refusal as insert(), and void here, so the write is abandoned whole.
+                if ($protected === '') {
+                    return;
+                }
+
+                $changes['secret'] = $protected;
+            }
         }
 
         $changes['updated_at'] = current_time('mysql');

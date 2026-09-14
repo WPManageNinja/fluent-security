@@ -41,6 +41,35 @@ class LoginSecurityHandler
     }
 
     /**
+     * The half of an address refusal that says what to do about it.
+     *
+     * An address rule is the one security setting whose owner can aim it at themselves, and
+     * a site nobody can log in to is a support ticket by definition. So the refusal names
+     * the address, and tells an administrator about the wp-config.php way back in rather
+     * than leaving them to find it in the documentation of a site they cannot open.
+     *
+     * Only reached once a password has checked out, so the hint goes to somebody who has
+     * already proved they hold the account. It names a documented constant, not a secret,
+     * and acting on it needs write access to wp-config.php - which is not something a
+     * blocked address has.
+     *
+     * @param string $lead
+     * @param \WP_User $user
+     * @return string
+     */
+    private function lockedOutMessage($lead, $user)
+    {
+        if (!user_can($user, 'manage_options')) {
+            return $lead . ' ' . __('Please contact an administrator of this site to have your address allowed.', 'fluent-security');
+        }
+
+        /* translators: %s: a line of PHP to add to wp-config.php */
+        $hint = __('You administer this site, so if that address is your own you have locked yourself out. Add %s to wp-config.php to switch the IP rules off, sign in, and correct the list.', 'fluent-security');
+
+        return $lead . ' ' . sprintf($hint, '<code>define( \'FLUENT_AUTH_DISABLE_IP_RESTRICTION\', true );</code>');
+    }
+
+    /**
      * @param $canLogin bool|\WP_Error
      * @param $user \WP_User
      * @param $provider string
@@ -52,7 +81,7 @@ class LoginSecurityHandler
             return $canLogin;
         }
 
-        $this->logBlockedAuth($user, $user->user_login);
+        $this->logBlockedAuth($user, $user->user_login, 'web', 'Blocked: role restricted to the allow list');
 
         /*
          * A plain false rather than a WP_Error when there is no provider: AuthService only
@@ -63,10 +92,19 @@ class LoginSecurityHandler
             return false;
         }
 
-        return new \WP_Error(
-            'login_error',
-            __('Your account can only be used from an approved location.', 'fluent-security')
-        );
+        return new \WP_Error('login_error', $this->restrictedLocationMessage($user));
+    }
+
+    /**
+     * @param $user \WP_User
+     * @return string
+     */
+    private function restrictedLocationMessage($user)
+    {
+        /* translators: %s: the IP address the visitor is connecting from */
+        $lead = __('Your username and password are correct, but this account may only be used from an approved location, and the address you are connecting from (%s) is not one of them.', 'fluent-security');
+
+        return $this->lockedOutMessage(sprintf($lead, Helper::getIp()), $user);
     }
 
     /**
@@ -197,7 +235,7 @@ class LoginSecurityHandler
 
         if ($appUser && IpRules::deniesSignIn($appUser)) {
             $this->appPasswordBlocked = true;
-            $this->logBlockedAuth($appUser, $username, 'app_password');
+            $this->logBlockedAuth($appUser, $username, 'app_password', 'Blocked: role restricted to the allow list');
 
             return false;
         }
@@ -213,7 +251,8 @@ class LoginSecurityHandler
         $this->logBlockedAuth(
             new \WP_Error('blocked', __('Too many failed application password attempts', 'fluent-security')),
             $username,
-            'app_password'
+            'app_password',
+            $this->blockReason($isLimitExceeded)
         );
 
         return false;
@@ -275,12 +314,9 @@ class LoginSecurityHandler
          * worth nothing if asking the site to email you a link is a way around it.
          */
         if (IpRules::deniesSignIn($user)) {
-            $this->logBlockedAuth($user, $username);
+            $this->logBlockedAuth($user, $username, 'web', 'Blocked: role restricted to the allow list');
 
-            return new \WP_Error(
-                'login_error',
-                __('Your account can only be used from an approved location.', 'fluent-security')
-            );
+            return new \WP_Error('login_error', $this->restrictedLocationMessage($user));
         }
 
         /*
@@ -292,7 +328,7 @@ class LoginSecurityHandler
             $isLimitExceeded = $this->checkLoginAttempt($user, $username);
 
             if (is_wp_error($isLimitExceeded)) {
-                $this->logBlockedAuth($user, $username);
+                $this->logBlockedAuth($user, $username, 'web', $this->blockReason($isLimitExceeded));
                 return $isLimitExceeded;
             }
         }
@@ -497,12 +533,35 @@ class LoginSecurityHandler
     }
 
     /**
+     * The log line a refusal carried with it, if it carried one.
+     *
+     * checkLoginAttempt() knows which rule refused the login; the caller is the one that
+     * writes the log row. Rather than have the two agree out of band, the error carries the
+     * sentence and the caller hands it on.
+     *
+     * @param $error \WP_Error|mixed
+     * @return string
+     */
+    private function blockReason($error)
+    {
+        if (!is_wp_error($error)) {
+            return '';
+        }
+
+        $data = $error->get_error_data();
+
+        return is_array($data) ? (string)Arr::get($data, 'reason', '') : '';
+    }
+
+    /**
      * @param $user \WP_User | \WP_Error
      * @param $username string
      * @param $media string
+     * @param $reason string What the log row should say, when the refusal knows something
+     *                       more useful than "blocked" - which rule matched, above all.
      * @return void
      */
-    private function logBlockedAuth($user, $username, $media = 'web')
+    private function logBlockedAuth($user, $username, $media = 'web', $reason = '')
     {
         global $wpdb;
 
@@ -546,7 +605,7 @@ class LoginSecurityHandler
             'error_code'  => 'blocked',
             'browser'     => Arr::get($browserData, 'browser_name'),
             'device_os'   => Arr::get($browserData, 'os_family'),
-            'description' => 'Blocked by Fluent Auth',
+            'description' => $reason ?: 'Blocked by Fluent Auth',
             'status'      => 'blocked',
             'media'       => $media,
             'count'       => 1
@@ -561,6 +620,44 @@ class LoginSecurityHandler
         $this->failedLogged = true;
 
         $this->maybeSendBlockedEmail($user, $username);
+    }
+
+    /**
+     * Why a login was refused by the block list, in as much detail as the visitor has
+     * earned by getting this far.
+     *
+     * A wrong password is told nothing it could not have learned by trying from another
+     * address - naming the rule to somebody guessing usernames only tells them which
+     * network to move to. A *right* password is a different visitor: at that point the
+     * likeliest person reading this is the site's own owner, who has blocked a range their
+     * home address turned out to be in and has no idea why the password they know is
+     * correct is being refused.
+     *
+     * @param $user \WP_User|\WP_Error|null
+     * @param $rule string The list entry that matched - an address or a CIDR range.
+     * @return \WP_Error
+     */
+    private function blockedAddressError($user, $rule)
+    {
+        // Not shown to the visitor; it is what the site's own log records about the refusal.
+        $data = ['reason' => 'Blocked by IP rule ' . $rule];
+
+        if (!$user instanceof \WP_User) {
+            return new \WP_Error(
+                'login_error',
+                __('Logins from your network are not permitted on this site.', 'fluent-security'),
+                $data
+            );
+        }
+
+        /* translators: %s: the IP address the visitor is connecting from */
+        $lead = __('Your username and password are correct, but this site does not allow sign-ins from the IP address you are connecting from (%s).', 'fluent-security');
+
+        return new \WP_Error(
+            'login_error',
+            $this->lockedOutMessage(sprintf($lead, Helper::getIp()), $user),
+            $data
+        );
     }
 
     private function checkLoginAttempt($user, $userName)
@@ -580,11 +677,10 @@ class LoginSecurityHandler
          * Both callers log the outcome after this returns, so a refusal here is still
          * recorded - see IpRules, which is deliberate about not suppressing that.
          */
-        if (IpRules::isBlocked($ip)) {
-            return new \WP_Error(
-                'login_error',
-                __('Logins from your network are not permitted on this site.', 'fluent-security')
-            );
+        $blockRule = IpRules::blockingRule($ip);
+
+        if ($blockRule) {
+            return $this->blockedAddressError($user, $blockRule);
         }
 
         if (IpRules::isAllowed($ip)) {

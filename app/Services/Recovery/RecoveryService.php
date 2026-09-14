@@ -18,8 +18,13 @@ use FluentAuth\App\Hooks\Handlers\SiteActivityHandler;
  *
  * Signing everyone out destroys the session tokens rather than rotating the salts in
  * wp-config.php. Both evict every cookie on the site; only one of them involves this plugin
- * rewriting the single file a WordPress install cannot survive being wrong. There is no
- * outcome the salt rotation buys that is worth that.
+ * rewriting the single file a WordPress install cannot survive being wrong - and the salts
+ * are not only used for cookies. Plenty of plugins derive an encryption key from them and
+ * keep credentials under it: an SMTP password, a payment gateway's secret. Rotating the
+ * salts turns all of those into ciphertext nobody holds the key for, silently, and the site
+ * only finds out the next time it tries to send an email or take a payment. There is no
+ * outcome the rotation buys here that is worth that, so the salts are left alone and the
+ * screen says so.
  *
  * And the person running the recovery stays signed in. Turning them out along with everyone
  * else reads as thorough and helps nobody: an attacker holding an administrator account can
@@ -44,12 +49,21 @@ class RecoveryService
     /**
      * Sign everyone out and revoke every application password.
      *
-     * The two things that can be undone by the people affected simply logging in again, which
-     * is why they are the pair behind one button. Nothing is deleted and nothing is mailed.
+     * Paired behind one button because they are the same job: both are ways of being signed
+     * in to this site, and evicting one while leaving the other is not eviction.
      *
+     * They are not equally easy to undo, though, and the screen no longer pretends otherwise.
+     * A session comes back by signing in. An application password does not - it is deleted,
+     * the plaintext existed once and was never stored, and whatever was using it (a phone, a
+     * backup plugin, a script on another server) starts failing immediately with nobody
+     * emailed about it. Somebody has to issue a new one and paste it wherever the old one
+     * went. That is the sentence the confirmation has to earn, which is why it asks for the
+     * words to be typed rather than for a second click.
+     *
+     * @param bool $rotateSalts also replace the keys in wp-config.php - opt-in, see SaltRotation
      * @return array
      */
-    public static function secureNow()
+    public static function secureNow($rotateSalts = false)
     {
         $currentUser = get_current_user_id();
 
@@ -59,11 +73,36 @@ class RecoveryService
         \WP_Session_Tokens::destroy_all_for_all_users();
 
         /*
+         * Last, because it is the only step that can fail on somebody else's terms - a file
+         * that turned out not to be writable, a layout nothing recognises. Doing it after the
+         * eviction means a refusal costs the key change and nothing else; doing it first would
+         * mean a site signed out by a step that then did not happen.
+         */
+        $rotated = false;
+        $saltsError = '';
+
+        if ($rotateSalts) {
+            $result = SaltRotation::rotate();
+
+            if (is_wp_error($result)) {
+                $saltsError = $result->get_error_message();
+            } else {
+                $rotated = true;
+            }
+        }
+
+        /*
          * Re-issued straight away for the one person who has to keep working. Done after the
          * sweep rather than exempted from it, so their old session is discarded too - if the
          * cookie in this browser was the stolen one, it stops being valid here as well.
+         *
+         * Not when the keys have just been replaced, and not as an oversight. A cookie minted
+         * in this request would be signed with the keys this PHP process loaded at boot, which
+         * are now the old ones - it would be refused on the very next request, and the person
+         * would be bounced to a login screen having been told they were still signed in. When
+         * the keys move, everybody goes, including whoever asked for it. That is the feature.
          */
-        if ($currentUser) {
+        if ($currentUser && !$rotated) {
             wp_set_auth_cookie($currentUser, false);
         }
 
@@ -80,7 +119,100 @@ class RecoveryService
         return [
             'sessions'  => $sessions,
             'passwords' => $passwords,
-            'message'   => __('Everyone has been signed out and every application password revoked. You are still signed in here.', 'fluent-security')
+            'salts_rotated' => $rotated,
+            'salts_error'   => $saltsError,
+            /*
+             * Where to send the browser, because it is holding a cookie that stopped being
+             * valid while this response was being written. Nothing else on the screen can be
+             * loaded with it, so the screen redirects rather than trying.
+             */
+            'redirect_url'  => $rotated
+                ? wp_login_url(admin_url('admin.php?page=fluent-auth#/security/recovery'))
+                : '',
+            /* The numbers, because "every application password" is the part somebody has to go and fix. */
+            'message'   => self::secureNowMessage($sessions, $passwords, $rotated, $saltsError)
+        ];
+    }
+
+    /**
+     * One sentence for what just happened, which is three different sentences.
+     *
+     * Kept out of secureNow() because the interesting case is the partial one: the site was
+     * signed out, the key change was refused, and the person is still signed in. Reporting
+     * that as a success with a warning somewhere else is how somebody walks away believing
+     * their keys were replaced.
+     *
+     * @param int $sessions
+     * @param int $passwords
+     * @param bool $rotated
+     * @param string $saltsError
+     * @return string
+     */
+    protected static function secureNowMessage($sessions, $passwords, $rotated, $saltsError)
+    {
+        $evicted = sprintf(
+            /* translators: 1: number of sessions, 2: number of application passwords */
+            __('Signed out %1$s sessions and permanently deleted %2$s application passwords.', 'fluent-security'),
+            number_format_i18n($sessions),
+            number_format_i18n($passwords)
+        );
+
+        if ($rotated) {
+            return $evicted . ' ' . __('The eight security keys have been replaced, so you have been signed out here too. Sign in again to carry on.', 'fluent-security');
+        }
+
+        if ($saltsError) {
+            /* translators: %s: why the keys could not be changed */
+            return $evicted . ' ' . sprintf(__('The security keys were left alone: %s', 'fluent-security'), $saltsError);
+        }
+
+        return $evicted . ' ' . __('You are still signed in here.', 'fluent-security');
+    }
+
+    /**
+     * What pressing the button would cost, counted before it is pressed.
+     *
+     * The confirmation is only worth typing out if it says something specific, and "every
+     * application password will stop working" means nothing to somebody who does not know
+     * whether this site has any. Two numbers turn it into a decision: nought here and the
+     * step is merely disruptive; eleven across four people and somebody needs to warn four
+     * people first.
+     *
+     * Counted from usermeta directly rather than through get_users(), because the answer is
+     * a number rather than a list of users and a site with fifty thousand accounts should
+     * not load them all to draw one sentence.
+     *
+     * @return array
+     */
+    public static function impact()
+    {
+        global $wpdb;
+
+        $passwords = 0;
+        $people = 0;
+
+        if (class_exists('\WP_Application_Passwords')) {
+            $rows = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT meta_value FROM {$wpdb->usermeta} WHERE meta_key = %s",
+                    \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS
+                )
+            );
+
+            foreach ($rows as $row) {
+                $items = maybe_unserialize($row);
+
+                if (is_array($items) && $items) {
+                    $passwords += count($items);
+                    $people++;
+                }
+            }
+        }
+
+        return [
+            'sessions'        => self::countSessions(),
+            'passwords'       => $passwords,
+            'password_people' => $people
         ];
     }
 

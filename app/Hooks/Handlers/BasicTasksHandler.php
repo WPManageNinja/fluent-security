@@ -302,7 +302,7 @@ class BasicTasksHandler
             return '';
         }
 
-        $url = admin_url('options-general.php?page=fluent-auth#/settings');
+        $url = admin_url('admin.php?page=fluent-auth#/settings');
 
         ?>
         <div style="padding-bottom: 10px;" class="notice notice-warning">

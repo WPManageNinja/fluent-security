@@ -83,7 +83,9 @@ function extractStrings(files) {
     });
 
     // Extract the strings from $_n('string 1', 'string 2', var) calls
-    const nRegex = /\$_n\(['"]([^'"]*?(?:\\['"][^'"]*?)*?)['"],\s*['"]([^'"]*?(?:\\['"][^'"]*?)*?)['"]/g;
+    // `\s*` after the paren so a call broken across lines is found too - the house style
+    // for a long plural pair is one string per line, and those were silently being skipped.
+    const nRegex = /\$_n\(\s*['"]([^'"]*?(?:\\['"][^'"]*?)*?)['"],\s*['"]([^'"]*?(?:\\['"][^'"]*?)*?)['"]/g;
     files.forEach(file => {
         const content = fs.readFileSync(file, 'utf8');
         let match;

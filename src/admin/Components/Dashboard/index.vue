@@ -90,7 +90,7 @@ export default {
             if (this.blocking || this.loading || this.pendingBlock !== row) return;
             this.blocking = row.ip;
 
-            return this.$post('ip-rules/add', {type: 'block', ip: row.ip, label: this.$t('Blocked from the dashboard')})
+            return this.$post('ip-rules/add', {type: 'block', ip: row.ip})
                 .then(response => {
                     this.$notify.success(response.message);
                     row.is_blocked = true;

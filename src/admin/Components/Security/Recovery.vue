@@ -9,13 +9,19 @@ import {counts as subNavCounts} from '@/Bits/subNav';
  * replaces files or writes to people's inboxes, and the person reading it has just had a
  * fright - a grid of red buttons invites one of them to be pressed at random. Numbered,
  * because the order genuinely changes the outcome: a reset link mailed while a session is
- * still open achieves nothing, and a session revoked while a backdoor is still on disk is
- * re-opened in seconds. So the files come first.
+ * still open achieves nothing.
  *
- * The one button above the sequence does the part that can be undone by the people affected
- * simply signing in again. That is the whole reason it can be one button: nothing it does is
- * irreversible, so it is safe to offer to somebody who has not read the rest of the page.
- * Everything below it is a judgement call and stays a separate, described step.
+ * Signing everyone out used to sit above the list as a single red button, on the grounds that
+ * nothing it did was irreversible. That was not quite true. Sessions come back by signing in;
+ * application passwords do not - they are deleted, and whatever was using one fails silently
+ * until somebody notices and issues a new one. So it is step one of the sequence now, with
+ * the number of application passwords it would destroy in front of the person pressing it,
+ * and a confirmation that asks for words to be typed rather than for a second click.
+ *
+ * It is step one rather than step two because containment is instant and the alternative is
+ * leaving a live session open for the twenty minutes a set of reinstalls takes. Step two is
+ * what stops whoever it was simply walking back in, so that step says to come back here once
+ * the files are back.
  */
 export default {
     name: 'SecurityRecovery',
@@ -33,6 +39,14 @@ export default {
             progress: {running: false},
             history: [],
             outstanding: {to_fix: 0, open: 0},
+            /* What step one would cost, counted by the server before it is offered. */
+            impact: {sessions: 0, passwords: 0, password_people: 0},
+            /* Whether the opt-in key rotation can be offered here, or why not. */
+            salts: {available: false, reason: '', path: ''},
+            secureOpen: false,
+            secureTyped: '',
+            /* Never true on open. See openSecure(). */
+            secureRotate: false,
             files: null,
             showAdmins: false
         }
@@ -70,7 +84,7 @@ export default {
                 return this.$t('Checked %s ago: every core file, plugin and theme from the directory matched WordPress.org.', this.files.checked_human);
             }
 
-            return this.$t('Checked %s ago. Each reinstall fetches the official copy from WordPress.org and replaces the whole thing, so a file you cannot see is put back along with the ones you can.', this.files.checked_human);
+            return this.$t('Checked %s ago. Each reinstall fetches the official copy from WordPress.org and replaces the whole thing, so a file you cannot see is put back along with the ones you can. Sign everyone out again once they are back, in case a way in was used while you worked.', this.files.checked_human);
         },
         /* "3 files changed · 1 not in the release · 2 missing", or nothing. */
         coreStatusLine() {
@@ -104,8 +118,78 @@ export default {
                 this.files.quarantine.path
             );
         },
+        /* The word somebody has to type out before step one will run. */
+        secureKeyword() {
+            return this.$t('__recovery_secure_keyword__');
+        },
+        /*
+         * Typing is asked for when something in the dialog cannot be undone - either this site
+         * has application passwords to delete, or the key rotation has been ticked. Not as
+         * ceremony: a dialog that always demands the word teaches people to type it without
+         * reading, which costs exactly the protection it was added for.
+         */
+        secureNeedsTyping() {
+            return this.secureIsDestructive || this.secureRotate;
+        },
+        secureReady() {
+            if (!this.secureNeedsTyping) {
+                return true;
+            }
+
+            return this.normaliseKeyword(this.secureTyped) === this.normaliseKeyword(this.secureKeyword);
+        },
+        /*
+         * Whether step one has anything irreversible in it on this particular site. A site
+         * with no application passwords loses nothing it cannot get back by signing in, and
+         * dressing that up in red teaches people to click through red.
+         */
+        secureIsDestructive() {
+            return this.impact.passwords > 0;
+        },
+        /*
+         * The sentence the warning turns on, with this site's numbers in it. "Every
+         * application password will stop working" is a category; "all 11 of them, held by 4
+         * people" is something somebody can act on before pressing the button.
+         */
+        secureImpactLine() {
+            if (!this.secureIsDestructive) {
+                /* Only reachable with a session store this plugin cannot count. */
+                if (!this.impact.sessions) {
+                    return this.$t('There are no application passwords on this site, so nothing here is permanent: everyone who should be here signs in again.');
+                }
+
+                return this.$_n(
+                    'There is %s open session on this site and no application passwords, so nothing here is permanent: everyone who should be here signs in again.',
+                    'There are %s open sessions on this site and no application passwords, so nothing here is permanent: everyone who should be here signs in again.',
+                    this.impact.sessions
+                );
+            }
+
+            const passwords = this.$_n(
+                'The %s application password on this site will be deleted for good.',
+                'All %s application passwords on this site will be deleted for good.',
+                this.impact.passwords
+            );
+
+            if (this.impact.password_people > 1) {
+                return this.$t(
+                    '%1s They belong to %2s people, so tell them first.',
+                    passwords,
+                    this.impact.password_people
+                );
+            }
+
+            return passwords;
+        },
         steps() {
             return [
+                {
+                    key: 'sessions',
+                    title: this.$t('Sign everyone out'),
+                    body: this.$t('__recovery_secure_desc__'),
+                    warning: false,
+                    danger: this.secureIsDestructive
+                },
                 {
                     key: 'files',
                     title: this.$t('Put changed files back'),
@@ -131,7 +215,7 @@ export default {
                 {
                     key: 'passwords',
                     title: this.$t('Ask people to choose a new password'),
-                    body: this.$t('This emails a link. It does not stop the old password working until somebody uses it, so sign everyone out first.'),
+                    body: this.$t('This emails a link. It does not stop the old password working until somebody uses it, so do step 1 first.'),
                     warning: false
                 }
             ];
@@ -176,6 +260,8 @@ export default {
                     this.progress = response.progress || {running: false};
                     this.history = response.history || [];
                     this.outstanding = response.outstanding || this.outstanding;
+                    this.impact = response.impact || this.impact;
+                    this.salts = response.salts || this.salts;
                     /* The number on the Findings tab of the bar above, drawn by the shell. */
                     subNavCounts.findings = this.outstanding.open;
                     this.files = response.files || null;
@@ -188,33 +274,70 @@ export default {
                 });
         },
         /*
-         * Confirmed even though nothing here is destructive, because everybody on the site is
-         * about to be signed out of whatever they were doing, and that is worth one deliberate
-         * press rather than an accidental one.
+         * Forgiving about case and stray spaces, strict about the word. The point is to
+         * interrupt a reflex, not to run a spelling test - and a translated keyword may well
+         * be capitalised differently from the one in the message.
          */
-        secureNow() {
-            this.$confirm(this.$t('__recovery_secure_confirm__'), this.$t('Secure this site now?'), {
-                type: 'warning',
-                showCancelButton: true,
-                cancelButtonText: this.$t('Cancel'),
-                confirmButtonText: this.$t('Yes, do it')
-            }).then(() => {
-                this.securing = true;
+        normaliseKeyword(value) {
+            return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+        },
+        /*
+         * Opened clean every time. The key rotation in particular resets to off on every open:
+         * a checkbox that remembers it was ticked is a checkbox that eventually gets confirmed
+         * by somebody who ticked it an hour ago for a different reason.
+         */
+        openSecure() {
+            this.secureTyped = '';
+            this.secureRotate = false;
+            this.secureOpen = true;
+        },
+        confirmSecure() {
+            if (!this.secureReady || this.securing) {
+                return;
+            }
 
-                this.$post('recovery/secure-now')
-                    .then(response => {
+            this.securing = true;
+
+            this.$post('recovery/secure-now', this.secureRotate ? {rotate_salts: 'yes'} : {})
+                .then(response => {
+                    this.secureOpen = false;
+
+                    /*
+                     * The keys moved, so the cookie this browser is holding was invalidated
+                     * while the response was being written. Nothing else here can be loaded
+                     * with it - reloading the screen would only produce a failed request and
+                     * an error toast - so the message is handed over and the browser is sent
+                     * to the login screen to come back.
+                     */
+                    if (response.salts_rotated && response.redirect_url) {
                         this.$notify.success(response.message);
-                        this.load();
-                    })
-                    .catch(errors => {
-                        this.$handleError(errors);
-                    })
-                    .finally(() => {
-                        this.securing = false;
-                    });
-            }).catch(() => {
-                // Dismissed - nothing to do.
-            });
+                        window.setTimeout(() => {
+                            window.location.href = response.redirect_url;
+                        }, 1500);
+
+                        return;
+                    }
+
+                    /*
+                     * Everything else was done but the file was not written. Said as a warning
+                     * rather than a success, because the difference between "your keys were
+                     * replaced" and "your keys were left alone" is the whole reason somebody
+                     * ticked the box.
+                     */
+                    if (response.salts_error) {
+                        this.$notify.warning(response.message);
+                    } else {
+                        this.$notify.success(response.message);
+                    }
+
+                    this.load();
+                })
+                .catch(errors => {
+                    this.$handleError(errors);
+                })
+                .finally(() => {
+                    this.securing = false;
+                });
         },
         /*
          * Every reinstall says what it will download, what it will replace, and what it will
@@ -412,33 +535,28 @@ export default {
                 <el-skeleton v-if="loading" :animated="true" :rows="6"/>
 
                 <template v-else>
-                    <!--
-                        The one button, above the sequence. Everything it does can be undone by
-                        the people affected signing in again, which is what makes it safe to
-                        offer to somebody who has not read the rest of the page.
-                    -->
-                    <div class="fls_recover_hero">
-                        <div class="fls_recover_hero_body">
-                            <h2>{{ $t('Think somebody has been in?') }}</h2>
-                            <p>{{ $t('__recovery_secure_desc__') }}</p>
-                        </div>
-                        <el-button type="danger" :loading="securing" @click="secureNow">
-                            {{ $t('Secure my site now') }}
-                        </el-button>
-                    </div>
-
-                    <p v-if="lastUsed" class="fls_recover_last">
-                        {{ $t('Last used %1s by %2s', lastUsed.at, lastUsed.by) }} — {{ lastUsed.description }}
-                    </p>
-
                     <ol class="fls_recover_steps">
                         <li v-for="(step, index) in steps" :key="step.key"
-                            :class="{is_warning: step.warning}">
+                            :class="{is_warning: step.warning, is_danger: step.danger}">
                             <span class="fls_recover_num">{{ index + 1 }}</span>
 
                             <div class="fls_recover_body">
                                 <h3>{{ step.title }}</h3>
                                 <p>{{ step.body }}</p>
+
+                                <!--
+                                    What step one costs, on this site, in numbers - and what it
+                                    leaves alone. The second half is not padding: rotating the
+                                    salts in wp-config.php is the usual advice after a break-in
+                                    and would take every credential another plugin encrypted
+                                    with them down with it, so a person who has read that advice
+                                    needs telling that this button is not doing it.
+                                -->
+                                <div v-if="step.key === 'sessions'" class="fls_recover_impact"
+                                     :class="{is_danger: secureIsDestructive}">
+                                    <p>{{ secureImpactLine }}</p>
+                                    <p>{{ $t('__recovery_secure_keeps__') }}</p>
+                                </div>
 
                                 <!--
                                     Step one opens in place, with a row per thing that can be
@@ -542,7 +660,13 @@ export default {
                             </div>
 
                             <div class="fls_recover_actions">
-                                <template v-if="step.key === 'files'">
+                                <template v-if="step.key === 'sessions'">
+                                    <el-button type="danger" size="small" :loading="securing" @click="openSecure">
+                                        {{ $t('Sign everyone out') }}
+                                    </el-button>
+                                </template>
+
+                                <template v-else-if="step.key === 'files'">
                                     <el-button v-if="!files || !files.scanned" size="small" type="primary"
                                                @click="$router.push({name: 'security_scans', query: {auto_scan: 'yes'}})">
                                         {{ $t('Run a scan') }}
@@ -574,7 +698,56 @@ export default {
                         </li>
                     </ol>
 
-                    <p class="fls_recover_note">{{ $t('__recovery_logged__') }}</p>
+                    <!--
+                        A dialog rather than a message box, because what has to be read before
+                        this runs no longer fits in a line of text: what it costs on this site,
+                        what it leaves alone, an opt-in that changes both of those answers, and
+                        the word that has to be typed once anything here stops being reversible.
+                    -->
+                    <el-dialog v-model="secureOpen" :title="$t('Sign everyone out?')" width="520px"
+                               append-to-body :close-on-click-modal="false" class="fls_secure_dialog">
+                        <p class="fls_secure_impact" :class="{is_danger: secureIsDestructive}">{{ secureImpactLine }}</p>
+
+                        <!-- True of the action as it stands. Replaced, not amended, once the box is ticked. -->
+                        <p v-if="!secureRotate" class="fls_secure_keeps">{{ $t('__recovery_secure_keeps__') }}</p>
+
+                        <div class="fls_secure_option">
+                            <el-checkbox v-model="secureRotate" :disabled="!salts.available">
+                                {{ $t('Also replace this site\'s security keys') }}
+                            </el-checkbox>
+
+                            <p v-if="!salts.available" class="fls_secure_option_reason">{{ salts.reason }}</p>
+                            <p v-else-if="!secureRotate" class="fls_secure_option_reason">
+                                {{ $t('The eight keys in wp-config.php that sign every cookie on this site. Replacing them is the usual advice after a break-in, and it is the only thing here that reaches outside FluentAuth.') }}
+                            </p>
+
+                            <div v-if="secureRotate" class="fls_secure_salts">
+                                <p class="fls_secure_salts_warn">{{ $t('__recovery_salts_warning__') }}</p>
+                                <p>{{ $t('__recovery_salts_safe__') }}</p>
+                                <p>{{ $t('__recovery_salts_signout__') }}</p>
+                            </div>
+                        </div>
+
+                        <div v-if="secureNeedsTyping" class="fls_secure_gate">
+                            <label :for="'fls_secure_gate'">{{ $t('Type %s to confirm.', secureKeyword) }}</label>
+                            <el-input id="fls_secure_gate" v-model="secureTyped" :placeholder="secureKeyword"
+                                      @keyup.enter="confirmSecure"/>
+                        </div>
+
+                        <template #footer>
+                            <el-button @click="secureOpen = false">{{ $t('Cancel') }}</el-button>
+                            <el-button type="danger" :disabled="!secureReady" :loading="securing" @click="confirmSecure">
+                                {{ $t('Yes, sign everyone out') }}
+                            </el-button>
+                        </template>
+                    </el-dialog>
+
+                    <p class="fls_recover_note">
+                        {{ $t('__recovery_logged__') }}
+                        <span v-if="lastUsed" class="fls_recover_last">
+                            {{ $t('Last used %1s by %2s', lastUsed.at, lastUsed.by) }} — {{ lastUsed.description }}
+                        </span>
+                    </p>
                 </template>
             </div>
         </div>

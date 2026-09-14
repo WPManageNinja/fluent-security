@@ -113,6 +113,8 @@ app.mixin({
 
 app.config.globalProperties.$notify = ElNotification;
 app.config.globalProperties.$confirm = ElMessageBox.confirm;
+/* For the handful of actions that are worth typing out rather than clicking twice. */
+app.config.globalProperties.$prompt = ElMessageBox.prompt;
 
 const router = createRouter({
     routes,
@@ -123,8 +125,50 @@ window.fluentFrameworkApp = app.use(router).mount(
     '#fluent_auth_app'
 );
 
-jQuery('.toplevel_page_fluent-security a').on('click', function () {
-    jQuery('.toplevel_page_fluent-security li').removeClass('current');
-    jQuery(this).parent().addClass('current');
+/*
+ * Keeps WordPress's own submenu in step with the app.
+ *
+ * All four entries are the same page with a different hash, so WordPress marks the first
+ * one current when the page loads and then stops thinking about it: every screen looked
+ * like Dashboard, and moving around inside the app never moved the menu.
+ *
+ * Keyed on the route's own `active` rather than on the URL, which is the same thing the
+ * app bar highlights on (see App.vue) - so the two navigations agree by construction, and
+ * a screen whose path does not look like its section still lights the right entry.
+ * `/security-scans` and `/login-page-design` are both like that.
+ */
+const MENU_HASHES = {
+    dashboard: '',
+    logs: '#/logs',
+    security: '#/security',
+    settings: '#/settings'
+};
+
+function syncAdminMenu(route) {
+    const active = route && route.meta ? route.meta.active : '';
+
+    // The wizard has no menu entry of its own; leave whatever is lit alone.
+    if (!(active in MENU_HASHES)) {
+        return;
+    }
+
+    const suffix = MENU_HASHES[active];
+    const items = jQuery('#toplevel_page_fluent-auth .wp-submenu li');
+
+    items.each(function () {
+        const href = jQuery(this).find('a').attr('href') || '';
+        const hash = href.indexOf('#') === -1 ? '' : href.slice(href.indexOf('#'));
+
+        jQuery(this).toggleClass('current', hash === suffix);
+    });
+}
+
+router.afterEach((to) => {
+    syncAdminMenu(to);
+});
+
+jQuery('#toplevel_page_fluent-auth .wp-submenu a').on('click', function () {
     window.scrollTo({top: 0, behavior: 'smooth'});
 });
+
+syncAdminMenu(router.currentRoute.value);

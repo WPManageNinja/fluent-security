@@ -6,6 +6,7 @@ use FluentAuth\App\Services\Checks\Check;
 use FluentAuth\App\Services\Checks\Registry;
 use FluentAuth\App\Services\Recovery\FileRecovery;
 use FluentAuth\App\Services\Recovery\RecoveryService;
+use FluentAuth\App\Services\Recovery\SaltRotation;
 
 /**
  * The recovery screen.
@@ -28,6 +29,17 @@ class RecoveryController
         return [
             'administrators' => RecoveryService::administrators(),
             'progress'       => RecoveryService::progress(),
+            /*
+             * What the first step would actually cost, so the warning on it can name a number
+             * instead of a category. See RecoveryService::impact().
+             */
+            'impact'         => RecoveryService::impact(),
+            /*
+             * Whether the opt-in key rotation can be offered on this install, or why not.
+             * Answered here rather than when it is confirmed, so the checkbox is never shown
+             * on a site where it was always going to refuse. See SaltRotation::state().
+             */
+            'salts'          => SaltRotation::state(),
             'history'        => RecoveryService::history(),
             /* What the last scan found, and what can be put back from here. */
             'files'          => FileRecovery::summary(),
@@ -53,7 +65,14 @@ class RecoveryController
      */
     public static function secureNow(\WP_REST_Request $request)
     {
-        return RecoveryService::secureNow();
+        /*
+         * Opt-in and read strictly. Anything other than the exact string is no - the default
+         * for a parameter that rewrites wp-config.php should not be reachable by a typo, a
+         * stray "0", or a client that sends the key with nothing in it.
+         */
+        $rotateSalts = 'yes' === (string)$request->get_param('rotate_salts');
+
+        return RecoveryService::secureNow($rotateSalts);
     }
 
     /**

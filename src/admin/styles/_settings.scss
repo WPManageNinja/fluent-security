@@ -517,80 +517,20 @@
 /* ------------------------------------------------------------- rules table */
 
 /*
- * The IP allow and block lists: a row of fields per entry rather than a form per entry,
- * because the whole value of these lists is being able to read down them and see what is
- * exempt and why.
+ * The IP allow and block lists: a text box each, one address to a line.
+ *
+ * Monospaced, because what is being read down the column is an address - proportional
+ * digits make 45.148.10.72 and 45.148.101.72 the same shape, and these are lists people
+ * scan for the line that should not be there.
  */
-.fls_rules_table {
-    @apply w-full;
-
-    border-collapse: collapse;
+.fls_rules_box {
     margin: 4px 0 8px;
 
-    th {
-        @apply text-xs font-medium text-ink-mid text-left border-0 border-b border-solid border-hairline;
+    .el-textarea__inner {
+        @apply text-sm;
 
-        padding: 0 8px 8px;
-    }
-
-    td {
-        @apply align-top;
-
-        padding: 10px 8px;
-    }
-
-    th:first-child,
-    td:first-child {
-        padding-left: 0;
-    }
-
-    /* The address is the row's subject, the note beside it is prose - so it gets more room. */
-    th:nth-child(1),
-    td:nth-child(1) {
-        width: 32%;
-    }
-
-    th:nth-child(3),
-    td:nth-child(3) {
-        width: 180px;
-    }
-
-    .fls_rules_remove {
-        width: 44px;
-        text-align: right;
-        padding-right: 0;
-    }
-
-    /* Still listed, still editable, simply not in force - so it is dimmed, not hidden. */
-    tr.is_expired .el-input__wrapper {
-        opacity: .65;
-    }
-}
-
-/*
- * Sits below the rows, separated by the same hairline the header uses, so the button reads
- * as the end of the list rather than another row in it. Shared with the redirect rules,
- * which are a list of the same shape and want the same button in the same place.
- */
-.fls_rules_add {
-    @apply border-0 border-t border-solid border-hairline;
-
-    padding-top: 12px;
-    margin-top: 4px;
-}
-
-/* A quiet line under a field saying something about it - expired, ignored, your own. */
-.fls_rules_flag {
-    @apply inline-block text-xs text-ink-light;
-
-    margin-top: 4px;
-
-    &.is_warning {
-        @apply text-caution-fg;
-    }
-
-    &.is_danger {
-        @apply text-danger-fg;
+        font-family: Menlo, Consolas, monospace;
+        line-height: 1.7;
     }
 }
 
@@ -674,6 +614,115 @@
             margin-top: 10px;
             margin-bottom: 0;
         }
+    }
+}
+
+/*
+ * Where the authenticator secret is kept, inside the authenticator method's own card.
+ *
+ * Drawn as a band across the foot of the method rather than as a fourth card, because it is
+ * not a method - it is a property of the one above it. The rule at the top is the whole of
+ * that distinction, so it is a border rather than a box.
+ */
+.fls_secret_encryption {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--fls-surface-sunk);
+
+    .fls_secret_encryption_head {
+        @apply flex items-start justify-between;
+
+        gap: 20px;
+
+        strong {
+            @apply text-sm text-ink;
+        }
+
+        p {
+            @apply text-xs text-ink-light;
+
+            margin: 2px 0 0;
+            max-width: 680px;
+            line-height: 1.45;
+        }
+    }
+
+    .el-alert {
+        margin-top: 10px;
+    }
+
+    /* Every one-line answer under the switch reads at the same size, on or off. */
+    .fls_secret_encryption_on,
+    .fls_secret_encryption_ready,
+    .fls_secret_encryption_note {
+        @apply text-xs text-ink-light;
+
+        margin: 8px 0 0;
+        line-height: 1.5;
+    }
+
+    .fls_secret_encryption_on .fls_tag {
+        margin-right: 6px;
+    }
+
+    .fls_secret_encryption_note a {
+        @apply text-ink-link;
+    }
+
+    .fls_secret_encryption_setup {
+        margin-top: 10px;
+
+        > p {
+            @apply text-xs text-ink-light;
+
+            margin: 0 0 8px;
+            line-height: 1.5;
+        }
+    }
+
+    /*
+     * The line to paste. Monospaced and selectable, with the copy button inside the same
+     * frame - it belongs to this line rather than to the panel, and a button sitting
+     * outside would read as acting on the whole step.
+     */
+    .fls_config_line {
+        @apply flex items-center justify-between bg-surface-sunk rounded-xs border border-solid border-hairline;
+
+        gap: 12px;
+        padding: 8px 8px 8px 12px;
+
+        code {
+            @apply text-xs text-ink;
+
+            background: none;
+            padding: 0;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+    }
+
+    /* Pasting the old key back. Narrow, because the value is long but not read. */
+    .fls_rekey {
+        @apply flex items-center;
+
+        gap: 8px;
+        margin-top: 10px;
+        max-width: 460px;
+    }
+
+    .fls_secret_encryption_actions {
+        @apply flex items-center;
+
+        gap: 4px;
+        margin-top: 10px;
+    }
+
+    /*
+     * The weaker alternative, offered after the two buttons that finish the strong path -
+     * so it needs the gap that says it is a different thought rather than a caption on them.
+     */
+    .fls_secret_encryption_actions + .fls_secret_encryption_note {
+        margin-top: 14px;
     }
 }
 
@@ -774,14 +823,40 @@
 
 /* ------------------------------------------------------------------ shortcodes */
 
-/* A shortcode and the button that copies it, on one line. */
+/*
+ * A shortcode and the button that copies it.
+ *
+ * Capped, because the control column of a settings row is shrink-to-fit and one of these is
+ * three times the length of the others: uncapped, the magic login shortcode took the width it
+ * wanted and left its own label wrapping down four lines beside it. The cap is on the pair
+ * rather than on the code alone so the Copy button stays on the first line with it.
+ *
+ * The long one then wraps instead of being truncated or scrolled. A shortcode is something
+ * people read to check before they trust it, not only something they press Copy on.
+ */
 .fls_shortcode {
-    @apply flex flex-wrap items-center;
+    @apply flex items-center;
 
     gap: 10px;
+    max-width: 520px;
 
     code {
+        /*
+         * Grows from its own content rather than from zero, so the four short shortcodes
+         * still hug their text instead of stretching to the cap - and shrinks past it, so
+         * the long one gives way to the button beside it rather than pushing it onto a
+         * line of its own.
+         */
         flex: 1 1 auto;
+        min-width: 0;
+
+        /*
+         * Ordinary wrapping first, so the sentence inside the tags breaks at its spaces;
+         * break-all only takes over for a run with nowhere else to go.
+         */
+        word-break: normal;
+        overflow-wrap: break-word;
+        line-height: 1.6;
     }
 }
 

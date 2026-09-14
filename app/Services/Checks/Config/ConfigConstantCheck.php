@@ -9,10 +9,13 @@ use FluentAuth\App\Services\Checks\Finding;
 /**
  * The two settings that live in wp-config.php.
  *
- * Shared shape because they share the awkward part: this plugin will not write to
- * wp-config.php. It is the one file a WordPress install cannot survive being wrong, an
- * automated edit to it can end a site, and no security benefit either of these buys is worth
- * that risk taken on somebody else's behalf.
+ * Shared shape because they share the awkward part: neither gets a button. The plugin is
+ * able to write to wp-config.php - see ConfigWriter - and deliberately does not do it from
+ * here. The difference is what the reader asked for. On the two-factor screen somebody
+ * asks for an encryption key, is shown the exact line, and presses a button that says to
+ * add it; these two rows are unsolicited advice about how their site should run, and
+ * acting on advice by editing the file that boots the site is not a decision to take on
+ * their behalf.
  *
  * So the row has no button, and the exact line to add is in the details instead. That is
  * still a row worth drawing - the reader can act on it, or hand it to whoever looks after
@@ -76,8 +79,9 @@ abstract class ConfigConstantCheck extends Check
                 $words['snippet']
             ],
             /*
-             * No button on purpose. This plugin does not edit wp-config.php, and a button that
-             * pretended to would be the most dangerous thing it does.
+             * No button on purpose - see the note above this class. Editing wp-config.php is
+             * something this plugin does only when asked for a specific thing, never as a
+             * way to act on a recommendation the reader did not go looking for.
              */
             'action'   => 'none',
             'dismiss'  => 'ignore',

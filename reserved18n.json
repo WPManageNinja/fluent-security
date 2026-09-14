@@ -29,8 +29,7 @@
   "deleted": "deleted",
   "__restore_file_confirm__": "This replaces the file on your server with the copy WordPress.org published for this version. Any change made to it here is lost. Put it back?",
   "__recovery_logged__": "Every action on this page is written to the activity log with your name, so a colleague can see what was done and when.",
-  "__recovery_secure_confirm__": "Everyone on this site will be signed out everywhere and every application password will stop working. Anyone who should be here signs in again, and you stay signed in. Continue?",
-  "__recovery_secure_desc__": "Signs everyone out of this site, on every device, and revokes every application password. Nothing is deleted and nobody is emailed: anyone who should be here simply signs in again. You stay signed in.",
+  "__recovery_secure_desc__": "Destroys every session on this site, so everyone is signed out on every device, and deletes every application password. You stay signed in here, and nobody is emailed about it.",
   "__file_change_recovery_note__": "If you did not make these changes yourself, treat this as a break-in. Putting the files back does not sign out whoever made them, reset a password they know, or remove an account they added - that is what the next screen is for.",
   "__reinstall_extension_desc__": "Downloads this version from WordPress.org and replaces the whole folder, so a changed file you cannot see is put back along with the ones you can. Settings are kept. Anything here that is not part of the official copy is moved to quarantine first.",
   "__delete_file_confirm__": "%s will be deleted from the server. This cannot be undone - restore it from a backup if you need it again.",
@@ -48,5 +47,10 @@
   "__mu_plugins_record_note__": "Recorded automatically the first time this site was checked. If you have since read these files yourself and are happy with them, record them again so the watching starts from a state you have actually seen.",
   "__mu_plugins_unrecorded_note__": "Open each one and read it before recording. A file that arrived here without you putting it there is one of the most common ways a way back in is left behind.",
   "__baseline_unit_partial__": "This extension has %1s files that can run code, which is more than one snapshot holds, so only %2s of them are being watched. The rest are not checked by anything. Splitting it up is rarely possible — if you need the whole of it covered, raise the limit with the fluent_auth/baseline_max_files filter.",
-  "__baseline_partial_desc__": "One or more extensions hold more files than a single snapshot covers, so part of them is not being watched. A clean result above is only a clean result for the files that were checked."
+  "__baseline_partial_desc__": "One or more extensions hold more files than a single snapshot covers, so part of them is not being watched. A clean result above is only a clean result for the files that were checked.",
+  "__recovery_secure_keeps__": "Nothing else is touched. Your content, your accounts and your passwords stay exactly as they are, and so do the keys and salts in wp-config.php unless you ask for those to be replaced when you confirm — so anything another plugin encrypted with them, such as SMTP or payment credentials, keeps working.",
+  "__recovery_secure_keyword__": "SIGN OUT",
+  "__recovery_salts_warning__": "This cannot be undone. Any OTHER plugin that encrypted something with a key derived from these — an SMTP password, a payment gateway secret, a stored API token — will not be able to read it again, and there is no list of which plugins did that. You find out the next time one of them tries to use what it stored.",
+  "__recovery_salts_safe__": "FluentAuth is not affected either way: the security scanner stays connected to the alerts service, and everyone's authenticator apps and recovery codes keep working. Neither is encrypted against these keys, deliberately.",
+  "__recovery_salts_signout__": "You will be signed out along with everyone else — there is no staying signed in through this one — so have your password to hand and sign back in straight away."
 }

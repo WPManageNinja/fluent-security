@@ -208,11 +208,7 @@ export default {
              * address you are reading this from, and refuse an address already covered - so
              * this just reports back what it decided.
              */
-            this.$post('ip-rules/add', {
-                type: command,
-                ip: row.ip,
-                label: this.$t('Added from the logs')
-            })
+            this.$post('ip-rules/add', {type: command, ip: row.ip})
                 .then(response => {
                     this.$notify.success(response.message);
                 })

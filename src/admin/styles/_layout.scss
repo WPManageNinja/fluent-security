@@ -34,8 +34,16 @@
     }
 }
 
+/*
+ * Logo at one end, the actions at the other, the menu between them - FluentCart's own
+ * arrangement, and the reason its menu reads as centred without being centred: three items
+ * spread across the bar put the middle one near the middle. Centring it outright would
+ * instead make it move whenever a screen adds a button to the right-hand end.
+ *
+ * 30px either side is the page gutter below, so the wordmark starts where the page does.
+ */
 .fls_app_bar {
-    @apply flex items-center gap-6 bg-surface px-6 border-0 border-b border-solid border-hairline;
+    @apply flex items-center justify-between gap-6 px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 56px;
 
@@ -78,7 +86,7 @@
     }
 
     .fls_app_nav {
-        @apply flex items-center gap-1 m-0 p-0 list-none flex-1;
+        @apply flex items-center gap-1 m-0 p-0 list-none;
 
         li {
             @apply m-0;
@@ -120,7 +128,7 @@
  * left offset and its hairline.
  */
 .fls_sub_bar {
-    @apply flex items-stretch bg-surface px-6 border-0 border-b border-solid border-hairline;
+    @apply flex items-stretch px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 48px;
     position: fixed;
@@ -451,7 +459,24 @@
     }
 
     /* Kept level with the page gutter it sits above. */
+    .fls_app_bar,
     .fls_sub_bar {
         @apply px-3;
+    }
+
+    /*
+     * Down here the tabs no longer fit beside the logo and the controls, and something has
+     * to give. It is the tabs that scroll, the way the section bar below already does -
+     * left to itself the row simply pushes the controls at the right-hand end off the
+     * screen, where there is no scrolling to reach them because the bar is what overflows,
+     * not the page.
+     */
+    .fls_app_bar {
+        @apply gap-3;
+
+        .fls_app_nav {
+            min-width: 0;
+            overflow-x: auto;
+        }
     }
 }

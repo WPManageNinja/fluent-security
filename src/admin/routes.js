@@ -192,6 +192,15 @@ export var routes = [
             title: 'Login Page Design'
         }
     },
+    /*
+     * Where the WordPress submenu used to point, before these screens moved under
+     * /settings. They were top-level paths for long enough to be bookmarked and to be
+     * linked from the admin menu itself, so they stay as redirects rather than as a
+     * blank pane. See AdminMenuHandler::addMenu().
+     */
+    {path: '/auth-shortcodes', redirect: {name: 'settings_auth_forms'}},
+    {path: '/login-redirects', redirect: {name: 'settings_redirects'}},
+    {path: '/custom-wp-emails', redirect: {name: 'settings_emails'}},
     {
         path: '/settings',
         component: SettingsLayout,
@@ -199,5 +208,13 @@ export var routes = [
             ...route,
             meta: {...route.meta, active: 'settings'}
         }))
+    },
+    /*
+     * An unknown path is an old link of some kind, and the dashboard is a better answer
+     * to one than an app shell with nothing inside it.
+     */
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: {name: 'dashboard'}
     }
 ];

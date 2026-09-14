@@ -1,6 +1,11 @@
 <script type="text/babel">
+import SecretEncryption from './_SecretEncryption.vue';
+
 export default {
     name: 'TwoFaSettings',
+    components: {
+        SecretEncryption
+    },
     props: {
         settings: {
             type: Object,
@@ -187,6 +192,14 @@ export default {
                     <el-input readonly :model-value="appVars.totp_setup_url" @focus="$event.target.select()"/>
                     <p>{{ $t('For members who are kept out of wp-admin - no admin area needed.') }}</p>
                 </el-form-item>
+
+                <!--
+                    Where the secret is kept, rather than who may set one up - so it sits
+                    below the policy fields rather than among them. It is also the only
+                    thing on this screen that is not saved by the Save button, because the
+                    key it needs is in wp-config.php.
+                -->
+                <SecretEncryption/>
 
                 <p class="fls_action_note">
                     <router-link :to="{name: 'settings_two_fa_enrollment'}">

@@ -1,5 +1,6 @@
 <script type="text/babel">
 import ThemeSwitch from './Bits/ThemeSwitch.vue';
+import GlobalSearch from './Bits/GlobalSearch.vue';
 import SubNav from './Bits/SubNav.vue';
 import {sectionFor} from './Bits/subNav';
 
@@ -7,6 +8,7 @@ export default {
     name: 'FluentAuthApp',
     components: {
         ThemeSwitch,
+        GlobalSearch,
         SubNav
     },
     data() {
@@ -153,6 +155,7 @@ export default {
 
             <div class="fls_app_bar_actions">
                 <slot name="actions"/>
+                <global-search/>
                 <theme-switch/>
             </div>
         </div>

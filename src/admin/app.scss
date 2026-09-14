@@ -12,6 +12,7 @@
  *   base        how the app sits inside wp-admin. No components, no classes of its own.
  *   ui          the small parts more than one screen uses: tags, code, captions.
  *   layout      the bar across the top and the page under it.
+ *   search      the search box in that bar, and the palette it opens.
  *   settings    the settings pane, and the parts a settings form is built from.
  *   <screens>   one file per screen, each owning the classes only it renders.
  *
@@ -29,6 +30,7 @@
 @use "styles/base";
 @use "styles/ui";
 @use "styles/layout";
+@use "styles/search";
 @use "styles/settings";
 
 @use "styles/onboarding";

@@ -187,6 +187,28 @@
     margin: 6px 0;
 }
 
+/*
+ * Sits below the rows, separated by the same hairline the header uses, so the button reads
+ * as the end of the list rather than another row in it.
+ */
+.fls_rules_add {
+    @apply border-0 border-t border-solid border-hairline;
+
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+/* A quiet line under a field saying something about it - ignored, incomplete, in force. */
+.fls_rules_flag {
+    @apply inline-block text-xs text-ink-light;
+
+    margin-top: 4px;
+
+    &.is_warning {
+        @apply text-caution-fg;
+    }
+}
+
 .fls_condition .fls_rules_flag {
     margin: 4px 0 0;
 }

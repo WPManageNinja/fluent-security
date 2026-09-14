@@ -35,8 +35,10 @@ class Registry
             new Config\FileEditorCheck(),
             new Config\DebugDisplayCheck(),
             new Config\HttpsCheck(),
+            new Config\SecretEncryptionCheck(),
             new Users\AdminUsernameCheck(),
-            new Users\DormantAdminCheck()
+            new Users\DormantAdminCheck(),
+            new Users\HiddenUsersCheck()
         ];
 
         /*

@@ -77,6 +77,19 @@ class AdminMenuHandler
             120
         );
 
+        /*
+         * The same four destinations the app bar carries, in the same order and under the
+         * same names - see the menuItems list in App.vue. WordPress's menu and the app's
+         * own bar are two views of one navigation, and a person who learns either one has
+         * learned the other.
+         *
+         * They used to disagree: this listed Login/Signup Forms, Login Redirects and
+         * Customize WP Emails as siblings of Settings, at paths (#/auth-shortcodes,
+         * #/login-redirects, #/custom-wp-emails) that stopped existing when those screens
+         * moved under /settings. Each one opened the app to a blank pane. The screens are
+         * still there, in the Settings sidebar, which is the one place a setting is looked
+         * for; routes.js keeps the old paths alive as redirects for anything bookmarked.
+         */
         add_submenu_page(
             'fluent-auth',
             __('Dashboard', 'fluent-security'),
@@ -95,42 +108,6 @@ class AdminMenuHandler
             array($this, 'render')
         );
 
-        add_submenu_page(
-            'fluent-auth',
-            __('Security Settings', 'fluent-security'),
-            __('Security Settings', 'fluent-security'),
-            $permission,
-            'fluent-auth#/settings',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Login/Signup Forms', 'fluent-security'),
-            __('Login/Signup Forms', 'fluent-security'),
-            $permission,
-            'fluent-auth#/auth-shortcodes',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Login Redirects', 'fluent-security'),
-            __('Login Redirects', 'fluent-security'),
-            $permission,
-            'fluent-auth#/login-redirects',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Customize WP Emails', 'fluent-security'),
-            __('Customize WP Emails', 'fluent-security'),
-            $permission,
-            'fluent-auth#/custom-wp-emails',
-            array($this, 'render')
-        );
-
         /*
          * Lands on Findings rather than on the file scan. The two are tabs of one screen now,
          * and Findings is the one that answers "is anything wrong" without being asked to run.
@@ -141,6 +118,15 @@ class AdminMenuHandler
             __('Security', 'fluent-security'),
             $permission,
             'fluent-auth#/security',
+            array($this, 'render')
+        );
+
+        add_submenu_page(
+            'fluent-auth',
+            __('Settings', 'fluent-security'),
+            __('Settings', 'fluent-security'),
+            $permission,
+            'fluent-auth#/settings',
             array($this, 'render')
         );
     }
