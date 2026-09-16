@@ -187,7 +187,7 @@ class SecurityChecks
         return [
             'two_fa'             => [
                 'title'    => __('Two-factor authentication', 'fluent-security'),
-                'why'      => __('A stolen password is not enough to get in when a second step is asked for.', 'fluent-security'),
+                'why'      => __('Lets people add a code from an app or their email to their sign-in. A stolen password alone is then not enough to get in.', 'fluent-security'),
                 'group'    => 'login',
                 'scored'   => true,
                 'route'    => 'settings_general',
@@ -215,8 +215,8 @@ class SecurityChecks
              * Helper::getRecommendedSettings().
              */
             'notifications'      => [
-                'title'    => __('Get an email when a high-privilege account signs in', 'fluent-security'),
-                'why'      => __('A sign-in nobody made is the first sign of a stolen account, and an email is how that gets noticed the same day rather than the following week. Worth having for administrators. Leave it off for roles that sign in all day, or the alerts stop being read.', 'fluent-security'),
+                'title'    => __('Get an email when an administrator signs in', 'fluent-security'),
+                'why'      => __('If someone else signs in to an administrator account, you find out the same day. Keep it to roles that sign in rarely, so the emails stay worth reading.', 'fluent-security'),
                 'group'    => 'login',
                 'scored'   => false,
                 'advice'   => true,
@@ -229,8 +229,8 @@ class SecurityChecks
                 }
             ],
             'disable_xmlrpc'     => [
-                'title'    => __('Block XML-RPC requests', 'fluent-security'),
-                'why'      => __('An old way in that few sites still use, and a favourite route for guessing passwords in bulk.', 'fluent-security'),
+                'title'    => __('Block the old remote sign-in route (XML-RPC)', 'fluent-security'),
+                'why'      => __('Few sites still use it, and it is a favourite way to try thousands of passwords at once. Skip this if you rely on the WordPress mobile app or Jetpack.', 'fluent-security'),
                 'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',
@@ -242,7 +242,7 @@ class SecurityChecks
             ],
             'disable_users_rest' => [
                 'title'    => __('Hide usernames from the public', 'fluent-security'),
-                'why'      => __('By default anyone can read the usernames on your site, through the REST API, author id lookups and the user sitemap. A username is half of every login.', 'fluent-security'),
+                'why'      => __('Right now anyone can look up the usernames on your site. A username is half of every login.', 'fluent-security'),
                 'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',
@@ -272,8 +272,8 @@ class SecurityChecks
                  * that. It is out of the score for the same reason - most sites would sit
                  * at four out of five forever through no fault of their configuration.
                  */
-                'title'    => __('Watch core files for changes', 'fluent-security'),
-                'why'      => __('Nothing else on this list can tell you that a file was edited after somebody got in.', 'fluent-security'),
+                'title'    => __('Watch your WordPress files for changes', 'fluent-security'),
+                'why'      => __('This is the only check that can tell you a file was edited after somebody got in.', 'fluent-security'),
                 'group'    => 'files',
                 'scored'   => false,
                 'route'    => 'security_scans',

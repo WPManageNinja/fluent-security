@@ -74,12 +74,12 @@ export default {
 
             <el-form v-else label-position="top">
                 <SettingsCard id="core" :title="$t('Core Security')"
-                                 :description="$t('The parts of WordPress that are open by default.')">
+                                 :description="$t('Things WordPress allows out of the box that most sites never use.')">
                     <CoreSecuritySection :settings="settings"/>
                 </SettingsCard>
 
                 <SettingsCard id="login_security" :title="$t('Login Security')"
-                                 :description="$t('What happens when an address keeps getting the password wrong.')">
+                                 :description="$t('How many wrong passwords one IP address gets before it is blocked.')">
                     <LoginSecuritySection :settings="settings"/>
                 </SettingsCard>
 
@@ -88,12 +88,12 @@ export default {
                     in rather than a step after one - see _PasskeySettings.vue.
                 -->
                 <SettingsCard id="passkeys" :title="$t('Passkeys')"
-                                 :description="$t('A passkey signs someone in instead of a password, not as well as one. The browser ties it to this domain, so a copy of your login page cannot use it - which makes it the one method here that phishing does not defeat.')">
+                                 :description="$t('The safest way to sign in. There is no password to type, steal or guess.')">
                     <PasskeySettings :settings="settings" :user_roles="user_roles"/>
                 </SettingsCard>
 
                 <SettingsCard id="two_fa" :title="$t('Two-Factor Authentication')"
-                                 :description="$t('A second proof of identity after the password. Require it for the roles that need it, and leave it available to the rest.')">
+                                 :description="$t('Ask for more than a password. Turn on the methods you want to offer, then decide which roles must use one.')">
                     <TwoFaSettings :settings="settings" :user_roles="user_roles"/>
                 </SettingsCard>
 
@@ -108,13 +108,13 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard id="visitor_ip" :title="$t('Visitor IP')"
-                                 :description="$t('Where a visitor\'s address is read from. The attempt limit counts per address.')">
+                                 :description="$t('How the plugin tells one visitor from another. Most sites can leave this alone; it matters when traffic reaches your site through a proxy.')">
                     <ProxySettings :settings="settings" :detection="proxy_detection"
                                    :config_locked="proxy_config_locked"/>
                 </SettingsCard>
 
                 <SettingsCard id="advanced" :title="$t('Advanced')"
-                                 :description="$t('Log retention and admin area access.')">
+                                 :description="$t('How long logs are kept, and which roles can open wp-admin.')">
                     <AdvancedSection :settings="settings" :low_level_roles="low_level_roles"/>
                 </SettingsCard>
             </el-form>

@@ -57,7 +57,7 @@ export default {
         },
         validate() {
             if (this.anyOn && !(this.answer.roles || []).length) {
-                return this.$t('Choose at least one role to offer this to.');
+                return this.$t('Choose at least one role.');
             }
 
             return '';
@@ -77,7 +77,7 @@ export default {
             values came from. One line covers that without a badge on each row.
         -->
         <p class="fls_onb_hint">
-            {{ $t('Review the available methods and choose who can use them.') }}
+            {{ $t('The recommended methods are already on. Turn off any you do not want, then choose who gets them.') }}
         </p>
 
         <div class="fls_onb_opts">
@@ -85,7 +85,7 @@ export default {
                 <setting-toggle :model-value="answer.totp" :active-value="true" :inactive-value="false"
                                 :recommend="true"
                                 :label="$t('Authenticator app')"
-                                :description="$t('Use a time-based code from an authenticator app, even when offline.')"
+                                :description="$t('A code from an app on their phone, such as Google Authenticator or Authy. No email needed.')"
                                 @update:model-value="v => update('totp', v)"/>
             </div>
 
@@ -93,19 +93,19 @@ export default {
                 <setting-toggle :model-value="answer.email" :active-value="true" :inactive-value="false"
                                 :recommend="true"
                                 :label="$t('Emailed code')"
-                                :description="$t('Send a verification code to the user’s email address. No app needed.')"
+                                :description="$t('A code sent to their email address each time they sign in. Nothing to set up.')"
                                 @update:model-value="v => update('email', v)"/>
             </div>
         </div>
 
         <role-choice v-if="anyOn" :model-value="answer.roles" :user-roles="userRoles"
-                     :label="$t('Offer it to')"
-                     :hint="$t('These roles are asked to set a method up the next time they sign in.')"
+                     :label="$t('Who gets the second step')"
+                     :hint="$t('With emailed codes on, these roles get a code at every sign-in. With an app on, they are invited to set one up after signing in.')"
                      @update:model-value="v => update('roles', v)"/>
 
         <p class="fls_onb_reassure">
             {{
-                $t('This does not lock anyone out. The roles you pick are asked to set a method up. Nobody is refused a sign-in for not having one.')
+                $t('Nobody is locked out by this. Setting up an app stays optional until you make it required in Settings.')
             }}
         </p>
     </div>

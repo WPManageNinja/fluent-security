@@ -100,8 +100,8 @@ export default {
          */
         subhead() {
             return this.phase === 'baseline'
-                ? this.$t('Comparing the files WordPress.org cannot vouch for against your own record of them.')
-                : this.$t('Comparing this site against the official releases on WordPress.org.');
+                ? this.$t('Comparing your premium and custom plugins and themes with your snapshot.')
+                : this.$t('Comparing your files with the official copies on WordPress.org.');
         }
     }
 }

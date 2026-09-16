@@ -24,7 +24,7 @@ export default {
         <div class="fls_grid_2">
             <SettingToggle v-model="settings.disable_xmlrpc" recommend="yes"
                            :label="$t('Block XML-RPC requests')"
-                           :description="$t('An old publishing API. One request can carry many guesses.')"/>
+                           :description="$t('An older way for apps to sign in, now used mostly for guessing passwords. The WordPress mobile app may still need it.')"/>
 
             <!--
                 No recommendation on purpose. Blocking these is sound hardening on a site
@@ -34,15 +34,15 @@ export default {
             -->
             <SettingToggle v-model="settings.disable_app_login"
                            :label="$t('Block application passwords')"
-                           :description="$t('Leave off if an external app signs in over the REST API.')"/>
+                           :description="$t('Outside apps and services connect with these. Turning this on disconnects them.')"/>
 
             <SettingToggle v-model="settings.disable_users_rest" recommend="yes"
                            :label="$t('Hide usernames from the public')"
-                           :description="$t('Otherwise WordPress hands them out to anyone who asks.')"/>
+                           :description="$t('By default anyone can look up your usernames, which gives an attacker half of what they need.')"/>
 
             <SettingToggle v-model="settings.secure_signup_form" recommend="yes"
                            :label="$t('Verify email addresses on signup')"
-                           :description="$t('Confirms the address before the account can be used.')"/>
+                           :description="$t('New users get a code by email and must enter it before the account is created.')"/>
         </div>
 
         <!--
@@ -63,8 +63,8 @@ export default {
         -->
         <el-alert v-if="settings.disable_app_login === 'yes'" type="warning"
                   :closable="false" show-icon class="fls_row_alert"
-                  :title="$t('Application passwords already in use will stop working')">
-            {{ $t('This is how anything outside a browser signs in over the REST API: MCP servers, mobile apps, backups, and site management tools. Every password already issued stops authenticating as soon as this is saved, and no new ones can be created. The REST API itself stays up, so the site and your own browser session are unaffected.') }}
+                  :title="$t('Anything connected with an application password will stop working')">
+            {{ $t('Backup services, mobile apps and site management tools set up with one will stop working as soon as you save. Signing in through a browser is not affected.') }}
         </el-alert>
     </div>
 </template>

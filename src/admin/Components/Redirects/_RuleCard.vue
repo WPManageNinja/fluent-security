@@ -85,11 +85,11 @@ export default {
          */
         problem() {
             if (!this.rule.conditions.some(condition => (condition.values || []).length)) {
-                return this.$t('Never matches');
+                return this.$t('Applies to no one');
             }
 
             if (!this.rule.login && !this.rule.logout) {
-                return this.$t('Sends nobody anywhere');
+                return this.$t('No destination set');
             }
 
             return '';
@@ -243,19 +243,19 @@ export default {
 
             <p class="fls_action_note">
                 <a href="#" @click.prevent="addCondition()">{{ $t('Add another condition') }}</a>
-                <span>{{ $t('Both have to be true for the rule to apply.') }}</span>
+                <span>{{ $t('Every line has to be true for the rule to apply.') }}</span>
             </p>
 
             <p class="fls_eyebrow">{{ $t('Where they go') }}</p>
 
             <SettingRow :label="$t('After signing in')"
-                        :description="$t('Leave this on the default to let the destination above apply to them.')">
+                        :description="$t('Leave this as the default and they go where everyone else does.')">
                 <Destination v-model="rule.login" :presets="destinations.login"
                              :empty-label="$t('Use the default')"/>
             </SettingRow>
 
             <SettingRow :label="$t('After signing out')"
-                        :description="$t('Set separately, so a rule can change one without touching the other.')">
+                        :description="$t('Separate from sign-in. Leave this as the default and they go where everyone else does.')">
                 <Destination v-model="rule.logout" :presets="destinations.logout"
                              :empty-label="$t('Use the default')"/>
             </SettingRow>

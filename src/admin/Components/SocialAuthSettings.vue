@@ -88,7 +88,7 @@ export default {
 
             <el-form v-else label-position="top">
                 <SettingsCard :title="$t('Social login')"
-                              :description="$t('The master switch. With this off none of the providers below are offered, whatever they are set to.')">
+                              :description="$t('With this off, none of the sign-in buttons below appear on the login page, whatever their own switches say.')">
                     <template #actions>
                         <el-switch v-model="settings.enabled" active-value="yes" inactive-value="no"/>
                     </template>
@@ -97,7 +97,7 @@ export default {
                 <template v-if="enabled">
                     <SocialProvider :settings="settings" provider="google"
                                     :title="$t('Google')"
-                                    :description="$t('Needs an OAuth client from the Google Cloud console.')"
+                                    :description="$t('Needs an app you create in Google Cloud Console.')"
                                     :id-label="$t('Google Client ID')"
                                     :secret-label="$t('Google Client Secret')"
                                     :info="auth_info.google"
@@ -106,13 +106,13 @@ export default {
                         <template #extra>
                             <SettingToggle v-model="settings.google_one_tap"
                                            :label="$t('One-tap sign-in')"
-                                           :description="$t('Shows a Google prompt on the page itself rather than waiting for someone to press a button. Your site\'s domain has to be listed under Authorized JavaScript origins in the Google app.')"/>
+                                           :description="$t('Google pops up its own sign-in prompt, so there is no button to press. Your site\'s address has to be listed under Authorized JavaScript origins in your Google app.')"/>
                         </template>
                     </SocialProvider>
 
                     <SocialProvider :settings="settings" provider="github"
                                     :title="$t('GitHub')"
-                                    :description="$t('Needs an OAuth app from your GitHub developer settings.')"
+                                    :description="$t('Needs an app from your GitHub developer settings.')"
                                     :id-label="$t('GitHub Client ID')"
                                     :secret-label="$t('GitHub Client Secret')"
                                     :info="auth_info.github"/>

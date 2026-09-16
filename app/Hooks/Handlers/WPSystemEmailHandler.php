@@ -291,34 +291,6 @@ class WPSystemEmailHandler
 
     protected function getEmailHeaders($defaulHeaders = [])
     {
-        if (!is_array($defaulHeaders) || !$defaulHeaders) {
-            $defaulHeaders = [];
-        }
-
-        $defaulHeaders[] = 'Content-Type: text/html; charset=UTF-8';
-
-        $templateSettings = Arr::get(SystemEmailService::getGlobalSettings(), 'template_settings', []);
-
-
-        if (!empty($templateSettings['from_email'])) {
-            $fromName = Arr::get($templateSettings, 'from_name', '');
-            if ($fromName) {
-                $defaulHeaders[] = 'From: ' . $fromName . ' <' . $templateSettings['from_email'] . '>';
-            } else {
-                $defaulHeaders[] = 'From: <' . $templateSettings['from_email'] . '>';
-            }
-        }
-
-        if (!empty($templateSettings['reply_to_email'])) {
-            $replyToName = Arr::get($templateSettings, 'reply_to_name', '');
-            if ($replyToName) {
-                $defaulHeaders[] = 'Reply-To: ' . $replyToName . ' <' . $templateSettings['reply_to_email'] . '>';
-            } else {
-                $defaulHeaders[] = 'Reply-To: <' . $templateSettings['reply_to_email'] . '>';
-            }
-        }
-
-        return $defaulHeaders;
-
+        return SystemEmailService::getEmailHeaders($defaulHeaders);
     }
 }

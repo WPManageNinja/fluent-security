@@ -195,7 +195,7 @@ export default {
             }
 
             if (unit.in_snapshot) {
-                return {klass: 'is_success', label: this.$t('In your snapshot')};
+                return {klass: 'is_success', label: this.$t('Recorded')};
             }
 
             return {klass: 'is_neutral', label: this.$t('Not recorded')};
@@ -241,7 +241,7 @@ export default {
     <div class="fls_dcard" v-loading="busy">
         <div class="fls_dcard_head">
             <h2>{{ $t('Premium & Custom Extensions') }}</h2>
-            <span class="fls_dcard_meta">{{ $_n('%s not verified', '%s not verified', items.length) }}</span>
+            <span class="fls_dcard_meta">{{ $_n('%s with no official copy', '%s with no official copy', items.length) }}</span>
         </div>
 
         <!-- The note belongs to the list, so it sits in the same block rather than its own. -->
@@ -283,7 +283,7 @@ export default {
                         complete as the walk that produced them.
                     -->
                     <em v-if="skippedFiles" class="is_warning">
-                        {{ $_n('%s file is not being watched — one extension is over the limit.', '%s files are not being watched — some extensions are over the limit.', readableCount(skippedFiles)) }}
+                        {{ $_n('%s file is not being watched because one plugin or theme is too large to record in full.', '%s files are not being watched because some plugins or themes are too large to record in full.', readableCount(skippedFiles)) }}
                     </em>
                 </div>
 
@@ -343,7 +343,7 @@ export default {
 
                             <div class="fls_scan_explain_actions is_padded">
                                 <el-button size="small" :disabled="busy" @click="snapshotOne(item)">
-                                    {{ $t('These are correct — record them') }}
+                                    {{ $t('Accept these changes') }}
                                 </el-button>
                             </div>
                         </template>

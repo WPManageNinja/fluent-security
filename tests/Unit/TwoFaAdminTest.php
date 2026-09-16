@@ -70,11 +70,10 @@ class TwoFaAdminTest extends BaseTestCase
     }
 
     /**
-     * Both of the rules that used to guard this are gone, and their absence is the
-     * feature. They existed because requiring a factor did not grant the means to get
-     * one, so the two lists could disagree and the disagreement locked a role out.
-     * Requiring now grants, so there is nothing left to refuse - and refusing here was
-     * how an owner ended up with a requirement that silently did nothing.
+     * The allow list is still not consulted for a required role: a method that is
+     * switched on is granted to them whatever its own list says. What came back is only
+     * the narrower rule that something has to be switched on at all - see
+     * testARoleCannotBeRequiredWithNoMethodItCanUse().
      */
     public function testARoleCanBeRequiredWithoutAppearingInTheAllowList()
     {
@@ -88,15 +87,71 @@ class TwoFaAdminTest extends BaseTestCase
         $this->assertSame(['administrator'], Helper::getSetting('totp_required_roles'));
     }
 
-    public function testARoleCanBeRequiredWhileTheMethodIsOff()
+    /**
+     * The state 3.0.0 allowed and this refuses.
+     *
+     * Requiring a factor used to grant the app whatever the switch said, so "required,
+     * every method off" enforced. It no longer does - an off method is off for everybody
+     * - so saving it would leave those roles marched to an enrolment screen with nothing
+     * on it. Refused at the door rather than discovered at the login form.
+     */
+    public function testARoleCannotBeRequiredWithNoMethodItCanUse()
     {
         $result = $this->save([
             'totp_2fa'            => 'no',
+            'passkey_2fa'         => 'no',
+            'email2fa'            => 'no',
+            'totp_required_roles' => ['administrator']
+        ]);
+
+        $this->assertWPError($result);
+        $this->assertArrayHasKey('totp_required_roles', $result->get_error_data());
+    }
+
+    /**
+     * The subtler shape of the same thing: a method IS on, so the site looks enforceable,
+     * but it is on for a role the required one does not hold.
+     */
+    public function testARoleCannotBeRequiredOnAMethodItIsNotOfferedAtAllLevel()
+    {
+        $result = $this->save([
+            'totp_2fa'              => 'no',
+            'passkey_2fa'           => 'no',
+            'email2fa'              => 'yes',
+            'email2fa_roles'        => ['editor'],
+            'two_fa_required_level' => 'any',
+            'totp_required_roles'   => ['administrator']
+        ]);
+
+        $this->assertWPError($result);
+        $this->assertArrayHasKey('totp_required_roles', $result->get_error_data());
+    }
+
+    public function testARoleCanBeRequiredOnceSomethingReachesIt()
+    {
+        $result = $this->save([
+            'totp_2fa'            => 'yes',
+            'totp_2fa_roles'      => [],
             'totp_required_roles' => ['administrator']
         ]);
 
         $this->assertNotWPError($result);
         $this->assertSame(['administrator'], Helper::getSetting('totp_required_roles'));
+    }
+
+    /** An emailed code counts where the required role is actually on its list. */
+    public function testAnEmailedCodeCountsForARoleOnItsOwnList()
+    {
+        $result = $this->save([
+            'totp_2fa'              => 'no',
+            'passkey_2fa'           => 'no',
+            'email2fa'              => 'yes',
+            'email2fa_roles'        => ['administrator'],
+            'two_fa_required_level' => 'any',
+            'totp_required_roles'   => ['administrator']
+        ]);
+
+        $this->assertNotWPError($result);
     }
 
     public function testTheRequiredLevelDefaultsToTheStrongReading()

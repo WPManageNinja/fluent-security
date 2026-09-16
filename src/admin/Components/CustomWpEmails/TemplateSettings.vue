@@ -41,7 +41,7 @@ export default {
                     target: '.content_wrap',
                     colors: [
                         {key: 'content_bg', label: 'Background', hint: 'The card the message sits on.'},
-                        {key: 'content_color', label: 'Text', hint: 'Body copy.'}
+                        {key: 'content_color', label: 'Text', hint: 'The message text.'}
                     ]
                 },
                 {
@@ -52,12 +52,12 @@ export default {
                      * written inline in that email's own body, so it is changed per
                      * email under Content, not here.
                      */
-                    title: 'Quoted blocks',
+                    title: 'Detail boxes',
                     target: 'blockquote',
-                    note: 'The indented boxes holding details like a username or a link.',
+                    note: 'The shaded boxes that hold details like a username or a link.',
                     colors: [
-                        {key: 'highlight_bg', label: 'Background', hint: 'Behind the quoted block.'},
-                        {key: 'highlight_color', label: 'Text', hint: 'Inside it.'}
+                        {key: 'highlight_bg', label: 'Background', hint: 'Behind the box.'},
+                        {key: 'highlight_color', label: 'Text', hint: 'Text inside the box.'}
                     ]
                 }
             ]
@@ -160,8 +160,8 @@ export default {
 
 <template>
     <div>
-        <SettingsHeader :heading="$t('Email Template Design')"
-                        :description="$t('How every system email looks, and who it comes from.')"
+        <SettingsHeader :heading="$t('Email Design')"
+                        :description="$t('The look and sender of every email you have set to Your own. Emails left at the default are not affected.')"
                         :saving="saving" :disabled="!settings" @save="saveSettings()">
             <template #actions>
                 <el-button link size="large" @click="$router.push({name: 'settings_emails'})">
@@ -175,7 +175,7 @@ export default {
 
             <el-form v-else label-position="top">
                 <SettingsCard :title="$t('Design')"
-                              :description="$t('Applied to every system email at once. The preview updates as you pick.')">
+                              :description="$t('One set of colours for every email you have set to Your own. The preview updates as you pick.')">
                     <template #actions>
                         <el-button size="small" :disabled="isDefault" @click="setDefaultColors()">
                             {{ $t('Reset colours') }}
@@ -212,29 +212,29 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard :title="$t('Footer')"
-                              :description="$t('Appears at the bottom of every system email.')">
+                              :description="$t('Shown under the message in every email set to Your own. Leave it empty for no footer.')">
                     <SettingRow stacked :label="$t('Footer text')">
                         <WPEditor :height="80" v-model="settings.footer_text"/>
                     </SettingRow>
                 </SettingsCard>
 
                 <SettingsCard :title="$t('Sender')"
-                              :description="$t('Leave these empty to keep whatever WordPress or your mail plugin already uses.')">
+                              :description="$t('Used on the WordPress emails you have set to Your own. Leave these empty to keep whatever WordPress or your mail plugin already sends from.')">
                     <SettingRow :label="$t('From address')">
                         <el-input v-model="settings.from_email" :placeholder="$t('Enter email address')"/>
                     </SettingRow>
 
                     <SettingRow :label="$t('From name')">
-                        <el-input type="text" v-model="settings.from_name" :placeholder="$t('Enter from name')"/>
+                        <el-input type="text" v-model="settings.from_name" :placeholder="$t('Your site or company name')"/>
                     </SettingRow>
 
                     <SettingRow :label="$t('Reply-to address')"
-                                :description="$t('Where a reply goes, if that is not the sending address.')">
-                        <el-input v-model="settings.reply_to_email" :placeholder="$t('Enter reply email address')"/>
+                                :description="$t('Where replies land when someone answers the email.')">
+                        <el-input v-model="settings.reply_to_email" :placeholder="$t('Enter reply-to address')"/>
                     </SettingRow>
 
                     <SettingRow :label="$t('Reply-to name')">
-                        <el-input type="text" v-model="settings.reply_to_name" :placeholder="$t('Enter reply to name')"/>
+                        <el-input type="text" v-model="settings.reply_to_name" :placeholder="$t('Enter reply-to name')"/>
                     </SettingRow>
                 </SettingsCard>
             </el-form>

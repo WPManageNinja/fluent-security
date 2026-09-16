@@ -75,7 +75,7 @@ export default {
 <template>
     <div v-if="!isRedundant" class="fls_aside_block" v-loading="busy">
         <h3>
-            {{ $t('Your Own Snapshot') }}
+            {{ $t('Your Snapshot') }}
             <el-button v-if="baseline.exists" text size="small" @click="clear()">
                 {{ $t('Clear') }}
             </el-button>
@@ -96,7 +96,7 @@ export default {
                     <span class="fls_scan_fact_value">{{ takenLabel }}</span>
                 </li>
                 <li v-if="baseline.changed">
-                    <span class="fls_scan_fact_label">{{ $t('Changed since') }}</span>
+                    <span class="fls_scan_fact_label">{{ $t('Changed') }}</span>
                     <span class="fls_scan_fact_value">
                         <span class="fls_tag is_blocked">{{ baseline.changed }}</span>
                     </span>

@@ -56,10 +56,10 @@ export default {
         copyCode(code) {
             navigator.clipboard.writeText(code)
                 .then(() => this.$notify.success(this.$t('Copied to clipboard')))
-                .catch(err => this.$notify.error(this.$t('Failed to copy code') + ': ' + err));
+                .catch(err => this.$notify.error(this.$t('Could not copy to clipboard') + ': ' + err));
         },
         removeSite(url) {
-            this.$confirm(this.$t('Are you sure you want to remove this site?'), {
+            this.$confirm(this.$t('Remove this site? People will no longer be able to sign in to it through this one.'), {
                 type: 'warning',
                 showCancelButton: true,
                 cancelButtonText: this.$t('Cancel'),
@@ -92,7 +92,7 @@ export default {
 <template>
     <div>
         <SettingsHeader :heading="$t('Remote Auth')"
-                        :description="$t('Let other sites sign their users in against this one.')"
+                        :description="$t('Let people sign in to your other sites with the accounts on this one.')"
                         :show-save="false">
             <template #actions>
                 <el-button v-if="!addinNew" size="large" type="primary" @click="addinNew = true">
@@ -106,17 +106,17 @@ export default {
 
             <template v-else>
                 <SettingsCard v-if="addinNew" :title="$t('Connect a site')"
-                              :description="$t('Two steps: paste the child site\'s configuration here, then copy the token you get back into that site.')">
+                              :description="$t('Paste the other site\'s connection details here, then copy the token you get back into that site.')">
                     <template #actions>
                         <el-button size="small" @click="addinNew = false">{{ $t('Cancel') }}</el-button>
                     </template>
 
                     <div v-loading="saving">
                         <template v-if="!new_site_token">
-                            <SettingRow stacked :label="$t('Child site configuration')"
-                                        :description="$t('The JSON shown on the child site\'s own Remote Auth screen.')">
+                            <SettingRow stacked :label="$t('Connection details from the other site')"
+                                        :description="$t('Copy it from the Remote Auth screen on the site you are connecting.')">
                                 <el-input type="textarea" :rows="3" v-model="new_site_config"
-                                          :placeholder="$t('Paste the child site config JSON here')"/>
+                                          :placeholder="$t('Paste the connection details here')"/>
                                 <p>
                                     <el-button type="primary" size="small" @click="addNewSite()">
                                         {{ $t('Get the token') }}
@@ -127,7 +127,7 @@ export default {
 
                         <template v-else>
                             <SettingRow stacked :label="$t('Site token')"
-                                        :description="$t('Paste this into the child site to finish connecting it. It is shown once.')">
+                                        :description="$t('Paste this into the other site to finish connecting it. It is shown only once.')">
                                 <el-input v-model="new_site_token" :readonly="true" type="text">
                                     <template #append>
                                         <el-button @click="copyCode(new_site_token)">{{ $t('Copy') }}</el-button>
@@ -144,7 +144,7 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard :title="$t('Connected sites')"
-                              :description="$t('Each of these can sign its users in using the accounts on this site.')">
+                              :description="$t('People can sign in to any of these with their account on this site.')">
                     <el-table :data="sites" class="fls_table"
                               :empty-text="$t('No sites have been connected yet')">
                         <el-table-column prop="site_id" :label="$t('ID')" width="70"/>

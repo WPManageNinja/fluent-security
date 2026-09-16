@@ -67,6 +67,22 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
      *
      * @return bool
      */
+    public function isSwitchedOn()
+    {
+        return RelyingParty::isSupported() && Helper::getSetting('passkey_2fa') === 'yes';
+    }
+
+    /** Requiring a factor grants passkeys - see isAllowedForUser(). */
+    public function isGrantedByRequirement()
+    {
+        return true;
+    }
+
+    public function isPermittedForUser($user)
+    {
+        return (bool)apply_filters('fluent_auth/passkey_enabled', true, $user);
+    }
+
     public static function isEnabledForAnyRole()
     {
         if (!RelyingParty::isSupported()) {
@@ -114,14 +130,15 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
-        // Requiring a second factor grants the methods that can satisfy it - see
-        // TotpTwoFaMethod::isAllowedForUser() for why.
-        if (DeviceRequirement::isRequiredForUser($user)) {
-            return true;
-        }
-
+        // A method the site turned off is off for everybody, requirement included - see
+        // TotpTwoFaMethod::isAllowedForUser(), where the same ordering is spelled out.
         if (Helper::getSetting('passkey_2fa') !== 'yes') {
             return false;
+        }
+
+        // Switched on, requiring a second factor grants it.
+        if (DeviceRequirement::isRequiredForUser($user)) {
+            return true;
         }
 
         /*

@@ -155,8 +155,8 @@ class Onboarding
              */
             'connection' => [
                 'title'     => __('Connection', 'fluent-security'),
-                'headline'  => __('Confirm your visitor IP address', 'fluent-security'),
-                'why'       => __('Check the detected address before setting up login protection. If your site uses a proxy, it needs to forward each visitor’s real IP address.', 'fluent-security'),
+                'headline'  => __('Is this the address you are visiting from?', 'fluent-security'),
+                'why'       => __('Failed logins are counted per visitor address, so the site has to be seeing the real one.', 'fluent-security'),
                 'preview'   => 'connection',
                 'checks'    => [],
                 /*
@@ -223,8 +223,8 @@ class Onboarding
 
             'two_fa'      => [
                 'title'    => __('Two-factor', 'fluent-security'),
-                'headline' => __('Set up two-factor authentication', 'fluent-security'),
-                'why'      => __('Choose the verification methods available to your users and the roles that can use them.', 'fluent-security'),
+                'headline' => __('Add a second step when people sign in?', 'fluent-security'),
+                'why'      => __('With a second step, a stolen password on its own is not enough to get in.', 'fluent-security'),
                 'preview'  => 'two_factor',
                 'checks'   => ['two_fa'],
                 'answer'   => function ($settings, $recommended) {
@@ -259,8 +259,8 @@ class Onboarding
              */
             'login_limit' => [
                 'title'    => __('Failed attempts', 'fluent-security'),
-                'headline' => __('Limit failed login attempts', 'fluent-security'),
-                'why'      => __('Choose how many failed attempts an IP address can make within a time window. Start with a preset or enter your own limits.', 'fluent-security'),
+                'headline' => __('How many failed attempts before a visitor is blocked?', 'fluent-security'),
+                'why'      => __('A low number stops password guessing, but set it too low and people who mistype their own password get locked out.', 'fluent-security'),
                 'preview'  => 'lockout',
                 'checks'   => [],
                 'answer'   => function ($settings, $recommended) {
@@ -274,9 +274,9 @@ class Onboarding
             ],
 
             'hardening'   => [
-                'title'    => __('Hardening', 'fluent-security'),
-                'headline' => __('Choose your WordPress protections', 'fluent-security'),
-                'why'      => __('Reduce access to unused WordPress features and verify new registrations. Keep compatibility with the tools your site uses.', 'fluent-security'),
+                'title'    => __('Protections', 'fluent-security'),
+                'headline' => __('Turn these protections on?', 'fluent-security'),
+                'why'      => __('Each one closes something WordPress leaves open by default that most sites never use.', 'fluent-security'),
                 'preview'  => 'signup',
                 'checks'   => ['disable_xmlrpc', 'disable_users_rest', 'secure_signup_form'],
                 'answer'   => function ($settings, $recommended) {
@@ -297,8 +297,8 @@ class Onboarding
 
             'alerts'      => [
                 'title'    => __('Alerts', 'fluent-security'),
-                'headline' => __('Choose your sign-in alerts', 'fluent-security'),
-                'why'      => __('Get an email when someone signs in with a selected role. Focus on privileged accounts to keep notifications useful.', 'fluent-security'),
+                'headline' => __('Want an email when important accounts sign in?', 'fluent-security'),
+                'why'      => __('A sign-in you did not make is the first sign of a stolen account, and an email is how you find out the same day.', 'fluent-security'),
                 'preview'  => 'email',
                 'checks'   => ['notifications'],
                 'answer'   => function ($settings, $recommended) {
@@ -427,7 +427,7 @@ class Onboarding
                     $settings['trusted_proxies'] = $proxies;
                     $settings['proxy_ip_header'] = self::sanitizeHeader(Arr::get($answer, 'proxy_ip_header', ''));
 
-                    $applied[] = __('Declared the proxy in front of this site.', 'fluent-security');
+                    $applied[] = __('Saved the address of the proxy in front of this site.', 'fluent-security');
                 }
 
                 /*
@@ -445,7 +445,7 @@ class Onboarding
                 if (($totp || $email) && !$roles) {
                     return new \WP_Error(
                         'roles_required',
-                        __('Choose at least one role to offer the second step to.', 'fluent-security'),
+                        __('Choose at least one role to get the second step.', 'fluent-security'),
                         ['status' => 422]
                     );
                 }
@@ -477,7 +477,7 @@ class Onboarding
                 if ($limit < 1 || $limit > 100 || $timing < 1 || $timing > 1440) {
                     return new \WP_Error(
                         'invalid_limit',
-                        __('Pick between 1 and 100 attempts, over a window of up to a day.', 'fluent-security'),
+                        __('Use between 1 and 100 attempts, and a window of up to 1440 minutes (one day).', 'fluent-security'),
                         ['status' => 422]
                     );
                 }
@@ -495,8 +495,8 @@ class Onboarding
 
             case 'hardening':
                 $labels = [
-                    'disable_xmlrpc'     => __('Blocked XML-RPC.', 'fluent-security'),
-                    'disable_users_rest' => __('Hid the public user list.', 'fluent-security'),
+                    'disable_xmlrpc'     => __('Blocked XML-RPC (an old remote publishing feature).', 'fluent-security'),
+                    'disable_users_rest' => __('Hid usernames from the public.', 'fluent-security'),
                     'secure_signup_form' => __('Turned on email verification for new accounts.', 'fluent-security')
                 ];
 

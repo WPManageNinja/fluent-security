@@ -8,6 +8,7 @@ use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\LoginBridge;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
+use FluentAuth\App\Services\SystemEmailService;
 
 class CustomAuthHandler
 {
@@ -1080,7 +1081,7 @@ class CustomAuthHandler
             'to'      => $user_data->user_email,
             'subject' => $mailSubject,
             'message' => $message,
-            'headers' => array('Content-Type: text/html; charset=UTF-8')
+            'headers' => SystemEmailService::getEmailHeaders()
         );
 
         $notification_email = apply_filters('retrieve_password_notification_email', $defaults, $resetKey, $user_login, $user_data);
@@ -1332,7 +1333,7 @@ class CustomAuthHandler
         ];
 
         $message = Helper::loadView('notification', $data);
-        $headers = array('Content-Type: text/html; charset=UTF-8');
+        $headers = SystemEmailService::getEmailHeaders();
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
 

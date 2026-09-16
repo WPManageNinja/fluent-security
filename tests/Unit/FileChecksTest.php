@@ -95,7 +95,7 @@ class FileChecksTest extends BaseTestCase
         $finding = $this->only((new MuPluginsCheck())->run());
 
         $this->assertEquals(Finding::STATE_PASSED, $finding['state']);
-        $this->assertStringContainsString('Nothing loads', $finding['title']);
+        $this->assertStringContainsString('No extra files run', $finding['title']);
     }
 
     /**

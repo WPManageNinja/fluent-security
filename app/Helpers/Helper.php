@@ -302,11 +302,17 @@ class Helper
         return $statuses;
     }
 
-    public static function getLoginMediaLabel($media)
+    /**
+     * Every `media` slug this plugin writes, and the name the screens print for it.
+     *
+     * Split out of getLoginMediaLabel() so the log search can read the same list - see
+     * findLoginMediaSlugs().
+     *
+     * @return array
+     */
+    public static function getLoginMediaLabels()
     {
-        $media = $media ?: 'web';
-
-        $labels = apply_filters('fluent_auth/login_media_labels', [
+        return apply_filters('fluent_auth/login_media_labels', [
             'web'         => __('Login form', 'fluent-security'),
             'magic_login' => __('Magic link', 'fluent-security'),
             'email_2fa'   => __('Email code', 'fluent-security'),
@@ -344,6 +350,43 @@ class Helper
             'plugin_updated'       => __('Plugin updated', 'fluent-security'),
             'password_reset_request' => __('Password reset requested', 'fluent-security')
         ]);
+    }
+
+    /**
+     * The slugs whose label reads like the search somebody typed.
+     *
+     * `media` holds a slug - `magic_login`, `two_factor_totp` - and the screen prints a
+     * label. So a search for "Magic link", which is the only name the reader has ever
+     * been shown, matched nothing, while "google" worked by coincidence because the slug
+     * happens to be the word. This closes that gap by searching what is on screen.
+     *
+     * @param string $search
+     * @return array
+     */
+    public static function findLoginMediaSlugs($search)
+    {
+        $search = trim((string)$search);
+
+        if ($search === '') {
+            return [];
+        }
+
+        $matched = [];
+
+        foreach (self::getLoginMediaLabels() as $slug => $label) {
+            if (stripos($label, $search) !== false) {
+                $matched[] = $slug;
+            }
+        }
+
+        return array_values(array_unique($matched));
+    }
+
+    public static function getLoginMediaLabel($media)
+    {
+        $media = $media ?: 'web';
+
+        $labels = self::getLoginMediaLabels();
 
         if (isset($labels[$media])) {
             return $labels[$media];

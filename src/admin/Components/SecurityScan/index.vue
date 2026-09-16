@@ -583,7 +583,7 @@ export default {
                     <div>
                         <h1 class="fls_page_title">{{ $t('Monitoring') }}</h1>
                         <p class="fls_page_desc">
-                            {{ $t('Compares every WordPress core file, plugin and theme on this site against the official release on WordPress.org, so an unauthorised change cannot sit there unnoticed.') }}
+                            {{ $t('Checks your WordPress files, plugins and themes against the official copies on WordPress.org and tells you what has changed.') }}
                         </p>
                     </div>
 
@@ -623,7 +623,7 @@ export default {
                               @snapshot="takeSnapshot"/>
 
                 <div v-else class="fls_dcard">
-                    <el-empty :description="$t('Sorry! Settings could not be loaded. Please reload the page.')"/>
+                    <el-empty :description="$t('Settings could not be loaded. Reload the page to try again.')"/>
                 </div>
             </div>
 

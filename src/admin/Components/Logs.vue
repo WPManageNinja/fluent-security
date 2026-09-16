@@ -311,7 +311,7 @@ export default {
                             </a>
                         </div>
                         <p class="fls_list_search_hint">
-                            {{ $t('Search by user, IP address or event. Press Enter to search.') }}
+                            {{ $t('Search by username, IP address or how they signed in. Press Enter to search.') }}
                         </p>
                     </div>
                 </div>
@@ -328,7 +328,7 @@ export default {
                                         <div class="fls_log_detail_value" v-html="props.row.description"></div>
                                     </div>
                                     <div>
-                                        <h4>{{ $t('User Agent') }}</h4>
+                                        <h4>{{ $t('Browser details') }}</h4>
                                         <div class="fls_log_detail_value">{{ props.row.agent }}</div>
                                     </div>
                                 </div>
@@ -424,7 +424,7 @@ export default {
                         <template #empty>
                             <div class="fls_empty">
                                 <span v-html="icons.empty"></span>
-                                {{ search ? $t('Nothing matches that search') : $t('Nothing has been recorded yet') }}
+                                {{ search ? $t('Nothing matches that search') : $t('Nothing to show yet. Sign-ins, failed attempts and site changes will appear here as they happen.') }}
                             </div>
                         </template>
                     </el-table>

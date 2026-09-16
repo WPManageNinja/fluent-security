@@ -117,15 +117,15 @@ class SecretEncryptionCheck extends Check
                 ? sprintf(
                     /* translators: %d: number of affected authenticator apps */
                     _n(
-                        '%d authenticator app can no longer be read',
-                        '%d authenticator apps can no longer be read',
+                        'Codes from %d authenticator app are no longer accepted',
+                        'Codes from %d authenticator apps are no longer accepted',
                         $count,
                         'fluent-security'
                     ),
                     $count
                 )
                 : __('The authenticator encryption key has changed', 'fluent-security'),
-            'why'      => __('The key these secrets were encrypted with is not the one in force now, so the codes from those apps will not be accepted.', 'fluent-security'),
+            'why'      => __('The encryption key in wp-config.php is missing or has changed, so codes from those apps are no longer accepted.', 'fluent-security'),
             'details'  => $details,
             'action'   => 'navigate',
             'label'    => __('Review two-factor settings', 'fluent-security'),
@@ -161,7 +161,7 @@ class SecretEncryptionCheck extends Check
         }
 
         $details = [
-            __('An authenticator secret has to be readable to check a code, so unlike a password it cannot be hashed. Anyone who obtains a copy of your database can generate valid codes for every enrolled account until those users pair a new app.', 'fluent-security')
+            __('Anyone who gets a copy of your database could generate valid codes for every account that uses an authenticator app.', 'fluent-security')
         ];
 
         if (!SecretKey::isSupported()) {

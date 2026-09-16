@@ -1,6 +1,6 @@
 <template>
     <el-dialog
-        :title="$t('Design Your Button')"
+        :title="$t('Add a button')"
         v-model="showModal"
         :append-to-body="true"
         :show-close="false"
@@ -57,7 +57,7 @@
         </div>
         <span slot="footer" class="dialog-footer">
             <el-button @click="close()">{{ $t('Cancel') }}</el-button>
-            <el-button type="primary" @click="insert()">{{ $t('Insert') }}</el-button>
+            <el-button type="primary" @click="insert()">{{ $t('Add button') }}</el-button>
         </span>
     </el-dialog>
 </template>
@@ -75,7 +75,7 @@ export default {
                     value: this.$t('click here')
                 },
                 button_url: {
-                    label: this.$t('Button URL'),
+                    label: this.$t('Link address'),
                     type: 'url',
                     value: ''
                 },
@@ -90,14 +90,14 @@ export default {
                     value: '#ffffff'
                 },
                 borderRadius: {
-                    label: this.$t('Border Radius'),
+                    label: this.$t('Corner rounding'),
                     type: 'slider',
                     value: 5,
                     max: 50,
                     min: 0
                 },
                 fontSize: {
-                    label: this.$t('Font Size'),
+                    label: this.$t('Text size'),
                     type: 'slider',
                     value: 16,
                     min: 8,
@@ -132,7 +132,7 @@ export default {
         },
         insert() {
             if (!this.controls.button_url.value || !this.controls.button_text.value) {
-                this.$notify.error(this.$t('Button Text and URL are required.'));
+                this.$notify.error(this.$t('Give the button a label and a link address.'));
                 return;
             }
             const html = `<a  style="${this.style}" href="${this.controls.button_url.value}">${this.controls.button_text.value}</a>`;

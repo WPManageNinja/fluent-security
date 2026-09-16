@@ -91,7 +91,7 @@ export default {
         <template v-if="answer.enabled">
             <role-choice :model-value="answer.roles" :user-roles="userRoles"
                          :label="$t('Tell me when these roles sign in')"
-                         :hint="$t('Keep this to the accounts that can install code and make other administrators. Add a role that signs in all day and these stop being read.')"
+                         :hint="$t('Keep it to administrators and other powerful accounts. Alerts for roles that sign in all day stop getting read.')"
                          @update:model-value="v => update('roles', v)"/>
 
             <div class="fls_onb_field">
@@ -100,7 +100,7 @@ export default {
                           :placeholder="adminEmail"
                           @update:model-value="updateEmail"/>
                 <p class="fls_onb_hint">
-                    {{ $t('Leave this empty to use the site administrator address, so it follows the site if that changes.') }}
+                    {{ $t('Leave empty to use the site\'s admin email address.') }}
                 </p>
             </div>
         </template>

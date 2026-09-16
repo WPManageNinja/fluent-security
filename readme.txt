@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.0
+Stable tag: 3.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,15 +19,15 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 **Highlighted Features**
 
 - Two-Factor Authentication (email, authenticator app and passkeys)
-- Passkey sign-in with Touch ID, Windows Hello, a security key or a password manager, as a second step or instead of a password
+- Passkey sign-in with Touch ID, Windows Hello, a security key or a password manager
 - Social Login with Google, GitHub and Facebook
 - Google One Tap Login
 - Magic Login links by email, with no password
 - Limit Login Attempts and block brute force attacks
 - IP allow list and IP block list
-- Security checklist that finds problems and fixes them for you
+- Security checklist that finds problems and fixes them
 - WordPress core, plugin and theme file change scanning
-- Audit log of every login, failed attempt, plugin activation and update
+- Audit log of every login, failed attempt and plugin change
 - Login and logout redirects
 - Login and signup page customizer
 - Custom WordPress system emails
@@ -40,29 +40,23 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 
 = Two-Factor Authentication (2FA) =
 
-Ask for a second step after the password. FluentAuth gives you three ways to do it, and you choose which roles may use each one.
+Ask for a second step after the password. Three ways to do it, and you choose which roles may use each one.
 
 - **Email codes.** A one time code sent to the user's inbox. Nothing to install.
 - **Authenticator app.** Google Authenticator, Authy, 1Password or any other TOTP app. FluentAuth draws the QR code on your own server, so the secret never leaves your site.
 - **Passkeys.** Touch ID, Face ID, Windows Hello, a hardware security key or a password manager. The browser ties the passkey to your domain, so it cannot be used on a fake copy of your login page.
 
-You can let a role set up a second factor, or you can require it. A user who must have one is asked to set it up while they sign in, before a session is created for them, so the requirement cannot be walked past. You also choose how strong a required factor has to be: a device factor only, meaning a passkey or an authenticator app, or any of the three including an emailed code.
+You can let a role set up a second factor or require it, and you choose how strong a required one has to be: a device factor only, meaning a passkey or an authenticator app, or any of the three. Anyone who must have one sets it up while they sign in, before a session is created for them, so the requirement cannot be walked past.
 
-Setting up an authenticator app also hands the user ten single use recovery codes, for the day the phone is left at home. Passkey users can fall back on those codes too.
+An authenticator app also hands out ten single use recovery codes, and passkey users can fall back on those too. Everyone manages their own second factor from their WordPress profile screen, and an admin screen lists who has enrolled, what each person registered, and lets you reset anyone locked out.
 
-Everyone manages their own second factor from their WordPress profile screen. One card there sets up or removes an authenticator app, adds and names passkeys, and generates a fresh set of recovery codes.
-
-There is an admin screen listing everyone who has enrolled, so you can see who is protected, see what each person has registered, and reset a user who is locked out.
-
-Authenticator secrets can be encrypted in your database with a key you keep in wp-config.php. If someone reads your database, the secrets are useless to them.
+Authenticator secrets can be encrypted in your database with a key you keep in wp-config.php, so reading the database gets an attacker nothing.
 
 = Passkey Login =
 
-Passkeys are the strongest option here. The credential lives on the device and is bound to your site's domain by the browser. Phishing does not work against it, because a copied login page has a different domain and the passkey will not answer.
+Passkeys are the strongest option here. The credential lives on the device and is bound to your domain by the browser, so phishing does not work against it: a copied login page has a different domain and the passkey will not answer.
 
-Passkeys can be the second step after a password, or the way in on their own. Turn on passkey sign-in and the login form offers a passkey button that signs the user in with no password at all, because the passkey proves who they are and that they hold the device in the same touch.
-
-FluentAuth supports passkeys with no third party service. Everything runs on your site.
+They can be the second step after a password, or the way in on their own - turn on passkey sign-in and the login form offers a button that signs the user in with no password at all. No third party service is involved: everything runs on your site.
 
 = Social Login and Registration =
 
@@ -77,7 +71,7 @@ Turn on the providers you want, paste the keys, and the buttons appear on your l
 
 = Magic Login by Email =
 
-Users type their email address and get a one time login link. No password to remember and no reset flow to walk through. You can make it the main way people sign in, or keep it as an extra option. Links are hashed, expire, are rate limited, and can only be claimed once. Asking for a link never reveals whether an address has an account on your site.
+Users type their email address and get a one time login link. No password to remember and no reset flow to walk through. Make it the main way people sign in, or keep it as an extra option. Links are hashed, expire, are rate limited and can only be claimed once, and asking for a link never reveals whether an address has an account on your site.
 
 = Limit Login Attempts =
 
@@ -85,46 +79,37 @@ Block brute force attacks by counting failed logins. Set how many attempts are a
 
 = IP Allow List and Block List =
 
-Two simple lists, one address or range per line.
-
-- The block list refuses a login from those addresses outright.
-- The allow list skips the attempt limit for addresses you trust, such as your office.
+Two simple lists, one address or range per line. The block list refuses a login from those addresses outright. The allow list skips the attempt limit for addresses you trust, such as your office.
 
 You can also require that a role only signs in from an allow listed address. FluentAuth detects reverse proxies and Cloudflare, so the address it acts on is the real visitor address and not your proxy.
 
 = Security Checklist =
 
-FluentAuth checks your site and gives you a short list of what to look at. Each item says what is wrong, why it matters and what happens if you fix it. Most of them have a button that fixes it for you.
+FluentAuth checks your site and gives you a short list of what to look at. Each item says what is wrong, why it matters and what happens if you fix it, and most have a button that fixes it for you. Anything that does not apply can be waved away, and you can take that back later. It checks things like:
 
-It checks things like:
-
-- Whether your site is served over HTTPS
-- Whether PHP errors are shown to visitors
-- Whether the dashboard can edit theme and plugin files
-- Whether the right constants are set in wp-config.php
-- Whether old backup files are sitting in a public folder
-- Whether PHP can run inside your uploads folder
-- Whether any drop-in or mu-plugin file has appeared or changed
-- Whether an administrator uses an easily guessed username
-- Whether any administrator account has gone unused
-- Whether there are user accounts that do not show on the users screen
-
-Anything that does not apply to your site can be waved away, and you can take that back later.
+- HTTPS, and PHP errors shown to visitors
+- Theme and plugin file editing from the dashboard
+- The security constants in wp-config.php
+- Old backup files sitting in a public folder
+- PHP execution inside your uploads folder
+- Drop-in or mu-plugin files that have appeared or changed
+- Administrators with an easily guessed username, or gone unused
+- User accounts that do not show on the users screen
 
 = File Change Scanning =
 
 FluentAuth compares your files against the official copies published on WordPress.org.
 
-- **WordPress core files** are checked against the official checksums for your version.
-- **Plugins from the WordPress.org directory** are checked against the official checksums for the version you have installed.
-- **Themes from the WordPress.org directory** are checked against the official theme package, because there are no published checksums for themes. This needs the ZipArchive PHP extension, which most hosts have.
-- **Files nothing else can verify**, such as a custom theme or a premium plugin, can be recorded in a snapshot so you hear about it when one of them changes.
+- **WordPress core files**, against the official checksums for your version.
+- **Plugins from the WordPress.org directory**, against the checksums for the version you have installed.
+- **Themes from the WordPress.org directory**, against the official theme package, since themes have no published checksums. Needs the ZipArchive PHP extension, which most hosts have.
+- **Files nothing else can verify**, such as a custom theme or a premium plugin, recorded in a snapshot so you hear about it when one changes.
 
-When a file has changed you can see a side by side diff of your copy against the original, put the original back with one click, or delete a file that should not be there. You can also flag a plugin or theme running a version that was never published, which is a common sign that files were swapped out.
+When a file has changed you can see a side by side diff against the original, put the original back with one click, or delete a file that should not be there. You can also flag a plugin or theme running a version that was never published, a common sign that files were swapped out.
 
 = Activity and Audit Logs =
 
-FluentAuth records every login, every failed attempt and every blocked address. It also records when a plugin or theme is activated, deactivated or updated, and who did it. Logs go in their own database tables, so your WordPress tables stay clean, and old entries are cleared automatically on a schedule you pick.
+FluentAuth records every login, failed attempt and blocked address, and every plugin or theme activated, deactivated or updated, with who did it. Logs go in their own database tables, so your WordPress tables stay clean, and old entries are cleared on a schedule you pick.
 
 = Email Notifications and Reports =
 
@@ -132,7 +117,7 @@ Get an email when an administrator or editor signs in, or when someone is blocke
 
 = Recovery Tools =
 
-If you think somebody has been in your site, there is a screen that tells you what to do next.
+If you think somebody has been in your site, one screen tells you what to do next.
 
 - Sign everyone out and revoke every application password
 - Send password reset emails to your users, in batches so nothing times out
@@ -148,11 +133,11 @@ Send users to different pages after they log in or log out, based on their role.
 
 = Login and Signup Page Customizer =
 
-Change the look of your WordPress login page. Set your own logo, colours, background and form style, and see the result as you edit. You can also build your own login and registration forms anywhere on your site with shortcodes.
+Set your own logo, colours, background and form style on the WordPress login page, and see the result as you edit. You can also build login and registration forms anywhere on your site with shortcodes.
 
 = Custom WordPress System Emails =
 
-WordPress sends a lot of plain default emails. FluentAuth lets you rewrite them with your own wording and your own branding, and gives you one template design that they all share. You can also turn off the admin notification that fires every time a new user signs up.
+WordPress sends a lot of plain default emails. FluentAuth lets you rewrite them with your own wording and branding, and gives you one template design they all share. You can also turn off the admin notification that fires every time a new user signs up.
 
 = Core Security Hardening =
 
@@ -174,56 +159,19 @@ A short setup wizard runs the first time you open FluentAuth. It asks a handful 
 
 = Built to Be Fast =
 
-FluentAuth is one plugin doing the work of several, and it is written to stay out of the way. The admin area is a single page app built with Vue 3 that talks over the REST API. Logs live in custom database tables. There is no scanning agent sitting in front of every request on your site.
+FluentAuth is one plugin doing the work of several, written to stay out of the way. The admin area is a single page Vue 3 app over the REST API, logs live in custom database tables, and no scanning agent sits in front of every request on your site.
 
 = For Developers =
 
-Another plugin can put its own login screen on FluentAuth's flows. It registers with the LoginBridge service, and from then on its custom form gets the attempt limits, the IP rules and the two-factor challenge, including an inline second step on a custom AJAX action. There are filters through the whole auth flow, and the site owner's own settings always win over what an adopting plugin asks for.
+Another plugin can put its own login screen on FluentAuth's flows. It registers with the LoginBridge service, and from then on its custom form gets the attempt limits, the IP rules and the two-factor challenge, including an inline second step on a custom AJAX action. There are filters through the whole auth flow, and the site owner's settings always win over what an adopting plugin asks for.
 
 == External Services ==
 
-This plugin can connect to external services. Here is what they are, what gets sent, and when.
+FluentAuth talks to an outside service only where a feature needs it, and nothing below leaves your site unless you turn that feature on.
 
-= 1. FluentAuth Alerts Service (optional, off by default) =
-
-FluentAuth can scan your files on a schedule and email you when something changes. Those scheduled scans and alert emails are handled by the FluentAuth Alerts Service at `dash.fluentauth.com`, run by WPManageNinja LLC.
-
-This is optional. Scanning runs on your own server either way, so if you never connect you can still scan by hand and read the results in your dashboard.
-
-Nothing is sent unless you choose to connect on the Monitoring screen, which lists what would be sent before you decide. In short: your name and email, your site address, title and admin link, the paths of files that differ from the official release, and your installed plugins and themes with their versions. It never sends the contents of a file, anything from your database, or anything about your visitors. Reports stop when you turn scheduled scanning off, and you can disconnect at any time.
-
-Privacy policy: [https://fluentauth.com/privacy-policy/](https://fluentauth.com/privacy-policy/)
-Terms and conditions: [https://wpmanageninja.com/terms-and-conditions/](https://wpmanageninja.com/terms-and-conditions/)
-
-= 2. WordPress.org and GitHub (for file scanning) =
-
-To tell whether a file has changed, the plugin fetches the official copy to compare against. This happens when you run a scan, and when you view or restore a file.
-
-- `api.wordpress.org` and `downloads.wordpress.org` for the official core checksums, plugin checksums, theme packages, and the files themselves when you reinstall one.
-- `plugins.svn.wordpress.org`, `themes.svn.wordpress.org` and `raw.githubusercontent.com` for a single original file when you view a diff. The last of these is the official WordPress mirror on GitHub.
-
-All that is sent is the name, version and file path of the item being checked. Nothing about your site or your users goes with it.
-
-WordPress.org [Privacy Policy](https://wordpress.org/about/privacy/). GitHub [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
-
-= 3. FluentAuth update emails (optional, only if you subscribe) =
-
-The setup wizard and the dashboard offer a sign-up for release announcements and occasional WordPress security tips. If you fill it in and press Subscribe, your name, your email address and this site's address are sent to `dash.fluentauth.com`, run by WPManageNinja LLC, and you are sent an email asking you to confirm the address before anything else is delivered.
-
-If you also tick the optional box, your PHP version, MySQL version and WordPress version go with it, so we know which versions to keep supporting. That box is off unless you tick it, and those three values are the whole of what it adds.
-
-Nothing is sent unless you press Subscribe. Declining puts the card away, and every email has an unsubscribe link.
-
-Privacy policy: [https://fluentauth.com/privacy-policy/](https://fluentauth.com/privacy-policy/)
-Terms and conditions: [https://wpmanageninja.com/terms-and-conditions/](https://wpmanageninja.com/terms-and-conditions/)
-
-= 4. Social login providers (only if you turn them on) =
-
-If you enable a provider, your site talks to it when a user clicks its button to sign in. What is exchanged is the standard OAuth handshake, plus the user's name and email address so the account can be matched or created. Nothing is sent unless you set the provider up yourself.
-
-- Google, at `accounts.google.com` and `oauth2.googleapis.com`. [Terms](https://policies.google.com/terms) and [Privacy Policy](https://policies.google.com/privacy)
-- GitHub, at `github.com` and `api.github.com`. [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Policy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)
-- Facebook, at `facebook.com` and `graph.facebook.com`. [Terms](https://www.facebook.com/terms.php) and [Privacy Policy](https://www.facebook.com/privacy/policy/)
+* **File scanning** compares your files against the official copies, so it fetches them from `api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org` and `raw.githubusercontent.com` (the official WordPress mirror on GitHub). All that is sent is the name, version and file path of the item being checked - nothing about your site or your users. WordPress.org [Privacy Policy](https://wordpress.org/about/privacy/). GitHub [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
+* **FluentAuth Alerts Service** at `dash.fluentauth.com`, run by WPManageNinja LLC, handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide: your name and email, your site address, title and admin link, the paths of files that differ from the official release, and your installed plugins and themes with their versions. It never sends the contents of a file, anything from your database, or anything about your visitors. Scanning runs on your own server either way, so you can scan by hand and never connect at all, and you can disconnect at any time. [Privacy policy](https://fluentauth.com/privacy) and [terms](https://fluentauth.com/terms).
+* **Social login providers** are contacted only if you set one up, and only when a user clicks the button: the standard OAuth handshake, plus the user's name and email address so the account can be matched or created. Google at `accounts.google.com` and `oauth2.googleapis.com` ([Terms](https://policies.google.com/terms), [Privacy Policy](https://policies.google.com/privacy)); GitHub at `github.com` and `api.github.com` ([Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [Privacy Policy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)); Facebook at `facebook.com` and `graph.facebook.com` ([Terms](https://www.facebook.com/terms.php), [Privacy Policy](https://www.facebook.com/privacy/policy/)).
 
 == Why FluentAuth? ==
 
@@ -364,6 +312,13 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.0.1 - Date: Sep 17, 2026 =
+* Fix: Setup wizard switches could not be turned off.
+* Fix: Two-factor requirements now follow the method switches - a method that is off is off for everybody. Sites updating from 3.0.0 that required a factor with every method off keep working: the authenticator app is switched on for them automatically.
+* Fix: The dashboard reported two-factor as off on sites using passkeys without authenticator apps.
+* Fix: The login page designer can now edit the sign-in form's own colours, and from name and reply-to apply to every email FluentAuth sends.
+* Improvement: Plain-language rewrite of the admin screens, plus fixes to activity log search, the encryption panel and sign-ins through third-party login forms.
 
 = 3.0.0 - Date: Sep 16, 2026 =
 * New: Two-factor authentication with passkeys, authenticator apps and email codes. Pick which roles may set one up and which must have one, and how strong a required factor has to be. A required factor is now enrolled during sign-in, before a session is created, and everyone manages their own from their WordPress profile screen. Ten recovery codes come with every authenticator setup, stored secrets can be encrypted with a key in wp-config.php, and an emergency bypass constant is there for the day somebody locks themselves out.

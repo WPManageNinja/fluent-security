@@ -424,7 +424,7 @@ class OnboardingTest extends BaseTestCase
         $applied = implode(' | ', $result['applied']);
 
         $this->assertStringNotContainsString('XML-RPC', $applied);
-        $this->assertStringContainsString('user list', $applied);
+        $this->assertStringContainsString('usernames', $applied);
     }
 
     /** A step nobody answered is left alone rather than defaulted into. */

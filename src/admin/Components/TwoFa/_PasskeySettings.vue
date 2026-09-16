@@ -70,7 +70,7 @@ export default {
                     <strong>{{ $t('Allow passkeys') }}</strong>
                     <span class="fls_tag is_round is_success">{{ $t('Strongest') }}</span>
                     <p>
-                        {{ $t('Touch ID, Windows Hello, a password manager or a security key. Users register their own from their profile screen.') }}
+                        {{ $t('Sign in with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.') }}
                     </p>
                 </div>
                 <el-switch v-model="settings.passkey_2fa" active-value="yes" inactive-value="no"
@@ -85,48 +85,49 @@ export default {
             <div v-if="!passkeySupported" class="fls_2fa_method_body">
                 <p class="fls_2fa_note is_warn">
                     <strong>{{ $t('This site cannot use passkeys yet') }}</strong>
-                    {{ $t('Passkeys need the site to be served over https. Once it is, this can be switched on.') }}
+                    {{ $t('Passkeys only work on https sites. Move this site to https and come back.') }}
                 </p>
             </div>
 
             <div v-else-if="settings.passkey_2fa === 'yes'" class="fls_2fa_method_body">
                 <el-form-item>
                     <el-checkbox v-model="settings.passkey_primary_login" true-value="yes" false-value="no">
-                        {{ $t('Enable login with a passkey') }}
+                        {{ $t('Let people sign in with a passkey') }}
                     </el-checkbox>
                     <p>
-                        {{ $t('Adds a "Sign in with a passkey" button above the username and password. People who have registered one sign in with a touch instead of typing anything; everyone else uses the form below it as before.') }}
+                        {{ $t('Adds a "Sign in with a passkey" button to the login form. Anyone without a passkey signs in as before.') }}
                     </p>
                 </el-form-item>
 
                 <el-row :gutter="30">
                     <el-col :md="12" :sm="24">
-                        <el-form-item :label="$t('Roles allowed to register one')">
+                        <el-form-item :label="$t('Roles that can set one up')">
                             <el-select :placeholder="isPasskeyPrimary ? $t('Everyone') : $t('Pick at least one role')"
                                        clearable :multiple="true" :disabled="isPasskeyPrimary"
                                        v-model="passkeyRoles" style="width: 100%;">
                                 <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
                                            :key="role.id"></el-option>
                             </el-select>
+                            <!--
+                                The two halves of the same caption, and both used to be
+                                written from the code's point of view rather than the
+                                reader's - "naming a role is what turns this on" describes
+                                what the setting does to the stored value, not what the
+                                person is choosing.
+                            -->
                             <p v-if="isPasskeyPrimary">
-                                {{ $t('Not used while a passkey is offered on the login form. Signing in with one means anyone who can sign in can register one, so every role may.') }}
+                                {{ $t('Every role can register a passkey while login with a passkey is on. Turn that off to choose which roles may.') }}
                             </p>
                             <p v-else>
-                                {{ $t('Naming a role is what turns this on. With none named it applies to nobody.') }}
+                                {{ $t('Only these roles can set one up. Pick none and nobody can.') }}
                             </p>
                         </el-form-item>
                     </el-col>
                 </el-row>
 
                 <p v-if="isPasskeyEnabledForNobody" class="fls_2fa_note">
-                    <strong>{{ $t('Nobody can use this yet') }}</strong>
-                    {{ $t('Passkeys are switched on but offered to no role, so nothing changes for anyone. Pick the roles that should be able to register one.') }}
-                </p>
-
-                <p class="fls_action_note">
-                    <span>
-                        {{ $t('Nobody can add a passkey to somebody else\'s account, though an administrator can remove one.') }}
-                    </span>
+                    <strong>{{ $t('Not offered to anyone yet') }}</strong>
+                    {{ $t('Passkeys are on, but no role has been picked.') }}
                 </p>
             </div>
         </div>

@@ -67,7 +67,7 @@ export default {
             }
 
             if (!this.answer.mode) {
-                return this.$t('Pick one, so the plugin knows whether to trust a forwarded header.');
+                return this.$t('Choose one to continue.');
             }
 
             if (this.answer.mode === 'proxy' && !(this.answer.trusted_proxies || '').trim()) {
@@ -84,18 +84,18 @@ export default {
     <div class="fls_onb_fields">
 
         <div v-if="configLocked" class="fls_onb_locked">
-            {{ $t('This is set in wp-config.php, which wins over this screen. There is nothing to do here.') }}
+            {{ $t('Your proxy is set in wp-config.php, so there is nothing to choose here.') }}
         </div>
 
         <template v-else>
             <div v-if="suspectsProxy" class="fls_onb_flag">
                 {{
-                    $t('This request reached the site from inside its own network, so something is relaying it. Until that is declared, every visitor looks like the same person.')
+                    $t('Every visitor currently reaches this site under the same address, so the login limit cannot tell one from another.')
                 }}
             </div>
 
             <p class="fls_onb_detected">
-                {{ $t('Detected visitor IP') }}
+                {{ $t('Your address, as this site sees it') }}
                 <strong>{{ resolved || $t('Unavailable') }}</strong>
             </p>
 
@@ -106,7 +106,7 @@ export default {
                         @click="choose('direct')">
                     <span class="fls_onb_choice_title">{{ $t('Yes, that is my address') }}</span>
                     <span class="fls_onb_choice_note">
-                        {{ $t('Visitors reach this site directly. Nothing needs changing.') }}
+                        {{ $t('This site sees each visitor\'s real address. Nothing to change.') }}
                     </span>
                 </button>
 
@@ -114,9 +114,9 @@ export default {
                         :class="{'is-picked': answer.mode === 'proxy'}"
                         :aria-pressed="answer.mode === 'proxy'"
                         @click="choose('proxy')">
-                    <span class="fls_onb_choice_title">{{ $t('No, that is not me') }}</span>
+                    <span class="fls_onb_choice_title">{{ $t('No, that is not my address') }}</span>
                     <span class="fls_onb_choice_note">
-                        {{ $t('A proxy or CDN sits in front, so that is its address rather than a visitor\'s.') }}
+                        {{ $t('A firewall, CDN or similar service sits in front of this site. You will add its address next.') }}
                     </span>
                 </button>
             </div>
@@ -126,24 +126,24 @@ export default {
                 <a href="https://www.whatismyip.com/" target="_blank" rel="noopener">
                     {{ $t('Look up your address') }}
                 </a>
-                {{ $t('and compare the two.') }}
+                {{ $t('and compare it with the one above.') }}
             </p>
 
             <div v-if="answer.mode === 'proxy'" class="fls_onb_reveal">
                 <label class="fls_onb_label" for="fls_onb_proxies">
-                    {{ $t('The proxy in front of this site') }}
+                    {{ $t('Address of the service in front of this site') }}
                 </label>
                 <el-input id="fls_onb_proxies" :model-value="answer.trusted_proxies"
                           :placeholder="$t('e.g. 10.0.0.1, 192.168.1.0/24')"
                           @update:model-value="v => update('trusted_proxies', v)"/>
                 <p class="fls_onb_hint">
                     {{
-                        $t('Addresses or ranges, separated by commas. Only a request coming from one of these has its forwarded header believed.')
+                        $t('Separate several with commas. Your host can tell you the address if you do not know it.')
                     }}
                 </p>
 
                 <label class="fls_onb_label" for="fls_onb_header">
-                    {{ $t('The header it announces visitors in') }}
+                    {{ $t('Header that carries the visitor\'s address') }}
                 </label>
                 <el-input id="fls_onb_header" :model-value="answer.proxy_ip_header"
                           placeholder="X-Forwarded-For"

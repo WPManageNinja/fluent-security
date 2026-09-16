@@ -81,7 +81,7 @@ export default {
         <template #badge>
             <span v-if="enabled && available" class="fls_tag is_round"
                   :class="hasCredentials ? 'is_success' : 'is_warning'">
-                {{ hasCredentials ? $t('Ready') : $t('Credentials needed') }}
+                {{ hasCredentials ? $t('Ready') : $t('Not set up yet') }}
             </span>
         </template>
 
@@ -97,8 +97,8 @@ export default {
         <template v-else-if="enabled">
             <slot name="extra"/>
 
-            <SettingRow :label="$t('Credential storage')"
-                        :description="$t('Keeping the secret in wp-config.php keeps it out of the database and out of a database backup.')">
+            <SettingRow :label="$t('Where to keep the ID and secret')"
+                        :description="$t('In wp-config.php the secret stays out of the database and out of any database backup.')">
                 <el-radio-group v-model="settings[provider + '_key_method']">
                     <el-radio-button value="db" :label="$t('Database')"/>
                     <el-radio-button value="wp_config" label="wp-config.php"/>
@@ -122,7 +122,7 @@ export default {
             </template>
 
             <SettingRow :label="$t('Redirect URL')"
-                        :description="$t('Paste this into the app you created with the provider. Sign-in fails if it does not match exactly.')">
+                        :description="$t('Paste this into the app you created, where it asks for a redirect URL. It has to match exactly or sign-in fails.')">
                 <code class="fls_code_inline">{{ info.app_redirect }}</code>
                 <p>
                     <a :href="info.doc_url" target="_blank" rel="noopener">

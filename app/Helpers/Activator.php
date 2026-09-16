@@ -2,6 +2,8 @@
 
 namespace FluentAuth\App\Helpers;
 
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
+
 class Activator
 {
     public static function activate($network_wide)
@@ -41,6 +43,12 @@ class Activator
      */
     public static function maybeMigrateSettings()
     {
+        /*
+         * First, and outside the flag below, because the sites this has to reach are
+         * exactly the ones that already have that flag set. Its own guard is inside it.
+         */
+        self::maybeKeepRequirementEnforceable();
+
         if (get_option('__fls_required_roles_migrated')) {
             return;
         }
@@ -50,6 +58,93 @@ class Activator
         // Autoloaded: this is read on every request, and a non-autoloaded flag would be
         // a query on each one for the entire life of the install.
         update_option('__fls_required_roles_migrated', 'yes', true);
+    }
+
+    /**
+     * Keeps a 3.0.0 requirement enforcing after the rules changed under it.
+     *
+     * 3.0.0 said in as many words that "roles required, every switch off" was a complete
+     * and fully enforcing configuration: requiring a factor granted the authenticator app
+     * whatever the switch said, and the settings screen let that state be saved. 3.0.1
+     * reverses it - a method that is off is off for everybody - so those sites would come
+     * up from the update with the requirement quietly doing nothing, and nothing on any
+     * screen would say so.
+     *
+     * Switching the app on for them is what preserves the policy rather than announcing
+     * its removal. `totp_2fa_roles` is left exactly as it was, so the app reaches the
+     * required roles through the grant and nobody else gains it.
+     *
+     * Its own flag, because the run above already has one set on every 3.0.0 install -
+     * which is the whole population this has to reach.
+     *
+     * @return void
+     */
+    private static function maybeKeepRequirementEnforceable()
+    {
+        if (get_option('__fls_required_methods_migrated')) {
+            return;
+        }
+
+        /*
+         * Only sites arriving from 3.0.x, and the flag below is what tells them apart.
+         * On a 2.x site the same stored shape - roles required, the method off - meant
+         * the opposite: a policy that silently did nothing, which migrateRequiredRoles()
+         * is about to narrow away. Switching the app on for those would turn a setting
+         * that had never once been enforced into a live lockout on update day.
+         */
+        if (!get_option('__fls_required_roles_migrated')) {
+            return;
+        }
+
+        update_option('__fls_required_methods_migrated', 'yes', true);
+
+        $settings = get_option('__fls_auth_settings');
+
+        if (!is_array($settings) || empty($settings['totp_required_roles'])) {
+            return;
+        }
+
+        /*
+         * Read from the stored array rather than through DeviceRequirement, which answers
+         * for the rules as they are now - the question here is what the old rules were
+         * enforcing, on a site that has not been re-saved yet.
+         */
+        $level = isset($settings['two_fa_required_level']) ? $settings['two_fa_required_level'] : 'device';
+
+        /*
+         * The https test belongs here as much as it does everywhere else: passkeys stored
+         * as on cannot be created over plain http, so a site that moved from https to
+         * http - a staging clone, an overridden `home` - has the switch set and nothing
+         * behind it. Reading the raw value would leave that site's requirement dissolving
+         * with nothing switched on to hold it up. See PasskeyTwoFaMethod::isSwitchedOn().
+         */
+        $deviceOn = (isset($settings['totp_2fa']) && $settings['totp_2fa'] === 'yes')
+            || (isset($settings['passkey_2fa']) && $settings['passkey_2fa'] === 'yes'
+                && RelyingParty::isSupported());
+
+        $emailRoles = $level === 'any'
+            && isset($settings['email2fa']) && $settings['email2fa'] === 'yes'
+            ? (array)Arr::get($settings, 'email2fa_roles', [])
+            : [];
+
+        /*
+         * Every required role, not any of them. Enforcement is per user - see
+         * DeviceRequirement::canBeSatisfiedBy() - so a site requiring administrators and
+         * editors while emailed codes reach only administrators is half covered, and it
+         * is the editors who would quietly stop being enforced. An overlap test called
+         * that site done and left them behind.
+         */
+        $everyRequiredRoleCovered = !array_diff((array)$settings['totp_required_roles'], $emailRoles);
+
+        if ($deviceOn || $everyRequiredRoleCovered) {
+            return;
+        }
+
+        $settings['totp_2fa'] = 'yes';
+
+        update_option('__fls_auth_settings', $settings, false);
+
+        Helper::resetStatics();
     }
 
     /**

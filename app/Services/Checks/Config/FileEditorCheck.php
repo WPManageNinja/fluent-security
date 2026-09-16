@@ -37,7 +37,7 @@ class FileEditorCheck extends ConfigConstantCheck
     {
         return [
             'title'    => __('Your dashboard can edit theme and plugin files', 'fluent-security'),
-            'why'      => __('WordPress lets administrators edit theme and plugin code from the admin screens. Turning that off means a stolen administrator password cannot be used to run code on your server. It does not affect updates or installing plugins.', 'fluent-security'),
+            'why'      => __('Anyone with an administrator password can use this to run code on your server. Turning it off does not affect updates or installing plugins.', 'fluent-security'),
             'passed'   => __('Your site\'s code cannot be edited from the dashboard', 'fluent-security'),
             'snippet'  => "define( 'DISALLOW_FILE_EDIT', true );",
             'severity' => Finding::SEVERITY_ADVICE

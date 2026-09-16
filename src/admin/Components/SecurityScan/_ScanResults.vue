@@ -174,8 +174,8 @@ export default {
         verdictTitle() {
             if (this.suspiciousCount) {
                 return this.$_n(
-                    'A plugin or theme is not a version WordPress.org published',
-                    'Some plugins or themes are not versions WordPress.org published',
+                    'A plugin or theme is on a version WordPress.org has never released',
+                    'Some plugins or themes are on versions WordPress.org has never released',
                     this.suspiciousCount
                 );
             }
@@ -194,7 +194,7 @@ export default {
                 );
             }
 
-            return this.$t('Some files are not what WordPress.org published');
+            return this.$t('Some files differ from the official copies on WordPress.org');
         },
         /* Said once at the top, so the size of the problem is known before any of it is opened. */
         verdictSummary() {
@@ -206,7 +206,7 @@ export default {
             const parts = [];
 
             if (this.suspiciousCount) {
-                parts.push(this.$_n('%s unpublished version', '%s unpublished versions', this.suspiciousCount));
+                parts.push(this.$_n('%s version not on WordPress.org', '%s versions not on WordPress.org', this.suspiciousCount));
             }
 
             if (this.totalFindings) {
@@ -214,7 +214,7 @@ export default {
             }
 
             if (changed) {
-                parts.push(this.$_n('in %s extension', 'in %s extensions', changed));
+                parts.push(this.$_n('in %s plugin or theme', 'in %s plugins and themes', changed));
             }
 
             if (this.snapshotFindings) {
@@ -273,8 +273,8 @@ export default {
     <div v-else-if="scanState === 'done'" class="fls_scan_verdict is_success">
         <span class="fls_scan_verdict_icon" v-html="icons.tick"></span>
         <div>
-            <h2>{{ $t('Awesome! Everything looks good!') }}</h2>
-            <p>{{ $t('Every file checked matches the official release on WordPress.org.') }}</p>
+            <h2>{{ $t('Everything looks good') }}</h2>
+            <p>{{ $t('Nothing has changed in the files we checked.') }}</p>
         </div>
     </div>
 
@@ -288,7 +288,7 @@ export default {
         <p v-else-if="staleWarning">
             <span v-html="$t('__last_scan_warning__', settings.last_checked_human)"></span>
         </p>
-        <el-button type="primary" @click="$emit('scan')">{{ $t('Start Scan') }}</el-button>
+        <el-button type="primary" @click="$emit('scan')">{{ $t('Run a scan') }}</el-button>
     </div>
 
     <core-section :results="results" :ignores="ignores" :checking="checkingCore"
@@ -299,7 +299,7 @@ export default {
                        :ignored-files="ignores.files"
                        :ignored-folders="ignores.folders"
                        :checking-keys="pending"
-                       :empty-text="$t('No plugins from the WordPress.org directory are installed.')"
+                       :empty-text="$t('None of your plugins come from WordPress.org, so there is nothing to compare them with.')"
                        @recheck="$emit('recheck', $event)"/>
 
     <extension-section :title="$t('Themes')"
@@ -307,7 +307,7 @@ export default {
                        :ignored-files="ignores.files"
                        :ignored-folders="ignores.folders"
                        :checking-keys="pending"
-                       :empty-text="$t('No themes from the WordPress.org directory are installed.')"
+                       :empty-text="$t('None of your themes come from WordPress.org, so there is nothing to compare them with.')"
                        @recheck="$emit('recheck', $event)"/>
 
     <!--

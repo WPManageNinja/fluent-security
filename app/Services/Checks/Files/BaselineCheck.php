@@ -115,7 +115,7 @@ class BaselineCheck extends Check
              */
             'severity' => Finding::SEVERITY_FIX,
             'title'    => $this->title(count($changed), $files),
-            'why'      => __('These files can run code, and nothing about the plugin or theme they belong to says it was updated. If you did not edit them yourself, treat this as somebody else having done so.', 'fluent-security'),
+            'why'      => __('These files changed without their plugin or theme being updated. If you did not edit them yourself, somebody else did.', 'fluent-security'),
             'details'  => $details,
             'action'   => 'none',
             'dismiss'  => 'expected',
@@ -156,7 +156,7 @@ class BaselineCheck extends Check
         BaselineScanner::snapshot($scopes);
 
         return [
-            'message' => __('Noted. These files are the new normal, and you will hear about the next change to them.', 'fluent-security')
+            'message' => __('Noted. You will hear about these files again only if they change.', 'fluent-security')
         ];
     }
 
@@ -171,8 +171,8 @@ class BaselineCheck extends Check
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'Nothing has changed, but %s file is too large a set to watch',
-                'Nothing has changed, but %s files are too many to watch',
+                'Nothing has changed, but %s file could not be watched',
+                'Nothing has changed, but %s files could not be watched',
                 $skipped,
                 'fluent-security'
             ),

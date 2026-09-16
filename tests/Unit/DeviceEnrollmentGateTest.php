@@ -132,27 +132,150 @@ class DeviceEnrollmentGateTest extends BaseTestCase
     }
 
     /**
-     * The lockout that used to be guarded against by switching the requirement off is now
-     * prevented by the requirement granting what it needs. An authenticator app asks
-     * nothing of the site - no https, no WebAuthn, no modern browser - so a required user
-     * always has a path, and the old guard's failure mode (a policy that silently does
-     * nothing) is gone with it.
+     * A method that is *on* is granted to the roles required to hold one, whatever its
+     * own role list says. That is what stops the two lists disagreeing, and a
+     * disagreement between them is a user who must hold a factor and cannot get one.
      */
-    public function test_requiring_a_factor_grants_the_method_that_satisfies_it()
+    public function test_requiring_a_factor_grants_a_method_that_is_switched_on()
     {
-        $this->policy([], ['administrator'], 'no');
+        $this->policy([], ['administrator'], 'yes');
 
         $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
         $this->assertTrue(
             TotpTwoFaMethod::isAllowedForUser($this->admin),
-            'A demand with no way to meet it is the lockout this replaces.'
+            'A demand with no way to meet it is a lockout.'
         );
         $this->assertTrue(DeviceRequirement::isOwedBy($this->admin));
     }
 
-    public function test_granting_reaches_only_the_roles_that_were_required()
+    /**
+     * A method that is *off* is off for everybody, requirement included - and with
+     * nothing left that could satisfy it, the requirement itself stops standing.
+     *
+     * The alternative was a settings screen on which three methods read off while two of
+     * them were quietly on for the required roles. Requiring a second factor is a
+     * statement about the methods; it cannot conjure one nobody enabled.
+     */
+    public function test_a_requirement_over_no_enabled_method_is_not_a_requirement()
     {
         $this->policy([], ['administrator'], 'no');
+
+        $this->assertFalse(DeviceRequirement::isEnforceable());
+        $this->assertFalse(DeviceRequirement::isRequiredForUser($this->admin));
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->admin));
+        $this->assertFalse(DeviceRequirement::isOwedBy($this->admin));
+    }
+
+    /**
+     * The lockout this whole rule exists to avoid, and the one the first cut of it
+     * created: a method is switched on, so the site reads as enforceable, but the
+     * required role cannot reach it.
+     */
+    public function test_a_requirement_a_user_cannot_possibly_satisfy_does_not_stand()
+    {
+        $this->policy([], ['administrator'], 'no');   // app off
+        $this->setLevel(DeviceRequirement::LEVEL_ANY);
+
+        // Emailed codes on, but for a role the required user does not hold.
+        $this->enableEmail2Fa(['editor']);
+
+        $this->assertTrue(
+            DeviceRequirement::isEnforceable(),
+            'The site has an accepted method switched on.'
+        );
+        $this->assertFalse(
+            DeviceRequirement::canBeSatisfiedBy($this->admin),
+            'The administrator can reach none of it.'
+        );
+        $this->assertFalse(
+            DeviceRequirement::isRequiredForUser($this->admin),
+            'Requiring a factor of somebody who cannot obtain one is a locked out account.'
+        );
+        $this->assertFalse(DeviceRequirement::isOwedBy($this->admin));
+    }
+
+    /** ...and it stands again the moment that role can actually reach the method. */
+    public function test_it_stands_once_the_required_role_can_reach_the_method()
+    {
+        $this->policy([], ['administrator'], 'no');
+        $this->setLevel(DeviceRequirement::LEVEL_ANY);
+        $this->enableEmail2Fa(['administrator']);
+
+        $this->assertTrue(DeviceRequirement::canBeSatisfiedBy($this->admin));
+        $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
+    }
+
+    /**
+     * A device method is granted by the requirement, so being switched on is enough -
+     * its own role list is not consulted for a required user.
+     */
+    public function test_a_switched_on_device_method_satisfies_without_its_role_list()
+    {
+        $this->policy([], ['administrator'], 'yes');   // app on, allow list empty
+
+        $this->assertTrue(DeviceRequirement::canBeSatisfiedBy($this->admin));
+        $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isAllowedForUser($this->admin));
+    }
+
+    /**
+     * The enrolment screen must never pair something that cannot then count. It used to:
+     * the app activated, the requirement was still owed, and the next sign-in
+     * regenerated the secret and killed the app the user had just set up.
+     */
+    public function test_the_enrolment_step_refuses_an_app_that_is_switched_off()
+    {
+        $this->enablePasskeys(['administrator']);
+        $this->policy([], ['administrator'], 'no');   // passkeys on, app off
+
+        $this->assertTrue(DeviceRequirement::isOwedBy($this->admin), 'still owed a device factor');
+        $this->assertFalse(
+            EnrollmentTwoFaMethod::canOfferTotp($this->admin),
+            'the app is off, so the screen must not offer it'
+        );
+        $this->assertTrue(
+            EnrollmentTwoFaMethod::canOfferPasskey($this->admin),
+            'the passkey is what they are meant to use'
+        );
+    }
+
+    /** Switching any one of them back on is enough to make the requirement stand again. */
+    public function test_enabling_a_method_makes_the_requirement_stand_again()
+    {
+        $this->policy([], ['administrator'], 'no');
+        $this->assertFalse(DeviceRequirement::isRequiredForUser($this->admin));
+
+        $this->enablePasskeys([]);
+
+        $this->assertTrue(DeviceRequirement::isEnforceable());
+        $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
+    }
+
+    /**
+     * The device floor does not accept an emailed code, so a site with only email codes
+     * on has nothing that meets it.
+     */
+    public function test_email_codes_alone_do_not_make_a_device_requirement_enforceable()
+    {
+        $this->policy([], ['administrator'], 'no');
+
+        $settings = Helper::getAuthSettings();
+        $settings['email2fa'] = 'yes';
+        $settings['email2fa_roles'] = ['administrator'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $this->setLevel(DeviceRequirement::LEVEL_DEVICE);
+        $this->assertFalse(DeviceRequirement::isEnforceable());
+
+        // ...but they do at the floor that accepts them.
+        $this->setLevel(DeviceRequirement::LEVEL_ANY);
+        $this->assertTrue(DeviceRequirement::isEnforceable());
+    }
+
+    public function test_granting_reaches_only_the_roles_that_were_required()
+    {
+        $this->policy([], ['administrator'], 'yes');
 
         $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
     }
@@ -417,7 +540,211 @@ class DeviceEnrollmentGateTest extends BaseTestCase
         $settings = array_merge(Helper::getAuthSettings(), $overrides);
         update_option('__fls_auth_settings', $settings);
         delete_option('__fls_required_roles_migrated');
+        delete_option('__fls_required_methods_migrated');
         Helper::resetStatics();
+    }
+
+    /* ------------------------------ keeping a 3.0.0 requirement enforcing on update */
+
+    /**
+     * The state 3.0.0 documented as fully enforcing: roles required, every switch off.
+     * Under the new rule that is a requirement over nothing, so the update has to switch
+     * the app on rather than let the policy evaporate in silence.
+     */
+    public function test_the_update_keeps_a_requirement_that_had_no_method_switched_on()
+    {
+        $this->writeRaw([
+            'totp_2fa'            => 'no',
+            'passkey_2fa'         => 'no',
+            'email2fa'            => 'no',
+            'totp_2fa_roles'      => [],
+            'totp_required_roles' => ['administrator']
+        ]);
+        // The 3.0.0 population already carries the first migration's flag.
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('yes', Helper::getSetting('totp_2fa'), 'the app is switched on to preserve the policy');
+        $this->assertSame([], Helper::getSetting('totp_2fa_roles'), 'and reaches the required roles through the grant, nobody else');
+        $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
+    }
+
+    /**
+     * Half covered is not covered. Enforcement is per user, so a site requiring two roles
+     * while emailed codes reach only one of them would have kept the covered role and
+     * quietly dropped the other.
+     */
+    public function test_the_update_covers_every_required_role_not_just_one_of_them()
+    {
+        $this->writeRaw([
+            'totp_2fa'              => 'no',
+            'passkey_2fa'           => 'no',
+            'email2fa'              => 'yes',
+            'email2fa_roles'        => ['administrator'],
+            'two_fa_required_level' => DeviceRequirement::LEVEL_ANY,
+            'totp_required_roles'   => ['administrator', 'editor']
+        ]);
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('yes', Helper::getSetting('totp_2fa'), 'the editor had nothing, so the app is switched on');
+
+        $editor = $this->factory->user->create_and_get(['role' => 'editor']);
+        $this->assertTrue(DeviceRequirement::isRequiredForUser($editor));
+    }
+
+    /**
+     * A passkey switch stored as on means nothing over plain http - the ceremony cannot
+     * run - so it must not be read as a live method by the migration either.
+     */
+    public function test_the_update_does_not_count_passkeys_on_a_site_without_https()
+    {
+        update_option('home', 'http://example.org');
+        update_option('siteurl', 'http://example.org');
+
+        $this->writeRaw([
+            'totp_2fa'            => 'no',
+            'passkey_2fa'         => 'yes',
+            'email2fa'            => 'no',
+            'totp_required_roles' => ['administrator']
+        ]);
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('yes', Helper::getSetting('totp_2fa'), 'nothing else could hold the requirement up');
+        $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
+    }
+
+    /**
+     * Site code can veto a method for one person. With that method the only one on, the
+     * requirement has nothing left to stand on for them.
+     */
+    public function test_a_vetoed_method_cannot_hold_a_requirement_up()
+    {
+        $this->policy([], ['administrator'], 'yes');   // app on, and the only method
+
+        $this->assertTrue(DeviceRequirement::canBeSatisfiedBy($this->admin));
+
+        add_filter('fluent_auth/totp_enabled', '__return_false');
+
+        try {
+            $this->assertFalse(
+                DeviceRequirement::canBeSatisfiedBy($this->admin),
+                'the one method they could have used has been taken away from them'
+            );
+            $this->assertFalse(DeviceRequirement::isRequiredForUser($this->admin));
+        } finally {
+            remove_filter('fluent_auth/totp_enabled', '__return_false');
+        }
+    }
+
+    /**
+     * A veto filter that asks whether the user is required would call back into the
+     * question being answered. Left open that is a stack overflow on their next login.
+     */
+    public function test_a_veto_filter_that_asks_about_the_requirement_does_not_recurse()
+    {
+        $this->policy([], ['administrator'], 'yes');
+
+        $reentrant = function ($enabled, $user) {
+            // The shape that recurses: "the app is for people who must hold one".
+            return DeviceRequirement::isRequiredForUser($user);
+        };
+
+        add_filter('fluent_auth/totp_enabled', $reentrant, 10, 2);
+
+        try {
+            $this->assertTrue(DeviceRequirement::canBeSatisfiedBy($this->admin));
+            $this->assertTrue(DeviceRequirement::isRequiredForUser($this->admin));
+        } finally {
+            remove_filter('fluent_auth/totp_enabled', $reentrant, 10);
+        }
+    }
+
+    /** The positive side of the https rule: passkeys over https hold it up on their own. */
+    public function test_the_update_leaves_a_passkey_only_site_on_https_alone()
+    {
+        $this->enablePasskeys(['administrator']);   // sets home/siteurl to https
+
+        $this->writeRaw([
+            'totp_2fa'            => 'no',
+            'passkey_2fa'         => 'yes',
+            'email2fa'            => 'no',
+            'totp_required_roles' => ['administrator']
+        ]);
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('no', Helper::getSetting('totp_2fa'), 'passkeys already hold the requirement up');
+    }
+
+    /** A site that already had a method on is left exactly alone. */
+    public function test_the_update_leaves_a_working_requirement_alone()
+    {
+        $this->writeRaw([
+            'totp_2fa'            => 'no',
+            'passkey_2fa'         => 'no',
+            'email2fa'            => 'yes',
+            'email2fa_roles'      => ['administrator'],
+            'two_fa_required_level' => DeviceRequirement::LEVEL_ANY,
+            'totp_required_roles' => ['administrator']
+        ]);
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('no', Helper::getSetting('totp_2fa'), 'nothing to preserve, so nothing is touched');
+    }
+
+    /** No requirement, nothing to preserve. */
+    public function test_the_update_touches_nothing_where_no_role_is_required()
+    {
+        $this->writeRaw([
+            'totp_2fa'            => 'no',
+            'totp_required_roles' => []
+        ]);
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('no', Helper::getSetting('totp_2fa'));
+    }
+
+    /** It rides an every-page-load hook, so a second pass must change nothing. */
+    public function test_the_update_is_idempotent()
+    {
+        $this->writeRaw([
+            'totp_2fa'            => 'no',
+            'passkey_2fa'         => 'no',
+            'email2fa'            => 'no',
+            'totp_required_roles' => ['administrator']
+        ]);
+        update_option('__fls_required_roles_migrated', 'yes', true);
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        // The owner then deliberately switches it back off.
+        $settings = Helper::getAuthSettings();
+        $settings['totp_2fa'] = 'no';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        Activator::maybeMigrateSettings();
+        Helper::resetStatics();
+
+        $this->assertSame('no', Helper::getSetting('totp_2fa'), 'a decision made after the migration stands');
     }
 
     /* ------------------------------------------------------- the strength floor */

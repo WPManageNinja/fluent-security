@@ -101,6 +101,22 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
     }
 
     /**
+     * Never, and it is not a method being off.
+     *
+     * This is the step that stands in front of somebody who owes a factor, not a factor
+     * they could hold - so it can never be the thing that makes a requirement
+     * enforceable. Answering anything else would let the requirement satisfy itself:
+     * isEnforceable() would see this, decide the requirement stands, and this would be
+     * available because the requirement stands.
+     *
+     * @return bool
+     */
+    public function isSwitchedOn()
+    {
+        return false;
+    }
+
+    /**
      * Has a *fresh* secret ready before the form that shows it is drawn.
      *
      * Fresh, and not the pending one already on file, because of who can reach this
@@ -120,7 +136,9 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
      */
     public function prepareChallenge($user)
     {
-        TotpTwoFaMethod::regeneratePendingSecret($user);
+        if (self::canOfferTotp($user)) {
+            TotpTwoFaMethod::regeneratePendingSecret($user);
+        }
 
         $columns = [];
 
@@ -162,6 +180,25 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
     }
 
     /**
+     * Whether an authenticator app is worth putting on the screen for this user.
+     *
+     * The mirror of canOfferPasskey(), and it did not exist because it did not need to:
+     * a requirement used to grant the app whatever the site switch said, so the app was
+     * always offerable to anybody who reached this screen. It is not any more - a method
+     * that is switched off is off for everybody - and without this the screen paired an
+     * app that could never satisfy the requirement. The user enrolled, activation
+     * succeeded, they still owed a factor, and the next sign-in regenerated the secret
+     * and killed the app they had just paired.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public static function canOfferTotp($user)
+    {
+        return TotpTwoFaMethod::isAllowedForUser($user);
+    }
+
+    /**
      * @param $data array
      * @return string
      */
@@ -178,7 +215,7 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
         $user = $row ? get_user_by('ID', $row->user_id) : false;
         $user = $user instanceof \WP_User ? $user : false;
 
-        $secret = $user ? TotpTwoFaMethod::getOrCreatePendingSecret($user) : '';
+        $secret = ($user && self::canOfferTotp($user)) ? TotpTwoFaMethod::getOrCreatePendingSecret($user) : '';
         $passkeyOptions = $this->getPasskeyOptions($user, $row);
 
         ob_start();
@@ -207,7 +244,7 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
                         show every user an option that half of them cannot use, for as long
                         as the promise takes to resolve.
                     -->
-                    <div id="fls_enroll_passkey" style="display: none;">
+                    <div id="fls_enroll_passkey"<?php echo $secret ? ' style="display: none;"' : ''; ?>>
                         <p style="margin: 0 0 16px;">
                             <?php esc_html_e('Use your fingerprint, face or screen lock. Nothing to install, and nothing to type.', 'fluent-security'); ?>
                         </p>
@@ -216,18 +253,32 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
                             <?php esc_html_e('Set up and sign in', 'fluent-security'); ?>
                         </button>
                         <p id="fls_enroll_passkey_status" style="margin: 10px 0 0;font-size: 12px;color: #646970;min-height: 16px;"></p>
-                        <p style="margin: 16px 0 0;text-align: center;">
-                            <a href="#" id="fls_enroll_show_app"><?php esc_html_e('Use an authenticator app instead', 'fluent-security'); ?></a>
-                        </p>
+                        <?php if ($secret) : ?>
+                            <p style="margin: 16px 0 0;text-align: center;">
+                                <a href="#" id="fls_enroll_show_app"><?php esc_html_e('Use an authenticator app instead', 'fluent-security'); ?></a>
+                            </p>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
 
+                <?php
+                /*
+                 * Not drawn at all where the app is switched off, rather than drawn empty.
+                 *
+                 * Three versions of this have been wrong in three different ways. It used
+                 * to say "a secret could not be generated on this server", blaming the host
+                 * for a decision the owner made, under a finish button that could not
+                 * finish anything. Hiding it instead left the passkey pane - which the
+                 * script only reveals once a platform authenticator answers - as the sole
+                 * offer, so a browser without one showed a heading and nothing else.
+                 *
+                 * Absent is what the script keys on: with no app pane there is nothing to
+                 * fall back to, so it leaves the passkey offer visible and says so when the
+                 * browser cannot do it. See initEnrollment() in login_helper.js.
+                 */
+                ?>
+                <?php if ($secret) : ?>
                 <div id="fls_enroll_app">
-                    <?php if (!$secret) : ?>
-                        <p style="margin: 0;color:#b32d2e;">
-                            <?php esc_html_e('A secret could not be generated on this server, so an authenticator app cannot be set up here.', 'fluent-security'); ?>
-                        </p>
-                    <?php else : ?>
                         <p style="margin: 0 0 16px;">
                             <?php esc_html_e('Scan this with an authenticator app, then enter the code it shows to finish signing in.', 'fluent-security'); ?>
                         </p>
@@ -245,7 +296,6 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
                         <p style="margin: 12px 0 20px;font-size: 12px;color: #646970;">
                             <?php esc_html_e('Nothing changes until you enter a code and finish.', 'fluent-security'); ?>
                         </p>
-                    <?php endif; ?>
                     <div>
                         <button
                             style="display: block; cursor: pointer; width: 100%;border: 1px solid #2271b1;background: #2271b1;color: #fff;text-decoration: none;text-shadow: none;min-height: 32px;line-height: 2.30769231;padding: 4px 12px;font-size: 13px;border-radius: 3px;"
@@ -259,6 +309,7 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
                         </p>
                     <?php endif; ?>
                 </div>
+                <?php endif; ?>
             <?php endif; ?>
         </form>
 
@@ -274,9 +325,22 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
                 echo wp_json_encode([
                     'options'  => $passkeyOptions,
                     'messages' => [
-                        'prompting' => __('Waiting for your passkey…', 'fluent-security'),
-                        'cancelled' => __('That was cancelled. You can try again, or use an authenticator app.', 'fluent-security'),
-                        'saving'    => __('Finishing sign in…', 'fluent-security')
+                        'prompting'   => __('Waiting for your passkey…', 'fluent-security'),
+                        /*
+                         * Two versions, because one of them is a lie on a screen where the
+                         * app is switched off - there is nothing to fall back to and the
+                         * link that used to say so is not rendered either.
+                         */
+                        'cancelled'   => $secret
+                            ? __('That was cancelled. You can try again, or use an authenticator app.', 'fluent-security')
+                            : __('That was cancelled. You can try again.', 'fluent-security'),
+                        'saving'      => __('Finishing sign in…', 'fluent-security'),
+                        /*
+                         * Only ever shown where the passkey is the whole screen. Everywhere
+                         * else a browser that cannot make one is simply left on the app,
+                         * and saying anything would be noise.
+                         */
+                        'unsupported' => __('This browser cannot set up a passkey. Try another browser, or a device with Touch ID, Windows Hello or a security key.', 'fluent-security')
                     ]
                 ]); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             ?></script>
@@ -393,6 +457,13 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
 
         if (is_string($credential) && $credential !== '') {
             return $this->enrolPasskey($user, $logHash, $credential, $request);
+        }
+
+        if (!self::canOfferTotp($user)) {
+            return new \WP_Error(
+                'totp_not_available',
+                __('Authenticator apps are switched off on this site. Please use a passkey.', 'fluent-security')
+            );
         }
 
         $secret = TotpTwoFaMethod::getPendingSecret($user->ID);

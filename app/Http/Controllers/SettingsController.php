@@ -7,6 +7,7 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Services\ProxyDetection;
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 class SettingsController
 {
@@ -155,15 +156,29 @@ class SettingsController
         }
 
         /*
-         * The two rules that used to live here - required roles must also appear in the
-         * allow list, and authenticator apps must be switched on first - are gone, and
-         * their absence is the point. They existed because requiring a factor did not
-         * grant the means to get one, so the lists could disagree and the disagreement
-         * was a locked out user. Requiring now grants; the lists cannot disagree; there
-         * is nothing left to validate. See DeviceRequirement::isRequiredForUser().
+         * One rule back, in a narrower form. The old pair - required roles must appear in
+         * the allow list, and apps must be on first - went when requiring a factor started
+         * granting the means to get one. Requiring still grants, but only a method that is
+         * switched on, so the lists can disagree again in exactly one way: every required
+         * role must have something it can actually reach. Without this the screen could
+         * save "editors must hold a factor" on a site whose only live method is emailed
+         * codes for administrators, and an editor would be marched to an enrolment screen
+         * with nothing on it. See DeviceRequirement::canBeSatisfiedBy().
          */
         if (!in_array(Arr::get($settings, 'two_fa_required_level'), ['device', 'any'], true)) {
             $settings['two_fa_required_level'] = 'device';
+        }
+
+        $unreachable = self::requiredRolesWithNothingToUse($settings);
+
+        if ($unreachable) {
+            $errors['totp_required_roles'] = [
+                'unreachable' => sprintf(
+                    /* translators: %s: comma separated list of role names */
+                    __('Switch on a method these roles can use first: %s', 'fluent-security'),
+                    implode(', ', $unreachable)
+                )
+            ];
         }
 
         /*
@@ -179,13 +194,72 @@ class SettingsController
         }
 
         if ($errors) {
-            return new \WP_Error('validation_error', 'Form Validation failed', $errors);
+            /*
+             * The first field's own sentence, not "Form Validation failed". The admin app
+             * prints `message` and nothing renders the per-field data, so every refusal
+             * reached the owner as three words that named neither the field nor the fix -
+             * which for a rule like "switch on a method these roles can use first" is the
+             * whole of what it had to say.
+             */
+            $first = reset($errors);
+
+            return new \WP_Error(
+                'validation_error',
+                is_array($first) ? (string)reset($first) : __('Form Validation failed', 'fluent-security'),
+                $errors
+            );
         }
 
         return $settings;
 
     }
 
+    /**
+     * Required roles that the settings about to be saved give nothing to.
+     *
+     * Read from the incoming array rather than through DeviceRequirement, because the
+     * question is about what this save would create, not what is in force now.
+     *
+     * The two kinds of method are asked differently for the same reason they are in
+     * DeviceRequirement::canBeSatisfiedBy(): a device method that is on is granted to
+     * every required role, while an emailed code only ever reaches the roles on its own
+     * list. Passkeys need a secure context before any of that, so a site on plain http
+     * cannot lean on them here.
+     *
+     * @param array $settings
+     * @return array Role names, ready to print.
+     */
+    private static function requiredRolesWithNothingToUse($settings)
+    {
+        $required = array_values((array)Arr::get($settings, 'totp_required_roles', []));
+
+        if (!$required) {
+            return [];
+        }
+
+        $deviceOn = Arr::get($settings, 'totp_2fa') === 'yes'
+            || (Arr::get($settings, 'passkey_2fa') === 'yes' && RelyingParty::isSupported());
+
+        if ($deviceOn) {
+            return [];
+        }
+
+        $emailRoles = Arr::get($settings, 'two_fa_required_level') === 'any'
+            && Arr::get($settings, 'email2fa') === 'yes'
+            ? (array)Arr::get($settings, 'email2fa_roles', [])
+            : [];
+
+        $names = Helper::getUserRoles(true);
+        $stranded = [];
+
+        foreach ($required as $role) {
+            if (!in_array($role, $emailRoles, true)) {
+                $stranded[] = isset($names[$role]) ? $names[$role] : $role;
+            }
+        }
+
+        return $stranded;
+    }
 
     public static function getAuthFormSettings(\WP_REST_Request $request)
     {

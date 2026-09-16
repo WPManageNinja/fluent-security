@@ -76,9 +76,9 @@ export default {
         viewDescription() {
             const descriptions = {
                 attention: this.$t('Review these findings, starting with the highest priority.'),
-                advice: this.$t('Optional ways to harden your site. These do not count as outstanding issues.'),
-                passed: this.$t('These checks found no issues in their current results.'),
-                accepted: this.$t('Findings you have set aside. Restore a finding to include it in your review again.')
+                advice: this.$t('Optional extras that make your site harder to break into. Nothing here is wrong with your site.'),
+                passed: this.$t('These checks found nothing wrong.'),
+                accepted: this.$t('Findings you have set aside. Restore one to see it in the list again.')
             };
             return descriptions[this.view];
         },
@@ -94,13 +94,13 @@ export default {
                     body: this.$t('Review the findings below to decide what applies to your site.')};
             }
             return {tone: 'is_passed', icon: icons.shieldTick,
-                title: this.$t('No outstanding attention items'),
-                body: this.$t('Check the recommendations for the rest of the picture.')};
+                title: this.$t('Nothing needs attention'),
+                body: this.$t('The Recommendations tab has optional extras you can look at.')};
         },
         emptyTitle() {
             if (this.isFiltered) return this.$t('No matching checks');
             const titles = {
-                attention: this.$t('No findings need attention'), advice: this.$t('No additional recommendations'),
+                attention: this.$t('No findings need attention'), advice: this.$t('No recommendations right now'),
                 passed: this.$t('No passed checks to show'), accepted: this.$t('No dismissed findings')
             };
             return titles[this.view];
@@ -203,7 +203,7 @@ export default {
             <div class="fls_page_head">
                 <div>
                     <h1 class="fls_page_title">{{ $t('Findings') }}</h1>
-                    <p class="fls_page_desc">{{ $t('Review your site’s checks and take the next step.') }}</p>
+                    <p class="fls_page_desc">{{ $t('What the checks found on your site, and what to do about it.') }}</p>
                 </div>
                 <div class="fls_security_refresh">
                     <span v-if="updatedAt">{{ $t('Updated at %s', updatedAt) }}</span>

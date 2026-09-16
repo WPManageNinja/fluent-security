@@ -163,7 +163,7 @@ export default {
                     <SettingsCard :title="$t('Everyone')"
                                   :description="$t('Where people go unless a rule below says otherwise.')">
                         <SettingRow :label="$t('After signing in')"
-                                    :description="$t('A redirect_to on the login link still wins over this - someone sent to the login page from a members area goes back to where they came from.')">
+                                    :description="$t('Someone who was sent to the login page from a public page still goes back there afterwards.')">
                             <Destination v-model="settings.default_login_redirect"
                                          :presets="destinations.login"/>
                         </SettingRow>
@@ -182,7 +182,7 @@ export default {
                             writing four rules that never fire.
                         -->
                         <p v-if="rules.length" class="fls_note">
-                            {{ $t('Read top to bottom, and the first rule that matches is the one used - so the most specific rule belongs at the top. Anyone matching none of them follows the defaults above.') }}
+                            {{ $t('The first rule that matches a person is the one used, so put the most specific rule at the top. Anyone who matches no rule follows the defaults above.') }}
                         </p>
 
                         <div v-if="rules.length" class="fls_rules">
@@ -200,7 +200,7 @@ export default {
                         </div>
 
                         <p v-else class="fls_note">
-                            {{ $t('No exceptions. Everyone follows the defaults above.') }}
+                            {{ $t('No rules yet. Everyone follows the defaults above.') }}
                         </p>
 
                         <div class="fls_rules_add">

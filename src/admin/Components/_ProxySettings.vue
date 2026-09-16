@@ -62,8 +62,8 @@ export default {
         },
         quietTitle() {
             return this.status === 'cloudflare'
-                ? this.$t('Read from Cloudflare')
-                : this.$t('Read directly from the visitor');
+                ? this.$t('Visitor addresses come from Cloudflare')
+                : this.$t('Visitors connect to this site directly');
         },
         /*
          * Carries the address, which is the one fact the diagnostic this replaces was
@@ -72,23 +72,23 @@ export default {
          */
         quietNote() {
             if (this.status === 'cloudflare') {
-                return this.$t('Checked against Cloudflare\'s own ranges, so addresses are already accurate.');
+                return this.$t('Nothing to set up here unless another proxy sits between Cloudflare and your server.');
             }
 
-            return this.$t('Nothing is relaying requests to this site. Yours arrived from %s.', this.detection.remote_addr || '—');
+            return this.$t('Nothing to set up here. Your own visit arrived from %s.', this.detection.remote_addr || '—');
         },
         /* Cloudflare is a proxy already, so there is nothing to set up - only to add to. */
         quietAction() {
             return this.status === 'cloudflare'
                 ? this.$t('Add another proxy')
-                : this.$t('Set up a proxy');
+                : this.$t('This site is behind a proxy');
         },
         headline() {
             const map = {
-                detected: this.$t('This site is behind a reverse proxy'),
+                detected: this.$t('A proxy sits in front of this site'),
                 cloudflare: this.$t('Cloudflare detected'),
-                possible: this.$t('This site may be behind a reverse proxy'),
-                none: this.$t('No reverse proxy detected')
+                possible: this.$t('This site might be behind a proxy'),
+                none: this.$t('No proxy detected')
             };
 
             return map[this.status] || map.none;
@@ -96,21 +96,21 @@ export default {
         summary() {
             if (this.status === 'detected') {
                 if (this.detection.configured) {
-                    return this.$t('Requests reach WordPress from %s, and a trusted proxy is configured below.', this.detection.remote_addr);
+                    return this.$t('Traffic arrives from %s, and a proxy is listed below. Check that the address recorded for you looks right.', this.detection.remote_addr);
                 }
 
-                return this.$t('Requests reach WordPress from %s, which is an address inside your own network, so something is relaying them. Until that relay is declared below, every visitor is recorded as the same IP address.', this.detection.remote_addr);
+                return this.$t('Traffic reaches this site from %s, an address inside your own server\'s network, so a proxy is passing it on. Until that proxy is listed below, every visitor looks like the same person.', this.detection.remote_addr);
             }
 
             if (this.status === 'cloudflare') {
-                return this.$t('Visitor addresses are read from Cloudflare automatically, and only for connections that actually came from a Cloudflare edge. There is nothing to configure unless another proxy sits between Cloudflare and this server.');
+                return this.$t('Visitor addresses come from Cloudflare automatically. Only fill in the fields below if another proxy sits between Cloudflare and your server.');
             }
 
             if (this.status === 'possible') {
-                return this.$t('Forwarding headers are present, but they arrived over a public connection and any visitor can send them, so this is not proof. Only declare a proxy below if you know one is there.');
+                return this.$t('This request carried the kind of information a proxy adds, but anyone can send that, so it proves nothing. Only list a proxy below if you know one is there.');
             }
 
-            return this.$t('Requests reach WordPress directly from the visitor, so addresses are already accurate and nothing needs configuring here.');
+            return this.$t('Visitors connect directly, so their addresses are already correct and there is nothing to set up.');
         },
         /**
          * The only case worth interrupting somebody for: the attempt limit is counting
@@ -133,7 +133,7 @@ export default {
                 this.settings.proxy_ip_header = this.detection.suggested_header;
             }
 
-            this.$notify.info(this.$t('Filled in from this request. Review it and save to apply.'));
+            this.$notify.info(this.$t('Filled in from your own visit. Check it, then save.'));
         }
     }
 };
@@ -160,7 +160,7 @@ export default {
             <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon
                       style="margin-bottom: 10px;">
                 {{
-                    $t('The login attempt limit works per IP address. While every visitor looks like %s, one person failing to log in counts against everybody.', detection.remote_addr)
+                    $t('Failed logins are counted per address. While every visitor looks like %s, one person\'s failed attempts can lock everyone out.', detection.remote_addr)
                 }}
             </el-alert>
 
@@ -180,7 +180,7 @@ export default {
             </div>
 
             <div v-if="detection.headers && detection.headers.length" class="fls_proxy_headers">
-                <em class="fls_eyebrow">{{ $t('Forwarding headers on this request') }}</em>
+                <em class="fls_eyebrow">{{ $t('Address headers on this request') }}</em>
                 <ul>
                     <li v-for="header in detection.headers" :key="header.header">
                         <code>{{ header.header }}</code>: {{ header.value }}
@@ -190,24 +190,24 @@ export default {
 
             <el-alert v-if="config_locked" type="info" :closable="false" show-icon
                       style="margin: 10px 0;">
-                {{ $t('These values are defined in wp-config.php and take precedence over the fields below.') }}
+                {{ $t('These are set in wp-config.php, so the fields below are ignored.') }}
             </el-alert>
 
             <p v-if="canSuggest" class="fls_action_note">
                 <el-button size="small" type="primary" plain @click="applySuggestion()">
                     {{ $t('Use %s', detection.suggested_proxy) }}
                 </el-button>
-                <span>{{ $t('Fills these in from the request you are making now. Nothing is trusted until you save.') }}</span>
+                <span>{{ $t('Fills in the fields below from your own visit. Nothing changes until you save.') }}</span>
             </p>
 
             <SettingRow :label="$t('Trusted proxies')"
-                        :description="$t('One per line. CIDR and IPv6 welcome. Empty means trust only the direct connection.')">
+                        :description="$t('The addresses your proxy connects from, usually listed in your host\'s documentation. One per line; a range like 10.0.0.0/8 works too.')">
                 <el-input type="textarea" :rows="3" v-model="settings.trusted_proxies"
                           placeholder="127.0.0.1, 10.0.0.0/8"/>
             </SettingRow>
 
-            <SettingRow :label="$t('Header carrying the visitor IP')"
-                        :description="$t('Only read for requests arriving from a trusted proxy above.')">
+            <SettingRow :label="$t('Header your proxy puts the visitor\'s address in')"
+                        :description="$t('Your proxy\'s documentation names it. Leave empty for X-Forwarded-For, which most proxies use.')">
                 <el-input v-model="settings.proxy_ip_header" placeholder="X-Forwarded-For"/>
             </SettingRow>
         </template>

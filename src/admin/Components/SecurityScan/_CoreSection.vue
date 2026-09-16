@@ -123,7 +123,7 @@ export default {
         statusLabel() {
             const labels = {
                 checking: this.$t('Checking…'),
-                pending: this.everScanned ? this.$t('Re-scan to see details') : this.$t('Not checked yet'),
+                pending: this.everScanned ? this.$t('Run a scan to see details') : this.$t('Not checked yet'),
                 clean: this.$t('No changes')
             };
 
@@ -191,7 +191,7 @@ export default {
         <div v-if="open" class="fls_scan_detail">
             <template v-if="extraFolders.length">
                 <!-- A description, not a path, so not set in the monospace the paths use. -->
-                <p class="fls_scan_detail_head is_prose">{{ $t('Extra Folders in Root') }}</p>
+                <p class="fls_scan_detail_head is_prose">{{ $t('Folders WordPress did not put here') }}</p>
                 <folder-lists :ignored-files="ignores.folders" root-path="/" :files="extraFolders"/>
             </template>
 

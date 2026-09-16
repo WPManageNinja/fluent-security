@@ -36,7 +36,7 @@ export default {
             }
 
             if (this.settings.status === 'system') {
-                return this.$t('WordPress sends this email exactly as it does today. Nothing here changes it.');
+                return this.$t('The built-in email goes out unchanged. Switch to Your own to write it yourself.');
             }
 
             if (this.settings.status === 'disabled') {
@@ -97,7 +97,7 @@ export default {
 
             this.$nextTick(() => {
                 this.disableEditor = false;
-                this.$notify.success(this.$t('Default content has been set successfully.'));
+                this.$notify.success(this.$t('Default text loaded. Save to keep it.'));
             });
         },
         previewEmail() {
@@ -144,10 +144,10 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard v-if="settings.status == 'active'" :title="$t('Content')"
-                              :description="$t('The placeholders in braces are filled in when the email is sent.')">
+                              :description="$t('Placeholders such as {{user.display_name}} and {{site.name}} are swapped for the real values when the email is sent. In a link or button address, write the same placeholder as ##user.password_reset_url##.')">
                     <template #actions>
                         <el-button v-if="default_content?.email?.body" size="small" @click="setDefaultContent()">
-                            {{ $t('Start from the default') }}
+                            {{ $t('Use the default text') }}
                         </el-button>
                         <el-button v-if="default_content?.email?.body" size="small" @click="previewEmail()">
                             {{ $t('Preview') }}
@@ -155,7 +155,7 @@ export default {
                     </template>
 
                     <SettingRow stacked :label="$t('Subject')">
-                        <input-popover input_size="large" :input_placeholder="$t('Your Email Subject')"
+                        <input-popover input_size="large" :input_placeholder="$t('Subject line')"
                                        v-model="settings.email.subject" :data="smartcodes"/>
                     </SettingRow>
 
@@ -167,7 +167,7 @@ export default {
 
                 <el-alert v-if="settings.status == 'active' && required_smartcodes && required_smartcodes.length"
                           type="error" :closable="false" show-icon
-                          :title="$t('This email needs these placeholders to work')">
+                          :title="$t('This email cannot be saved until it includes one of these placeholders')">
                     <ul class="fls_required_codes">
                         <li v-for="(code, index) in required_smartcodes" :key="index">
                             <span v-html="'{{' + code + '}}'"></span>
@@ -179,7 +179,7 @@ export default {
             </el-form>
         </div>
 
-        <el-dialog v-model="showPreview" :title="$t('Previewing Email')" :width="800"
+        <el-dialog v-model="showPreview" :title="$t('Preview')" :width="800"
                    :close-on-click-modal="true" :close-on-press-escape="true"
                    :before-close="() => { showPreview = false; }">
             <PreviewEmail v-if="showPreview" :email_id="email_id"

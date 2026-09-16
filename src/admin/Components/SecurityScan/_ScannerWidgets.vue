@@ -287,9 +287,9 @@ export default {
             -->
             <template v-if="editingSchedule">
                 <el-form label-position="top">
-                    <el-form-item :label="$t('Scanning Interval')">
+                    <el-form-item :label="$t('How often')">
                         <el-select v-model="scheduling.scan_interval"
-                                   :placeholder="$t('Select Interval')">
+                                   :placeholder="$t('Choose how often')">
                             <el-option v-for="(label, value) in intervalLabels"
                                        :key="value" :label="label" :value="value"/>
                         </el-select>
@@ -338,7 +338,7 @@ export default {
 
                 <div class="fls_scan_aside_actions">
                     <el-button type="primary" size="small" @click="startEditingSchedule">
-                        {{ $t('Enable Auto Scanning') }}
+                        {{ $t('Turn on scheduled scans') }}
                     </el-button>
                 </div>
             </template>
@@ -350,7 +350,7 @@ export default {
 
                 <div class="fls_scan_aside_actions">
                     <el-button type="primary" size="small" :disabled="saving" @click="resumeReporting">
-                        {{ $t('Resume Reporting') }}
+                        {{ $t('Resume alerts') }}
                     </el-button>
                 </div>
             </template>
@@ -365,13 +365,13 @@ export default {
                     <p v-else class="fls_relay_notice">{{ $t('__relay_revoked_desc__') }}</p>
                 </template>
                 <p v-else>
-                    {{ $t('Please get a free API key to enable Scheduled Scanning and get notified when FluentAuth detects file changes.') }}
+                    {{ $t('Connect this site with a free key to scan on a schedule and get an email when a file changes.') }}
                 </p>
 
                 <div class="fls_scan_aside_actions">
                     <el-button type="primary" size="small"
                                @click="$router.push({name: 'security_scan_register'})">
-                        {{ $t('Setup Auto Scanning') }}
+                        {{ $t('Set up scheduled scans') }}
                     </el-button>
                 </div>
             </template>
@@ -411,7 +411,7 @@ export default {
 
             <ul class="fls_scan_facts">
                 <li>
-                    <span class="fls_scan_fact_label">{{ $t('Verified') }}</span>
+                    <span class="fls_scan_fact_label">{{ $t('Checked') }}</span>
                     <span class="fls_scan_fact_value">{{ coverageLabel }}</span>
                 </li>
                 <li v-if="coverage.with_issues">
@@ -422,7 +422,7 @@ export default {
                 </li>
                 <!-- Its own line, above the coverage note: a finding, not a gap. -->
                 <li v-if="coverage.suspicious">
-                    <span class="fls_scan_fact_label">{{ $t('Unpublished versions') }}</span>
+                    <span class="fls_scan_fact_label">{{ $t('Versions not on WordPress.org') }}</span>
                     <span class="fls_scan_fact_value">
                         <span class="fls_tag is_blocked">{{ coverage.suspicious }}</span>
                     </span>
@@ -430,7 +430,7 @@ export default {
             </ul>
 
             <p v-if="coverage.unverifiable" class="fls_note">
-                {{ $_n('%s item is not from the WordPress.org directory, so there are no official checksums to compare it against.', '%s items are not from the WordPress.org directory, so there are no official checksums to compare them against.', coverage.unverifiable) }}
+                {{ $_n('%s item is not from WordPress.org, so there is no official copy to compare it with.', '%s items are not from WordPress.org, so there is no official copy to compare them with.', coverage.unverifiable) }}
             </p>
         </div>
 

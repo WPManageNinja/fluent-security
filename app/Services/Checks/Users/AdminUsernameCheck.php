@@ -65,7 +65,7 @@ class AdminUsernameCheck extends Check
             'title'    => $this->title(count($guessable)),
             'why'      => __('The username is half of every login, and these are the ones guessed first. Whoever is trying only has the password left to find.', 'fluent-security'),
             'details'  => array_merge($guessable, [
-                __('WordPress cannot rename an account. The usual way round it is to make a new administrator, sign in as them, and delete the old one — assigning its posts to the new account.', 'fluent-security')
+                __('WordPress cannot rename an account. Create a new administrator, sign in as them, then delete the old one and assign its posts to the new account.', 'fluent-security')
             ]),
             'action'   => 'navigate',
             'label'    => __('Open users', 'fluent-security'),

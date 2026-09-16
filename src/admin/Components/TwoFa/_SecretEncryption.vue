@@ -42,32 +42,37 @@ export default {
     },
     computed: {
         /*
-         * Both ways the key can go wrong are recoverable, as long as the old value still
-         * exists somewhere - a password manager, a wp-config.php backup, the deploy that
-         * overwrote it. So the box is offered whenever the secrets cannot be read.
+         * Offered only where it can actually do something.
+         *
+         * Re-encrypting derives the new key from the constant, so with no constant in
+         * wp-config.php there is nothing to move the data *to* - SecretMigration::rekey()
+         * refuses with `no_new_key` before it reads a single row. The box used to be
+         * drawn in that state anyway, so the one screen telling somebody their key is
+         * missing also offered them a field that could only ever answer "add the key to
+         * your wp-config.php first".
          */
         canRekey() {
-            return !!this.problem;
+            return !!this.problem && this.status.state !== 'constant_missing';
         },
         problem() {
             if (this.status.state === 'constant_missing') {
                 return {
                     title: this.$t('The encryption key is missing'),
-                    body: this.$t('The %s line is no longer in your wp-config.php. If a deployment overwrote the file, putting the same line back makes every authenticator app work again.', this.status.constant_name)
+                    body: this.$t('The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. If you have the old value but not the line, add any new key line first, then come back to move the data across.', this.status.constant_name)
                 };
             }
 
             if (this.status.state === 'key_changed') {
                 return {
                     title: this.$t('The encryption key has changed'),
-                    body: this.$t('The %s value in your wp-config.php is not the one these secrets were encrypted with. If you still have the previous value, paste it below and everything will be re-encrypted under the new one.', this.status.constant_name)
+                    body: this.$t('The %s value in your wp-config.php is not the one the app data was encrypted with. If you still have the old value, paste it below and everything will be moved to the new one.', this.status.constant_name)
                 };
             }
 
             return null;
         },
         sourceNote() {
-            return this.$t('Keyed to the %s value in your wp-config.php.', this.status.constant_name);
+            return this.$t('Uses the %s value in your wp-config.php. Keep a copy of that value somewhere safe.', this.status.constant_name);
         }
     },
     methods: {
@@ -181,7 +186,7 @@ export default {
          */
         confirmDisable() {
             this.$confirm(
-                this.$t('Every stored authenticator secret will be written back to the database unencrypted. Nobody has to set anything up again.'),
+                this.$t('The app data goes back to being stored unencrypted. Nobody has to set anything up again.'),
                 this.$t('Turn off encryption?'),
                 {
                     confirmButtonText: this.$t('Turn it off'),
@@ -255,9 +260,9 @@ export default {
     <div class="fls_secret_encryption" v-loading="loading && !loaded">
         <div class="fls_secret_encryption_head">
             <div>
-                <strong>{{ $t('Encrypt stored secrets') }}</strong>
+                <strong>{{ $t('Encrypt authenticator app data') }}</strong>
                 <p>
-                    {{ $t('An authenticator secret has to be readable to check a code, so it cannot be hashed like a password. Encrypting it means a stolen copy of your database is not enough to generate codes.') }}
+                    {{ $t('The details that pair each authenticator app with this site are stored in your database. Encrypt them, and a stolen copy of the database cannot be used to make login codes.') }}
                 </p>
             </div>
             <el-switch v-if="status.supported"
@@ -273,7 +278,7 @@ export default {
         -->
         <el-alert v-if="loaded && !status.supported" type="info" :closable="false" show-icon
                   :title="$t('This server cannot encrypt')">
-            {{ $t('The OpenSSL functions this needs are not available here. Your host can say whether that can change.') }}
+            {{ $t('Your server is missing OpenSSL, which this needs. Ask your host whether it can be added.') }}
         </el-alert>
 
         <template v-else-if="loaded">
@@ -283,8 +288,8 @@ export default {
                 <p v-if="status.counts.unreadable">
                     {{
                         $_n(
-                            '%d authenticator app cannot be read. Nobody is locked out - that account is treated as not having one, so they will be asked to set it up again.',
-                            '%d authenticator apps cannot be read. Nobody is locked out - those accounts are treated as not having one, so they will be asked to set it up again.',
+                            '%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.',
+                            '%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.',
                             status.counts.unreadable
                         )
                     }}
@@ -311,7 +316,7 @@ export default {
                 and there is nothing to explain.
             -->
             <p v-else-if="status.has_key" class="fls_secret_encryption_ready">
-                {{ $t('A key is in place. Switch this on to encrypt the stored secrets.') }}
+                {{ $t('A key is already in your wp-config.php. Switch this on to encrypt the app data.') }}
             </p>
 
             <!-- Off, with no key. The line to paste, and how to come back. -->
@@ -327,7 +332,7 @@ export default {
                 </el-alert>
 
                 <p>
-                    {{ $t('Add this line to your wp-config.php, above the line that says "That\'s all, stop editing", then come back and switch this on.') }}
+                    {{ $t('Copy this line into your wp-config.php, above the line that says "That\'s all, stop editing". Save the file, then come back here and switch this on.') }}
                 </p>
 
                 <div class="fls_config_line">
@@ -344,19 +349,19 @@ export default {
                 -->
                 <el-alert type="warning" :closable="false" show-icon
                           :title="$t('Keep a copy of this value')">
-                    {{ $t('Store it in your password manager. If wp-config.php is ever overwritten - a deployment will do it - this value is the only way to get the stored secrets back.') }}
+                    {{ $t('Save it in your password manager before you go on. If this value is ever lost, every authenticator app on the site stops working and each user has to set theirs up again.') }}
                 </el-alert>
 
                 <p v-if="status.config.blocked" class="fls_secret_encryption_note">
-                    {{ $t('This site is set up so that plugins cannot edit its files, so the line has to be added by hand.') }}
+                    {{ $t('This site does not let plugins edit its files, so the line has to be added by hand.') }}
                 </p>
                 <p v-else-if="status.config.found && !status.config.writable" class="fls_secret_encryption_note">
-                    {{ $t('Your wp-config.php is not writable by WordPress, which is usual on managed hosting - the line has to be added by hand.') }}
+                    {{ $t('WordPress cannot write to your wp-config.php, which is normal on managed hosting. The line has to be added by hand.') }}
                 </p>
 
                 <div class="fls_secret_encryption_actions">
                     <el-button type="primary" size="small" :loading="loading" @click="fetchStatus()">
-                        {{ $t('I have added it - check again') }}
+                        {{ $t('I have added it, check again') }}
                     </el-button>
                     <el-button size="small" text @click="closeInstructions()">
                         {{ $t('Cancel') }}
@@ -369,15 +374,15 @@ export default {
                     walking away from this panel is a choice, not a half-finished setup.
                 -->
                 <p class="fls_secret_encryption_note">
-                    {{ $t('Without this line the secrets are stored unencrypted, exactly as before. Nothing else changes.') }}
+                    {{ $t('If you skip this, the app data stays unencrypted, as it is now. Everything keeps working.') }}
                 </p>
             </div>
 
             <p v-else class="fls_secret_encryption_note">
                 {{
                     status.config.writable
-                        ? $t('Switching this on adds a key to your wp-config.php and encrypts the stored secrets.')
-                        : $t('Switching this on will give you a line to add to your wp-config.php.')
+                        ? $t('Switching this on adds a key to your wp-config.php and encrypts the app data.')
+                        : $t('Switching this on gives you a line to add to your wp-config.php yourself.')
                 }}
             </p>
         </template>

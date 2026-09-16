@@ -87,14 +87,14 @@ export default {
          */
         filesStepBody() {
             if (!this.files || !this.files.scanned) {
-                return this.$t('Nothing has been compared against WordPress.org yet. Run a scan first, so this step knows what to put back.');
+                return this.$t('No scan has run yet. Run one first, so this step knows what to put back.');
             }
 
             if (!this.hasFileFindings) {
-                return this.$t('Checked %s ago: every core file, plugin and theme from the directory matched WordPress.org.', this.files.checked_human);
+                return this.$t('Checked %s ago. Every WordPress file, and every plugin and theme from WordPress.org, matched the official copy.', this.files.checked_human);
             }
 
-            return this.$t('Checked %s ago. Each reinstall fetches the official copy from WordPress.org and replaces the whole thing, so a file you cannot see is put back along with the ones you can. Sign everyone out again once they are back, in case a way in was used while you worked.', this.files.checked_human);
+            return this.$t('Checked %s ago. Each reinstall replaces every file with a fresh copy from WordPress.org, and once they are all done, sign everyone out again.', this.files.checked_human);
         },
         /* "3 files changed · 1 not in the release · 2 missing", or nothing. */
         coreStatusLine() {
@@ -122,8 +122,8 @@ export default {
 
             return this.$t(
                 count === 1
-                    ? '%1s file is in quarantine at %2s. It cannot run from there. Delete the folder once you are sure you do not need it.'
-                    : '%1s files are in quarantine at %2s. They cannot run from there. Delete the folder once you are sure you do not need them.',
+                    ? '%1s file was moved to %2s, where it cannot run. Delete the folder once you are sure you do not need it.'
+                    : '%1s files were moved to %2s, where they cannot run. Delete the folder once you are sure you do not need them.',
                 count,
                 this.files.quarantine.path
             );
@@ -165,12 +165,12 @@ export default {
             if (!this.secureIsDestructive) {
                 /* Only reachable with a session store this plugin cannot count. */
                 if (!this.impact.sessions) {
-                    return this.$t('There are no application passwords on this site, so nothing here is permanent: everyone who should be here signs in again.');
+                    return this.$t('This site has no application passwords, so nothing here is permanent. Everyone just signs in again.');
                 }
 
                 return this.$_n(
-                    'There is %s open session on this site and no application passwords, so nothing here is permanent: everyone who should be here signs in again.',
-                    'There are %s open sessions on this site and no application passwords, so nothing here is permanent: everyone who should be here signs in again.',
+                    'There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.',
+                    'There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.',
                     this.impact.sessions
                 );
             }
@@ -240,7 +240,7 @@ export default {
             }
 
             if (counts.new) {
-                parts.push(this.$_n('%s file not in the release', '%s files not in the release', counts.new));
+                parts.push(this.$_n('%s unexpected file', '%s unexpected files', counts.new));
             }
 
             if (counts.deleted) {
@@ -357,7 +357,7 @@ export default {
         reinstallCore() {
             const core = this.core;
             const lines = [
-                this.$t('This downloads WordPress %s from WordPress.org and replaces every file in wp-admin and wp-includes. Your content, plugins, themes and wp-config.php are not touched.', core.version)
+                this.$t('This downloads WordPress %s from WordPress.org and replaces every WordPress file. Your content, plugins, themes and wp-config.php are not touched.', core.version)
             ];
 
             if (core.removable) {
@@ -368,7 +368,7 @@ export default {
                 ));
             }
 
-            lines.push(this.$t('The site will be in maintenance mode for a few seconds.'));
+            lines.push(this.$t('Your site will show a maintenance notice for a few seconds.'));
 
             this.confirmReinstall(lines.join(' '), this.$t('Reinstall WordPress %s?', core.version), () => {
                 this.reinstalling = 'core';
@@ -382,7 +382,7 @@ export default {
             if (row.suspicious) {
                 lines.push(this.$t('%1s is on version %2s, which WordPress.org never published, so it will be replaced with the current release instead.', row.name, row.version));
             } else {
-                lines.push(this.$t('This downloads %1s %2s from WordPress.org and replaces its folder.', row.name, row.version));
+                lines.push(this.$t('This downloads %1s %2s from WordPress.org and replaces all of its files.', row.name, row.version));
             }
 
             if (row.new) {
@@ -393,7 +393,7 @@ export default {
                 ));
             }
 
-            lines.push(this.$t('Its settings are kept, because they live in the database.'));
+            lines.push(this.$t('Its settings are kept.'));
 
             this.confirmReinstall(lines.join(' '), this.$t('Reinstall %s?', row.name), () => {
                 this.reinstalling = row.type + ':' + row.key;
@@ -585,7 +585,7 @@ export default {
                                                 </span>
                                                 <!-- Only root extras: nothing a reinstall would touch, so no button and a reason. -->
                                                 <span v-else-if="!core.fixable" class="fls_recover_file_blocked">
-                                                    {{ $t('These sit outside wp-admin and wp-includes, so reinstalling WordPress would not touch them. Look at each one under Monitoring and decide whether it belongs.') }}
+                                                    {{ $t('These extra files are in your site\'s main folder, where a reinstall does not reach. Open each one under Monitoring and decide whether it belongs.') }}
                                                 </span>
                                             </div>
                                             <el-button v-if="core.reinstallable && core.fixable" size="small" type="primary"
@@ -626,7 +626,7 @@ export default {
                                         read as "everything was checked".
                                     -->
                                     <div v-if="files.unverifiable.length" class="fls_recover_unverifiable">
-                                        <p>{{ $t('Nobody can put these back for you. Open each one and read it for anything you did not put there.') }}</p>
+                                        <p>{{ $t('There is no official copy of these to compare against. Open each one and look for anything you did not put there.') }}</p>
                                         <ul>
                                             <li v-for="item in files.unverifiable" :key="item.key">
                                                 <strong>{{ item.label }}</strong>
@@ -728,7 +728,7 @@ export default {
 
                             <p v-if="!salts.available" class="fls_secure_option_reason">{{ salts.reason }}</p>
                             <p v-else-if="!secureRotate" class="fls_secure_option_reason">
-                                {{ $t('The eight keys in wp-config.php that sign every cookie on this site. Replacing them is the usual advice after a break-in, and it is the only thing here that reaches outside FluentAuth.') }}
+                                {{ $t('The secret keys in wp-config.php that keep everyone signed in. Replacing them is the usual advice after a break-in, but it can break other plugins, so read the warning before you confirm.') }}
                             </p>
 
                             <div v-if="secureRotate" class="fls_secure_salts">

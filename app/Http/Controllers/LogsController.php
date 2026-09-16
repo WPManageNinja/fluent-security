@@ -37,10 +37,24 @@ class LogsController
          */
         if ($search = $request->get_param('search')) {
             $search = sanitize_text_field($search);
-            $query->where(function ($q) use ($search) {
+
+            /*
+             * The label as well as the slug. `media` stores `magic_login` and the screen
+             * prints "Magic link", so searching the column alone meant the one name the
+             * reader has ever seen matched nothing, while "google" worked only because
+             * that slug happens to be the word.
+             */
+            $slugs = Helper::findLoginMediaSlugs($search);
+
+            $query->where(function ($q) use ($search, $slugs) {
                 $q->where('username', 'LIKE', '%' . $search . '%');
                 $q->orWhere('ip', 'LIKE', '%' . $search . '%');
                 $q->orWhere('media', 'LIKE', '%' . $search . '%');
+
+                if ($slugs) {
+                    $q->orWhereIn('media', $slugs);
+                }
+
                 return $q;
             });
         }

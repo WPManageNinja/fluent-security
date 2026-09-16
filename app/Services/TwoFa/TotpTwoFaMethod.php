@@ -90,6 +90,22 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
      *
      * @return bool
      */
+    public function isSwitchedOn()
+    {
+        return Helper::getSetting('totp_2fa') === 'yes';
+    }
+
+    /** Requiring a factor grants the app - see isAllowedForUser(). */
+    public function isGrantedByRequirement()
+    {
+        return true;
+    }
+
+    public function isPermittedForUser($user)
+    {
+        return (bool)apply_filters('fluent_auth/totp_enabled', true, $user);
+    }
+
     public static function isEnabledForAnyRole()
     {
         if (Helper::getSetting('totp_2fa') !== 'yes') {
@@ -119,21 +135,26 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         }
 
         /*
-         * Requiring a second factor grants the methods that can satisfy it. An owner who
-         * says "these roles must hold a second factor" has already said those roles may
-         * set one up; making them also tick the allow list is a way for the requirement
-         * to be switched on and quietly do nothing, which is the worst outcome available
-         * to a security setting.
-         *
-         * This is also what makes DeviceRequirement's anti-lockout guard unnecessary:
-         * an app needs nothing from the site, so a required user can always reach one.
+         * The switch first, and that ordering is the whole rule. A method the site has
+         * turned off is off for everybody, requirement included - "require a second
+         * factor" cannot conjure a method nobody enabled, and a site with all three
+         * switches down has no second factor at all rather than a hidden one. That is
+         * what DeviceRequirement::isEnforceable() reads, and why a requirement standing
+         * over no enabled method stops being a requirement.
+         */
+        if (Helper::getSetting('totp_2fa') !== 'yes') {
+            return false;
+        }
+
+        /*
+         * Switched on, though, and requiring a second factor grants it. An owner who
+         * says "these roles must hold one" has already said those roles may set one up;
+         * making them tick the allow list as well is how the requirement ends up
+         * standing over a role that has no way to satisfy it - which is a locked out
+         * user, and was one, before this line existed.
          */
         if (DeviceRequirement::isRequiredForUser($user)) {
             return true;
-        }
-
-        if (Helper::getSetting('totp_2fa') !== 'yes') {
-            return false;
         }
 
         $roles = Helper::getSetting('totp_2fa_roles');

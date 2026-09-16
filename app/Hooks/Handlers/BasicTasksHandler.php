@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
+use FluentAuth\App\Services\SystemEmailService;
 
 class BasicTasksHandler
 {
@@ -457,7 +458,7 @@ class BasicTasksHandler
         $body = Helper::loadView('notification', $data);
         $subject = sprintf('%1$s report for %2$s - %3$s', ucfirst($period), get_bloginfo('name'), date('d, M Y', current_time('timestamp')));
 
-        $headers = array('Content-Type: text/html; charset=UTF-8');
+        $headers = SystemEmailService::getEmailHeaders();
 
         \wp_mail($adminEmail, $subject, $body, $headers);
 

@@ -302,6 +302,8 @@ class TwoFaHandlerTest extends BaseTestCase
         $subscriber = $this->subscriberWithEmailCodes();
 
         $settings = Helper::getAuthSettings();
+        // A requirement only stands over a method that is on - see DeviceRequirement.
+        $settings['totp_2fa'] = 'yes';
         $settings['totp_required_roles'] = ['subscriber'];
         update_option('__fls_auth_settings', $settings);
         Helper::resetStatics();
@@ -317,7 +319,182 @@ class TwoFaHandlerTest extends BaseTestCase
      * The escalation is the one case where challenging somebody who enrolled in nothing
      * is the entire point, so it is the one case the pass-through must not cover.
      */
-    public function testASubscriberWhoseAccountIsUnderAttackIsStillRefused()
+    /**
+     * The variant the first version of this test dodged.
+     *
+     * It removed the subscriber from the email role list first, so the escalation had to
+     * fall back to a method their roles did not have - and the guard read "under attack"
+     * off exactly that fallback. With emailed codes already on for them the dispatcher
+     * returns the available method, no fallback happens, and the account the site is
+     * actively worried about was the one being waved through.
+     */
+    public function testASubscriberUnderAttackIsRefusedEvenWithEmailCodesOnForTheirRole()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();   // subscriber IS in email2fa_roles
+
+        add_filter('fluent_auth/2fa_challenge_required', '__return_true');
+        $handler = new TwoFaHandler();
+
+        try {
+            $result = $this->withHeadlessAjax(function () use ($handler, $subscriber) {
+                return $handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('fluent_auth/2fa_challenge_required', '__return_true');
+        }
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    /**
+     * XML-RPC and REST have no form and no reader, so the pass never applies to them.
+     *
+     * Driven through the filter the production check feeds rather than by defining
+     * XMLRPC_REQUEST: a constant cannot be undefined again, so defining one here would
+     * silently change every test that ran afterwards in the same process.
+     */
+    public function testAnApiLoginIsNeverLetThrough()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        add_filter('fluent_auth/headless_pass_excludes_api', '__return_true');
+
+        try {
+            $result = $this->withHeadlessAjax(function () use ($subscriber) {
+                return $this->handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('fluent_auth/headless_pass_excludes_api', '__return_true');
+        }
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    /**
+     * The other half of the same rule, and the half the test above cannot reach.
+     *
+     * Forcing the filter true proves the exclusion works but would still pass if the
+     * value handed to it were hardcoded false, so this pins that the constants are what
+     * actually reach it. XMLRPC_REQUEST cannot be defined here without changing every
+     * test that runs afterwards in the same process.
+     */
+    public function testTheApiExclusionIsFedByTheRequestItself()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $seen = 'not called';
+        $spy = function ($isApi) use (&$seen) {
+            $seen = $isApi;
+            return $isApi;
+        };
+
+        add_filter('fluent_auth/headless_pass_excludes_api', $spy);
+
+        try {
+            $this->withHeadlessAjax(function () use ($subscriber) {
+                return $this->handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('fluent_auth/headless_pass_excludes_api', $spy);
+        }
+
+        $this->assertFalse($seen, 'a plain ajax login is not an API request, and the filter is told so');
+    }
+
+    /**
+     * A capability that can change the site is out, and `publish_posts` alone was not
+     * that line - a custom role can hold `manage_options` without it.
+     */
+    /**
+     * allcaps is the stored capability set, not the effective one. A plugin granting a
+     * capability through `user_has_cap` never touches it, so the walk alone read such a
+     * user as harmless.
+     */
+    public function testACapabilityGrantedAtRuntimeIsStillRefused()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $grant = function ($allcaps, $caps, $args, $user) use ($subscriber) {
+            if ($user && $user->ID === $subscriber->ID) {
+                $allcaps['manage_options'] = true;
+            }
+
+            return $allcaps;
+        };
+
+        add_filter('user_has_cap', $grant, 10, 4);
+
+        try {
+            $result = $this->withHeadlessAjax(function () use ($subscriber) {
+                return $this->handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('user_has_cap', $grant, 10);
+        }
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    /** A filter returning something that is not a list must not fatal a login. */
+    public function testAMalformedHarmlessCapabilityFilterDoesNotFatal()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        add_filter('fluent_auth/headless_harmless_capabilities', '__return_true');
+
+        try {
+            $result = $this->withHeadlessAjax(function () use ($subscriber) {
+                return $this->handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('fluent_auth/headless_harmless_capabilities', '__return_true');
+        }
+
+        /*
+         * Refused, not merely survived. `(array)true` is `[true]`, which matches no
+         * capability name, so every account reads as privileged and the pass is withheld
+         * - the safe direction, and worth pinning: an assertion that only says "did not
+         * fatal" passes just as happily if the login were waved through instead.
+         */
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    public function testARoleThatCanManageOptionsIsStillRefused()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+        $subscriber->add_cap('manage_options');
+        $subscriber = get_user_by('ID', $subscriber->ID);
+
+        $result = $this->withHeadlessAjax(function () use ($subscriber) {
+            return $this->handler->maybeDenyHeadlessLogin($subscriber);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    /**
+     * Letting the login past the authenticate chain is only half a sign-in. The cookie
+     * backstop resolves the challenge on its own, and without being told about the pass
+     * it refused the cookie for the login that had just been allowed - the caller saw a
+     * WP_User while the browser stayed signed out.
+     */
+    public function testAPassedHeadlessLoginStillGetsItsCookie()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $passed = $this->withHeadlessAjax(function () use ($subscriber) {
+            return $this->handler->maybeDenyHeadlessLogin($subscriber);
+        });
+
+        $this->assertSame($subscriber, $passed, 'precondition: the login was allowed through');
+
+        $this->assertTrue(
+            $this->handler->maybeWithholdAuthCookies(true, 0, 0, $subscriber->ID),
+            'the cookie has to follow the decision the login chain already made'
+        );
+    }
+
+    public function testTheOldFallbackEscalationIsStillRefused()
     {
         $subscriber = $this->subscriberWithEmailCodes();
 

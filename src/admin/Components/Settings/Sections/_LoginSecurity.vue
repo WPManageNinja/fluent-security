@@ -19,10 +19,10 @@ export default {
 </script>
 
 <template>
-    <SettingRow :description="$t('Counted per IP address. The block lasts until the window passes.')">
+    <SettingRow :description="$t('Counted per IP address. Each new attempt while blocked restarts the clock.')">
         <template #label>
             <span class="fls_sentence">
-                {{ $t('Block an address after') }}
+                {{ $t('Block an IP address after') }}
                 <el-input type="number" :min="1" v-model="settings.login_try_limit"/>
                 {{ $t('failed attempts within') }}
                 <el-input type="number" :min="1" v-model="settings.login_try_timing"/>

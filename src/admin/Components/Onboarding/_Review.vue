@@ -25,8 +25,8 @@ export default {
                     const header = answer.proxy_ip_header || this.$t('Automatic');
                     if (this.connection.config_locked) return [this.$t('Managed in wp-config.php')];
                     return answer.mode === 'proxy'
-                        ? [this.$t('Trusted proxies: %s', answer.trusted_proxies), this.$t('IP header: %s', header)]
-                        : [this.$t('Direct connection')];
+                        ? [this.$t('Proxy address: %s', answer.trusted_proxies), this.$t('IP header: %s', header)]
+                        : [this.$t('Your address is correct. Nothing to change.')];
                 }
                 case 'two_fa': {
                     const methods = [];
@@ -34,7 +34,7 @@ export default {
                     if (answer.email) methods.push(this.$t('Emailed code'));
                     return methods.length
                         ? [methods.join(' + '), this.$t('Offered to: %s', this.roles(answer.roles))]
-                        : [this.$t('Authenticator apps and emailed codes off')];
+                        : [this.$t('No second step')];
                 }
                 case 'login_limit':
                     return [this.$t('%s failed attempts within %s minutes', answer.limit, answer.timing)];
@@ -55,8 +55,8 @@ export default {
 <template>
     <main class="fls_onb_review">
         <p class="fls_eyebrow">{{ $t('Ready to apply') }}</p>
-        <h1 class="fls_onb_headline" tabindex="-1">{{ $t('Review your security settings') }}</h1>
-        <p class="fls_onb_why">{{ $t('Check your choices below. Nothing has been saved yet.') }}</p>
+        <h1 class="fls_onb_headline" tabindex="-1">{{ $t('Does this look right?') }}</h1>
+        <p class="fls_onb_why">{{ $t('Nothing is saved until you apply these.') }}</p>
         <ol class="fls_onb_review_list">
             <li v-for="(step, i) in steps" :key="step.id">
                 <span class="fls_onb_review_number" aria-hidden="true">{{ i + 1 }}</span>
@@ -72,6 +72,6 @@ export default {
             <el-button text :disabled="saving" @click="$emit('back')"><span aria-hidden="true">←</span> {{ $t('Back') }}</el-button>
             <el-button type="primary" class="fls_onb_next" :loading="saving" @click="$emit('finish')">{{ $t('Apply settings') }} <span aria-hidden="true">→</span></el-button>
         </div>
-        <p class="fls_onb_save_note">{{ $t('You can change these settings later in FluentAuth.') }}</p>
+        <p class="fls_onb_save_note">{{ $t('You can change any of this later in Settings.') }}</p>
     </main>
 </template>

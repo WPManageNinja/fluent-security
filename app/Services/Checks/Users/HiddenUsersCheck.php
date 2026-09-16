@@ -110,7 +110,7 @@ class HiddenUsersCheck extends Check
             'state'    => Finding::STATE_OPEN,
             'severity' => Finding::SEVERITY_FIX,
             'title'    => $this->title($total),
-            'why'      => __('Your database holds accounts that your users list will not show you. That is how access is kept after a break-in — the account stays, and the screen you would notice it on is filtered.', 'fluent-security'),
+            'why'      => __('Your database holds accounts that do not appear on your users list. Hiding an account this way is how someone keeps access after a break-in.', 'fluent-security'),
             'details'  => $this->details($accounts, $total),
             'action'   => 'navigate',
             'label'    => count($accounts) === 1 ? __('Open this account', 'fluent-security') : __('Open users', 'fluent-security'),
@@ -411,8 +411,8 @@ class HiddenUsersCheck extends Check
             );
         }
 
-        $details[] = __('Managed hosts and membership plugins do this on purpose — a support account, or customers kept out of a staff list. If one of the files above explains it, dismiss this.', 'fluent-security');
-        $details[] = __('If nothing explains it, treat the site as broken into: the account is the way back in. Remove it, change every administrator password, and look at what else was added around the date it was created.', 'fluent-security');
+        $details[] = __('Managed hosts and membership plugins sometimes do this on purpose, for a support account or to keep customers off a staff list. If one of the files above explains it, dismiss this.', 'fluent-security');
+        $details[] = __('If nothing explains it, treat the site as broken into. Remove the account, change every administrator password, and check what else was added around the date it was created.', 'fluent-security');
 
         return $details;
     }

@@ -264,12 +264,12 @@ abstract class WatchedFilesCheck extends Check
 
         foreach ($changed as $path) {
             /* translators: %s: a file path */
-            $details[] = sprintf(__('%s — not the file it was', 'fluent-security'), $path);
+            $details[] = sprintf(__('%s (changed)', 'fluent-security'), $path);
         }
 
         foreach ($appeared as $path) {
             /* translators: %s: a file path */
-            $details[] = sprintf(__('%s — new since we started watching', 'fluent-security'), $path);
+            $details[] = sprintf(__('%s (new)', 'fluent-security'), $path);
         }
 
         return $details;

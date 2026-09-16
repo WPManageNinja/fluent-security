@@ -86,12 +86,32 @@ function setText(el, text) {
 /**
  * requestSubmit() so the form's own submit handler still runs; click() is the fallback
  * for browsers without it.
+ *
+ * The button is optional, and the case that made it so is worth naming: on a screen where
+ * passkeys are the only method there is no authenticator-app pane, and the submit button
+ * lived inside it. Older Safari has no requestSubmit(), so calling click() on the button
+ * that is not there threw inside the success handler, landed in the catch, and told the
+ * user their passkey had been cancelled - after the authenticator had already created it.
+ * They then hit excludeCredentials on every retry, with an orphaned credential behind them.
  */
 function submitVia(form, button) {
     if (form.requestSubmit) {
-        form.requestSubmit(button);
-    } else {
+        form.requestSubmit(button || undefined);
+        return;
+    }
+
+    if (button) {
         button.click();
+        return;
+    }
+
+    /*
+     * No requestSubmit and no button. Dispatching the event runs the form's own submit
+     * handler, which is what both branches above are really for; if nothing cancels it,
+     * fall through to submitting the form directly.
+     */
+    if (form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}))) {
+        form.submit();
     }
 }
 
@@ -456,15 +476,36 @@ function initEnrollment() {
     let busy = false;
 
     /*
-     * No WebAuthn at all: the app is the only route, and the passkey offer never
-     * appears. This is the branch that keeps the requirement from being a dead end on
-     * an old or locked down browser.
+     * Whether there is anything to fall back to. The server leaves the app pane out
+     * entirely when authenticator apps are switched off, so its absence is the signal
+     * that the passkey offer has to carry this screen on its own - and it is rendered
+     * visible in that case rather than waiting to be revealed.
+     */
+    const passkeyOnly = !appPane;
+
+    /*
+     * No WebAuthn at all. Normally the app is the only route and the passkey offer never
+     * appears. With nothing else on the screen there is no route, and the one thing this
+     * must not do is leave a required user staring at a heading and no controls - so the
+     * offer stays put and says why it cannot be used.
      */
     if (!webAuthnSupports('create')) {
+        if (passkeyOnly) {
+            setText(status, messages.unsupported);
+            if (startButton) {
+                startButton.disabled = true;
+            }
+        }
+
         return;
     }
 
     const show = (which) => {
+        // Passkey-only: there is no second pane, and this one never goes away.
+        if (passkeyOnly) {
+            return;
+        }
+
         pane.style.display = which === 'passkey' ? '' : 'none';
         appPane.style.display = which === 'passkey' ? 'none' : '';
     };
@@ -514,15 +555,22 @@ function initEnrollment() {
         showPasskeyWrap.style.display = '';
     }
 
-    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then((available) => {
-            if (available) {
-                show('passkey');
-            }
-        })
-        .catch(() => {
-            // Left on the authenticator app, which always works.
-        });
+    /*
+     * Leading with the passkey is for machines that can answer one without being asked to
+     * find a security key. Where the app is not on this decides nothing - the offer is
+     * already the whole screen - and asking would only risk hiding it.
+     */
+    if (!passkeyOnly) {
+        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+            .then((available) => {
+                if (available) {
+                    show('passkey');
+                }
+            })
+            .catch(() => {
+                // Left on the authenticator app, which always works.
+            });
+    }
 
     startButton.addEventListener('click', () => {
         if (busy) {

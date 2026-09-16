@@ -41,7 +41,7 @@ class BackupFilesCheck extends Check
                 'check'  => $this->id(),
                 'group'  => $this->group(),
                 'state'  => Finding::STATE_PASSED,
-                'title'  => __('No downloadable copies of your site are lying about', 'fluent-security'),
+                'title'  => __('No backup copies are left in your site’s folder', 'fluent-security'),
                 'scored' => true
             ])];
         }
@@ -66,7 +66,7 @@ class BackupFilesCheck extends Check
             'state'    => Finding::STATE_OPEN,
             'severity' => Finding::SEVERITY_FIX,
             'title'    => $this->title(count($found)),
-            'why'      => __('Anyone who guesses the name can download these. A database dump holds every password on your site; a site archive holds your database details.', 'fluent-security'),
+            'why'      => __('Anyone who guesses the file name can download these. They contain your database details and everyone’s login details.', 'fluent-security'),
             'details'  => array_merge($found, [
                 __('Move these somewhere outside your website\'s folder, or delete them.', 'fluent-security')
             ]),

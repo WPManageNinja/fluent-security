@@ -26,7 +26,7 @@ export default {
                 {
                     code: '[fluent_auth]',
                     title: this.$t('Everything'),
-                    description: this.$t('Login, registration and password reset in one place, showing whichever the visitor needs.')
+                    description: this.$t('Login, registration and password reset in one form. Visitors switch between them with a link.')
                 },
                 {
                     code: '[fluent_auth_login]',
@@ -41,7 +41,7 @@ export default {
                 {
                     code: '[fluent_auth_reset_password]',
                     title: this.$t('Password reset'),
-                    description: this.$t('Requests a reset link and sets the new password.')
+                    description: this.$t('Lets people request a reset link and choose a new password.')
                 },
                 {
                     code: '[fluent_auth_magic_login]<h3>Type your email address to log in</h3>[/fluent_auth_magic_login]',
@@ -147,7 +147,7 @@ export default {
 
             <el-form v-else label-position="top">
                 <SettingsCard :title="$t('Shortcode forms')"
-                              :description="$t('Turn this on to use the shortcodes below. With it off they render nothing.')">
+                              :description="$t('The shortcodes below only work while this is on. With it off, they show nothing.')">
                     <template #actions>
                         <el-switch v-model="settings.enabled" active-value="yes" inactive-value="no"/>
                     </template>
@@ -165,7 +165,7 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard v-if="design" :title="$t('Login page design')"
-                              :description="$t('Replaces the default WordPress login screen with a styled one you lay out yourself.')">
+                              :description="$t('Replaces the standard WordPress login screen with one you design.')">
                     <template #actions>
                         <el-switch v-model="design.status" :disabled="savingDesign"
                                    active-value="yes" inactive-value="no" @change="saveDesign()"/>

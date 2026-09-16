@@ -76,7 +76,7 @@ export default {
         headerNote() {
             if (!this.deviceMethods.length) {
                 return this.methods.email
-                    ? this.$t('Emailed codes only. Nobody on this site can set up an authenticator app or a passkey.')
+                    ? this.$t('Emailed codes only. Nobody can set up an authenticator app or a passkey until one of those is switched on.')
                     : '';
             }
 
@@ -88,7 +88,7 @@ export default {
              * up", because the five were holding the method the sentence left out.
              */
             return this.$t(
-                '%1s of %2s users who can set up %3s have one',
+                '%1s of %2s users who can use %3s have set one up',
                 this.summary.enrolled,
                 this.summary.eligible,
                 this.deviceMethods.join(this.$t(' or '))
@@ -123,8 +123,8 @@ export default {
         views() {
             return [
                 {key: 'all', label: this.$t('All')},
-                {key: 'enrolled', label: this.$t('Enrolled')},
-                {key: 'not_enrolled', label: this.$t('Not enrolled')}
+                {key: 'enrolled', label: this.$t('Set up')},
+                {key: 'not_enrolled', label: this.$t('Not set up')}
             ];
         },
         /*
@@ -139,11 +139,11 @@ export default {
             }
 
             if (this.filter === 'enrolled') {
-                return this.$t('Nobody has set up a second factor yet');
+                return this.$t('Nobody has set up two-factor sign-in yet');
             }
 
             if (this.filter === 'not_enrolled') {
-                return this.$t('Everybody who is offered one has set it up');
+                return this.$t('Everyone who can use two-factor has set it up');
             }
 
             return this.$t('No users match this filter');
@@ -230,7 +230,7 @@ export default {
          */
         confirmReset(user) {
             this.$confirm(
-                this.$t('Use this when %s has lost the device it was set up on. They will be signed in by password alone until they set up a new one, and their recovery codes stop working straight away.', user.user_login),
+                this.$t('Do this if %s has lost the device the app was on. They can set up a new one from their profile.', user.user_login),
                 this.$t('Remove the authenticator app?'),
                 {
                     confirmButtonText: this.$t('Remove it'),
@@ -300,7 +300,7 @@ export default {
             const actions = [];
 
             if (user.profile_url) {
-                actions.push({command: 'profile', label: this.$t('Open their 2FA setup')});
+                actions.push({command: 'profile', label: this.$t('Manage on their profile')});
             }
 
             if (user.totp_enrolled && user.can_edit) {
@@ -337,7 +337,7 @@ export default {
 
 <template>
     <div>
-        <SettingsHeader :heading="$t('Two-Factor Enrollment')"
+        <SettingsHeader :heading="$t('Two-Factor Users')"
                         :description="headerNote"
                         :show-save="false"/>
 
@@ -350,9 +350,9 @@ export default {
             <div v-if="loaded && !anythingEnabled" class="fls_list_card">
                 <div class="fls_empty fls_2fa_prompt">
                     <span v-html="icons.twoFa"></span>
-                    <h3>{{ $t('No second factor is switched on') }}</h3>
+                    <h3>{{ $t('Two-factor sign-in is off') }}</h3>
                     <p>
-                        {{ $t('Nobody on this site is asked for anything beyond a password. Switch on an authenticator app or emailed codes, and this page will show who has set one up.') }}
+                        {{ $t('Everyone signs in with a password alone. Turn on an authenticator app, passkeys or emailed codes and this page will show who has set one up.') }}
                     </p>
                     <router-link :to="{name: 'settings_general', query: {section: 'two_fa'}}">
                         <el-button type="primary" size="small">
@@ -370,8 +370,8 @@ export default {
                 -->
                 <el-alert v-if="loaded && missingMethods.length" type="info" :closable="false" show-icon
                           class="fls_row_alert"
-                          :title="$t('Not every method is switched on')">
-                    {{ $t('This site does not offer %s. Users can only set up what is switched on, so that column stays empty for everyone.', missingMethods.join($t(' or '))) }}
+                          :title="$t('Some sign-in methods are off')">
+                    {{ $t('This site does not offer %s, so nobody can set that up.', missingMethods.join($t(' or '))) }}
                     <router-link :to="{name: 'settings_general', query: {section: missingMethodsSection}}">
                         {{ $t('Review sign-in settings') }}
                     </router-link>
@@ -442,7 +442,7 @@ export default {
                             about the same account. Held factors are drawn as chips, so a
                             row with both reads as both at a glance.
                         -->
-                        <el-table-column :label="$t('Second factor')" min-width="190">
+                        <el-table-column :label="$t('Two-factor method')" min-width="190">
                             <template #default="scope">
                                 <div class="fls_cell_stack">
                                     <template v-if="factorsOf(scope.row).length">
@@ -463,7 +463,7 @@ export default {
                                          class="fls_cell_main">
                                         <span class="fls_tag is_neutral">{{ $t('Not set up') }}</span>
                                     </div>
-                                    <span v-else class="fls_cell_muted">{{ $t('Not available') }}</span>
+                                    <span v-else class="fls_cell_muted">{{ $t('Not offered') }}</span>
                                 </div>
                             </template>
                         </el-table-column>

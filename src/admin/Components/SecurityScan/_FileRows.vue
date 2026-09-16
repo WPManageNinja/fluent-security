@@ -246,7 +246,7 @@ export default {
 
             <div class="fls_scan_file_aside">
                 <span v-if="file.modifiedAt" class="fls_scan_file_meta"
-                      :title="$t('Modified at (UTC)')">
+                      :title="$t('Last changed (UTC)')">
                     {{ file.modifiedAt }}
                 </span>
 

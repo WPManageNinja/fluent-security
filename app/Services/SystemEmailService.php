@@ -497,6 +497,47 @@ class SystemEmailService
 
     }
 
+    /**
+     * The From and Reply-To the owner chose, on top of whatever headers a caller already has.
+     *
+     * Lives here rather than on WPSystemEmailHandler because it was only ever reached from
+     * there, and the seven other places this plugin calls wp_mail() - the two-factor code,
+     * the magic link, sign-in alerts, blocked-login alerts, the summary, the signup
+     * verification and the reset - each built their own Content-Type header and nothing
+     * else. So an owner who set a From name on the email design screen saw it on the
+     * WordPress emails they had customised and nowhere else, with nothing on screen saying
+     * that was the rule.
+     *
+     * @param array $headers
+     * @return array
+     */
+    public static function getEmailHeaders($headers = [])
+    {
+        if (!is_array($headers) || !$headers) {
+            $headers = [];
+        }
+
+        $headers[] = 'Content-Type: text/html; charset=UTF-8';
+
+        $settings = Arr::get(self::getGlobalSettings(), 'template_settings', []);
+
+        $from = Arr::get($settings, 'from_email', '');
+
+        if ($from) {
+            $name = Arr::get($settings, 'from_name', '');
+            $headers[] = 'From: ' . ($name ? $name . ' ' : '') . '<' . $from . '>';
+        }
+
+        $replyTo = Arr::get($settings, 'reply_to_email', '');
+
+        if ($replyTo) {
+            $name = Arr::get($settings, 'reply_to_name', '');
+            $headers[] = 'Reply-To: ' . ($name ? $name . ' ' : '') . '<' . $replyTo . '>';
+        }
+
+        return $headers;
+    }
+
     public static function withHtmlTemplate($body, $footer = null, $wpUser = null)
     {
         $templateConfig = Arr::get(self::getGlobalSettings(), 'template_settings', []);

@@ -636,6 +636,20 @@
         border-color: var(--fls-success-fg);
     }
 
+    /*
+     * Nothing this panel sets can do anything yet - the requirement block with every
+     * method switched off. Dimmed rather than hidden, because an owner who has already
+     * named roles has to be able to see that the setting exists and is not in force.
+     * The note inside it keeps full contrast: it is the one thing here worth reading.
+     */
+    &.is-disabled {
+        .fls_2fa_method_head,
+        .el-form-item__label,
+        .fls_2fa_method_body > .el-row p {
+            opacity: .6;
+        }
+    }
+
     .fls_2fa_method_head {
         @apply flex items-start justify-between;
 
@@ -680,9 +694,16 @@
             padding-bottom: 3px;
         }
 
+        /*
+         * Element Plus lays a form item's content out as a flex row, so a caption
+         * written after a checkbox lands beside it rather than under it - the control
+         * and its explanation reading as one run-on line. Every caption in here belongs
+         * below its control, so each takes the whole row and the wrap does the rest.
+         */
         .el-form-item p {
             @apply text-xs text-ink-light m-0;
 
+            width: 100%;
             margin-top: 3px;
             line-height: 1.45;
         }

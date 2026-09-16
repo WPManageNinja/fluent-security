@@ -111,8 +111,8 @@ export default {
         },
         fileLabel(file) {
             const labels = {
-                changed: this.$t('Not the file it was'),
-                new: this.$t('New since we started watching')
+                changed: this.$t('Changed since recorded'),
+                new: this.$t('New since recorded')
             };
 
             return labels[file.status] || '';
@@ -197,7 +197,7 @@ export default {
 
                 <div class="fls_scan_snapshot_text">
                     <strong v-if="unrecorded.length">
-                        {{ $_n('%s file is new or changed since the record', '%s files are new or changed since the record', unrecorded.length) }}
+                        {{ $_n('%s file is new or changed since it was recorded', '%s files are new or changed since they were recorded', unrecorded.length) }}
                     </strong>
                     <strong v-else>
                         {{ $_n('Watching %s file', 'Watching %s files', files.length) }}
@@ -209,7 +209,7 @@ export default {
 
                 <div class="fls_scan_snapshot_actions">
                     <el-button size="small" :disabled="saving" @click="record()">
-                        {{ unrecorded.length ? $t('These are correct — record them') : $t('Update record') }}
+                        {{ unrecorded.length ? $t('Accept and record') : $t('Update record') }}
                     </el-button>
                 </div>
             </div>

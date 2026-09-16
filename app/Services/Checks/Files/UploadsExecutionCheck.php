@@ -101,7 +101,7 @@ class UploadsExecutionCheck extends Check
                 'state'    => Finding::STATE_OPEN,
                 'severity' => Finding::SEVERITY_ADVICE,
                 'title'    => $this->untestedTitle(),
-                'why'      => __('Your site would not answer a request from itself, so we cannot tell you whether PHP runs in the folder your uploads go to. This is usually a hosting setting rather than a problem with your site, and blocking PHP there is optional hardening either way.', 'fluent-security'),
+                'why'      => __('Your site did not answer a test request from itself, so we could not check whether uploaded files can run as code. This is usually a hosting setting, and the check is optional anyway.', 'fluent-security'),
                 'details'  => $this->probeDetails($result),
                 'action'   => 'fix',
                 'label'    => __('Try again', 'fluent-security'),
@@ -120,8 +120,8 @@ class UploadsExecutionCheck extends Check
             'severity' => Finding::SEVERITY_ADVICE,
             'title'    => $this->executesTitle(),
             'why'      => $canWrite
-                ? __('Most hosts leave this open, so it is not a sign that anything is wrong with your site. It is still worth closing: if anything on your site ever accepts an upload, a file slipped through it could not be run. Blocking PHP in this folder does not affect your images or documents.', 'fluent-security')
-                : __('Most hosts leave this open, so it is not a sign that anything is wrong with your site. It is still worth closing: if anything on your site ever accepts an upload, a file slipped through it could not be run. Your web server is not one we can write the rule for, so your host would need to add it.', 'fluent-security'),
+                ? __('Most hosts leave this open, so it is not a sign of a problem. Blocking it means a file that sneaks in through an upload form cannot run, and your images and documents are unaffected.', 'fluent-security')
+                : __('Most hosts leave this open, so it is not a sign of a problem. Blocking it means a file that sneaks in through an upload form cannot run, but on your web server your host has to add the rule.', 'fluent-security'),
             'details'  => $canWrite ? $this->probeDetails($result) : $this->snippetDetails($result),
             'action'   => $canWrite ? 'fix' : 'none',
             'label'    => __('Block it', 'fluent-security'),

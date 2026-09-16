@@ -124,13 +124,29 @@ class TotpPolicyTest extends BaseTestCase
     }
 
     /**
-     * The master switch governs who may set one up voluntarily. It does not cancel a
-     * requirement - a site that says a role must hold a second factor while every method
-     * is switched off used to mean nothing at all, which is the worst reading available.
+     * The master switch governs the method for everybody, requirement included.
+     *
+     * A site with every method switched off has no second factor at all - so a
+     * requirement standing over it is not a hidden policy, it is nothing. This is the
+     * rule that keeps the settings screen honest: a method that reads off is off.
      */
-    public function testTurningTheMethodOffDoesNotCancelTheRequirement()
+    public function testTurningTheMethodOffCancelsTheRequirementItWasTheOnlyWayToMeet()
     {
         $this->policy('no', [], ['administrator']);
+
+        $this->assertFalse(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->admin));
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
+    }
+
+    /**
+     * Switched on, though, and the requirement reaches past the allow list - otherwise
+     * the two could disagree, and the disagreement is a user who must hold a factor and
+     * has no way to get one.
+     */
+    public function testTheRequirementStillReachesPastTheAllowListWhileTheMethodIsOn()
+    {
+        $this->policy('yes', [], ['administrator']);
 
         $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
         $this->assertTrue(TotpTwoFaMethod::isAllowedForUser($this->admin));

@@ -187,9 +187,9 @@ export default {
         <div class="fls_scan_register_page">
             <div v-if="!is_main" class="fls_page_head">
                 <div>
-                    <h1 class="fls_page_title">{{ $t('Scanning Service') }}</h1>
+                    <h1 class="fls_page_title">{{ $t('Scan Alerts') }}</h1>
                     <p class="fls_page_desc">
-                        {{ $t('The free API key that lets FluentAuth scan on a schedule and email you when a core file changes.') }}
+                        {{ $t('Connect this site to scan on a schedule and get an email when a file changes.') }}
                     </p>
                 </div>
                 <div class="fls_page_actions">
@@ -203,9 +203,9 @@ export default {
                 <div v-if="settings" class="fls_scan_register">
                     <div class="fls_scan_register_head">
                         <span class="fls_scan_register_icon" v-html="icons.shield"></span>
-                        <h2 v-if="awaitingKey">{{ $t('The Last Step!') }}</h2>
+                        <h2 v-if="awaitingKey">{{ $t('One last step') }}</h2>
                         <h2 v-else>
-                            {{ $t('Let\'s Secure your site by checking unauthorized changes of WP Core Files') }}
+                            {{ $t('Get an email when a file on this site changes') }}
                         </h2>
                         <p v-if="awaitingKey">
                             <span v-html="$t('__api_key_email_sent__', settings.account_email_id)"></span>
@@ -284,12 +284,12 @@ export default {
 
                         <template v-else>
                             <el-form-item :label="$t('API Key')">
-                                <el-input :placeholder="$t('Provide API Key')" v-model="onboardForm.api_key"/>
+                                <el-input :placeholder="$t('Paste the key from your email')" v-model="onboardForm.api_key"/>
                             </el-form-item>
                             <el-form-item>
                                 <el-button type="primary" :loading="submitting" :disabled="submitting"
                                            @click="registerSite">
-                                    {{ $t('Start Scan Your Site') }}
+                                    {{ $t('Connect and run the first scan') }}
                                 </el-button>
                             </el-form-item>
                         </template>
@@ -303,7 +303,7 @@ export default {
                             </a>.
                         </p>
                         <p v-else>
-                            <span v-html="$t('__api_key_form_consent__', `<a target=&quot;_blank&quot; rel=&quot;noopener&quot; href=&quot;https://fluentauth.com/privacy-policy/&quot;>` + $t('privacy policy and terms and conditions') + `</a>`)"></span>
+                            <span v-html="$t('__api_key_form_consent__', `<a target=&quot;_blank&quot; rel=&quot;noopener&quot; href=&quot;https://fluentauth.com/privacy&quot;>` + $t('privacy policy and terms and conditions') + `</a>`)"></span>
                         </p>
 
                     </div>
@@ -328,7 +328,7 @@ export default {
                 <el-skeleton v-else-if="loading" class="fls_scan_register" :animated="true" :rows="6"/>
 
                 <el-empty v-else
-                          :description="$t('Sorry! Settings could not be loaded. Please reload the page')"/>
+                          :description="$t('Settings could not be loaded. Reload the page to try again.')"/>
             </div>
         </div>
     </div>

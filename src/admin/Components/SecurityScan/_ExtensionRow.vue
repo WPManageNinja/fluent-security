@@ -143,7 +143,7 @@ export default {
             }
 
             if (this.state === 'suspicious' || this.state === 'unchecked') {
-                return (this.result && this.result.reason_label) || this.$t('Could not be verified');
+                return (this.result && this.result.reason_label) || this.$t('Could not be checked');
             }
 
             return this.$_n('%s change', '%s changes', this.counts.active);
@@ -247,7 +247,7 @@ export default {
                 ));
             }
 
-            lines.push(this.$t('Its settings are kept, because they live in the database.'));
+            lines.push(this.$t('Its settings are kept.'));
 
             this.$confirm(lines.join(' '), this.$t('Reinstall %s?', this.item.name), {
                 type: 'warning',
@@ -351,7 +351,7 @@ export default {
                     <div class="fls_scan_explain_actions">
                         <el-button v-if="canReinstall" type="primary" size="small"
                                    :disabled="reinstalling" @click="reinstall">
-                            {{ $t('Replace with the WordPress.org release') }}
+                            {{ $t('Replace with the WordPress.org version') }}
                         </el-button>
 
                         <el-button size="small" :disabled="saving" @click="toggleExpected">

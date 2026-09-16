@@ -147,7 +147,7 @@ export default {
             }
 
             if (this.suspiciousCount) {
-                parts.push(this.$_n('%s unpublished version', '%s unpublished versions', this.suspiciousCount));
+                parts.push(this.$_n('%s version not on WordPress.org', '%s versions not on WordPress.org', this.suspiciousCount));
             }
 
             return parts.join(' · ');

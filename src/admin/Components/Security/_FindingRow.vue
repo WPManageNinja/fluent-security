@@ -32,9 +32,9 @@ export default {
         },
         dismissExplanation() {
             if (this.finding.dismiss === 'expected') {
-                return this.$t('Mark the current state as expected. This check can report a finding again when that state changes.');
+                return this.$t('This records things as they are now. You will hear about it again only if something changes.');
             }
-            return this.$t('This finding will stop being reported while it is dismissed. You can restore it from Dismissed. This does not fix the underlying issue.');
+            return this.$t('This hides the finding without fixing anything. You can bring it back from the Dismissed tab.');
         },
         isCritical() {
             return this.finding.severity === 'fix';

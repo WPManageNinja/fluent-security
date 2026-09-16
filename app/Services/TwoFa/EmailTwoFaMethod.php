@@ -76,6 +76,11 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
      *
      * @return bool
      */
+    public function isSwitchedOn()
+    {
+        return Helper::getSetting('email2fa') === 'yes';
+    }
+
     public static function isEnabledForAnyRole()
     {
         if (Helper::getSetting('email2fa') !== 'yes') {
@@ -343,9 +348,12 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
             ];
         }
 
-        return \wp_mail($user->user_email, $emailData['subject'], $emailData['body'], array(
-            'Content-Type: text/html; charset=UTF-8'
-        ));
+        return \wp_mail(
+            $user->user_email,
+            $emailData['subject'],
+            $emailData['body'],
+            SystemEmailService::getEmailHeaders()
+        );
     }
 
     private function getCustomizedEmailSubjectBody($data, $user, $autoLoginUrl = false)

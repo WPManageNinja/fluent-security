@@ -7,6 +7,7 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 use FluentAuth\App\Services\IpRules;
 use FluentAuth\App\Services\SecurityChecks;
+use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
 /**
@@ -459,7 +460,15 @@ class DashboardController
 
         return [
             'two_fa'    => $twoFa,
-            'two_fa_enabled' => Arr::get($settings, 'totp_2fa') === 'yes',
+            /*
+             * Both device methods, because the count beside this reads both -
+             * TwoFaController::countEnrolledUsers() counts an authenticator app or a
+             * passkey. Asking only about `totp_2fa` made a site running passkeys alone
+             * report "Off" over a row of people who had enrolled, which is the one
+             * combination this tile exists to describe.
+             */
+            'two_fa_enabled' => Arr::get($settings, 'totp_2fa') === 'yes'
+                || PasskeyTwoFaMethod::isEnabledForAnyRole(),
             'scan'      => [
                 'registered'   => in_array(Arr::get($scan, 'status'), ['active', 'self'], true),
                 /*

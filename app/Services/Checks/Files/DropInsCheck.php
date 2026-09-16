@@ -72,8 +72,8 @@ class DropInsCheck extends WatchedFilesCheck
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'The file that loads before the rest of your site is the one that was there before',
-                'The %s files that load before the rest of your site are the ones that were there before',
+                'The file that loads before the rest of your site has not changed',
+                'The %s files that load before the rest of your site have not changed',
                 $count,
                 'fluent-security'
             ),
@@ -98,10 +98,10 @@ class DropInsCheck extends WatchedFilesCheck
     protected function words()
     {
         return [
-            'appeared_why'  => __('This was not here when we last looked. WordPress runs these automatically if they are present, nothing lists them as installed, and they load earlier than plugins do. Caching and database plugins add them legitimately — worth checking whether you just installed one.', 'fluent-security'),
+            'appeared_why'  => __('This file was not here last time we looked, and WordPress runs it automatically without listing it anywhere. Caching and database plugins add these legitimately, so check whether you just installed one.', 'fluent-security'),
             'alert_title'   => __('A file that loads before the rest of your site has changed', 'fluent-security'),
-            'alert_why'     => __('One of these is no longer the file it was. They run earlier than plugins do, so a change here is worth accounting for.', 'fluent-security'),
-            'none_title'    => __('Nothing unexpected loads ahead of your site', 'fluent-security')
+            'alert_why'     => __('One of these files has changed. If you did not update the plugin that added it, find out who did.', 'fluent-security'),
+            'none_title'    => __('No extra files load before the rest of your site', 'fluent-security')
         ];
     }
 
@@ -130,7 +130,7 @@ class DropInsCheck extends WatchedFilesCheck
 
         foreach ($changed as $path) {
             /* translators: %s: a drop-in file name and what it does */
-            $details[] = sprintf(__('%s (not the file it was)', 'fluent-security'), $describe($path));
+            $details[] = sprintf(__('%s (changed)', 'fluent-security'), $describe($path));
         }
 
         foreach ($appeared as $path) {

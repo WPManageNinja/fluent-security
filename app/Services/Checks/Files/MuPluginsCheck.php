@@ -58,8 +58,8 @@ class MuPluginsCheck extends WatchedFilesCheck
         return sprintf(
             /* translators: %s: number of files */
             _n(
-                'The file that runs on every page is the one that was there before',
-                'The %s files that run on every page are the ones that were there before',
+                'The file that runs on every page has not changed',
+                'The %s files that run on every page have not changed',
                 $count,
                 'fluent-security'
             ),
@@ -84,10 +84,10 @@ class MuPluginsCheck extends WatchedFilesCheck
     protected function words()
     {
         return [
-            'appeared_why'  => __('This was not here when we last looked. Files in this folder load automatically and cannot be switched off from the plugins screen, which is why it is a favourite place to leave a way back in. Your host or your developer may have added it — worth asking before anything else.', 'fluent-security'),
+            'appeared_why'  => __('This file was not here last time we looked, and files in this folder run automatically without appearing on your plugins screen. Ask your host or developer whether they added it before doing anything else.', 'fluent-security'),
             'alert_title'   => __('Something running on every page of your site has changed', 'fluent-security'),
-            'alert_why'     => __('A file that was here is no longer the same file. Nothing in this folder can be switched off from the plugins screen, so it is worth finding out who changed it.', 'fluent-security'),
-            'none_title'    => __('Nothing loads on every page but WordPress itself', 'fluent-security')
+            'alert_why'     => __('One of these files has changed. It cannot be switched off from the plugins screen, so find out who changed it.', 'fluent-security'),
+            'none_title'    => __('No extra files run on every page of your site', 'fluent-security')
         ];
     }
 }

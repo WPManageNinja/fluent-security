@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IpRules;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\SystemEmailService;
 
 class LoginSecurityHandler
 {
@@ -824,7 +825,7 @@ class LoginSecurityHandler
         $body = Helper::loadView('notification', $data);
         $subject = '[' . $siteName . '] Login success for ' . $user->user_login;
 
-        $headers = array('Content-Type: text/html; charset=UTF-8');
+        $headers = SystemEmailService::getEmailHeaders();
 
         return \wp_mail($adminEmail, $subject, $body, $headers);
     }
@@ -894,7 +895,7 @@ class LoginSecurityHandler
         $body = Helper::loadView('notification', $data);
         $subject = '[' . $siteName . '] Blocked from login - ' . $userName;
 
-        $headers = array('Content-Type: text/html; charset=UTF-8');
+        $headers = SystemEmailService::getEmailHeaders();
 
         return \wp_mail($adminEmail, $subject, $body, $headers);
     }

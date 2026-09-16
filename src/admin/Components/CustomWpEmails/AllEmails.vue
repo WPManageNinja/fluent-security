@@ -71,7 +71,7 @@ export default {
             }
 
             if (status == 'disabled') {
-                return this.$t('Disabled');
+                return this.$t('Not sent');
             }
 
             if (status == 'system') {
@@ -93,7 +93,7 @@ export default {
 <template>
     <div>
         <SettingsHeader :heading="$t('System Emails')"
-                        :description="$t('The emails WordPress itself sends, in your own words and your own design.')"
+                        :description="$t('The emails your site sends about accounts and sign-in. Rewrite any of them, or leave it as it is.')"
                         :show-save="false">
             <template #actions>
                 <!--
@@ -102,7 +102,7 @@ export default {
                     beside it to be lesser than, it just reads as a caption.
                 -->
                 <el-button size="large" @click="$router.push({name: 'settings_email_template'})">
-                    {{ $t('Template design') }}
+                    {{ $t('Email design') }}
                 </el-button>
             </template>
         </SettingsHeader>
@@ -135,7 +135,7 @@ export default {
             </SettingsCard>
 
             <SettingsCard :title="$t('Sent to you')"
-                          :description="$t('Notices about the site itself, delivered to the administration address.')">
+                          :description="$t('Sent to the admin email address set under Settings > General.')">
                 <el-table :data="groups.admin_emails" class="fls_table">
                     <el-table-column min-width="300" prop="name" :label="$t('Email')">
                         <template #default="scope">

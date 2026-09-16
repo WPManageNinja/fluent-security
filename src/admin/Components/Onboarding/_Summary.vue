@@ -69,11 +69,11 @@ export default {
 
             <p v-if="changedNothing" class="fls_onb_done_lead">
                 {{
-                    $t('Your choices have been saved. Review the security checklist for any remaining recommendations.')
+                    $t('Your choices are saved. The security checklist shows what is still worth doing.')
                 }}
             </p>
             <p v-else class="fls_onb_done_lead">
-                {{ $t('Your selected settings are now active. You can adjust them at any time in Settings.') }}
+                {{ $t('These are now on. You can change any of them in Settings.') }}
             </p>
 
             <ul v-if="!changedNothing" class="fls_onb_done_list">
@@ -88,7 +88,7 @@ export default {
                 <ul class="fls_onb_done_next_list">
                     <li>
                         <router-link :to="{name: 'security_findings'}">{{ $t('Review the security checklist') }}</router-link>
-                        <span>{{ $t('Everything setup did not cover, scored and explained.') }}</span>
+                        <span>{{ $t('What this setup did not cover, and why each item matters.') }}</span>
                     </li>
                     <li>
                         <router-link :to="{name: 'settings_ip_rules'}">{{ $t('Add your own address to the allow list') }}</router-link>
@@ -96,7 +96,7 @@ export default {
                     </li>
                     <li>
                         <router-link :to="{name: 'security_scans'}">{{ $t('Set up file monitoring') }}</router-link>
-                        <span>{{ $t('Scan WordPress files and review unexpected changes.') }}</span>
+                        <span>{{ $t('Compare your WordPress files with the originals and flag any changes.') }}</span>
                     </li>
                 </ul>
             </div>
@@ -117,7 +117,7 @@ export default {
                     {{ $t('Go to the dashboard') }}
                 </router-link>
                 <router-link class="el-button" :to="{name: 'settings_general'}">
-                    {{ $t('Review every setting') }}
+                    {{ $t('See all settings') }}
                 </router-link>
             </div>
         </div>

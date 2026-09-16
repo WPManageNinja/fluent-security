@@ -128,7 +128,7 @@ export default {
             return [
                 {
                     type: 'text',
-                    label: this.$t('Authentication code'),
+                    label: this.$t('Sign-in code'),
                     placeholder: '● ● ● ● ● ●'
                 }
             ];

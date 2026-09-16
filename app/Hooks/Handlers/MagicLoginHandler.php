@@ -325,9 +325,12 @@ class MagicLoginHandler
             $emailData['body'] = $emailBody;
         }
 
-        $result = \wp_mail($user->user_email, $emailData['subject'], $emailData['body'], array(
-            'Content-Type: text/html; charset=UTF-8'
-        ));
+        $result = \wp_mail(
+            $user->user_email,
+            $emailData['subject'],
+            $emailData['body'],
+            SystemEmailService::getEmailHeaders()
+        );
 
         $confirmation = $this->sentConfirmation($username);
         $confirmation['result'] = $result;

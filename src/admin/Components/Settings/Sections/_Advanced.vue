@@ -31,7 +31,7 @@ export default {
         </SettingRow>
 
         <SettingRow :label="$t('Keep these roles out of wp-admin')"
-                    :description="$t('Hides the admin bar and sends them to the front page. Anyone who can publish is never kept out.')">
+                    :description="$t('They land on the front page instead, with no admin bar. Anyone who can publish posts still gets in.')">
             <el-select clearable :multiple="true" v-model="settings.disable_bar_roles"
                        :placeholder="$t('Everyone can reach wp-admin')">
                 <el-option v-for="(role, roleId) in low_level_roles" :value="roleId"

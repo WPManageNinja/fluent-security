@@ -8,7 +8,7 @@
             :content="rendered_email.body"></emailbody-container>
     </template>
     <div v-else>
-        <el-empty :description="$t('Sorry! we could not load this preview')" />
+        <el-empty :description="$t('The preview could not be loaded.')" />
     </div>
 </template>
 

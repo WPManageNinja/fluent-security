@@ -59,7 +59,7 @@ export default {
                 {
                     key: 'two_fa',
                     label: this.$t('Authenticator app'),
-                    value: this.protection.two_fa_enabled ? this.$t('%1s of %2s enrolled', twoFa.enrolled, twoFa.total) : this.$t('Disabled'),
+                    value: this.protection.two_fa_enabled ? this.$t('%1s of %2s users set up', twoFa.enrolled, twoFa.total) : this.$t('Disabled'),
                     warning: !this.protection.two_fa_enabled || twoFa.enrolled === 0,
                     route: this.protection.two_fa_enabled ? 'settings_two_fa_enrollment' : 'settings_general'
                 },
@@ -72,7 +72,7 @@ export default {
                 },
                 {
                     key: 'auto_scan',
-                    label: this.$t('Auto scanning'),
+                    label: this.$t('Scheduled scans'),
                     value: this.autoScanLabel,
                     /*
                      * A site that deliberately scans without the alerts service has no schedule
@@ -186,7 +186,7 @@ export default {
             <h2>{{ $t('Security status') }}</h2>
             <el-skeleton v-if="loading" :animated="true" :rows="3"/>
             <div v-else-if="loadError" class="fls_dashboard__security-error" role="alert">
-                <p>{{ $t('Security status is unavailable. Try loading the checks again.') }}</p>
+                <p>{{ $t('Could not load the security checks.') }}</p>
                 <el-button size="small" @click="getFindings">{{ $t('Try again') }}</el-button>
             </div>
             <template v-else>
@@ -209,14 +209,14 @@ export default {
                     {{ attention.length ? $t('Review security issues') : $t('View security checks') }}
                 </el-button>
                 <div v-if="score.total" class="fls_dashboard__checks">
-                    <span>{{ $t('Recommended checks addressed') }}</span><b>{{ $t('%1s of %2s', score.done, score.total) }}</b>
+                    <span>{{ $t('Recommendations done') }}</span><b>{{ $t('%1s of %2s', score.done, score.total) }}</b>
                 </div>
-                <p v-if="score.total" class="fls_dashboard__caption">{{ $t('Passed or dismissed checks. File findings are reviewed separately.') }}</p>
+                <p v-if="score.total" class="fls_dashboard__caption">{{ $t('Counts recommendations that passed or that you dismissed. File scan results are not included.') }}</p>
             </template>
         </div>
 
         <div class="fls_aside_block">
-            <h3>{{ $t('Protection at a glance') }}</h3>
+            <h3>{{ $t('Current protection') }}</h3>
 
             <ul class="fls_dash_facts">
                 <li v-for="fact in facts" :key="fact.key" :class="{is_warning: fact.warning}">
@@ -242,7 +242,7 @@ export default {
             <h3>{{ $t('Are your emails arriving?') }}</h3>
 
             <p>
-                {{ $t('Login alerts, magic links and two-factor codes are only as reliable as the email that carries them.') }}
+                {{ $t('Login alerts, magic links and two-factor codes all go out by email. FluentSMTP sends your site\'s email through a mail service you choose, which is far more reliable than the web server.') }}
             </p>
 
             <el-button :loading="installing" @click="installPlugin('fluent-smtp')" type="primary">

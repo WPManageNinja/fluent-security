@@ -51,14 +51,14 @@ export default {
         },
         verdict() {
             if (this.connection.needs_attention) {
-                return this.$t('Every visitor is arriving as this one address.');
+                return this.$t('Every visitor currently shows up as this one address.');
             }
 
             if (this.isProxy) {
-                return this.$t('Once the proxy is declared, visitors are told apart by the header it sends.');
+                return this.$t('Once you add the proxy address, visitors will be told apart again.');
             }
 
-            return this.$t('Visitors are told apart by the address they connect from.');
+            return this.$t('Each visitor is seen at their own address.');
         }
     }
 };
@@ -80,7 +80,7 @@ export default {
         <dl class="fls_onb_conn_evidence">
             <div class="fls_onb_conn_row">
                 <dt>{{ $t('In front of this site') }}</dt>
-                <dd>{{ vendor || (headers.length ? $t('Something is forwarding requests') : $t('Nothing detected')) }}</dd>
+                <dd>{{ vendor || (headers.length ? $t('Something is passing visitors on') : $t('Nothing detected')) }}</dd>
             </div>
             <div v-if="connection.remote_addr" class="fls_onb_conn_row">
                 <dt>{{ $t('Connection from') }}</dt>

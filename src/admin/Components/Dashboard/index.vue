@@ -151,7 +151,7 @@ export default {
                     <div class="fls_stat_tiles" v-loading="loading">
                         <router-link v-for="stat in activityStats" :key="stat.key" class="fls_stat_tile"
                                      :class="'fls_stat_' + stat.key" :to="statTarget(stat)"
-                                     :title="$t('Browse logs for this status across all retained dates')">
+                                     :title="$t('Open these entries in the activity log. The log covers every date, not just this period.')">
                             <div class="fls_stat_title"><span class="fls_stat_icon" aria-hidden="true" v-html="icons[stat.key]"></span>{{ stat.title }}</div>
                             <div class="fls_stat_value">{{ stat.value }}<span class="fls_dashboard__arrow" aria-hidden="true">↗</span></div>
                         </router-link>
@@ -161,7 +161,7 @@ export default {
                 <section class="fls_dcard" :aria-label="$t('Recent activity')">
                     <div class="fls_dcard_head">
                         <div><h2>{{ $t('Recent activity') }}</h2><p class="fls_dashboard__caption">{{ $t('Latest entries · %s', rangeLabel) }}</p></div>
-                        <router-link :to="{name: 'logs'}">{{ $t('Browse all logs') }} <span aria-hidden="true">↗</span></router-link>
+                        <router-link :to="{name: 'logs'}">{{ $t('Open the activity log') }} <span aria-hidden="true">↗</span></router-link>
                     </div>
                     <div class="fls_dashboard__views" :aria-label="$t('Recent activity view')">
                         <button type="button" :aria-pressed="recentView === 'threats'" :class="{is_active: recentView === 'threats'}" @click="recentView = 'threats'">{{ $t('Failed & blocked') }}</button>
@@ -188,7 +188,7 @@ export default {
                                     <el-button v-else size="small" :disabled="!!blocking" :aria-label="$t('Block %s', row.ip)" @click="pendingBlock = pendingBlock === row ? null : row">{{ $t('Block IP') }}</el-button>
                                 </div>
                                 <div v-if="pendingBlock === row" class="fls_dashboard__confirm">
-                                    <p>{{ $t('Block sign-ins from %s? A shared IP can include legitimate users. You can remove this rule in IP Rules.', row.ip) }}</p>
+                                    <p>{{ $t('Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.', row.ip) }}</p>
                                     <el-button size="small" :disabled="!!blocking" @click="pendingBlock = null">{{ $t('Cancel') }}</el-button>
                                     <el-button size="small" type="danger" :loading="blocking === row.ip" @click="blockIp(row)">{{ $t('Confirm block') }}</el-button>
                                 </div>
@@ -206,7 +206,7 @@ export default {
                                 <div class="fls_dash_bar_track"><div class="fls_dash_bar_fill" :style="{width: method.percent + '%'}"></div></div>
                             </div>
                         </div>
-                        <div v-else class="fls_empty">{{ $t('No sign-ins to break down yet') }}</div>
+                        <div v-else class="fls_empty">{{ $t('Once people sign in, this shows which methods they used.') }}</div>
                     </div>
                 </section>
             </div>

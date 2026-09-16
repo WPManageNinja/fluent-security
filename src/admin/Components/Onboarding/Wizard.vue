@@ -284,7 +284,7 @@ export default {
                             {{ isLast ? $t('Review settings') : $t('Continue') }} <span aria-hidden="true">→</span>
                         </el-button>
                     </div>
-                    <p class="fls_onb_save_note">{{ $t('Your settings are saved only after you review and apply them.') }}</p>
+                    <p class="fls_onb_save_note">{{ $t('Nothing is saved until you review and apply it at the end.') }}</p>
                 </div>
             </form>
             <aside class="fls_onb_stage" :aria-label="$t('Preview')">

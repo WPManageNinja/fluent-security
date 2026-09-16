@@ -119,7 +119,7 @@ export default {
                     </span>
                 </span>
                 <span class="fls_onb_preset_val">
-                    {{ $t('%s tries / %s min', preset.limit, preset.timing) }}
+                    {{ $t('%s tries in %s min', preset.limit, preset.timing) }}
                 </span>
                 <span class="fls_onb_preset_note">{{ preset.note }}</span>
             </button>

@@ -110,25 +110,25 @@ export default {
             -->
             <el-alert v-if="restrictions_off" type="warning" :closable="false" show-icon
                       class="fls_row_alert"
-                      :title="$t('Address rules are switched off in wp-config.php')">
-                {{ $t('%s is set, so nothing is being refused by address: the block list is not applied and neither is the role restriction below. Remove the constant once the lists are right again.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                      :title="$t('IP rules are switched off in wp-config.php')">
+                {{ $t('%s is set in wp-config.php, so the block list and the role restriction below are not being applied. Remove that line once your lists are fixed.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
             </el-alert>
 
-            <SettingsCard :title="$t('Allow list')"
-                          :description="$t('These addresses are never locked out by the failed attempt limit.')">
+            <SettingsCard :title="$t('Allowed addresses')"
+                          :description="$t('These addresses are never locked out after too many failed logins.')">
                 <!--
                     Said before the box rather than after it: somebody reading this to decide
                     whether an allow list is safe should not have to scroll past the field
                     that adds one to find out what it does not do.
                 -->
                 <p class="fls_note">
-                    {{ $t('Being on this list skips the failed attempt limit and nothing else. It is not a trusted network: two-factor authentication still applies, and every attempt is still written to the log.') }}
+                    {{ $t('This only skips the lockout. Two-factor still applies and every attempt is still logged.') }}
                 </p>
 
                 <el-alert v-if="allow_paused" type="warning" :closable="false" show-icon
                           class="fls_row_alert"
-                          :title="$t('The allow list is paused')">
-                    {{ $t('Something in front of this site is relaying requests, and no proxy has been declared - so every visitor arrives as the same address. Exempting that address would exempt everyone, so nothing on this list is being applied.') }}
+                          :title="$t('This list is not being applied right now')">
+                    {{ $t('Every visitor currently reaches this site from the same address, because a proxy in front of it has not been set up here. Until it is, this list is ignored, since allowing that one address would allow everyone.') }}
                     <router-link :to="{name: 'settings_general', query: {section: 'visitor_ip'}}">
                         {{ $t('Set up the proxy') }}
                     </router-link>
@@ -140,22 +140,22 @@ export default {
                 <p class="fls_note">
                     {{ $t('One address or range per line, at most %s.', max_entries) }}
                     <template v-if="current_ip_listed">
-                        {{ $t('Your address right now is %s, which this list covers.', current_ip) }}
+                        {{ $t('Your current address is %s, and it is on this list.', current_ip) }}
                     </template>
                     <template v-else>
-                        {{ $t('Your address right now is %s.', current_ip) }}
+                        {{ $t('Your current address is %s.', current_ip) }}
                         <a href="#" @click.prevent="addCurrentIp()">{{ $t('Add it') }}</a>
                     </template>
                 </p>
             </SettingsCard>
 
-            <SettingsCard :title="$t('Restrict sign-in to the allow list')"
-                          :description="$t('Pick the roles that may only sign in from an address on the allow list above. Everyone else is unaffected.')">
+            <SettingsCard :title="$t('Only let some roles sign in from allowed addresses')"
+                          :description="$t('These roles can only sign in from an address in the list above. Other roles are not affected.')">
                 <div class="fls_row fls_row_stacked">
                     <div class="fls_row_label">
                         <label>{{ $t('Restricted roles') }}</label>
                         <p>
-                            {{ $t('Anyone in these roles signing in from anywhere else is refused - by password, by magic link, by social login and over the REST API alike.') }}
+                            {{ $t('Anyone in these roles is refused from any other address, however they sign in.') }}
                         </p>
                     </div>
                     <div class="fls_row_control">
@@ -174,17 +174,17 @@ export default {
                 -->
                 <el-alert v-if="restricted_roles.length && !current_ip_listed" type="error"
                           :closable="false" show-icon class="fls_row_alert"
-                          :title="$t('Your own address is not on the allow list')">
-                    {{ $t('Saving this would lock you out immediately, so it will be refused. Add %s to the allow list first.', current_ip) }}
+                          :title="$t('Your own address is not on the allowed list')">
+                    {{ $t('Saving this would lock you out straight away, so it will be refused. Add %s to the allowed addresses first.', current_ip) }}
                 </el-alert>
 
                 <p class="fls_note">
-                    {{ $t('If the allow list is ever emptied, the restriction stops applying rather than locking everyone out. A %s constant in wp-config.php turns it off outright, along with the block list below.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                    {{ $t('If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
                 </p>
             </SettingsCard>
 
-            <SettingsCard :title="$t('Block list')"
-                          :description="$t('These addresses are refused before a password is even checked.')">
+            <SettingsCard :title="$t('Blocked addresses')"
+                          :description="$t('These addresses can never sign in, even with the right password.')">
                 <el-input v-model="block" type="textarea" :rows="6" spellcheck="false"
                           class="fls_rules_box" placeholder="45.148.10.72&#10;45.148.10.0/24"/>
 
@@ -194,11 +194,11 @@ export default {
                     found in the documentation of a site they can no longer open.
                 -->
                 <p class="fls_note">
-                    {{ $t('One address or range per line, at most %s. The dashboard lists the addresses trying hardest to get in, with a button to block each one.', max_entries) }}
+                    {{ $t('One address or range per line, up to %s. The dashboard shows the addresses with the most failed logins and a Block button next to each.', max_entries) }}
                 </p>
 
                 <p class="fls_note">
-                    {{ $t('Your own address cannot be added here - saving refuses it. If you are ever locked out by a rule anyway, because your address changed or somebody else added it, %s in wp-config.php switches every address rule off.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                    {{ $t('You cannot block your own address. If you are ever locked out anyway, add %s to wp-config.php to switch every IP rule off and get back in.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
                 </p>
             </SettingsCard>
         </div>

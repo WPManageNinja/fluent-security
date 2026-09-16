@@ -119,7 +119,151 @@ class DeviceRequirement
             return false;
         }
 
+        /*
+         * Asked of this user, not of the site. A method being switched on somewhere is
+         * not the same as this person being able to reach it: emailed codes are on for
+         * administrators while an editor is required, and the editor can get nothing.
+         * Requiring a factor of somebody who has no way to obtain one is a locked out
+         * account, which is the one outcome this rule must never produce.
+         */
+        if (!self::canBeSatisfiedBy($user)) {
+            return false;
+        }
+
         return (bool)apply_filters('fluent_auth/device_factor_required', true, $user);
+    }
+
+    /**
+     * Whether this user could actually obtain something that meets the requirement.
+     *
+     * The site-level question - is any method on at all - is isEnforceable(), and it is
+     * what the settings screen draws. This is the one enforcement reads, because the two
+     * differ exactly where somebody gets locked out:
+     *
+     *   level = any, emailed codes on for administrators, editors required,
+     *   authenticator app off, passkeys off
+     *
+     * isEnforceable() says yes, an accepted method is switched on. For an editor it is
+     * unreachable - not their role's list - and the two device methods are off, so they
+     * are marched to an enrolment screen that cannot give them anything. They pair an
+     * app, it activates, they still owe a factor, and the next sign-in regenerates the
+     * secret and kills the app they just paired.
+     *
+     * The two kinds of method are asked differently, and they have to be:
+     *
+     * - A device method is *granted* by the requirement, so being switched on is enough.
+     *   Asking isAllowedForUser() here would call back into isRequiredForUser() and spin.
+     * - An emailed code is not granted by anything. It reaches exactly the roles named on
+     *   its own list, so that list is what decides, and isAvailableForUser() reads it
+     *   without consulting the requirement.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public static function canBeSatisfiedBy($user)
+    {
+        $user = self::resolveUser($user);
+
+        if (!$user) {
+            return false;
+        }
+
+        /*
+         * Re-entrancy, not caching. isPermittedForUser() runs site code -
+         * `fluent_auth/totp_enabled` and its passkey twin - and a filter written as "the
+         * app is for people who are required to hold one" calls isRequiredForUser(),
+         * which is answered by this. Left open that is a stack overflow on one user's
+         * login. Answering true to the inner call is the safe side: the outer one is
+         * still deciding, and a requirement that stands where it should not is a prompt,
+         * while one that falls where it should not is an account nobody is protecting.
+         */
+        static $answering = [];
+
+        if (isset($answering[$user->ID])) {
+            return true;
+        }
+
+        $answering[$user->ID] = true;
+
+        try {
+            return self::resolveSatisfiable($user);
+        } finally {
+            unset($answering[$user->ID]);
+        }
+    }
+
+    /**
+     * The body of canBeSatisfiedBy(), separated so the guard above always unwinds.
+     *
+     * @param $user \WP_User
+     * @return bool
+     */
+    private static function resolveSatisfiable($user)
+    {
+        $accepted = self::getAcceptedFactors();
+
+        foreach (TwoFaService::getMethods() as $method) {
+            if (!in_array($method->getSatisfiedFactor(), $accepted, true) || !$method->isSwitchedOn()) {
+                continue;
+            }
+
+            if ($method->isGrantedByRequirement()) {
+                if ($method->isPermittedForUser($user)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($method->isAvailableForUser($user)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether anything on this site could satisfy the requirement.
+     *
+     * A requirement is a statement about the methods, not a method of its own. With every
+     * switch down there is no second factor on the site at all, and "these roles must hold
+     * one" over nothing would leave an owner looking at a screen where three methods read
+     * off while two of them were quietly on for the required roles - which is the state
+     * this question exists to stop being possible.
+     *
+     * So the requirement follows the switches: turn a method on and it can be required,
+     * turn them all off and there is nothing to require. The settings screen says the same
+     * thing in the same order, disabling the block rather than letting it be set over
+     * nothing.
+     *
+     * The level is read here too, because it narrows what counts. At the device floor an
+     * emailed code cannot satisfy anybody, so a site with only email codes on has nothing
+     * that meets a device requirement - and the screen offers the weaker floor rather than
+     * a requirement that cannot be met.
+     *
+     * Note what this does *not* read: role lists. A method that is on is available to a
+     * required role whatever its own list says - see TotpTwoFaMethod::isAllowedForUser().
+     * Asking the lists here would put the two back in a position to disagree, and a
+     * disagreement between them is a user who must hold a factor and cannot get one.
+     *
+     * @return bool
+     */
+    public static function isEnforceable()
+    {
+        $accepted = self::getAcceptedFactors();
+
+        foreach (TwoFaService::getMethods() as $method) {
+            if (!in_array($method->getSatisfiedFactor(), $accepted, true)) {
+                continue;
+            }
+
+            if ($method->isSwitchedOn()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
