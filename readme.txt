@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 2.2.0
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,7 +19,7 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 **Highlighted Features**
 
 - Two-Factor Authentication (email, authenticator app and passkeys)
-- Passkey login with Touch ID, Windows Hello, a security key or a password manager
+- Passkey sign-in with Touch ID, Windows Hello, a security key or a password manager, as a second step or instead of a password
 - Social Login with Google, GitHub and Facebook
 - Google One Tap Login
 - Magic Login links by email, with no password
@@ -46,15 +46,21 @@ Ask for a second step after the password. FluentAuth gives you three ways to do 
 - **Authenticator app.** Google Authenticator, Authy, 1Password or any other TOTP app. FluentAuth draws the QR code on your own server, so the secret never leaves your site.
 - **Passkeys.** Touch ID, Face ID, Windows Hello, a hardware security key or a password manager. The browser ties the passkey to your domain, so it cannot be used on a fake copy of your login page.
 
-You can let a role set up a second factor, or you can require it. A user who must have one is asked to set it up before they can use the admin area. Setting up an authenticator app also hands the user ten single use recovery codes, for the day the phone is left at home. Passkey users can fall back on those codes too.
+You can let a role set up a second factor, or you can require it. A user who must have one is asked to set it up while they sign in, before a session is created for them, so the requirement cannot be walked past. You also choose how strong a required factor has to be: a device factor only, meaning a passkey or an authenticator app, or any of the three including an emailed code.
 
-There is an admin screen listing everyone who has enrolled, so you can see who is protected and reset a user who is locked out.
+Setting up an authenticator app also hands the user ten single use recovery codes, for the day the phone is left at home. Passkey users can fall back on those codes too.
+
+Everyone manages their own second factor from their WordPress profile screen. One card there sets up or removes an authenticator app, adds and names passkeys, and generates a fresh set of recovery codes.
+
+There is an admin screen listing everyone who has enrolled, so you can see who is protected, see what each person has registered, and reset a user who is locked out.
 
 Authenticator secrets can be encrypted in your database with a key you keep in wp-config.php. If someone reads your database, the secrets are useless to them.
 
 = Passkey Login =
 
 Passkeys are the strongest option here. The credential lives on the device and is bound to your site's domain by the browser. Phishing does not work against it, because a copied login page has a different domain and the passkey will not answer.
+
+Passkeys can be the second step after a password, or the way in on their own. Turn on passkey sign-in and the login form offers a passkey button that signs the user in with no password at all, because the passkey proves who they are and that they hold the device in the same touch.
 
 FluentAuth supports passkeys with no third party service. Everything runs on your site.
 
@@ -71,7 +77,7 @@ Turn on the providers you want, paste the keys, and the buttons appear on your l
 
 = Magic Login by Email =
 
-Users type their email address and get a one time login link. No password to remember and no reset flow to walk through. You can make it the main way people sign in, or keep it as an extra option. Links are hashed, expire, and are rate limited.
+Users type their email address and get a one time login link. No password to remember and no reset flow to walk through. You can make it the main way people sign in, or keep it as an extra option. Links are hashed, expire, are rate limited, and can only be claimed once. Asking for a link never reveals whether an address has an account on your site.
 
 = Limit Login Attempts =
 
@@ -169,6 +175,10 @@ A short setup wizard runs the first time you open FluentAuth. It asks a handful 
 = Built to Be Fast =
 
 FluentAuth is one plugin doing the work of several, and it is written to stay out of the way. The admin area is a single page app built with Vue 3 that talks over the REST API. Logs live in custom database tables. There is no scanning agent sitting in front of every request on your site.
+
+= For Developers =
+
+Another plugin can put its own login screen on FluentAuth's flows. It registers with the LoginBridge service, and from then on its custom form gets the attempt limits, the IP rules and the two-factor challenge, including an inline second step on a custom AJAX action. There are filters through the whole auth flow, and the site owner's own settings always win over what an adopting plugin asks for.
 
 == External Services ==
 
@@ -304,11 +314,11 @@ Yes. The authenticator app option works with Google Authenticator, Authy, Micros
 
 = What is a passkey? =
 
-A passkey lets someone sign in with Touch ID, Face ID, Windows Hello, a hardware security key or a password manager instead of typing a code. The browser ties it to your site's domain, so it cannot be used on a fake copy of your login page. FluentAuth supports passkeys as a second factor.
+A passkey lets someone sign in with Touch ID, Face ID, Windows Hello, a hardware security key or a password manager instead of typing a code. The browser ties it to your site's domain, so it cannot be used on a fake copy of your login page. FluentAuth supports passkeys as a second factor, and as a way to sign in on their own with no password at all.
 
 = Can I force two-factor authentication for administrators? =
 
-Yes. You can pick which roles may set up a second factor and which roles must have one. A user who must have one is asked to set it up before they can use the admin area.
+Yes. You can pick which roles may set up a second factor and which roles must have one. A user who must have one is asked to set it up while they sign in, before a session is created for them, so the requirement cannot be walked past by going straight to a page that is not the login form. You can also say how strong that factor has to be: a device factor only, meaning a passkey or an authenticator app, or any of the three including an emailed code.
 
 = Do I have to connect to an external service? =
 
@@ -332,6 +342,8 @@ Yes. FluentAuth runs per site on a multisite install, and it is aware of multisi
 
 Use one of the recovery codes you were given when you set up your authenticator app. If you have lost those too, another administrator can reset your second factor from the 2FA Enrollment screen.
 
+If you are the only administrator and everything is gone, add `define('FLUENT_AUTH_DISABLE_TWO_FA', true);` to your wp-config.php and the second factor is lifted for the whole site. Put a username in place of `true` to lift it for that one account only. Take the line out once you are back in. While it is there the login screen says so, the dashboard warns you, and every sign-in that used it is written to the audit log.
+
 = Does the file scanner remove malware? =
 
 It is not a malware scanner. It tells you which files no longer match the official copy published on WordPress.org, shows you what changed, and lets you put the original back. That catches the file changes an attacker leaves behind, and it does it without a signature list to keep up to date.
@@ -348,49 +360,19 @@ It is not a malware scanner. It tells you which files no longer match the offici
 9. Login/Signup Page Customizer
 10. WordPress Core Files Integrity Check
 11. Account and File Recovery Tools
+12. Passkey Sign-In Without a Password
+13. Security Checklist With One-Click Fixes
 
 == Changelog ==
 
-= 2.2.0 - Date: Sep 16, 2026 =
-* New: Passkey two-factor authentication with Touch ID, Windows Hello, security keys and password managers
-* New: Authenticator app (TOTP) two-factor authentication, with the QR code drawn on your own server
-* New: Ten single use recovery codes issued with every authenticator app setup, usable as a passkey fallback
-* New: Per role two-factor enrollment and per role enforcement, with a setup prompt before admin access
-* New: Two-Factor Enrollment screen listing enrolled users, with a per user reset
-* New: Encryption for stored authenticator secrets, using a key kept in wp-config.php
-* New: Security checklist with findings you can fix, accept or take back, covering HTTPS, debug output, the file editor, wp-config constants, backup files, uploads folder execution, drop-ins, mu-plugins, admin usernames, dormant admins and hidden users
-* New: Plugin and theme file integrity scanning against the WordPress.org directory
-* New: File baseline snapshots for custom themes and premium plugins that nothing else can verify
-* New: Side by side diff for any changed file, with restore and delete
-* New: Recovery tools for a site that has been broken into, including sign everyone out, revoke application passwords, batched password resets, core reinstall, plugin and theme reinstall and optional salt rotation
-* New: IP allow list and IP block list, with a role restriction for allow listed addresses
-* New: Reverse proxy and Cloudflare detection for the real visitor IP address
-* New: Site activity logging for plugin and theme activation, deactivation and updates
-* New: Guided setup wizard for new installs
-* New: Six hourly and twelve hourly scan schedules
-* New: Extension inventory sent with each scan report, so alerts can name the plugin or theme involved
-* New: Login with Facebook documentation and setup screen
-* New: Optional sign-up for release announcements and security tips, asked once and put away for a week if you decline
-* Improved: The scanning service now tells you what it sends before you connect, and asks before disconnecting
-* Improved: A scan you run by hand is now reported, not just the scheduled one
-* Improved: Settings rebuilt around a sidebar, with related settings grouped on one page
-* Improved: The second factor is now asked for on logins that never reach the login form
-* Improved: Login attempt limits hardened, and login activity is always recorded
-* Improved: Social login hardening
-* Improved: Admin UI refreshed across the dashboard, settings, scanning and email screens
-* Improved: The alerts service key is no longer sent to the browser in any response
-* Improved: The alerts service key and site id now travel in the request body rather than the URL, so neither is written to a server log
-* Improved: A backup copy left in your site's folder is reported whatever its extension, including copies of the rules file
-* Improved: Two-factor code emails now have a send limit of their own, so turning the login attempt limit off no longer removes it
-* Improved: Passkey clone detection now applies whenever the key has a counter, rather than being skipped when a zero is reported
-* Improved: Email smart codes can no longer resolve to a password hash, a password reset key or private user data
-* Improved: Sign-in links to a child site now expire after five minutes
-* Fixed: A site switched off on the alerts dashboard could not open its own scanning screen
-* Fixed: The dashboard counted everyone with an account when reporting two-factor enrollment, instead of the people who can actually enrol
-* Fixed: Dark mode - dropdown arrows were invisible, and the restricted roles field appeared empty
-* Fixed: Plugin and theme names were squeezed out of the Monitoring list on a phone
-* Fixed: Recovery history showed "by false" for actions taken outside the dashboard, and the activity log showed "User #0"
-* Fixed: Password reset email link
+= 3.0.0 - Date: Sep 16, 2026 =
+* New: Two-factor authentication with passkeys, authenticator apps and email codes. Pick which roles may set one up and which must have one, and how strong a required factor has to be. A required factor is now enrolled during sign-in, before a session is created, and everyone manages their own from their WordPress profile screen. Ten recovery codes come with every authenticator setup, stored secrets can be encrypted with a key in wp-config.php, and an emergency bypass constant is there for the day somebody locks themselves out.
+* New: Passkey sign-in with no password at all, offered on the login form beside magic links and social login.
+* New: Security checklist that tells you what to fix and fixes most of it for you, covering HTTPS, debug output, the file editor, wp-config constants, backup files, uploads folder execution, drop-ins, mu-plugins, admin usernames, dormant admins and hidden users.
+* New: File change scanning for WordPress core, and for plugins and themes from the WordPress.org directory, with a side by side diff, a one click restore, and baseline snapshots for the files nothing else can verify.
+* New: Recovery tools for a site that has been broken into - sign everyone out, revoke application passwords, batched password resets, core and extension reinstall, and optional salt rotation, each one written to the audit log.
+* New: IP allow and block lists with a role restriction, real visitor IP detection behind a reverse proxy or Cloudflare, activity logging for plugin and theme changes, a guided setup wizard, and a LoginBridge service so another plugin can run its own login screen on FluentAuth's flows.
+* Improved: Settings rebuilt around a sidebar and the admin UI refreshed throughout, with hardening across login attempts, magic login, social login, email smart codes and the alerts service - plus fixes for two-factor enrollment counts, dark mode, small screen layout and the password reset email link.
 
 = 2.1.2 - Date: Apr 28, 2026 =
 * Hardened Security Scan and Settings endpoints with stricter input validation and sanitization
@@ -474,5 +456,5 @@ It is not a malware scanner. It tells you which files no longer match the offici
 
 == Upgrade Notice ==
 
-= 2.2.0 =
-Adds passkeys, authenticator app two-factor authentication, a security checklist, plugin and theme file scanning, IP access rules and recovery tools. Your existing settings carry over.
+= 3.0.0 =
+A major release. Adds passkey sign-in and passkey two-factor authentication, authenticator app two-factor authentication, a security checklist, plugin and theme file scanning, IP access rules and recovery tools. Your existing settings carry over, and a role you had already marked as requiring a second factor keeps exactly the meaning it had before.

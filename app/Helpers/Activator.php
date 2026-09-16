@@ -28,27 +28,14 @@ class Activator
     }
 
     /**
-     * Runs on activation only, which is all it has to do.
-     *
-     * Activation does not fire when a site updates the plugin, so anything here reaches
-     * new installs and no one else. That is not a gap to work around - it is why no table
-     * this plugin has added since creates itself here. A table that has to appear on a
-     * site that already has the plugin makes itself on first use instead, where being
-     * missing is the only state it has to handle: see FactorStore::ensureTable().
-     *
-     * So this is for the two tables that predate that pattern, on a site that has just
-     * switched the plugin on for the first time.
-     *
-     * @return void
-     */
-    /**
      * Brings an existing site's settings forward, once.
      *
      * Separate from migrate(), which activation alone reaches - so anything put there
-     * lands on new installs and on nobody who updated. This runs on `admin_init` behind
-     * its own flag, and it deliberately touches nothing but the options row: no tables,
-     * no schedules, nothing that would be expensive to run on a site that has just
-     * updated and is being browsed.
+     * lands on new installs and on nobody who updated. This runs on `plugins_loaded`
+     * behind its own flag - not `admin_init`, which never runs on wp-login.php; see the
+     * comment on the add_action in hooks.php. It deliberately touches nothing but the
+     * options row: no tables, no schedules, nothing that would be expensive to run on a
+     * site that has just updated and is being browsed.
      *
      * @return void
      */
@@ -106,6 +93,20 @@ class Activator
         update_option('__fls_auth_settings', $settings);
     }
 
+    /**
+     * Runs on activation only, which is all it has to do.
+     *
+     * Activation does not fire when a site updates the plugin, so anything here reaches
+     * new installs and no one else. That is not a gap to work around - it is why no table
+     * this plugin has added since creates itself here. A table that has to appear on a
+     * site that already has the plugin makes itself on first use instead, where being
+     * missing is the only state it has to handle: see FactorStore::ensureTable().
+     *
+     * So this is for the two tables that predate that pattern, on a site that has just
+     * switched the plugin on for the first time.
+     *
+     * @return void
+     */
     private static function migrate()
     {
         self::migrateLogsTable();

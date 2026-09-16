@@ -35,7 +35,10 @@ compress_items() {
   # Compress the copied content
   local dest_dir_basename
   dest_dir_basename=$(basename "$destination_dir")
-  (cd "$(dirname "$destination_dir")" && zip -rq "${dest_dir_basename}.zip" "$dest_dir_basename" -x "*.DS_Store")
+  # Delete any previous archive first. `zip` merges into an existing file rather than
+  # replacing it, so a file dropped from the build stays in the zip forever - that is how
+  # a dist/public/fls_login.js from an earlier build was still being shipped.
+  (cd "$(dirname "$destination_dir")" && rm -f "${dest_dir_basename}.zip" && zip -rq "${dest_dir_basename}.zip" "$dest_dir_basename" -x "*.DS_Store")
 
   # Check for errors
   if [ $? -ne 0 ]; then
