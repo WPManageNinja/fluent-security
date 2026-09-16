@@ -62,6 +62,8 @@ class SettingsController
          */
         if (Arr::get($settings, 'totp_2fa') === 'yes'
             || Arr::get($settings, 'passkey_2fa') === 'yes'
+            // Offering passkeys on the login form needs the same table the method does.
+            || Arr::get($settings, 'passkey_primary_login') === 'yes'
             // Requiring a factor grants the methods, so it needs the table as much as
             // switching one on does - and can now be set without switching either on.
             || Arr::get($settings, 'totp_required_roles')) {
@@ -162,6 +164,18 @@ class SettingsController
          */
         if (!in_array(Arr::get($settings, 'two_fa_required_level'), ['device', 'any'], true)) {
             $settings['two_fa_required_level'] = 'device';
+        }
+
+        /*
+         * The login form can only offer what the site has switched on, so the flag is
+         * tied to the method rather than allowed to outlive it. Without this, turning
+         * passkeys off and on again would bring back a login button the owner had no
+         * chance to reconsider - and while it was off the stored 'yes' would have been
+         * quietly opening registration to every role through isAllowedForUser().
+         */
+        if (Arr::get($settings, 'passkey_2fa') !== 'yes'
+            || Arr::get($settings, 'passkey_primary_login') !== 'yes') {
+            $settings['passkey_primary_login'] = 'no';
         }
 
         if ($errors) {

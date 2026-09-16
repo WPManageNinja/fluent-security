@@ -215,7 +215,16 @@ class TwoFaBypass
 
         ob_start();
         ?>
-        <div id="fls_lockout_help" style="display: none;margin-top: 16px;padding: 14px 16px;background: #fff;border: 1px solid #c3c4c7;border-left: 4px solid #dba617;box-shadow: 0 1px 3px rgb(0 0 0 / 4%);">
+        <?php
+        /*
+         * Hidden, and revealed by login_helper.js after the delay - see initLockoutHelp().
+         * Offering the bypass the moment the challenge appears would teach every user
+         * that the way past a second factor is to edit a file; the wait is what keeps it
+         * for the person who is actually stuck.
+         */
+        ?>
+        <div id="fls_lockout_help" data-fls-delay="<?php echo (int)($delay * 1000); ?>"
+             style="display: none;margin-top: 16px;padding: 14px 16px;background: #fff;border: 1px solid #c3c4c7;border-left: 4px solid #dba617;box-shadow: 0 1px 3px rgb(0 0 0 / 4%);">
             <p style="margin: 0 0 8px;">
                 <strong><?php esc_html_e('Cannot complete this step?', 'fluent-security'); ?></strong>
             </p>
@@ -235,19 +244,6 @@ class TwoFaBypass
                 <?php esc_html_e('Take the line out again once you are back in and your second factor is working. While it is there, this account is protected by its password alone, and every sign in it allows is recorded in the log.', 'fluent-security'); ?>
             </p>
         </div>
-        <script>
-            (function () {
-                var help = document.getElementById('fls_lockout_help');
-
-                if (!help) {
-                    return;
-                }
-
-                window.setTimeout(function () {
-                    help.style.display = '';
-                }, <?php echo (int)($delay * 1000); ?>);
-            })();
-        </script>
         <?php
 
         return ob_get_clean();

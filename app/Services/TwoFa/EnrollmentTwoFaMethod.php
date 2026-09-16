@@ -263,180 +263,23 @@ class EnrollmentTwoFaMethod extends BaseTwoFaMethod
         </form>
 
         <?php if ($passkeyOptions) : ?>
-            <script type="application/json" id="fls_enroll_passkey_options"><?php
-                echo wp_json_encode($passkeyOptions); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-            ?></script>
-            <script>
-                (function () {
-                    var form = document.getElementById('fls_2fa_form');
-                    var pane = document.getElementById('fls_enroll_passkey');
-                    var appPane = document.getElementById('fls_enroll_app');
-                    var startButton = document.getElementById('fls_enroll_passkey_start');
-                    var status = document.getElementById('fls_enroll_passkey_status');
-                    var credentialField = document.getElementById('fls_enroll_credential');
-                    var transportField = document.getElementById('fls_enroll_transports');
-                    var submit = document.getElementById('fls_2fa_confirm');
-                    var showApp = document.getElementById('fls_enroll_show_app');
-                    var showPasskeyWrap = document.getElementById('fls_enroll_show_passkey_wrap');
-                    var showPasskey = document.getElementById('fls_enroll_show_passkey');
-                    var busy = false;
-
-                    var messages = <?php echo wp_json_encode([
+            <?php
+            /*
+             * Data only - see PasskeyTwoFaMethod::renderForm(). The behaviour is in
+             * src/public/login_helper.js so that it survives being installed with
+             * innerHTML on the front end.
+             */
+            ?>
+            <script type="application/json" id="fls_enroll_config"><?php
+                echo wp_json_encode([
+                    'options'  => $passkeyOptions,
+                    'messages' => [
                         'prompting' => __('Waiting for your passkey…', 'fluent-security'),
                         'cancelled' => __('That was cancelled. You can try again, or use an authenticator app.', 'fluent-security'),
                         'saving'    => __('Finishing sign in…', 'fluent-security')
-                    ]); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                    ?>;
-
-                    function toBuffer(value) {
-                        var normalised = String(value).replace(/-/g, '+').replace(/_/g, '/');
-                        var remainder = normalised.length % 4;
-
-                        if (remainder) {
-                            normalised += new Array(5 - remainder).join('=');
-                        }
-
-                        var binary = window.atob(normalised);
-                        var bytes = new Uint8Array(binary.length);
-
-                        for (var i = 0; i < binary.length; i++) {
-                            bytes[i] = binary.charCodeAt(i);
-                        }
-
-                        return bytes;
-                    }
-
-                    function toBase64Url(buffer) {
-                        var bytes = new Uint8Array(buffer);
-                        var binary = '';
-
-                        for (var i = 0; i < bytes.length; i++) {
-                            binary += String.fromCharCode(bytes[i]);
-                        }
-
-                        return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                    }
-
-                    function show(which) {
-                        pane.style.display = which === 'passkey' ? '' : 'none';
-                        appPane.style.display = which === 'passkey' ? 'none' : '';
-                    }
-
-                    /*
-                     * No WebAuthn at all: the app is the only route, and the passkey offer
-                     * never appears. This is the branch that keeps the requirement from
-                     * being a dead end on an old or locked down browser.
-                     */
-                    if (!window.PublicKeyCredential || !navigator.credentials || !navigator.credentials.create) {
-                        return;
-                    }
-
-                    /*
-                     * Clearing these is what keeps the app fallback usable. The field is
-                     * only emptied by the create() catch, so a credential the *server*
-                     * rejects - a challenge that expired, an authenticator it would not
-                     * verify - stays in the form. The user then switches to the app,
-                     * types a correct code, and verifyProof() sees a credential still
-                     * sitting there and takes the passkey branch again, failing the same
-                     * way every time. With this the only route to a session, that is not
-                     * a wrong answer: it is an account that cannot be signed into until
-                     * somebody thinks to reload the page.
-                     */
-                    function clearCredential() {
-                        credentialField.value = '';
-                        transportField.value = '';
-                    }
-
-                    if (showApp) {
-                        showApp.addEventListener('click', function (event) {
-                            event.preventDefault();
-                            clearCredential();
-                            show('app');
-                        });
-                    }
-
-                    // Belt and braces: typing a code is an unambiguous statement of which
-                    // route is being taken, whichever pane happens to be on screen.
-                    var codeField = document.getElementById('fls_enroll_code');
-
-                    if (codeField) {
-                        codeField.addEventListener('input', clearCredential);
-                    }
-
-                    if (showPasskey) {
-                        showPasskey.addEventListener('click', function (event) {
-                            event.preventDefault();
-                            show('passkey');
-                        });
-                    }
-
-                    /*
-                     * A platform authenticator - Touch ID, Windows Hello, an Android screen
-                     * lock - is the case where a passkey is both possible and easier than
-                     * anything else, so it leads. Without one a passkey may still work from
-                     * a security key or a phone, so the offer stays reachable by link
-                     * rather than leading.
-                     */
-                    if (showPasskeyWrap) {
-                        showPasskeyWrap.style.display = '';
-                    }
-
-                    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-                        .then(function (available) {
-                            if (available) {
-                                show('passkey');
-                            }
-                        })
-                        .catch(function () {
-                            // Left on the authenticator app, which always works.
-                        });
-
-                    startButton.addEventListener('click', function () {
-                        if (busy) {
-                            return;
-                        }
-
-                        busy = true;
-                        startButton.disabled = true;
-                        status.textContent = messages.prompting;
-
-                        var options = JSON.parse(document.getElementById('fls_enroll_passkey_options').textContent);
-
-                        options.challenge = toBuffer(options.challenge);
-                        options.user.id = toBuffer(options.user.id);
-                        options.excludeCredentials = (options.excludeCredentials || []).map(function (item) {
-                            item.id = toBuffer(item.id);
-                            return item;
-                        });
-
-                        navigator.credentials.create({publicKey: options}).then(function (credential) {
-                            status.textContent = messages.saving;
-
-                            var transports = credential.response.getTransports
-                                ? credential.response.getTransports()
-                                : [];
-
-                            transportField.value = JSON.stringify(transports || []);
-                            credentialField.value = JSON.stringify({
-                                rawId: toBase64Url(credential.rawId),
-                                clientDataJSON: toBase64Url(credential.response.clientDataJSON),
-                                attestationObject: toBase64Url(credential.response.attestationObject)
-                            });
-
-                            if (form.requestSubmit) {
-                                form.requestSubmit(submit);
-                            } else {
-                                submit.click();
-                            }
-                        }).catch(function () {
-                            busy = false;
-                            startButton.disabled = false;
-                            clearCredential();
-                            status.textContent = messages.cancelled;
-                        });
-                    });
-                })();
-            </script>
+                    ]
+                ]); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            ?></script>
         <?php endif; ?>
         <?php
 

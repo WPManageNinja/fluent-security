@@ -5,12 +5,11 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 
 class CustomAuthHandler
 {
-
-    protected $loaded = false;
 
     public function register()
     {
@@ -558,25 +557,15 @@ class CustomAuthHandler
         }
     }
 
+    /**
+     * @param $hide string kept for the signature this is hooked with; the wrapper's
+     *                     hidden state is a class on the markup, not something the
+     *                     script has ever read.
+     * @return void
+     */
     public function loadAssets($hide = '')
     {
-        if ($this->loaded) {
-            return false;
-        }
-
-        wp_enqueue_script('fluent_auth_login_helper', FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_helper.js', [], FLUENT_AUTH_VERSION);
-        wp_localize_script('fluent_auth_login_helper', 'fluentAuthPublic', [
-            'hide'              => $hide,
-            'redirect_fallback' => site_url(),
-            'fls_login_nonce'   => wp_create_nonce('fsecurity_login_nonce'),
-            'ajax_url'          => admin_url('admin-ajax.php'),
-            'i18n'              => [
-                'Username_or_Email' => __('Username or Email', 'fluent-security'),
-                'Password'          => __('Password', 'fluent-security')
-            ]
-        ]);
-
-        $this->loaded = true;
+        LoginAssets::enqueue();
     }
 
     public function isEnabled()

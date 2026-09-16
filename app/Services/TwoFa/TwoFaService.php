@@ -212,6 +212,29 @@ class TwoFaService
             $satisfiedFactors = Helper::getSatisfiedFactors();
         }
 
+        /*
+         * A login that already proved a device owes nothing further.
+         *
+         * Every method below is either the same factor - skipped by the loop anyway - or
+         * an emailed code, and a mailed code on top of a passkey is not a second factor
+         * but a weaker first one repeated. The mailbox is where password resets arrive,
+         * so asking for it after an authenticator has checked a fingerprint subtracts
+         * from what the login proved rather than adding to it.
+         *
+         * Only the passwordless passkey route ever puts DEVICE in this set - a password
+         * login declares KNOWLEDGE, magic login and social login declare EMAIL or IDP -
+         * so this changes nothing for any flow that reaches it with the default. It is
+         * the mirror of the rule those flows rely on: they proved something weaker than
+         * a device and still owe one, this proved the device and owes none.
+         *
+         * A site that wants a mailed code even here can say so through the filter, which
+         * is also the escape hatch for anyone who reads AAL2 more strictly than FIDO does.
+         */
+        if (in_array(AuthFactor::DEVICE, (array)$satisfiedFactors, true)
+            && apply_filters('fluent_auth/device_factor_completes_login', true, $user, $satisfiedFactors)) {
+            return null;
+        }
+
         $fallback = null;
         $underAttack = null;
 

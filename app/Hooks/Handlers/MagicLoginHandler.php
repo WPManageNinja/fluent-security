@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\SmartCodeParser;
 use FluentAuth\App\Services\SystemEmailService;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
@@ -149,15 +150,13 @@ class MagicLoginHandler
             return;
         }
 
-        wp_enqueue_script('fls_magic_url', FLUENT_AUTH_PLUGIN_URL . 'dist/public/fls_login.js', [], FLUENT_AUTH_VERSION, true);
-
-        wp_localize_script('fls_magic_url', 'fls_magic_login_vars', [
-            'ajaxurl'      => admin_url('admin-ajax.php'),
-            'success_icon' => FLUENT_AUTH_PLUGIN_URL . 'dist/images/success.png',
-            'empty_text'   => __('Please provide username / email to get magic login link', 'fluent-security'),
-            'wait_text'    => __('Please Wait...', 'fluent-security'),
-            'is_primary'   => Helper::getSetting('magic_link_primary') === 'yes'
-        ]);
+        /*
+         * The magic form's behaviour moved into login_helper.js, so that it and the
+         * passkey button - which both move themselves into the login form - run in a
+         * known order rather than in whichever order the browser parsed two files.
+         * LoginAssets carries the settings this used to localise of its own.
+         */
+        LoginAssets::enqueue();
 
         $this->assetLoaded = true;
     }

@@ -56,6 +56,17 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
      * @param $user \WP_User
      * @return bool
      */
+    /**
+     * Registered, whatever the login flow would currently do with it.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public function isEnrolledForUser($user)
+    {
+        return self::isEnrolled($user);
+    }
+
     public function isAvailableForUser($user)
     {
         return self::isAllowedForUser($user) && self::isEnrolled($user);

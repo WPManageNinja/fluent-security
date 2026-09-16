@@ -160,6 +160,49 @@ class DeviceRequirement
     }
 
     /**
+     * Whether this user has a passkey or an authenticator app registered at all.
+     *
+     * Weaker than hasDeviceFactor() by exactly one case, and the case is the point: a
+     * user holding one passkey and nothing else has a credential the login flow will
+     * not ask for, so hasDeviceFactor() rightly answers no. Asking that before handing
+     * out recovery codes closed the only door out of that state - the codes are what
+     * would make the passkey usable, and they were refused on the grounds that it was
+     * not usable yet.
+     *
+     * Nothing may be *required* of an account on the strength of this. It answers one
+     * question: is there a device here that a set of recovery codes would be the way
+     * back in for.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public static function holdsEnrolledDevice($user)
+    {
+        $user = self::resolveUser($user);
+
+        if (!$user) {
+            return false;
+        }
+
+        foreach (TwoFaService::getMethods() as $method) {
+            // See holdsAnyOf(): asking the enrollment method would nest it in its own answer.
+            if ($method instanceof EnrollmentTwoFaMethod) {
+                continue;
+            }
+
+            if ($method->getSatisfiedFactor() !== AuthFactor::DEVICE) {
+                continue;
+            }
+
+            if ($method->isEnrolledForUser($user)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param $user \WP_User|false
      * @param $factors array
      * @return bool

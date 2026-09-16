@@ -229,7 +229,24 @@ class DeviceEnrollmentGateTest extends BaseTestCase
 
         $this->assertStringContainsString('fls_enroll_passkey_start', $html);
         $this->assertStringContainsString('fls_enroll_code', $html);
-        $this->assertStringContainsString('isUserVerifyingPlatformAuthenticatorAvailable', $html);
+
+        /*
+         * The platform probe that decides which of the two leads runs in
+         * login_helper.js; what the form owes it is the creation options. Asserted as
+         * data rather than as a JS symbol in the markup, because the markup is also
+         * delivered to the front end as a string and installed with innerHTML, which
+         * would never have run a script here anyway.
+         */
+        $this->assertMatchesRegularExpression(
+            '#<script type="application/json" id="fls_enroll_config">#',
+            $html
+        );
+
+        preg_match('#id="fls_enroll_config">(.*?)</script>#s', $html, $matches);
+        $config = json_decode(trim($matches[1]), true);
+
+        $this->assertNotEmpty($config['options']['challenge']);
+        $this->assertNotEmpty($config['options']['user']['id']);
     }
 
     public function test_a_passkey_completes_the_enrolment_and_clears_the_requirement()

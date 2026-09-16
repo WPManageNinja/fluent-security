@@ -22,7 +22,30 @@ export default {
             return this.settings.totp_2fa === 'yes' && !(this.settings.totp_2fa_roles || []).length;
         },
         isPasskeyEnabledForNobody() {
-            return this.settings.passkey_2fa === 'yes' && !(this.settings.passkey_2fa_roles || []).length;
+            /*
+             * Not a warning while passkeys are the way in: the role list is bypassed
+             * then, so an empty one is the expected state rather than a misconfiguration.
+             */
+            return this.settings.passkey_2fa === 'yes'
+                && !this.isPasskeyPrimary
+                && !(this.settings.passkey_2fa_roles || []).length;
+        },
+        isPasskeyPrimary() {
+            return this.settings.passkey_primary_login === 'yes';
+        },
+        /*
+         * Shown empty while the primary flow is on, because that is what the server does
+         * with it - PasskeyTwoFaMethod::isAllowedForUser() stops consulting the list. The
+         * stored value is left alone underneath, so switching the flow back off restores
+         * whatever policy was there before rather than silently erasing it.
+         */
+        passkeyRoles: {
+            get() {
+                return this.isPasskeyPrimary ? [] : (this.settings.passkey_2fa_roles || []);
+            },
+            set(value) {
+                this.settings.passkey_2fa_roles = value;
+            }
         },
         /* WebAuthn does not exist outside a secure context, so neither does this switch. */
         passkeySupported() {
@@ -92,15 +115,30 @@ export default {
             </div>
 
             <div v-else-if="settings.passkey_2fa === 'yes'" class="fls_2fa_method_body">
+                <el-form-item>
+                    <el-checkbox v-model="settings.passkey_primary_login" true-value="yes" false-value="no">
+                        {{ $t('Offer a passkey on the login form') }}
+                    </el-checkbox>
+                    <p>
+                        {{ $t('Adds a "Sign in with a passkey" button above the username and password. People who have registered one sign in with a touch instead of typing anything; everyone else uses the form below it as before.') }}
+                    </p>
+                </el-form-item>
+
                 <el-row :gutter="30">
                     <el-col :md="12" :sm="24">
                         <el-form-item :label="$t('Roles allowed to register one')">
-                            <el-select :placeholder="$t('Pick at least one role')" clearable :multiple="true"
-                                       v-model="settings.passkey_2fa_roles" style="width: 100%;">
+                            <el-select :placeholder="isPasskeyPrimary ? $t('Everyone') : $t('Pick at least one role')"
+                                       clearable :multiple="true" :disabled="isPasskeyPrimary"
+                                       v-model="passkeyRoles" style="width: 100%;">
                                 <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
                                            :key="role.id"></el-option>
                             </el-select>
-                            <p>{{ $t('Naming a role is what turns this on. With none named it applies to nobody.') }}</p>
+                            <p v-if="isPasskeyPrimary">
+                                {{ $t('Not used while a passkey is offered on the login form. Signing in with one means anyone who can sign in can register one, so every role may.') }}
+                            </p>
+                            <p v-else>
+                                {{ $t('Naming a role is what turns this on. With none named it applies to nobody.') }}
+                            </p>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -111,9 +149,23 @@ export default {
                     {{ $t('Passkeys are switched on but offered to no role, so nothing changes for anyone. Pick the roles that should be able to register one.') }}
                 </el-alert>
 
+                <!--
+                    True of the second factor step only. On the login form a passkey has
+                    nothing to fall back *from* - the password is still on the same page -
+                    so the rule that holds a lone passkey back there does not apply here.
+                -->
                 <el-alert type="info" :closable="false" show-icon style="margin-bottom: 10px;"
-                          :title="$t('A single passkey is not asked for')">
-                    {{ $t('Until someone has registered a second passkey, or set up an authenticator app, theirs is not used at login. One device on its own would lock them out of the account if it were lost.') }}
+                          :title="$t('A single passkey is not asked for as a second step')">
+                    {{ $t('Until someone has registered a second passkey, or set up an authenticator app, theirs is not used as the second step of a password login. One device on its own would lock them out of the account if it were lost.') }}
+                    <template v-if="isPasskeyPrimary">
+                        {{ $t('Signing in with the button on the login form is unaffected, because the password form is still there if the passkey cannot answer.') }}
+                    </template>
+                </el-alert>
+
+                <el-alert v-if="isPasskeyPrimary" type="info" :closable="false" show-icon
+                          style="margin-bottom: 10px;"
+                          :title="$t('A passkey sign in is complete on its own')">
+                    {{ $t('The authenticator checks a fingerprint, a face or a PIN before it will sign, so a passkey proves the device and the person in one step. Nobody signing in this way is asked for a second factor as well. Who must set one up is decided by the requirement below, and a passkey satisfies it.') }}
                 </el-alert>
 
                 <p class="fls_action_note">

@@ -115,6 +115,14 @@ class Helper
             // Roles that may register a passkey. Empty means none of them can.
             'passkey_2fa_roles'       => [],
             /*
+             * Whether a passkey is offered as a way *into* the site rather than only as
+             * the second step of a password login. Switching it on opens passkey
+             * registration to every role, which is why the role list above is disabled
+             * on the settings screen while it is set - see
+             * PasskeyTwoFaMethod::isAllowedForUser().
+             */
+            'passkey_primary_login'   => 'no',
+            /*
              * How strong a factor satisfies `totp_required_roles`: `device` (a passkey or
              * an authenticator app) or `any` (those, or an emailed code). See
              * DeviceRequirement::getLevel(). Defaults to the strong reading, so a site
@@ -306,6 +314,8 @@ class Helper
             'two_factor_email' => __('Email code', 'fluent-security'),
             'two_factor_totp'  => __('Authenticator app', 'fluent-security'),
             'two_factor_passkey' => __('Passkey', 'fluent-security'),
+            // A passkey used to sign in outright, rather than to confirm a password.
+            'passkey_login' => __('Passkey (no password)', 'fluent-security'),
             'two_factor_enroll_device' => __('Two-factor setup', 'fluent-security'),
             'two_fa_bypassed' => __('Two-factor skipped (wp-config)', 'fluent-security'),
             'app_password' => __('Application password', 'fluent-security'),

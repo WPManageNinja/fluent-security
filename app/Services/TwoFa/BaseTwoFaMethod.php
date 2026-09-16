@@ -41,6 +41,24 @@ abstract class BaseTwoFaMethod
     abstract public function isAvailableForUser($user);
 
     /**
+     * Whether this user has registered this method, whether or not it can be asked of
+     * them right now.
+     *
+     * The same answer as isAvailableForUser() for every method but one, and that one is
+     * why this exists: a lone passkey is enrolled and not available, because there is
+     * nothing behind it to fall back on. A screen offering the user that fallback has to
+     * be able to see the credential that needs it - measuring enrollment with
+     * availability is what left such an account with no way out of the state it was in.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public function isEnrolledForUser($user)
+    {
+        return $this->isAvailableForUser($user);
+    }
+
+    /**
      * The use_type recorded when the challenge was raised because the account is under
      * attack rather than because the method is switched on. Methods that need no
      * separate marker just reuse their own key.

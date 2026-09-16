@@ -31,10 +31,12 @@ add_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeMigrateS
 (new \FluentAuth\App\Hooks\Handlers\TwoFaHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpProfileHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\PasskeyProfileHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\TwoFaProfileHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpSetupPageHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpNudgeHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TotpEnforcementHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TwoFaBypassHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\PasskeyLoginHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\BasicTasksHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\SiteActivityHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\WPSystemEmailHandler())->register();

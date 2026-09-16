@@ -77,6 +77,14 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
+        /*
+         * Offering passkeys as a way in is itself a statement that everyone may hold one,
+         * so the role list stops being consulted - see isAllowedForUser().
+         */
+        if (PasskeyLogin::isPrimaryLoginEnabled()) {
+            return true;
+        }
+
         $roles = Helper::getSetting('passkey_2fa_roles');
 
         return is_array($roles) && (bool)$roles;
@@ -116,6 +124,26 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
+        /*
+         * With passkeys offered as a login method the role list no longer applies, and
+         * the settings screen disables it to say so.
+         *
+         * The reasoning is that the two switches answer different questions. The role
+         * list answers "whose *second* step may be a passkey", which is a policy about
+         * how tightly to guard an account that already has a password. Offering a
+         * passkey on the login form answers "may somebody sign in with one at all", and
+         * a subscriber who can is a subscriber who has to be able to register one first.
+         * Keeping the list in force would show every visitor a button that silently did
+         * nothing for most of them.
+         *
+         * Enforcement is untouched by this: totp_required_roles still decides who *must*
+         * hold a factor, and being allowed to register a passkey has never been the same
+         * as being made to. See DeviceRequirement.
+         */
+        if (PasskeyLogin::isPrimaryLoginEnabled()) {
+            return true;
+        }
+
         $roles = Helper::getSetting('passkey_2fa_roles');
 
         // Naming no roles turns the method off, exactly as it does for the authenticator app.
@@ -143,6 +171,17 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
      * @param $user \WP_User
      * @return bool
      */
+    /**
+     * Registered, whatever the login flow would currently do with it.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public function isEnrolledForUser($user)
+    {
+        return self::isEnrolled($user);
+    }
+
     public function isAvailableForUser($user)
     {
         if (!self::isAllowedForUser($user) || !self::isEnrolled($user)) {
@@ -399,118 +438,25 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
             </div>
         </form>
 
-        <script type="application/json" id="fls_passkey_options"><?php
-            echo wp_json_encode($options); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-        ?></script>
-
-        <script>
-            (function () {
-                var form = document.getElementById('fls_2fa_form');
-                var startButton = document.getElementById('fls_passkey_start');
-                var responseField = document.getElementById('fls_passkey_response');
-                var status = document.getElementById('fls_passkey_status');
-                var submit = document.getElementById('fls_2fa_confirm');
-                var busy = false;
-
-                var messages = <?php echo wp_json_encode([
+        <?php
+        /*
+         * Data only. The ceremony itself lives in src/public/login_helper.js, because
+         * this form is also delivered to the front end as a string and installed with
+         * innerHTML, which parses an island like this one into an element but never
+         * runs a <script> that holds code.
+         */
+        ?>
+        <script type="application/json" id="fls_passkey_config"><?php
+            echo wp_json_encode([
+                'options'  => $options,
+                'messages' => [
                     'unsupported' => __('This browser cannot use passkeys. Try another browser, or use your authenticator app.', 'fluent-security'),
                     'prompting'   => __('Waiting for your passkey…', 'fluent-security'),
                     'cancelled'   => __('That was cancelled. You can try again.', 'fluent-security'),
                     'verifying'   => __('Checking your passkey…', 'fluent-security')
-                ]); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                ?>;
-
-                function setStatus(text) {
-                    status.textContent = text || '';
-                }
-
-                function toBuffer(value) {
-                    var normalised = String(value).replace(/-/g, '+').replace(/_/g, '/');
-                    var remainder = normalised.length % 4;
-
-                    if (remainder) {
-                        normalised += new Array(5 - remainder).join('=');
-                    }
-
-                    var binary = window.atob(normalised);
-                    var bytes = new Uint8Array(binary.length);
-
-                    for (var i = 0; i < binary.length; i++) {
-                        bytes[i] = binary.charCodeAt(i);
-                    }
-
-                    return bytes;
-                }
-
-                function toBase64Url(buffer) {
-                    var bytes = new Uint8Array(buffer);
-                    var binary = '';
-
-                    for (var i = 0; i < bytes.length; i++) {
-                        binary += String.fromCharCode(bytes[i]);
-                    }
-
-                    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                }
-
-                if (!window.PublicKeyCredential || !navigator.credentials || !navigator.credentials.get) {
-                    startButton.disabled = true;
-                    setStatus(messages.unsupported);
-                    return;
-                }
-
-                function run() {
-                    if (busy) {
-                        return;
-                    }
-
-                    busy = true;
-                    startButton.disabled = true;
-                    setStatus(messages.prompting);
-
-                    var options = JSON.parse(document.getElementById('fls_passkey_options').textContent);
-
-                    options.challenge = toBuffer(options.challenge);
-                    options.allowCredentials = (options.allowCredentials || []).map(function (item) {
-                        item.id = toBuffer(item.id);
-                        return item;
-                    });
-
-                    navigator.credentials.get({publicKey: options}).then(function (credential) {
-                        setStatus(messages.verifying);
-
-                        responseField.value = JSON.stringify({
-                            rawId: toBase64Url(credential.rawId),
-                            clientDataJSON: toBase64Url(credential.response.clientDataJSON),
-                            authenticatorData: toBase64Url(credential.response.authenticatorData),
-                            signature: toBase64Url(credential.response.signature),
-                            userHandle: credential.response.userHandle
-                                ? toBase64Url(credential.response.userHandle)
-                                : ''
-                        });
-
-                        if (form.requestSubmit) {
-                            form.requestSubmit(submit);
-                        } else {
-                            submit.click();
-                        }
-                    }).catch(function () {
-                        busy = false;
-                        startButton.disabled = false;
-                        setStatus(messages.cancelled);
-                    });
-                }
-
-                startButton.addEventListener('click', run);
-
-                /*
-                 * Offered rather than forced. Calling this on load would raise the
-                 * operating system's prompt before the user has looked at the page, and
-                 * on a shared machine that is a fingerprint request nobody asked for.
-                 */
-                setTimeout(run, 150);
-            })();
-        </script>
+                ]
+            ]); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        ?></script>
         <?php
 
         return ob_get_clean();
