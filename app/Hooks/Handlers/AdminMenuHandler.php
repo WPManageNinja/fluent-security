@@ -211,11 +211,11 @@ class AdminMenuHandler
             ],
             /*
              * Whether this site still has a first run waiting for it. The app redirects
-             * into the wizard on this, so it is the flag itself rather than a description
-             * of one - a site that has finished setup or deliberately left it never sees
-             * the wizard again unless it asks to.
+             * into the wizard on this, so the question is asked in one place and answered
+             * in one place - a site that has finished setup, deliberately left it, or was
+             * configured long before the wizard existed never sees it.
              */
-            'is_onboarding'   => !Onboarding::isDone(),
+            'is_onboarding'   => Onboarding::isRequired(),
             /*
              * Whether the mailing list signup still needs asking. One flag for both places
              * that ask - the wizard's last screen and the dashboard aside - so answering it

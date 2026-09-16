@@ -385,7 +385,6 @@ It is not a malware scanner. It tells you which files no longer match the offici
 * Improved: Passkey clone detection now applies whenever the key has a counter, rather than being skipped when a zero is reported
 * Improved: Email smart codes can no longer resolve to a password hash, a password reset key or private user data
 * Improved: Sign-in links to a child site now expire after five minutes
-* Fixed: Settings migrations now run when the plugin is updated, not only when it is activated by hand
 * Fixed: A site switched off on the alerts dashboard could not open its own scanning screen
 * Fixed: The dashboard counted everyone with an account when reporting two-factor enrollment, instead of the people who can actually enrol
 * Fixed: Dark mode - dropdown arrows were invisible, and the restricted roles field appeared empty

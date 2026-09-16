@@ -16,30 +16,40 @@ use FluentAuth\App\Services\SecurityChecks;
  */
 class OnboardingTest extends BaseTestCase
 {
+    /**
+     * The state a site is in when the wizard is owed: no settings option at all.
+     *
+     * Seeding one would be seeding the answer - an option present is exactly what tells
+     * the plugin this site has already been set up, so a fixture that writes one is a
+     * fixture of a site that never sees this screen.
+     */
     public function setUp(): void
     {
         parent::setUp();
 
-        delete_option(Onboarding::OPTION);
-
-        update_option('__fls_auth_settings', [
-            'disable_xmlrpc'          => 'no',
-            'disable_users_rest'      => 'no',
-            'secure_signup_form'      => 'no',
-            'login_try_limit'         => 5,
-            'login_try_timing'        => 30,
-            'notification_user_roles' => [],
-            'notification_email'      => '{admin_email}',
-            'totp_2fa'                => 'no',
-            'totp_2fa_roles'          => [],
-            'totp_required_roles'     => [],
-            'email2fa'                => 'no',
-            'email2fa_roles'          => [],
-            'trusted_proxies'         => '',
-            'proxy_ip_header'         => ''
-        ]);
+        delete_option('__fls_auth_settings');
 
         Helper::resetStatics();
+    }
+
+    /**
+     * One step's answer applied to a settings array of the test's choosing.
+     *
+     * The wizard only ever runs on a site that has no settings option, so a value that is
+     * already set cannot be arranged through complete() any more. What these tests are
+     * about is what a step does when it finds one, which is the step's own business.
+     *
+     * @param string $id
+     * @param array $answer
+     * @param array $settings
+     * @return array|\WP_Error
+     */
+    private function applyStep($id, $answer, $settings)
+    {
+        $method = new \ReflectionMethod(Onboarding::class, 'applyStep');
+        $method->setAccessible(true);
+
+        return $method->invoke(null, $id, $answer, $settings, Helper::getRecommendedSettings());
     }
 
     /**
@@ -59,37 +69,58 @@ class OnboardingTest extends BaseTestCase
 
     public function tearDown(): void
     {
-        delete_option(Onboarding::OPTION);
+        delete_option('__fls_auth_settings');
         unset($_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_X_FORWARDED_FOR']);
 
         parent::tearDown();
     }
 
-    /* --------------------------------------------------------------- the flag */
+    /* ----------------------------------------------------------- whether it runs */
 
-    public function test_a_fresh_site_has_not_been_onboarded()
+    public function test_a_site_with_no_settings_is_owed_a_first_run()
     {
-        $this->assertFalse(Onboarding::isDone());
-        $this->assertSame('', Onboarding::state());
+        $this->assertTrue(Onboarding::isRequired());
     }
 
-    public function test_skipping_closes_the_wizard_without_writing_a_setting()
+    /**
+     * Including a site configured long before this wizard existed. Nothing had to be
+     * migrated onto it for this to be true - having settings is the evidence.
+     */
+    public function test_a_configured_site_is_never_sent_into_the_wizard()
     {
-        $before = get_option('__fls_auth_settings');
+        update_option('__fls_auth_settings', ['login_try_limit' => 5]);
+        Helper::resetStatics();
 
+        $this->assertFalse(Onboarding::isRequired());
+    }
+
+    public function test_skipping_closes_the_wizard_without_turning_anything_on()
+    {
         Onboarding::skip();
 
-        $this->assertTrue(Onboarding::isDone());
-        $this->assertSame('skipped', Onboarding::state());
-        $this->assertSame($before, get_option('__fls_auth_settings'));
+        $this->assertFalse(Onboarding::isRequired());
+
+        $this->assertSame('no', Helper::getSetting('disable_xmlrpc'));
+        $this->assertSame('no', Helper::getSetting('totp_2fa'));
+        $this->assertSame('no', Helper::getSetting('email2fa'));
+        $this->assertSame([], Helper::getSetting('notification_user_roles'));
     }
 
-    public function test_completing_stamps_a_date_rather_than_a_boolean()
+    /** Nothing internal is persisted alongside the settings the screens asked about. */
+    public function test_skipping_writes_no_flag_of_its_own()
+    {
+        Onboarding::skip();
+
+        $this->assertArrayNotHasKey('require_configuration', get_option('__fls_auth_settings'));
+        $this->assertFalse(get_option('__fls_auth_onboarded'));
+    }
+
+    public function test_completing_closes_the_wizard()
     {
         Onboarding::complete([]);
 
-        $this->assertNotSame('skipped', Onboarding::state());
-        $this->assertNotFalse(strtotime(Onboarding::state()));
+        $this->assertFalse(Onboarding::isRequired());
+        $this->assertFalse(get_option('__fls_auth_onboarded'));
     }
 
     public function test_setup_cannot_be_completed_twice()
@@ -260,17 +291,12 @@ class OnboardingTest extends BaseTestCase
 
     public function test_turning_alerts_off_empties_the_roles()
     {
-        update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
+        $result = $this->applyStep('alerts', ['enabled' => false], array_merge(
+            Helper::getAuthSettings(),
             ['notification_user_roles' => ['administrator']]
         ));
-        Helper::resetStatics();
 
-        Onboarding::complete([
-            'alerts' => ['enabled' => false]
-        ]);
-
-        $this->assertSame([], Helper::getSetting('notification_user_roles'));
+        $this->assertSame([], $result['settings']['notification_user_roles']);
     }
 
     /* ---------------------------------------------------------- the connection */
@@ -324,15 +350,12 @@ class OnboardingTest extends BaseTestCase
      */
     public function test_answering_direct_leaves_a_declared_proxy_alone()
     {
-        update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
+        $result = $this->applyStep('connection', ['mode' => 'direct'], array_merge(
+            Helper::getAuthSettings(),
             ['trusted_proxies' => '10.0.0.1']
         ));
-        Helper::resetStatics();
 
-        Onboarding::complete(['connection' => ['mode' => 'direct']]);
-
-        $this->assertSame('10.0.0.1', Helper::getSetting('trusted_proxies'));
+        $this->assertSame('10.0.0.1', $result['settings']['trusted_proxies']);
     }
 
     /* ------------------------------------------------------------- the writing */
@@ -375,33 +398,27 @@ class OnboardingTest extends BaseTestCase
     /** A refused answer must not leave the settings half written. */
     public function test_a_refusal_writes_nothing_at_all()
     {
-        $before = get_option('__fls_auth_settings');
-
         $error = Onboarding::complete([
             'hardening'   => ['disable_xmlrpc' => true],
             'login_limit' => ['limit' => 0, 'timing' => 0]
         ]);
 
         $this->assertWPError($error);
-        $this->assertSame($before, get_option('__fls_auth_settings'));
-        $this->assertFalse(Onboarding::isDone());
+        $this->assertFalse(get_option('__fls_auth_settings'), 'no option is created by a refusal');
+        $this->assertTrue(Onboarding::isRequired(), 'the wizard is still owed');
     }
 
     public function test_the_applied_list_names_only_what_changed()
     {
-        update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
-            ['disable_xmlrpc' => 'yes']
-        ));
-        Helper::resetStatics();
-
-        $result = Onboarding::complete([
-            'hardening' => [
+        $result = $this->applyStep(
+            'hardening',
+            [
                 'disable_xmlrpc'     => true,
                 'disable_users_rest' => true,
                 'secure_signup_form' => false
-            ]
-        ]);
+            ],
+            array_merge(Helper::getAuthSettings(), ['disable_xmlrpc' => 'yes'])
+        );
 
         $applied = implode(' | ', $result['applied']);
 
@@ -479,7 +496,7 @@ class OnboardingTest extends BaseTestCase
         $this->assertArrayHasKey('connection', $this->keyedSteps());
 
         update_option('__fls_auth_settings', array_merge(
-            get_option('__fls_auth_settings'),
+            Helper::getAuthSettings(),
             ['trusted_proxies' => '10.0.0.1']
         ));
         Helper::resetStatics();

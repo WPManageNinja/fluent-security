@@ -125,7 +125,6 @@ class Helper
         $settings = get_option('__fls_auth_settings');
 
         if (!$settings || !is_array($settings)) {
-            $defaults['require_configuration'] = 'yes';
             $defaults['digest_summary'] = 'monthly';
             $settings = $defaults;
             return $settings;

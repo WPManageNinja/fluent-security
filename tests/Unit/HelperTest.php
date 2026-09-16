@@ -27,15 +27,18 @@ class HelperTest extends BaseTestCase
         $this->assertEquals(30, $settings['login_try_timing']);
     }
 
+    /**
+     * With no option set these are the defaults, and nothing more - a site that has not
+     * been configured is told apart by the absence of the option itself, so the defaults
+     * carry no flag saying so. See Onboarding::isRequired().
+     */
     public function testGetAuthSettingsDefaults()
     {
-        // No option set — should return defaults with require_configuration
         $settings = Helper::getAuthSettings();
 
         $this->assertIsArray($settings);
         $this->assertArrayHasKey('disable_xmlrpc', $settings);
-        $this->assertArrayHasKey('require_configuration', $settings);
-        $this->assertEquals('yes', $settings['require_configuration']);
+        $this->assertArrayNotHasKey('require_configuration', $settings);
         $this->assertEquals('monthly', $settings['digest_summary']);
     }
 

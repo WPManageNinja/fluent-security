@@ -28,41 +28,23 @@ class Activator
     }
 
     /**
-     * The migrations, run once per plugin version on the first admin request after an update.
+     * Runs on activation only, which is all it has to do.
      *
-     * WordPress fires the activation hook when a plugin is switched on and never when it is
-     * updated in place - so everything in migrate() that exists for the sake of sites that
-     * already had the plugin (the onboarding flag, the authenticator role fix, a column
-     * rename) would only ever reach a site that deactivated and reactivated by hand.
-     * Every install that takes the update through the updater would be walked into the
-     * setup wizard as though it were new.
+     * Activation does not fire when a site updates the plugin, so anything here reaches
+     * new installs and no one else. That is not a gap to work around - it is why no table
+     * this plugin has added since creates itself here. A table that has to appear on a
+     * site that already has the plugin makes itself on first use instead, where being
+     * missing is the only state it has to handle: see FactorStore::ensureTable().
      *
-     * Keyed on the plugin version rather than a schema number so that any release can carry
-     * a migration without a second counter to remember to bump. Every step in migrate() is
-     * idempotent, so running the lot again after each update is safe and cheap: one option
-     * read per admin request until the version matches, and nothing afterwards.
+     * So this is for the two tables that predate that pattern, on a site that has just
+     * switched the plugin on for the first time.
      *
      * @return void
      */
-    public static function maybeUpgrade()
-    {
-        if (get_option('__fluent_security_version') === FLUENT_AUTH_VERSION) {
-            return;
-        }
-
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-
-        self::migrate();
-
-        update_option('__fluent_security_version', FLUENT_AUTH_VERSION, false);
-    }
-
     private static function migrate()
     {
         self::migrateLogsTable();
         self::migrateHashesTable();
-        self::migrateTotpAllowedRoles();
-        self::migrateOnboardingFlag();
 
         if (!wp_next_scheduled('fluent_auth_daily_tasks')) {
             wp_schedule_event(time(), 'daily', 'fluent_auth_daily_tasks');
@@ -71,62 +53,6 @@ class Activator
         if (!wp_next_scheduled('fluent_auth_hourly_tasks')) {
             wp_schedule_event(time(), 'hourly', 'fluent_auth_hourly_tasks');
         }
-
-    }
-
-    /**
-     * The setup wizard is for sites that have not been configured, and a site that was
-     * configured before the wizard existed has already done the thing it asks for.
-     *
-     * Without this, every existing install would be walked into a first run on the update
-     * that introduced it, and be invited to reconsider settings somebody chose on purpose
-     * years ago. The presence of the settings option is the evidence: it is written the
-     * first time anything is saved, so a site that has one has been past this screen in
-     * every sense that matters.
-     *
-     * Recorded as `skipped` rather than a date, because no wizard was ever completed here
-     * and a completion date that nobody produced would be a small lie in the record.
-     *
-     * @return void
-     */
-    private static function migrateOnboardingFlag()
-    {
-        if (get_option(\FluentAuth\App\Services\Onboarding::OPTION)) {
-            return;
-        }
-
-        if (get_option('__fls_auth_settings')) {
-            update_option(\FluentAuth\App\Services\Onboarding::OPTION, 'skipped', false);
-        }
-    }
-
-    /**
-     * An empty list of roles allowed an authenticator app used to mean every role. It
-     * now means none of them, which is the safer default to leave a field on - but read
-     * against a site that already had the method switched on with the field untouched,
-     * it silently stops asking enrolled users for the app they set up. Their secret is
-     * still there; nothing would ask for it again.
-     *
-     * So the old reading is written out as what it meant, once, and the setting says
-     * afterwards exactly what it did before.
-     *
-     * @return void
-     */
-    private static function migrateTotpAllowedRoles()
-    {
-        $settings = get_option('__fls_auth_settings');
-
-        if (!$settings || !is_array($settings)) {
-            return;
-        }
-
-        if (Arr::get($settings, 'totp_2fa') !== 'yes' || !empty($settings['totp_2fa_roles'])) {
-            return;
-        }
-
-        $settings['totp_2fa_roles'] = array_keys(wp_roles()->get_names());
-
-        update_option('__fls_auth_settings', $settings, false);
     }
 
     private static function migrateLogsTable()

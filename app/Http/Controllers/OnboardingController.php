@@ -38,7 +38,7 @@ class OnboardingController
     }
 
     /**
-     * Leaves the wizard without writing a setting.
+     * Leaves the wizard without turning anything on. See Onboarding::skip().
      *
      * @param \WP_REST_Request $request
      * @return array

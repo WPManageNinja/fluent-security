@@ -73,9 +73,6 @@ class SettingsController
     private static function validateSettings($settings)
     {
         $oldSettings = Helper::getAuthSettings();
-        if (isset($settings['require_configuration'])) {
-            unset($settings['require_configuration']);
-        }
 
         $settings = Arr::only($settings, array_keys($oldSettings));
 

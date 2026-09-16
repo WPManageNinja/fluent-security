@@ -26,6 +26,9 @@ use FluentAuth\App\Helpers\Helper;
  *   (see SecurityChecks::apply), so a write per screen would be five chances to leave a
  *   site half configured behind a closed browser.
  *
+ * And it keeps no state of its own. Whether the wizard is owed is read from the settings
+ * option rather than recorded beside it - see isRequired().
+ *
  * Why the steps are declared here rather than as flags on SecurityChecks::definitions():
  * one screen can cover several checks - the hardening screen covers three - and a headline
  * and a preview are presentation, which is not what that list is for. What the two share is
@@ -35,30 +38,23 @@ use FluentAuth\App\Helpers\Helper;
 class Onboarding
 {
     /**
-     * Empty until the wizard is finished or left, then `skipped` or the completion date.
+     * Whether this site still has a first run waiting for it.
      *
-     * Deliberately its own option rather than a key inside `__fls_auth_settings`: that one
-     * is replaced wholesale on every save, so a flag living inside it would be erased by
-     * the first settings post that did not know to carry it.
-     */
-    const OPTION = '__fls_auth_onboarded';
-
-    /**
-     * Whether the wizard has been finished or deliberately left.
+     * There is no flag, because there is nothing a flag would know that this does not.
+     * The settings option is written the first time anything is saved - by the wizard, by
+     * the settings screen, by the checklist - so a site that has one has been configured,
+     * and a site that has not is a site nobody has set up yet. That is the whole question
+     * the wizard exists to ask.
+     *
+     * Asked rather than recorded, so an install that arrives by any route - a fresh
+     * install, the updater, a manual reactivation, a file copy, a restored backup - is
+     * read the same way, with no migration to carry a flag to sites that predate it.
      *
      * @return bool
      */
-    public static function isDone()
+    public static function isRequired()
     {
-        return (bool)get_option(self::OPTION);
-    }
-
-    /**
-     * @return string '' | 'skipped' | an ISO 8601 completion time
-     */
-    public static function state()
-    {
-        return (string)get_option(self::OPTION, '');
+        return !get_option('__fls_auth_settings');
     }
 
     /**
@@ -76,7 +72,6 @@ class Onboarding
             'settings'    => $settings,
             'recommended' => $recommended,
             'user_roles'  => Helper::getUserRoles(),
-            'state'       => self::state(),
             'admin_email' => get_option('admin_email'),
             'site_name'   => get_bloginfo('name'),
             /*
@@ -328,7 +323,7 @@ class Onboarding
      */
     public static function complete($answers)
     {
-        if (self::isDone()) {
+        if (!self::isRequired()) {
             return new \WP_Error(
                 'already_onboarded',
                 __('Setup has already been completed on this site.', 'fluent-security'),
@@ -371,8 +366,6 @@ class Onboarding
             }
         }
 
-        unset($settings['require_configuration']);
-
         /*
          * One write. Saving replaces the option wholesale, so this is the only place the
          * wizard touches it - see the note on SecurityChecks::apply().
@@ -380,8 +373,6 @@ class Onboarding
         update_option('__fls_auth_settings', $settings, false);
 
         Helper::resetStatics();
-
-        update_option(self::OPTION, gmdate('c'), false);
 
         return [
             'settings'  => Helper::getAuthSettings(),
@@ -553,15 +544,22 @@ class Onboarding
     }
 
     /**
-     * Marks the wizard as deliberately left, without writing a single setting.
+     * Leaves the wizard without turning anything on.
+     *
+     * It still writes, because being configured is what closes the wizard and there is no
+     * flag to say so instead. What it writes changes nothing: these are the same defaults
+     * getAuthSettings() already returns for a site with no option, so the site behaves
+     * exactly as it did a moment earlier - it has simply answered, and the answer was no.
      *
      * @return array
      */
     public static function skip()
     {
-        update_option(self::OPTION, 'skipped', false);
+        update_option('__fls_auth_settings', Helper::getAuthSettings(), false);
 
-        return ['state' => self::state()];
+        Helper::resetStatics();
+
+        return ['settings' => Helper::getAuthSettings()];
     }
 
     /**

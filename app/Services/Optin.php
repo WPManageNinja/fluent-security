@@ -38,9 +38,9 @@ class Optin
     /**
      * Empty until answered, then `yes`, or `shared` when the environment box was ticked.
      *
-     * Its own option rather than a key in `__fls_auth_settings`, for the reason given on
-     * Onboarding::OPTION: that array is replaced wholesale on every settings save, so a
-     * flag kept inside it would be erased by the first post that did not know to carry it.
+     * Its own option rather than a key in `__fls_auth_settings`: that array is replaced
+     * wholesale on every settings save, so a flag kept inside it would be erased by the
+     * first post that did not know to carry it.
      */
     const OPTION = '__fls_auth_optin';
 
