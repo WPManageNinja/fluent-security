@@ -5,6 +5,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TwoFaBypass;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
@@ -580,6 +581,10 @@ class TwoFaHandler
             return $user;
         }
 
+        if ($this->headlessLoginMayPass($user, $method)) {
+            return $user;
+        }
+
         /*
          * Refused, but not stranded. The challenge is raised exactly as the login form
          * would have raised it, and the error carries the link to answer it - most login
@@ -599,6 +604,75 @@ class TwoFaHandler
             $this->getHandoffMessage($method, $raised['redirect_to']),
             ['challenge_url' => $raised['redirect_to']]
         );
+    }
+
+    /**
+     * Whether a login from somebody else's form is let through rather than refused.
+     *
+     * A form that cannot show a challenge leaves only two outcomes, and both cost
+     * something: refuse the login, and an ordinary visitor on a third-party form meets an
+     * error asking them to finish somewhere else; allow it, and a factor that would have
+     * been asked for is not asked for.
+     *
+     * The line drawn here is what the *user* has done and how much they can do, not what
+     * the form is:
+     *
+     * - Only an account that cannot publish is let through. `publish_posts` is the same
+     *   line Helper::getLowLevelRoles() already draws for the admin-area settings, and it
+     *   is what separates a subscriber or a customer from anybody who can change the
+     *   site. It matters because the shipped default has email codes on for
+     *   administrators, editors and authors and nobody in the required list - so a rule
+     *   that read only the required list would hand every default install's
+     *   administrator a way past their own second factor.
+     *
+     * - Somebody who set up an authenticator app or registered a passkey is never let
+     *   through. They opted into a second step; the form they happened to use is not a
+     *   reason to drop it. holdsEnrolledDevice() rather than hasDeviceFactor() on
+     *   purpose - a lone passkey is not asked for at sign-in, but it is still a device
+     *   this account chose to register.
+     * - Nor is anybody the site *requires* to hold one. That setting is the site saying
+     *   the account may not be reached without a second factor, and a login path is not
+     *   an exception to it.
+     * - Nor is an account under attack. getRequiredMethod() only hands back a method
+     *   that is not available to the user when the repeated-failure fallback fired, so
+     *   an unavailable method here means the challenge is the escalation rather than the
+     *   standing policy - the one case where challenging somebody who enrolled in
+     *   nothing is the whole point.
+     *
+     * What is left is a visitor with no second factor of their own, on a site that does
+     * not require one of them, who would have been shown an emailed code. That code is
+     * still asked for on every form the plugin can draw a challenge on; this is only
+     * about the forms where the alternative is an error message.
+     *
+     * @param $user \WP_User
+     * @param $method \FluentAuth\App\Services\TwoFa\BaseTwoFaMethod
+     * @return bool
+     */
+    private function headlessLoginMayPass($user, $method)
+    {
+        /*
+         * Asked of the user rather than of their role list, so a subscriber handed the
+         * capability directly - or a role that has since gained it - is read the way the
+         * site actually treats them.
+         */
+        if (user_can($user, 'publish_posts')) {
+            return false;
+        }
+
+        if (DeviceRequirement::isRequiredForUser($user) || DeviceRequirement::holdsEnrolledDevice($user)) {
+            return false;
+        }
+
+        // The repeated-failure fallback - see the note above.
+        if (!$method->isAvailableForUser($user)) {
+            return false;
+        }
+
+        /*
+         * The way back to refusing every one of them. A site that would rather a visitor
+         * met the handoff message than skipped the code answers false.
+         */
+        return (bool)apply_filters('fluent_auth/allow_headless_login_without_challenge', true, $user, $method);
     }
 
     /**

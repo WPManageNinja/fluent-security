@@ -5,6 +5,8 @@ namespace FluentAuth\Tests\Unit;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\TwoFa\TotpProvider;
+use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 /**
@@ -223,6 +225,136 @@ class TwoFaHandlerTest extends BaseTestCase
         }
 
         $this->assertSame($this->user, $result);
+    }
+
+    /* ------------------------------------------------- letting a visitor through */
+
+    /**
+     * Somebody else's form, and a visitor with nothing of their own to be asked for.
+     *
+     * Refusing these was costing an ordinary visitor a login and handing them an error
+     * telling them to finish somewhere else. They enrolled in nothing, the site requires
+     * nothing of them, and they cannot publish - so what was being protected was an
+     * emailed code on an account that has no other second factor to lose.
+     *
+     * Everything below this is a case where the answer goes back to no.
+     */
+    private function subscriberWithEmailCodes()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['email2fa'] = 'yes';
+        $settings['email2fa_roles'] = ['administrator', 'subscriber'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        return $this->factory->user->create_and_get(['role' => 'subscriber']);
+    }
+
+    public function testASubscriberWithNoFactorOfTheirOwnIsLetThroughAHeadlessForm()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $result = $this->withHeadlessAjax(function () use ($subscriber) {
+            return $this->handler->maybeDenyHeadlessLogin($subscriber);
+        });
+
+        $this->assertSame($subscriber, $result);
+        $this->assertNull($this->pendingRowFor($subscriber), 'nothing should have been raised');
+    }
+
+    /**
+     * The shipped default is email codes for administrators, editors and authors with
+     * nobody in the required list. Reading only the required list would have made that
+     * default a way past an administrator's own second factor.
+     */
+    public function testAnAdministratorIsStillRefusedEvenWhenNothingIsRequiredOfThem()
+    {
+        $this->assertSame([], Helper::getSetting('totp_required_roles'));
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    public function testASubscriberWhoSetUpAnAuthenticatorAppIsStillRefused()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $settings = Helper::getAuthSettings();
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        TotpTwoFaMethod::activate($subscriber, TotpProvider::generateSecret());
+
+        $result = $this->withHeadlessAjax(function () use ($subscriber) {
+            return $this->handler->maybeDenyHeadlessLogin($subscriber);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    public function testASubscriberTheSiteRequiresAFactorOfIsStillRefused()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $settings = Helper::getAuthSettings();
+        $settings['totp_required_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $result = $this->withHeadlessAjax(function () use ($subscriber) {
+            return $this->handler->maybeDenyHeadlessLogin($subscriber);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    /**
+     * The escalation is the one case where challenging somebody who enrolled in nothing
+     * is the entire point, so it is the one case the pass-through must not cover.
+     */
+    public function testASubscriberWhoseAccountIsUnderAttackIsStillRefused()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        $settings = Helper::getAuthSettings();
+        $settings['email2fa_roles'] = ['administrator'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        add_filter('fluent_auth/2fa_challenge_required', '__return_true');
+        $handler = new TwoFaHandler();
+
+        try {
+            $result = $this->withHeadlessAjax(function () use ($handler, $subscriber) {
+                return $handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('fluent_auth/2fa_challenge_required', '__return_true');
+        }
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    public function testASiteCanRefuseEveryHeadlessLoginAgain()
+    {
+        $subscriber = $this->subscriberWithEmailCodes();
+
+        add_filter('fluent_auth/allow_headless_login_without_challenge', '__return_false');
+
+        try {
+            $result = $this->withHeadlessAjax(function () use ($subscriber) {
+                return $this->handler->maybeDenyHeadlessLogin($subscriber);
+            });
+        } finally {
+            remove_filter('fluent_auth/allow_headless_login_without_challenge', '__return_false');
+        }
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
     }
 
     public function testAHeadlessRefusalRaisesTheChallengeAndHandsOverTheLink()
