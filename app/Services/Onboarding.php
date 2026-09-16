@@ -387,6 +387,13 @@ class Onboarding
      * Every branch decides for itself what the answer is allowed to mean. An answer is a
      * choice between the options a screen offered, never a value to be written through.
      *
+     * Every switch on every screen is read with Arr::isTrue() rather than with empty().
+     * The wizard sends its answers through jQuery.ajax, which form-encodes them, and
+     * form encoding has no booleans: a switch the administrator turned off arrives here
+     * as the string "false", which empty() reads as on. That made every switch in the
+     * wizard one-way - it could turn a protection on, and silently refused to turn one
+     * off - and reported the refusal back as "Turned on ..." on the summary screen.
+     *
      * @param string $id
      * @param mixed $answer
      * @param array $settings
@@ -432,8 +439,8 @@ class Onboarding
 
             case 'two_fa':
                 $roles = self::sanitizeRoles(Arr::get($answer, 'roles', []));
-                $totp = !empty($answer['totp']);
-                $email = !empty($answer['email']);
+                $totp = Arr::isTrue($answer, 'totp');
+                $email = Arr::isTrue($answer, 'email');
 
                 if (($totp || $email) && !$roles) {
                     return new \WP_Error(
@@ -494,7 +501,7 @@ class Onboarding
                 ];
 
                 foreach ($labels as $key => $label) {
-                    $wanted = !empty($answer[$key]);
+                    $wanted = Arr::isTrue($answer, $key);
 
                     if ($wanted && Arr::get($settings, $key) !== 'yes') {
                         $applied[] = $label;
@@ -505,7 +512,7 @@ class Onboarding
                 break;
 
             case 'alerts':
-                if (empty($answer['enabled'])) {
+                if (!Arr::isTrue($answer, 'enabled')) {
                     $settings['notification_user_roles'] = [];
                     break;
                 }

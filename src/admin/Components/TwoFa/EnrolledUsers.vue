@@ -112,6 +112,14 @@ export default {
 
             return missing;
         },
+        /*
+         * Passkeys are set on their own card now, so an alert that names them has to be
+         * able to point at it. Only when they are the one thing missing - otherwise the
+         * reader is sent past the switch they actually came for.
+         */
+        missingMethodsSection() {
+            return this.methods.totp && this.methods.email ? 'passkeys' : 'two_fa';
+        },
         views() {
             return [
                 {key: 'all', label: this.$t('All')},
@@ -364,8 +372,8 @@ export default {
                           class="fls_row_alert"
                           :title="$t('Not every method is switched on')">
                     {{ $t('This site does not offer %s. Users can only set up what is switched on, so that column stays empty for everyone.', missingMethods.join($t(' or '))) }}
-                    <router-link :to="{name: 'settings_general', query: {section: 'two_fa'}}">
-                        {{ $t('Review two-factor settings') }}
+                    <router-link :to="{name: 'settings_general', query: {section: missingMethodsSection}}">
+                        {{ $t('Review sign-in settings') }}
                     </router-link>
                 </el-alert>
 

@@ -8,6 +8,7 @@ import LoginSecuritySection from '../Sections/_LoginSecurity.vue';
 import MagicLoginSection from '../Sections/_MagicLogin.vue';
 import NotificationsSection from '../Sections/_Notifications.vue';
 import AdvancedSection from '../Sections/_Advanced.vue';
+import PasskeySettings from '../../TwoFa/_PasskeySettings.vue';
 import TwoFaSettings from '../../TwoFa/_TwoFaSettings.vue';
 import ProxySettings from '../../_ProxySettings.vue';
 
@@ -29,6 +30,7 @@ export default {
         MagicLoginSection,
         NotificationsSection,
         AdvancedSection,
+        PasskeySettings,
         TwoFaSettings,
         ProxySettings
     },
@@ -81,8 +83,17 @@ export default {
                     <LoginSecuritySection :settings="settings"/>
                 </SettingsCard>
 
+                <!--
+                    Above Two-Factor Authentication, and not inside it. A passkey is a way
+                    in rather than a step after one - see _PasskeySettings.vue.
+                -->
+                <SettingsCard id="passkeys" :title="$t('Passkeys')"
+                                 :description="$t('A passkey signs someone in instead of a password, not as well as one. The browser ties it to this domain, so a copy of your login page cannot use it - which makes it the one method here that phishing does not defeat.')">
+                    <PasskeySettings :settings="settings" :user_roles="user_roles"/>
+                </SettingsCard>
+
                 <SettingsCard id="two_fa" :title="$t('Two-Factor Authentication')"
-                                 :description="$t('A second proof of identity at sign-in. Each method says what it proves.')">
+                                 :description="$t('A second proof of identity after the password. Require it for the roles that need it, and leave it available to the rest.')">
                     <TwoFaSettings :settings="settings" :user_roles="user_roles"/>
                 </SettingsCard>
 

@@ -151,11 +151,24 @@ export const searchIndex = (vm) => {
         },
         {
             group: 'Settings',
+            title: vm.$t('Passkeys'),
+            subtitle: vm.$t('In General Settings'),
+            to: {name: 'settings_general', query: {section: 'passkeys'}},
+            keywords: ['passkey', 'webauthn', 'security key', 'touch id', 'face id',
+                'windows hello', 'passwordless', 'phishing resistant', 'fido']
+        },
+        {
+            group: 'Settings',
             title: vm.$t('Two-Factor Authentication'),
             subtitle: vm.$t('In General Settings'),
+            /*
+             * Passkeys keep a keyword here as well as a row of their own. Somebody who
+             * types "2fa" is looking for the whole area, and one of the three things that
+             * satisfies a requirement now lives on the card above.
+             */
             to: {name: 'settings_general', query: {section: 'two_fa'}},
             keywords: ['2fa', 'mfa', 'totp', 'authenticator app', 'email code',
-                'passkey', 'webauthn', 'security key', 'backup codes', 'require 2fa']
+                'passkey', 'backup codes', 'require 2fa', 'second factor']
         },
         {
             group: 'Settings',

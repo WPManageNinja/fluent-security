@@ -604,6 +604,20 @@
     padding-bottom: 6px;
 }
 
+/*
+ * The one line the Two-Factor card needs before its first panel: that requiring a factor
+ * and offering one are different settings. Set at the card description's weight rather
+ * than a panel's, because it governs every panel under it - a sentence in the tone of the
+ * panels would read as belonging to the first one.
+ */
+.fls_2fa_lede {
+    @apply text-xs text-ink-light;
+
+    margin: 0 0 10px;
+    max-width: 680px;
+    line-height: 1.5;
+}
+
 .fls_2fa_method {
     @apply bg-surface-sunk border border-solid;
 
@@ -789,6 +803,50 @@
      */
     .fls_secret_encryption_actions + .fls_secret_encryption_note {
         margin-top: 14px;
+    }
+}
+
+/*
+ * A note inside a method panel: a sentence or two about the state that panel is in.
+ *
+ * These were el-alerts. An Element Plus alert is built to be a banner across a page - an
+ * icon well, a heavier title line and padding to match - which is a lot of furniture to
+ * put around "nobody can use this yet", and three of them stacked in one panel read as
+ * three problems rather than as three sentences. Element Plus also cannot be themed from
+ * here (its stylesheet is injected after ours), so trimming one down was not an option.
+ *
+ * The frame is the one .fls_2fa_none below already used for the card's verdict, at the
+ * size the text actually is. White on the panel's sunk grey, so it still reads as its own
+ * thing without a border having to do all the work.
+ */
+.fls_2fa_note {
+    @apply text-xs text-ink-mid bg-surface border border-solid;
+
+    border-color: var(--fls-border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    margin: 0 0 10px;
+    line-height: 1.5;
+
+    /* A title, where one earns its place. Most of these are a single sentence. */
+    strong {
+        @apply text-ink;
+
+        display: block;
+        font-weight: 600;
+        margin-bottom: 1px;
+    }
+
+    /* Something will not work until it is dealt with, rather than merely worth knowing. */
+    &.is_warn {
+        @apply text-caution-fg;
+
+        background: var(--fls-warning-wash);
+        border-color: var(--fls-warning-line);
+
+        strong {
+            @apply text-caution-fg;
+        }
     }
 }
 

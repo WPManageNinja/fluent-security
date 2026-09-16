@@ -3,6 +3,7 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Http\Controllers\OnboardingController;
 use FluentAuth\App\Services\Onboarding;
 use FluentAuth\App\Services\SecurityChecks;
 
@@ -433,6 +434,123 @@ class OnboardingTest extends BaseTestCase
 
         $this->assertSame('no', Helper::getSetting('totp_2fa'));
         $this->assertSame([], Helper::getSetting('notification_user_roles'));
+    }
+
+    /* ----------------------------------------------------------- the transport */
+
+    /**
+     * The wizard's own request, rather than the array a test finds convenient.
+     *
+     * Everything above hands complete() real PHP booleans. The browser cannot: the admin
+     * app posts through jQuery.ajax, which form-encodes the payload, and form encoding
+     * has no booleans - jQuery writes every value with String(value), so a switch that
+     * is off arrives as the string "false" and PHP's empty() reads that as on.
+     *
+     * That gap is not academic. It shipped: every switch in the wizard was one-way, and
+     * this file was green the whole time because none of it went near a request.
+     *
+     * @param array $answers
+     * @return array|\WP_Error
+     */
+    private function completeAsTheBrowserDoes($answers)
+    {
+        $body = http_build_query(['answers' => $this->asJqueryEncodes($answers)]);
+
+        /*
+         * PHP's own form parser builds $_POST out of the body, and WP_REST_Server hands
+         * that to the request - a POST never parses its own body, which is why setting
+         * one here and reading it back would quietly return nothing.
+         */
+        parse_str($body, $params);
+
+        $request = new \WP_REST_Request('POST', '/fluent-auth/onboarding/complete');
+        $request->set_header('Content-Type', 'application/x-www-form-urlencoded');
+        $request->set_body($body);
+        $request->set_body_params($params);
+
+        $result = OnboardingController::complete($request);
+
+        Helper::resetStatics();
+
+        return $result;
+    }
+
+    /** What jQuery.param() does to a value on its way into a request body. */
+    private function asJqueryEncodes($value)
+    {
+        if (is_array($value)) {
+            return array_map([$this, 'asJqueryEncodes'], $value);
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        return (string)$value;
+    }
+
+    /** The bug David McCan reported: the switch goes off, the setting stays on. */
+    public function test_a_second_factor_switched_off_in_the_browser_is_written_off()
+    {
+        $this->completeAsTheBrowserDoes([
+            'two_fa' => [
+                'totp'  => false,
+                'email' => true,
+                'roles' => ['administrator']
+            ]
+        ]);
+
+        $this->assertSame('no', Helper::getSetting('totp_2fa'));
+        $this->assertSame('yes', Helper::getSetting('email2fa'));
+    }
+
+    /** The same fault, on the three switches nobody thought to check. */
+    public function test_hardening_switched_off_in_the_browser_is_written_off()
+    {
+        $this->completeAsTheBrowserDoes([
+            'hardening' => [
+                'disable_xmlrpc'     => false,
+                'disable_users_rest' => true,
+                'secure_signup_form' => false
+            ]
+        ]);
+
+        $this->assertSame('no', Helper::getSetting('disable_xmlrpc'));
+        $this->assertSame('yes', Helper::getSetting('disable_users_rest'));
+        $this->assertSame('no', Helper::getSetting('secure_signup_form'));
+    }
+
+    public function test_alerts_switched_off_in_the_browser_are_written_off()
+    {
+        $this->completeAsTheBrowserDoes([
+            'alerts' => [
+                'enabled' => false,
+                'roles'   => ['administrator'],
+                'email'   => '{admin_email}'
+            ]
+        ]);
+
+        $this->assertSame([], Helper::getSetting('notification_user_roles'));
+    }
+
+    /**
+     * The summary screen lists what the server reported writing. Claiming it turned on
+     * something the administrator had just turned off is worse than the setting being
+     * wrong, because it is the screen that tells them the setting is right.
+     */
+    public function test_the_summary_never_claims_a_refused_answer_was_applied()
+    {
+        $result = $this->completeAsTheBrowserDoes([
+            'two_fa'    => ['totp' => false, 'email' => false, 'roles' => []],
+            'hardening' => [
+                'disable_xmlrpc'     => false,
+                'disable_users_rest' => false,
+                'secure_signup_form' => false
+            ]
+        ]);
+
+        $this->assertNotWPError($result);
+        $this->assertSame([], $result['applied']);
     }
 
     /* --------------------------------------------------------------- the steps */
