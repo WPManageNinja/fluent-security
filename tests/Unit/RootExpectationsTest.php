@@ -137,6 +137,95 @@ class RootExpectationsTest extends BaseTestCase
         $this->assertFalse(RootExpectations::isNoise('.user.ini'));
     }
 
+    /**
+     * The report that prompted this: eighteen new files, seventeen of them furniture an SEO
+     * plugin or a search console had written, and a readable `wp-config.php.bkk` in the
+     * middle of them that nobody was going to read past the sitemaps.
+     *
+     * @dataProvider generatedNames
+     */
+    public function test_a_file_the_site_generated_about_itself_is_not_reported($name)
+    {
+        $this->assertTrue(RootExpectations::isNoise($name), $name . ' should be dropped.');
+    }
+
+    public function generatedNames()
+    {
+        return [
+            ['sitemap.xml'],
+            ['sitemap_index.xml'],
+            ['post-sitemap.xml'],
+            ['post_tag-sitemap.xml'],
+            ['tribe_events_cat-sitemap.xml'],
+            ['wp-sitemap.xml'],
+            ['main-sitemap.xsl'],
+            ['BingSiteAuth.xml'],
+            ['googlecaf90c04662aac26.html'],
+            ['locations.kml'],
+            ['favicon.ico'],
+            ['robots.txt'],
+            ['ads.txt'],
+            ['site.webmanifest'],
+            ['browserconfig.xml'],
+            ['apple-touch-icon-180x180.png'],
+        ];
+    }
+
+    /**
+     * The line the noise was burying. `.bkk` is not on the kept-copy list - which is what
+     * keeps it visible here - and BackupFilesCheck reports it as well, because a readable
+     * copy of wp-config is the database password served as plain text.
+     *
+     * @dataProvider notGenerated
+     */
+    public function test_what_only_looks_like_furniture_is_still_reported($name)
+    {
+        $this->assertFalse(RootExpectations::isNoise($name), $name . ' must still be reported.');
+    }
+
+    public function notGenerated()
+    {
+        return [
+            ['wp-config.php.bkk'],
+            /* An inert name with an extension that is not. */
+            ['sitemap.php'],
+            ['favicon.php'],
+            /* A page somebody wrote, as against a console's fixed shape. */
+            ['login.html'],
+            ['index.html'],
+            /* Host config that can carry auto_prepend_file. */
+            ['php.ini'],
+            ['.user.ini'],
+            /* A plugin's own bootstrap is a PHP file in the root, and stays a finding. */
+            ['aios-bootstrap.php'],
+        ];
+    }
+
+    /**
+     * A log lands wherever the code that errored was, so the core walk needs the same rule
+     * the root has - `wp-admin/error_log` was reported on every scan of every site whose
+     * host writes one, because the walk only ever excluded names ending in `.log`.
+     */
+    public function test_a_log_is_noise_in_a_core_directory_too()
+    {
+        foreach (['error_log', 'php_errorlog', 'debug.log', '.DS_Store'] as $name) {
+            $this->assertTrue(RootExpectations::isSystemNoise($name), $name . ' should be dropped anywhere.');
+        }
+    }
+
+    /**
+     * The half that must not travel. A kept copy is silenced in the root only because
+     * BackupFilesCheck reports it there instead, and that check looks at the root alone - so
+     * carrying the suffixes into wp-admin would leave a readable copy of a core file
+     * mentioned by neither.
+     */
+    public function test_a_kept_copy_in_a_core_directory_is_not_silenced_by_the_log_rule()
+    {
+        foreach (['wp-login.php.bak', 'index.php~', '.htaccess.bk'] as $name) {
+            $this->assertFalse(RootExpectations::isSystemNoise($name), $name . ' must still be reported inside core.');
+        }
+    }
+
     /* ------------------------------------------------------------ directories */
 
     public function test_the_expected_directories_are_not_announced()
@@ -196,6 +285,41 @@ class RootExpectationsTest extends BaseTestCase
         $found = RootExpectations::executablesIn($this->root . '/cgi-bin', 'cgi-bin');
 
         $this->assertArrayHasKey('cgi-bin/.htaccess', $found);
+    }
+
+    /**
+     * And the other half of that: hosts ship an `.htaccess` in `cgi-bin` as a matter of
+     * course, so hashing every one of them reported a file the host put there on every scan,
+     * forever. What makes the file interesting is written in it.
+     */
+    public function test_an_htaccess_that_turns_nothing_on_is_not_reported()
+    {
+        $this->write('cgi-bin/.htaccess', "Options -Indexes\nDenyfrom all\n");
+
+        $this->assertSame([], RootExpectations::executablesIn($this->root . '/cgi-bin', 'cgi-bin'));
+    }
+
+    /**
+     * @dataProvider executingHtaccess
+     */
+    public function test_an_htaccess_that_can_run_code_is_reported($contents)
+    {
+        $this->write('cgi-bin/.htaccess', $contents);
+
+        $found = RootExpectations::executablesIn($this->root . '/cgi-bin', 'cgi-bin');
+
+        $this->assertArrayHasKey('cgi-bin/.htaccess', $found, $contents . ' switches execution on.');
+    }
+
+    public function executingHtaccess()
+    {
+        return [
+            ["AddHandler application/x-httpd-php .txt\n"],
+            ["SetHandler application/x-httpd-php\n"],
+            ["php_value auto_prepend_file /tmp/x.php\n"],
+            ["Options +ExecCGI\nAddHandler cgi-script .cgi\n"],
+            ["Action php-cgi /cgi-bin/php\n"],
+        ];
     }
 
     /**

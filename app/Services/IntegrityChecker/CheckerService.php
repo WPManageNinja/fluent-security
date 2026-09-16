@@ -257,6 +257,20 @@ class CheckerService
 
                 $fullPath = $file->getPathname();
 
+                /*
+                 * The same logs the root drops, dropped here too. These patterns only ever
+                 * matched an extension, so PHP's own `error_log` - which has none - was
+                 * reported as a new file in wp-admin on every scan of every site whose
+                 * host writes one. It is a log wherever it lands, and no version of it is
+                 * interesting to a checksum.
+                 *
+                 * Only that half of the list travels: see RootExpectations for why a kept
+                 * copy inside a core directory stays reported.
+                 */
+                if (RootExpectations::isSystemNoise($file->getFilename())) {
+                    continue;
+                }
+
                 $relativePath = (string)str_replace(ABSPATH . $replaceWith, $replaceWith, $fullPath);
 
                 $shouldExclude = array_reduce($excludePatterns, function ($carry, $pattern) use ($fullPath) {

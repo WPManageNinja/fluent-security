@@ -71,15 +71,71 @@ class RootExpectations
         '.git',
         '.gitignore',
         '.gitattributes',
-        '.DS_Store',
         '.idea',
         '.env',
-        '.htaccess',
+        '.htaccess'
+    ];
+
+    /**
+     * Logs and desktop litter, which are noise in any directory rather than only the root.
+     *
+     * Kept apart from the list above because this is the half that also applies inside
+     * wp-admin and wp-includes: a PHP `error_log` lands wherever the code that errored was,
+     * and the core walk was reporting `wp-admin/error_log` as a new file on every scan
+     * because it only ever excluded names ending in `.log`.
+     *
+     * The other half deliberately does not travel with it. A kept copy - `wp-login.php.bak`
+     * inside wp-admin - is silenced in the root only because BackupFilesCheck reports it
+     * there instead, and that check looks at the root alone. Silencing those in core
+     * directories too would mean a readable copy of a core file mentioned by neither.
+     */
+    const SYSTEM_NOISE_NAMES = [
+        '.DS_Store',
         'error_log',
         'error.log',
         'php_errorlog',
         'php_error.log',
         'debug.log'
+    ];
+
+    /**
+     * Files the web generates about itself, matched by the shape of their names.
+     *
+     * None of these can be in a checksum list and none of them can be made to run: they are
+     * sitemaps an SEO plugin rewrites on every publish, the verification file a search
+     * console asked somebody to upload, the icon a browser asks for. A root holding a dozen
+     * of them produced the report that prompted this - eighteen lines of which seventeen
+     * were furniture, and the one that mattered was a readable `wp-config.php.bkk` sitting
+     * in the middle of them.
+     *
+     * Matched by name rather than by extension, and that is the whole care taken here. "Any
+     * .xml is boring" also silences an .xml an attacker chose to leave; `sitemap_index.xml`
+     * and `BingSiteAuth.xml` are names with an owner. Nothing that can execute is on this
+     * list, and nothing on it is matched loosely enough to cover a name somebody picked.
+     */
+    const GENERATED_PATTERNS = [
+        /* Sitemaps: core's own, Yoast's, Rank Math's, All in One SEO's. */
+        '/^sitemap(_index)?\.xml(\.gz)?$/i',
+        '/^[a-z0-9_-]+-sitemap\d*\.xml(\.gz)?$/i',
+        '/^sitemap[a-z0-9_-]*\.xsl$/i',
+        '/^wp-sitemap[a-z0-9_-]*\.(xml|xsl)$/i',
+        '/^(main|local|video|news|image)-sitemap\.(xml|xsl)$/i',
+
+        /* Ownership proofs. Each is a fixed shape a console handed somebody. */
+        '/^google[0-9a-f]{8,}\.html$/i',
+        '/^BingSiteAuth\.xml$/i',
+        '/^yandex_[0-9a-f]{8,}\.(html|txt)$/i',
+        '/^pinterest-[0-9a-z]+\.html$/i',
+        '/^[a-z0-9]{32}\.txt$/i',
+
+        /* Furniture a browser or a crawler asks for by name. */
+        '/^favicon\.(ico|png|svg)$/i',
+        '/^apple-touch-icon(-precomposed)?(-\d+x\d+)?\.png$/i',
+        '/^(android-chrome|mstile)-\d+x\d+\.png$/i',
+        '/^(robots|ads|app-ads|humans|security)\.txt$/i',
+        '/^(browserconfig|opensearch)\.xml$/i',
+        '/^(site\.webmanifest|manifest\.json)$/i',
+        '/^[a-z0-9_-]*\.kml$/i'
     ];
 
     /**
@@ -110,6 +166,68 @@ class RootExpectations
             'fluent_auth/scan_backup_suffixes',
             self::BACKUP_SUFFIXES
         ));
+    }
+
+    /**
+     * Every name silenced anywhere in the root, both halves together.
+     *
+     * @return array<int, string>
+     */
+    public static function noiseNames()
+    {
+        return array_map(
+            'strtolower',
+            array_merge(self::NOISE_NAMES, self::SYSTEM_NOISE_NAMES)
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function generatedPatterns()
+    {
+        return (array)apply_filters(
+            'fluent_auth/scan_generated_file_patterns',
+            self::GENERATED_PATTERNS
+        );
+    }
+
+    /**
+     * A log or a piece of desktop litter, wherever it turned up.
+     *
+     * Asked of core directories as well as the root, which is the difference between this
+     * and isNoise() - see SYSTEM_NOISE_NAMES for why only this half travels.
+     *
+     * @param string $name a single entry, no path
+     * @return bool
+     */
+    public static function isSystemNoise($name)
+    {
+        $lower = strtolower($name);
+
+        $names = array_map('strtolower', (array)apply_filters(
+            'fluent_auth/scan_system_noise_names',
+            self::SYSTEM_NOISE_NAMES
+        ));
+
+        return in_array($lower, $names, true);
+    }
+
+    /**
+     * A file the site generated about itself rather than one somebody put there.
+     *
+     * @param string $name a single entry, no path
+     * @return bool
+     */
+    public static function isGenerated($name)
+    {
+        foreach (self::generatedPatterns() as $pattern) {
+            if (preg_match($pattern, $name)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -150,7 +268,11 @@ class RootExpectations
     {
         $lower = strtolower($name);
 
-        if (in_array($lower, array_map('strtolower', self::NOISE_NAMES), true)) {
+        if (in_array($lower, self::noiseNames(), true)) {
+            return true;
+        }
+
+        if (self::isGenerated($name)) {
             return true;
         }
 
@@ -167,6 +289,57 @@ class RootExpectations
         }
 
         return (bool)apply_filters('fluent_auth/scan_root_file_is_noise', false, $name);
+    }
+
+    /**
+     * Whether an `.htaccess` asks the server to run something.
+     *
+     * Deliberately a keyword test rather than a parse. Apache's grammar is large and the
+     * question here is small - does this file mention any of the handful of directives that
+     * can turn a file into a program - and a test that errs is better erring towards
+     * reporting, which is why every directive that could is on the list and nothing is
+     * excluded by context.
+     *
+     * A file too large to be a directory's own config is reported without being read: at
+     * that size it is not what a host drops in `cgi-bin`.
+     *
+     * @param string $path
+     * @return bool
+     */
+    public static function htaccessEnablesExecution($path)
+    {
+        $size = @filesize($path);
+
+        if ($size === false || $size > 64 * 1024) {
+            return true;
+        }
+
+        $contents = @file_get_contents($path);
+
+        if ($contents === false) {
+            return true;
+        }
+
+        /*
+         * Handlers and types map an extension onto an interpreter, `Action` and `Script`
+         * hand a request to one, `ExecCGI` is the switch CGI needs, and the `php_` pair
+         * carries `auto_prepend_file`, which runs code without any request naming it.
+         */
+        $directives = (array)apply_filters('fluent_auth/scan_htaccess_exec_directives', [
+            'addhandler', 'sethandler', 'addtype', 'action', 'script',
+            'execcgi', 'php_value', 'php_flag', 'php_admin_value', 'php_admin_flag',
+            'auto_prepend_file', 'auto_append_file', 'cgi-script', 'fcgid', 'wsgi'
+        ]);
+
+        $lower = strtolower($contents);
+
+        foreach ($directives as $directive) {
+            if (strpos($lower, $directive) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -211,6 +384,24 @@ class RootExpectations
             }
 
             if (!in_array(strtolower($file->getExtension()), $runnable, true)) {
+                continue;
+            }
+
+            /*
+             * An `.htaccess` here is only interesting for what it turns on. Hosts ship one
+             * in `cgi-bin` as a matter of course and ACME clients write one beside a
+             * challenge, so hashing every `.htaccess` in these two directories reported a
+             * file the host put there on every scan, forever - which is the noise this
+             * class exists to refuse.
+             *
+             * Reading it is what keeps the signal the RUNNABLE list was after: the reason
+             * `.htaccess` is on that list is that in a directory like this it decides what
+             * else executes, and that intent is written in the file. One that says nothing
+             * about handlers, CGI or prepended files cannot switch execution on, so it is
+             * furniture; one that does is reported whatever else it contains.
+             */
+            if (strtolower($file->getExtension()) === 'htaccess'
+                && !self::htaccessEnablesExecution($file->getPathname())) {
                 continue;
             }
 
