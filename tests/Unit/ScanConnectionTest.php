@@ -40,6 +40,175 @@ class ScanConnectionTest extends BaseTestCase
         return $request;
     }
 
+    /**
+     * The site key never leaves the server.
+     *
+     * Not an exfiltration worry - the reader is an administrator who could read the option
+     * row anyway - but a database row and a JSON response are different exposures. wp-admin
+     * runs a crowd of third-party scripts nobody audited for this, and the key can post
+     * forged reports and call `disable`. That second one is why it is worth the care: it
+     * switches a site's monitoring off, and the only evidence is scans that stop arriving,
+     * which is the signal nobody notices.
+     *
+     * Every route is covered rather than the obvious one, because the failure mode is a
+     * ninth return statement added later by somebody who never read this.
+     *
+     * @dataProvider settingsCarryingRoutes
+     */
+    public function testTheSiteKeyIsNeverSentToTheBrowser($call)
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status'           => 'active',
+            'api_id'           => 'site_probe',
+            'api_key'          => 'fask_the_actual_secret',
+            'account_email_id' => 'owner@example.com',
+            'auto_scan'        => 'yes'
+        ]));
+
+        $handler = function () {
+            return [
+                'response' => ['code' => 200, 'message' => ''],
+                'body'     => json_encode(['status' => 'success', 'data' => ['api_id' => 'site_probe']]),
+                'headers'  => []
+            ];
+        };
+
+        /*
+         * The settings route builds an extension inventory, which asks WordPress for the
+         * update transients - a network call in the middle of a unit test if it is not
+         * answered here, and a fatal on a machine with no internet.
+         */
+        $transient = function () {
+            /*
+             * `no_update` has to hold something. The inventory treats a transient with no
+             * entries at all as never having been fetched and forces a real update check,
+             * which is the network call this stub exists to avoid.
+             */
+            return (object)[
+                'last_checked' => time(),
+                'response'     => [],
+                'no_update'    => ['a-plugin/a-plugin.php' => (object)['slug' => 'a-plugin']]
+            ];
+        };
+
+        add_filter('pre_site_transient_update_plugins', $transient);
+        add_filter('pre_site_transient_update_themes', $transient);
+        add_filter('pre_http_request', $handler);
+
+        $result = call_user_func($call);
+
+        remove_filter('pre_http_request', $handler);
+        remove_filter('pre_site_transient_update_themes', $transient);
+        remove_filter('pre_site_transient_update_plugins', $transient);
+
+        $wire = json_encode(is_wp_error($result) ? $result->get_error_data() : $result);
+
+        $this->assertStringNotContainsString('fask_the_actual_secret', (string)$wire);
+    }
+
+    public function settingsCarryingRoutes()
+    {
+        $req = function ($params = []) {
+            $request = new \WP_REST_Request();
+
+            foreach ($params as $key => $value) {
+                $request->set_param($key, $value);
+            }
+
+            return $request;
+        };
+
+        return [
+            'get settings'    => [function () use ($req) {
+                return SecurityScanController::getSettings($req());
+            }],
+            'update schedule' => [function () use ($req) {
+                return SecurityScanController::updateScheduleScan($req(['auto_scan' => 'yes', 'scan_interval' => 'daily']));
+            }],
+            'reset api'       => [function () use ($req) {
+                return SecurityScanController::resetApi($req());
+            }],
+        ];
+    }
+
+    /**
+     * And the replacement says only what is safe to say: that one exists.
+     */
+    public function testTheResponseSaysOnlyThatAKeyExists()
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status' => 'active', 'api_key' => 'fask_the_actual_secret'
+        ]));
+
+        $settings = SecurityScanController::getSettings(new \WP_REST_Request())['settings'];
+
+        $this->assertArrayNotHasKey('api_key', $settings);
+        $this->assertTrue($settings['has_api_key']);
+
+        /* Withheld from the response, not thrown away - the site still reports with it. */
+        $this->assertEquals('fask_the_actual_secret', IntegrityHelper::getSettings()['api_key']);
+
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), ['api_key' => '']));
+
+        $this->assertFalse(SecurityScanController::getSettings(new \WP_REST_Request())['settings']['has_api_key']);
+    }
+
+    /**
+     * No credential ever appears in a URL.
+     *
+     * A key in a query string is written to the web server's access log, to every proxy in
+     * front of it, and to the Referer of anything the page goes on to load - several copies of
+     * a live credential in places nobody is guarding, and none of them rotate when the key
+     * does. Pinned across every route because this is the kind of thing that comes back: one
+     * add_query_arg written for convenience and the whole estate is logging keys again.
+     *
+     * @dataProvider credentialCarryingCalls
+     */
+    public function testNoCredentialTravelsInAUrl($call)
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status'  => 'active',
+            'api_id'  => 'api-secret-id',
+            'api_key' => 'key-secret-value'
+        ]));
+
+        $urls = [];
+        $handler = function ($preempt, $args, $url) use (&$urls) {
+            $urls[] = $url;
+
+            return [
+                'response' => ['code' => 200, 'message' => ''],
+                'body'     => json_encode(['status' => 'success', 'data' => ['api_id' => 'api-secret-id']]),
+                'headers'  => []
+            ];
+        };
+
+        add_filter('pre_http_request', $handler, 10, 3);
+        call_user_func($call);
+        remove_filter('pre_http_request', $handler, 10);
+
+        $this->assertNotEmpty($urls, 'The call under test has to actually make a request.');
+
+        foreach ($urls as $url) {
+            $this->assertStringNotContainsString('key-secret-value', $url, 'A key must never be in a URL.');
+            $this->assertStringNotContainsString('api_key=', $url);
+        }
+    }
+
+    public function credentialCarryingCalls()
+    {
+        return [
+            'confirm' => [function () {
+                \FluentAuth\App\Services\IntegrityChecker\Api::confirmSite([
+                    'api_id' => 'api-secret-id', 'api_key' => 'key-secret-value'
+                ]);
+            }],
+            'disable' => [function () {
+                \FluentAuth\App\Services\IntegrityChecker\Api::disableApi();
+            }],
+        ];
+    }
+
     public function testConfirmingTheEmailedKeyTurnsOnDailyScanning()
     {
         IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [

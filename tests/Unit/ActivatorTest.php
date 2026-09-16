@@ -30,6 +30,39 @@ class ActivatorTest extends BaseTestCase
         $this->assertEquals($wpdb->prefix . 'fls_login_hashes', $hashesTable);
     }
 
+    /**
+     * Updates never fire the activation hook, so the migrations that exist for sites that
+     * already have the plugin reach them through maybeUpgrade() on admin_init instead.
+     * The onboarding flag is the one with the most visible failure: without it, every
+     * existing install would be sent into the setup wizard by the update.
+     */
+    public function testMaybeUpgradeRunsMigrationsOnceOnVersionChange()
+    {
+        delete_option('__fluent_security_version');
+        delete_option(\FluentAuth\App\Services\Onboarding::OPTION);
+        update_option('__fls_auth_settings', ['totp_2fa' => 'yes', 'totp_2fa_roles' => []], false);
+
+        Activator::maybeUpgrade();
+
+        $this->assertSame(FLUENT_AUTH_VERSION, get_option('__fluent_security_version'));
+        $this->assertSame('skipped', get_option(\FluentAuth\App\Services\Onboarding::OPTION), 'a configured site is not walked into the wizard');
+        $this->assertNotEmpty(get_option('__fls_auth_settings')['totp_2fa_roles'], 'the empty-means-all authenticator roles are written out');
+
+        // A second call on the same version is a no-op: the flag written by the wizard survives.
+        update_option(\FluentAuth\App\Services\Onboarding::OPTION, '2026-01-01T00:00:00+00:00', false);
+        Activator::maybeUpgrade();
+        $this->assertSame('2026-01-01T00:00:00+00:00', get_option(\FluentAuth\App\Services\Onboarding::OPTION));
+
+        delete_option('__fluent_security_version');
+        delete_option(\FluentAuth\App\Services\Onboarding::OPTION);
+        delete_option('__fls_auth_settings');
+    }
+
+    public function testActivationHookAndUpgradeRunnerAreRegistered()
+    {
+        $this->assertNotFalse(has_action('admin_init', ['\\FluentAuth\\App\\Helpers\\Activator', 'maybeUpgrade']));
+    }
+
     public function testMigrateLogsTable()
     {
         global $wpdb;

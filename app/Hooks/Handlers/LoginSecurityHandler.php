@@ -77,7 +77,28 @@ class LoginSecurityHandler
      */
     public function maybeDenyRestrictedLocation($canLogin, $user, $provider = '')
     {
-        if (is_wp_error($canLogin) || !$canLogin || !IpRules::deniesSignIn($user)) {
+        if (is_wp_error($canLogin) || !$canLogin) {
+            return $canLogin;
+        }
+
+        /*
+         * The block list, checked here as well as in the authenticate chain, because social
+         * login never enters that chain: AuthService sets the cookie itself, and this filter
+         * is the only thing it asks. The role restriction beside it was carried across when
+         * this filter was written and the block list was not, which left the stricter of the
+         * two rules as the one an OAuth button walked past.
+         */
+        $blockRule = $user instanceof \WP_User ? IpRules::blockingRule(Helper::getIp()) : '';
+
+        if ($blockRule) {
+            $this->logBlockedAuth($user, $user->user_login, 'web', 'Blocked by IP rule ' . $blockRule);
+
+            return $provider
+                ? $this->blockedAddressError($user, $blockRule)
+                : false;
+        }
+
+        if (!IpRules::deniesSignIn($user)) {
             return $canLogin;
         }
 
@@ -320,7 +341,27 @@ class LoginSecurityHandler
         }
 
         /*
-         * Redeeming an emailed token is not a password guess, so the block does not
+         * Also outside the exemption, and for the same reason as the rule above it.
+         *
+         * The block list lived inside checkLoginAttempt(), which the emailed-token path
+         * skips wholesale - so an address the site's owner had explicitly blocked could
+         * still sign in by asking for a magic link, as long as whoever held it could read
+         * the mailbox. That is the one list in this plugin with no conditions attached to
+         * it: allow-listing only relaxes the rate limit, but a block is meant to mean no.
+         *
+         * The rate limit is genuinely different, and stays exempt below. It exists to stop
+         * guessing, and somebody reading their own inbox is not guessing.
+         */
+        $blockRule = IpRules::blockingRule(Helper::getIp());
+
+        if ($blockRule) {
+            $this->logBlockedAuth($user, $username, 'web', 'Blocked by IP rule ' . $blockRule);
+
+            return $this->blockedAddressError($user, $blockRule);
+        }
+
+        /*
+         * Redeeming an emailed token is not a password guess, so the limit does not
          * apply - but everything below it still does, or a magic link would become a
          * way to skip two factor authentication.
          */
@@ -757,7 +798,7 @@ class LoginSecurityHandler
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
         $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
-        $infoHtml .= '<li><b>Username:</b> <a href="' . $userEditLInk . '">' . $user->user_login . '</a></li>';
+        $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
         $infoHtml .= '<li><b>User Role:</b> ' . $roleNames . '</li>';
         if ($media && $media != 'web') {
             $infoHtml .= '<li><b>Media:</b> ' . $media . '</li>';
@@ -823,7 +864,8 @@ class LoginSecurityHandler
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
         $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
-        $infoHtml .= '<li><b>Username:</b> ' . $userName . '</li>';
+        /* Typed by whoever was refused, and printed into an email to the site's owner. */
+        $infoHtml .= '<li><b>Username:</b> ' . esc_html($userName) . '</li>';
         $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
         $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
 
@@ -831,7 +873,7 @@ class LoginSecurityHandler
             $infoHtml .= '<li>' . wp_kses_post($user->get_error_message()) . '</li>';
         } else if ($user instanceof \WP_User) {
             $userEditLInk = add_query_arg('user_id', $user->ID, self_admin_url('user-edit.php'));
-            $infoHtml .= '<li><b>Username:</b> <a href="' . $userEditLInk . '">' . $user->user_login . '</a></li>';
+            $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
             $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
             $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
         }

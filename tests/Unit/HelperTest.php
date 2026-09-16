@@ -197,6 +197,62 @@ class HelperTest extends BaseTestCase
         $this->assertTrue($formatted['login']['banner']['hidden']);
     }
 
+    /**
+     * The customizer's colours are interpolated into a `:root { ... }` block on
+     * wp-login.php. sanitize_text_field() leaves `{`, `}` and `;` alone, so a value that is
+     * not a colour was a way to write a stylesheet onto the site's sign-in page.
+     *
+     * Only an administrator can save these, which is why this is a guard rather than a
+     * hole - but the capability those screens require is itself filterable, and a site that
+     * lowers it should not be handing out the login page along with the settings page.
+     */
+    public function testCustomizerColoursAreColoursOrNothing()
+    {
+        $settings = [
+            'login' => [
+                'banner' => [
+                    'title_color'      => 'red } body { background: url(https://evil.test/x) } x {',
+                    'text_color'       => '#ffffff',
+                    'background_color' => 'rgba(155, 81, 224, 1)',
+                    'button_color'     => 'expression(alert(1))',
+                    'description'      => 'fine'
+                ]
+            ]
+        ];
+
+        $formatted = Helper::formatAuthCustomizerSettings($settings);
+        $banner = $formatted['login']['banner'];
+
+        $this->assertSame('', $banner['title_color'], 'a declaration dressed as a colour is dropped');
+        $this->assertSame('', $banner['button_color']);
+
+        /* And every form the colour picker actually produces still survives untouched. */
+        $this->assertSame('#ffffff', $banner['text_color']);
+        $this->assertSame('rgba(155, 81, 224, 1)', $banner['background_color']);
+    }
+
+    public function testEveryShapeOfColourThePickerProducesIsKept()
+    {
+        foreach (['#fff', '#ffffff', '#ffffffcc', 'rgb(1,2,3)', 'rgba(1,2,3,0.5)', 'hsl(120 50% 50%)', 'transparent', 'rebeccapurple'] as $value) {
+            $this->assertSame($value, Helper::sanitizeCssColor($value), $value);
+        }
+    }
+
+    public function testNothingThatCouldCloseTheDeclarationSurvives()
+    {
+        foreach ([
+            '#fff;background:url(x)',
+            'red;}',
+            'url(javascript:alert(1))',
+            '}*{display:none',
+            'var(--x);color:red',
+            '#fff/*',
+            "#fff\n}"
+        ] as $value) {
+            $this->assertSame('', Helper::sanitizeCssColor($value), $value);
+        }
+    }
+
     public function testGetValidatedRedirectUrl()
     {
         $result = Helper::getValidatedRedirectUrl(admin_url(), '/fallback');

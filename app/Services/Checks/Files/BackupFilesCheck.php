@@ -3,6 +3,7 @@
 namespace FluentAuth\App\Services\Checks\Files;
 
 use FluentAuth\App\Services\Checks\Check;
+use FluentAuth\App\Services\IntegrityChecker\RootExpectations;
 use FluentAuth\App\Services\Checks\Dismissals;
 use FluentAuth\App\Services\Checks\Finding;
 
@@ -125,6 +126,22 @@ class BackupFilesCheck extends Check
             '/^wp-config\.(bak|old|orig|save|txt)$/i'
         ]);
 
+        /*
+         * The same list the integrity scan silences by, which is why it is read from there
+         * rather than restated here.
+         *
+         * The scan drops a kept copy on purpose - an `index.php~` is not a changed core file
+         * and reporting it there would be noise. But the two lists had drifted, so the
+         * suffixes the scan silenced and this check never learned about (.bk, .back, .backup,
+         * .tmp, .copy, ~, _bak, _old, _backup) were reported by neither: a readable copy of
+         * wp-login.php or .htaccess sitting in the web root, which is exactly the kind of file
+         * this check exists for, and the server hands it over as plain text because only the
+         * exact name `.htaccess` is protected.
+         *
+         * Silence in the scan is now a report here, and one list decides both.
+         */
+        $suffixes = RootExpectations::backupSuffixes();
+
         $root = untrailingslashit(ABSPATH);
         $entries = @scandir($root);
 
@@ -139,20 +156,51 @@ class BackupFilesCheck extends Check
                 continue;
             }
 
-            foreach ($patterns as $pattern) {
-                if (preg_match($pattern, $entry)) {
-                    $size = @filesize($root . '/' . $entry);
+            if ($this->looksKept($entry, $patterns, $suffixes)) {
+                $size = @filesize($root . '/' . $entry);
 
-                    $found[] = $size
-                        ? sprintf('/%s (%s)', $entry, size_format($size))
-                        : '/' . $entry;
-
-                    break;
-                }
+                $found[] = $size
+                    ? sprintf('/%s (%s)', $entry, size_format($size))
+                    : '/' . $entry;
             }
         }
 
         return $found;
+    }
+
+    /**
+     * Whether a root entry is an archive, a dump, or somebody's kept copy of a file.
+     *
+     * @param string $entry
+     * @param array  $patterns
+     * @param array  $suffixes
+     * @return bool
+     */
+    protected function looksKept($entry, $patterns, $suffixes)
+    {
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $entry)) {
+                return true;
+            }
+        }
+
+        $lower = strtolower($entry);
+
+        foreach ($suffixes as $suffix) {
+            if (substr($lower, -strlen($suffix)) === $suffix) {
+                return true;
+            }
+        }
+
+        /*
+         * `.htaccess.bk`, `.htaccess_old`, `.htaccess-2024`. Named separately because the
+         * suffix rule cannot see them - the distinguishing part is in the middle - and
+         * because this is the copy with the most to give away: the rules protecting
+         * everything else on the site, served as text.
+         */
+        return strpos($lower, '.htaccess.') === 0
+            || strpos($lower, '.htaccess_') === 0
+            || strpos($lower, '.htaccess-') === 0;
     }
 
     /**

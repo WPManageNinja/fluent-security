@@ -1,8 +1,10 @@
 <script type="text/babel">
 import icons from './icons';
+import OptinForm from '../Optin/_OptinForm.vue';
 
 export default {
     name: 'SecurityAside',
+    components: {OptinForm},
     props: {
         protection: {
             type: Object,
@@ -12,6 +14,12 @@ export default {
     data() {
         return {
             icons,
+            /*
+             * Whether the signup card is still on the page. Seeded from the app-wide flag
+             * and lowered locally when it is answered, so the column closes up at once
+             * rather than on the next load - see Optin::isRequired() for what sets it.
+             */
+            askOptin: this.appVars.optin_required,
             loading: false,
             loadError: false,
             installing: false,
@@ -126,6 +134,18 @@ export default {
         }
     },
     methods: {
+        /*
+         * Only a refusal takes the card away. Hiding it on any answer at all destroyed the
+         * form's own success state in the same tick it was set - "check your inbox" is an
+         * instruction somebody has to act on, and it was being unmounted before it could be
+         * read, leaving a toast that vanishes as the only trace. Declining has nothing to
+         * leave behind, so that still closes the block.
+         */
+        onOptinAnswered(answer) {
+            if (answer === 'dismissed') {
+                this.askOptin = false;
+            }
+        },
         async getFindings() {
             if (this.loading) return;
             this.loading = true;
@@ -206,6 +226,16 @@ export default {
                     </router-link>
                 </li>
             </ul>
+        </div>
+
+        <!--
+            Last of the useful blocks and before the promo, which is where an ask belongs:
+            everything above it answers a question about this site, and this one does not.
+            Dismissing it parks it for a week rather than for good - see Optin::dismiss().
+        -->
+        <div v-if="askOptin" class="fls_aside_block fls_dash_optin">
+            <h3>{{ $t('Stay updated') }}</h3>
+            <optin-form @answered="onOptinAnswered"/>
         </div>
 
         <div v-if="!appVars.fluent_smtp_url" class="fls_aside_block fls_dash_promo">

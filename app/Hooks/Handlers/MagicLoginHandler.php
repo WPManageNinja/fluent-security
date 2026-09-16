@@ -175,8 +175,23 @@ class MagicLoginHandler
             ], 422);
         }
 
-        $loginLimit = Helper::getSetting('login_try_limit', 5);
-        $timingMinutes = Helper::getSetting('login_try_timing', 30);
+        /*
+         * Zero means the site turned the login attempt limit off, not that no link may ever
+         * be sent. Read literally - which is what `>= $loginLimit` did with a zero - it
+         * refused every request on such a site, so magic login simply stopped working the
+         * moment somebody relaxed an unrelated setting.
+         *
+         * A bound of this endpoint's own stands in, because the thing being limited here is
+         * not guessing: every request that gets through sends an email to somebody else's
+         * address, and that has to have a ceiling whatever the attempt limit says.
+         */
+        $loginLimit = (int)Helper::getSetting('login_try_limit', 5);
+        $timingMinutes = (int)Helper::getSetting('login_try_timing', 30);
+
+        if ($loginLimit < 1 || $timingMinutes < 1) {
+            $loginLimit = (int)apply_filters('fluent_auth/magic_login_floor_limit', 10);
+            $timingMinutes = (int)apply_filters('fluent_auth/magic_login_floor_timing', 30);
+        }
 
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $timingMinutes * 60);
 
@@ -218,16 +233,37 @@ class MagicLoginHandler
         $canUseMagicLogin = apply_filters('fluent_auth/magic_login_can_use', $this->canUseMagic($user), $user);
 
         if (!$canUseMagicLogin) {
+            /*
+             * An account that exists and an account that does not have to answer the same,
+             * or this form is a way to ask the site whether a given address has an account -
+             * which is the question the login form was hardened against answering, a few
+             * files away, by replacing core's "invalid username" with a message that does
+             * not say which half was wrong.
+             *
+             * It was also the cheaper question to ask. The allowance counted above is
+             * measured in rows, and a row is only written once a user has been found, so
+             * probing for addresses that do not exist cost nothing and was unlimited. The
+             * attempt is recorded first, so a probe is spent from the same budget as a real
+             * request.
+             *
+             * A site that would rather say no out loud can still do it through the filter;
+             * what changed is the default, and that it no longer says no by accident.
+             */
+            $this->recordMagicProbe();
 
-            $error_message = apply_filters(
-                'fluent_auth/magic_login_error_message',
-                __('Sorry, You can not login via magic url. Please use regular login form', 'fluent-security'),
-                $user
-            );
+            if ($user) {
+                $error_message = apply_filters(
+                    'fluent_auth/magic_login_error_message',
+                    __('Sorry, You can not login via magic url. Please use regular login form', 'fluent-security'),
+                    $user
+                );
 
-            wp_send_json(array(
-                'message' => $error_message
-            ), 422);
+                wp_send_json(array(
+                    'message' => $error_message
+                ), 422);
+            }
+
+            wp_send_json($this->sentConfirmation($username), 200);
         }
 
         // Now we have a valid user and let's send the email
@@ -294,17 +330,67 @@ class MagicLoginHandler
             'Content-Type: text/html; charset=UTF-8'
         ));
 
+        $confirmation = $this->sentConfirmation($username);
+        $confirmation['result'] = $result;
+
+        wp_send_json($confirmation, 200);
+    }
+
+    /**
+     * What this form says once it has finished, whoever was typed into it.
+     *
+     * The address is echoed back as it was typed rather than read off the account. In the
+     * ordinary case they are the same string; where they are not - somebody whose username
+     * happens to look like an email address, signing in with it - reading it off the account
+     * would print an address the person at the keyboard had not supplied.
+     *
+     * @param string $username whatever was typed
+     * @return array
+     */
+    private function sentConfirmation($username)
+    {
         $message = __('We just emailed a login link to your registered email. Click the link to sign in.', 'fluent-security');
+
         if (is_email($username)) {
             /* translators: %s: User Email  */
-            $message = sprintf(__('We just emailed a magic link to %s. Click the link to sign in.', 'fluent-security'), $user->user_email);
+            $message = sprintf(__('We just emailed a magic link to %s. Click the link to sign in.', 'fluent-security'), $username);
         }
 
-        wp_send_json([
+        return [
             'heading' => __('Check your inbox', 'fluent-security'),
-            'result'  => $result,
+            'result'  => true,
             'message' => $message
-        ], 200);
+        ];
+    }
+
+    /**
+     * Spend one from the address's allowance without sending anything.
+     *
+     * The allowance is counted in rows of this table, so a request that never reaches the
+     * point of writing one is a request that never counted. This writes the row that a
+     * refused attempt would otherwise not leave behind.
+     *
+     * Deliberately not redeemable: no user, a status nothing looks for, and a validity that
+     * has already passed. It exists to be counted.
+     *
+     * @return void
+     */
+    private function recordMagicProbe()
+    {
+        $now = date('Y-m-d H:i:s', current_time('timestamp'));
+
+        flsDb()->table('fls_login_hashes')->insert([
+            'login_hash'  => 'probe-' . wp_generate_password(32, false),
+            'user_id'     => 0,
+            'use_limit'   => 0,
+            'used_count'  => 0,
+            'status'      => 'probe',
+            'use_type'    => 'magic_login',
+            'ip_address'  => Helper::getIp(),
+            'valid_till'  => $now,
+            'created_at'  => $now,
+            'updated_at'  => $now
+        ]);
     }
 
     private function getCustomizedEmailSubjectBody($user, $autoLoginUrl = '')
@@ -365,7 +451,16 @@ class MagicLoginHandler
             return false;
         }
 
-        $string = md5($user->ID . '-' . wp_generate_uuid4() . mt_rand(1, 99999999));
+        /*
+         * Straight from the CSPRNG rather than md5 over a uuid and mt_rand().
+         *
+         * On a current WordPress the old line was fine - wp_generate_uuid4() routes through
+         * random_int() there - but this plugin supports back to 5.0, where it was plain
+         * mt_rand(), and mt_rand() supplied the rest of the input too. That makes the
+         * strength of a sign-in token depend on which WordPress the site happens to run,
+         * which is not a thing anybody should have to know to answer "is this safe".
+         */
+        $string = bin2hex(random_bytes(32));
         $hash = wp_hash_password($string);
 
         $data = array(
@@ -448,6 +543,35 @@ class MagicLoginHandler
         $user = get_user_by('ID', $userId);
 
         if (!apply_filters('fluent_auth/magic_login_can_use', $this->canUseMagic($user), $user)) {
+            return false;
+        }
+
+        /*
+         * Claimed before it is used, not after.
+         *
+         * The row was read as `issued` here and only written back as `used` once the sign-in
+         * had finished, which leaves a window: two requests carrying the same link both read
+         * it as unspent and both go on to sign in. "Can only be used once" is what the email
+         * promises and what the row's status is for, so the claim has to be the thing that
+         * decides, and it has to be one statement.
+         *
+         * Written through $wpdb rather than the query builder because this needs the number
+         * of rows the UPDATE actually matched, and the builder's update() returns nothing.
+         * Nobody wins the race twice: whoever matched the row proceeds, everyone else is
+         * told the link is spent.
+         */
+        global $wpdb;
+
+        $claimed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET status = 'used', success_ip_address = %s, updated_at = %s
+             WHERE id = %d AND status = 'issued'",
+            Helper::getIp(),
+            current_time('mysql'),
+            $row->id
+        ));
+
+        if (!$claimed) {
             return false;
         }
 

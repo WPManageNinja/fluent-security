@@ -979,5 +979,14 @@ class LoginSecurityHandlerTest extends BaseTestCase
             $admin,
             (new LoginSecurityHandler())->maybeCheckLoginAttempts($admin, $admin->user_login, 'pw')
         );
+
+        /*
+         * And the social path, which asks a different function entirely - it never enters
+         * the authenticate chain. An escape hatch that reached one way in and not the other
+         * would be an administrator editing wp-config.php and still being turned away.
+         */
+        $this->assertTrue(
+            (new LoginSecurityHandler())->maybeDenyRestrictedLocation(true, $admin, 'google')
+        );
     }
 }

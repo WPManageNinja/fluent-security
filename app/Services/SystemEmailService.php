@@ -63,7 +63,7 @@ class SystemEmailService
             ],
             'email_change_notification_after_confimation' => [
                 'name'                  => 'email_change_notification_after_confimation',
-                'title'                 => __('Email Address Change Notification After Confimration', 'fluent-security'),
+                'title'                 => __('Email Address Change Notification After Confirmation', 'fluent-security'),
                 'description'           => __('Send email notification to the old email address of the user after confirmation.', 'fluent-security'),
                 'hook'                  => 'wp_email_change_notification',
                 'recipient'             => 'user',
@@ -74,7 +74,7 @@ class SystemEmailService
             ],
             'fluent_auth_welcome_email_to_user'           => [
                 'name'                => 'fluent_auth_welcome_email_to_user',
-                'title'               => __('Welcome email after sign-Up when the password is set by the user', 'fluent-security'),
+                'title'               => __('Welcome email after sign-up when the password is set by the user', 'fluent-security'),
                 'description'         => __('A friendly welcome email sent to new users after registering via the FluentAuth Signup Form or when the password is set.', 'fluent-security'),
                 'recipient'           => 'user',
                 'hook'                => 'fluent_auth/after_creating_user',

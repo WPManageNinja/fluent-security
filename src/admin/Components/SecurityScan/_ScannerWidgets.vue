@@ -81,6 +81,31 @@ export default {
             return this.settings.relay_rejection === 'revoked';
         },
         /*
+         * Why the relay refused, in the most specific words available.
+         *
+         * Three sources, in order. A reason we have a sentence for wins, because ours is
+         * translated and the relay's is English whatever the site's language. Failing that,
+         * the relay's own message - it knows things this build cannot, and a cause added
+         * over there should reach the reader without waiting for a plugin release. Failing
+         * both, null, and the generic paragraph stands as it always has.
+         *
+         * Interpolated as text, never v-html: this string arrives over the network.
+         */
+        relayReason() {
+            const known = {
+                superseded: '__relay_reason_superseded__',
+                removed: '__relay_reason_removed__'
+            };
+
+            const key = known[this.settings.relay_rejection_reason];
+
+            if (key) {
+                return this.$t(key);
+            }
+
+            return this.settings.relay_rejection_note || null;
+        },
+        /*
          * One map, so the picker and the row that reports the choice cannot drift into naming
          * the same interval two different ways.
          */
@@ -320,6 +345,7 @@ export default {
 
             <!-- Switched off on the dashboard. The key still works, so this is one click away. -->
             <template v-else-if="relayDisabled">
+                <p v-if="relayReason" class="fls_relay_notice">{{ relayReason }}</p>
                 <p class="fls_relay_notice">{{ $t('__relay_disabled_desc__') }}</p>
 
                 <div class="fls_scan_aside_actions">
@@ -331,7 +357,13 @@ export default {
 
             <!-- Scanning without the service: no key, so no alerts to send. -->
             <template v-else>
-                <p v-if="relayRevoked" class="fls_relay_notice">{{ $t('__relay_revoked_desc__') }}</p>
+                <template v-if="relayRevoked">
+                    <template v-if="relayReason">
+                        <p class="fls_relay_notice">{{ relayReason }}</p>
+                        <p class="fls_relay_notice">{{ $t('__relay_revoked_next__') }}</p>
+                    </template>
+                    <p v-else class="fls_relay_notice">{{ $t('__relay_revoked_desc__') }}</p>
+                </template>
                 <p v-else>
                     {{ $t('Please get a free API key to enable Scheduled Scanning and get notified when FluentAuth detects file changes.') }}
                 </p>

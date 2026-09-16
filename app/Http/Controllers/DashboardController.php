@@ -522,16 +522,16 @@ class DashboardController
      */
     private static function getTwoFaCounts()
     {
-        $enrolled = TwoFaController::countEnrolledUsers();
-
-        $all = new \WP_User_Query([
-            'number' => 1,
-            'fields' => 'ID'
-        ]);
-
         return [
-            'enrolled' => $enrolled,
-            'total'    => (int)$all->get_total()
+            'enrolled' => TwoFaController::countEnrolledUsers(),
+            /*
+             * The people who could enrol, not everybody with an account - see
+             * TwoFaController::countEligibleUsers(). This used to be an unfiltered user
+             * count, which on any site with customers or subscribers made the tile read
+             * far worse than the truth: nobody in those roles is offered a second factor,
+             * so none of them were ever going to appear in the numerator.
+             */
+            'total'    => TwoFaController::countEligibleUsers()
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\Onboarding;
+use FluentAuth\App\Services\Optin;
 use FluentAuth\App\Services\TransStrings;
 use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
@@ -215,6 +216,12 @@ class AdminMenuHandler
              * the wizard again unless it asks to.
              */
             'is_onboarding'   => !Onboarding::isDone(),
+            /*
+             * Whether the mailing list signup still needs asking. One flag for both places
+             * that ask - the wizard's last screen and the dashboard aside - so answering it
+             * on either closes it on the other without a reload. See Optin::isRequired().
+             */
+            'optin_required'  => Optin::isRequired(),
             'i18n'            => TransStrings::getStrings(),
             'suggestedColors' => ['#000000', '#abb8c3', '#ffffff', '#f78da7', '#ff6900', '#fcb900', '#7bdcb5', '#00d084', '#8ed1fc', '#0693e3', '#9b51e0'],
             'has_fluent_smtp' => defined('FLUENTMAIL_PLUGIN_FILE'),

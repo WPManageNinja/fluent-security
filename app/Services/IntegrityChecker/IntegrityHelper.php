@@ -19,6 +19,14 @@ class IntegrityHelper
 
     const RELAY_REVOKED = 'revoked';
 
+    /**
+     * How far apart the two refusals that destroy a credential have to be.
+     *
+     * See handleReportResponse: consecutive is not enough on its own, because a bad deploy
+     * produces two in a row in the time it takes to roll back.
+     */
+    const RELAY_REVOKE_GRACE = 3600;
+
     /*
      * The schedules a site can be put on, and how long each waits, in seconds.
      *
@@ -76,6 +84,25 @@ class IntegrityHelper
             'relay_rejection'     => '',
             'relay_rejected_at'   => '',
             'relay_auth_failures' => 0,
+            /* When the first unanswered refusal arrived - see RELAY_REVOKE_GRACE. */
+            'relay_auth_failed_at' => 0,
+            /*
+             * What the relay said when it refused, and its own name for why.
+             *
+             * Worth keeping because the generic sentence on the screen cannot be right for
+             * every case: "this usually means the site was deleted" is actively misleading
+             * for the commonest cause that is not a deletion - a staging clone copied from
+             * the database, which keeps `siteurl` and so looks to the relay like the same
+             * site connecting again. The reason is a hint for picking a translated sentence;
+             * the note is the relay's own words, shown when we have nothing better.
+             */
+            'relay_rejection_note' => '',
+            'relay_rejection_reason' => '',
+            /*
+             * The id this site was reporting under when it was disowned, kept for reference
+             * after the credential itself is destroyed - see markRelayRejected().
+             */
+            'relay_retired_api_id' => '',
             /*
              * A hash of the extension inventory the relay has actually accepted, so the list is
              * only carried when it has changed. Empty means it has never taken one - which is
@@ -92,6 +119,41 @@ class IntegrityHelper
         }
 
         $settings = wp_parse_args($settings, $defaults);
+
+        return $settings;
+    }
+
+    /**
+     * The settings as the browser is allowed to see them.
+     *
+     * One place, because "which fields may leave the server" is a question with one answer
+     * and eight callers. Unsetting the key at each return was the alternative, and it leaks
+     * the first time somebody adds a ninth - the failure being silent, and in the direction
+     * of sending more rather than less.
+     *
+     * What it withholds is the site key. It was never read in the browser: it is only ever
+     * written alongside `status = 'active'`, a failed confirmation stores nothing, and the
+     * one form that prefilled it is only drawn while a site is unregistered or pending - so
+     * that field always received an empty string. The value an administrator confirms with
+     * is the one they type out of their email.
+     *
+     * Worth withholding rather than tolerating, because a database row and a JSON response
+     * are different exposures. wp-admin is a crowded script environment nobody audited for
+     * this, and the key can post forged reports and call `disable` - the second being the one
+     * that matters, since switching a site's monitoring off leaves no evidence except scans
+     * that stop arriving, which is the signal nobody notices.
+     *
+     * @param array|null $settings defaults to the stored ones
+     * @return array
+     */
+    public static function getPublicSettings($settings = null)
+    {
+        $settings = $settings === null ? self::getSettings() : (array)$settings;
+
+        /* Whether one exists, for anything that needs to know without being told what it is. */
+        $settings['has_api_key'] = !empty($settings['api_key']);
+
+        unset($settings['api_key']);
 
         return $settings;
     }
@@ -610,15 +672,21 @@ class IntegrityHelper
 
         self::handleReportResponse($response);
 
-        $code = is_wp_error($response) ? 0 : (int)wp_remote_retrieve_response_code($response);
-
         /*
-         * The inventory counts as delivered only when the relay took it. Marking it sent on the
-         * way out would mean one failed request silently withholds the list until something else
-         * about the site changes - which, for a list that changes when a plugin is updated,
-         * could be months.
+         * The inventory counts as delivered only when the relay says it filed it.
+         *
+         * A 2xx is not that answer. The relay used to write the inventory after its response
+         * had already gone out, so a successful report told us nothing about whether the list
+         * survived - and because the list is only re-sent when its hash changes, one dropped
+         * write withheld a site's plugins until it next installed one, which can be months.
+         * It now files the rows first and reports the outcome in `data.extensions_accepted`.
+         *
+         * The flag is trusted only when it is actually present. An install talking to a relay
+         * that predates it would otherwise treat its absence as a refusal and re-send the
+         * whole inventory on every report for ever; falling back to the status code leaves
+         * those exactly where they were.
          */
-        if ($code >= 200 && $code < 300 && isset($payload['extensions'])) {
+        if (isset($payload['extensions']) && self::relayAcceptedInventory($response)) {
             $settings = self::getSettings();
             $settings['extensions_hash'] = self::inventoryHash([
                 'extensions'           => $payload['extensions'],
@@ -780,27 +848,146 @@ class IntegrityHelper
             return null;
         }
 
-        if ($code === 403) {
-            return self::markRelayRejected(self::RELAY_DISABLED);
+        /*
+         * The status code alone is not the signal, and acting on it is the mistake that would
+         * take the whole install base offline at once.
+         *
+         * dash.fluentauth.com sits on a Cloudflare custom domain, so a WAF rule, Bot Fight
+         * Mode or a zone-level block answers with a 403 and an HTML body from the edge, before
+         * the relay's code runs at all. That is zone configuration - it can change without
+         * anybody touching either codebase - and a 403 read as "this site has been disabled"
+         * would disconnect every install on the internet within a day of somebody tightening a
+         * firewall rule.
+         *
+         * So the contract is the JSON, not the number: a body that parses, says it is an
+         * error, and names one of the two reasons the relay actually uses. Anything else -
+         * HTML, an empty body, an unrecognised code - is a network problem and is retried like
+         * any other failure.
+         */
+        $error = self::relayErrorCode($response);
+        $said = self::relayExplanation($response);
+
+        if ($error === 'not_connected') {
+            return self::markRelayRejected(self::RELAY_DISABLED, $said);
         }
 
         /*
-         * A 401 is the one ambiguous answer: a site deleted from the dashboard and a stored key
-         * that has been corrupted look identical from here. So it costs one more report before
-         * the credentials are thrown away - but only one, because the alternative is an install
-         * that re-posts a key nothing will ever accept until somebody notices.
+         * `invalid_key` specifically, not every 401. The relay also answers 401 with
+         * `invalid_request` when the pair it was sent was empty - that is this plugin sending
+         * a malformed report, and a bug of ours must not spend the site's revocation budget.
+         */
+        if ($error !== 'invalid_key') {
+            return null;
+        }
+
+        /*
+         * A revocation is the one ambiguous answer: a site deleted from the dashboard and a
+         * stored key that has been corrupted look identical from here. So it costs one more
+         * report before the credentials are thrown away - but only one, because the
+         * alternative is an install that re-posts a key nothing will ever accept until
+         * somebody notices.
+         *
+         * The two have to be an hour apart as well as consecutive. Two refusals inside a
+         * minute are far more likely to be one bad deploy at the other end than a site that
+         * was really deleted, and the cost of being wrong is asymmetric: a slow revocation
+         * wastes a few reports, a fast one destroys a working credential that can only be
+         * replaced by registering again by email.
          */
         $settings = self::getSettings();
-        $strikes = (int)Arr::get($settings, 'relay_auth_failures', 0) + 1;
+        $strikes = (int)Arr::get($settings, 'relay_auth_failures', 0);
+        $firstAt = (int)Arr::get($settings, 'relay_auth_failed_at', 0);
+        $now = time();
 
-        if ($strikes < 2) {
-            $settings['relay_auth_failures'] = $strikes;
+        if ($strikes < 1 || !$firstAt) {
+            $settings['relay_auth_failures'] = 1;
+            $settings['relay_auth_failed_at'] = $now;
             self::saveSettings($settings);
 
             return null;
         }
 
-        return self::markRelayRejected(self::RELAY_REVOKED);
+        if (($now - $firstAt) < self::RELAY_REVOKE_GRACE) {
+            return null;
+        }
+
+        return self::markRelayRejected(self::RELAY_REVOKED, $said);
+    }
+
+    /**
+     * What the relay said about the refusal, and its own name for the cause.
+     *
+     * Both are presentation only. `error_code` stays the one thing any decision is made on -
+     * a `reason` this plugin has never heard of must not change what it does, or a relay
+     * adding a cause would strand every install that predates it.
+     *
+     * @param array $response
+     * @return array{note: string, reason: string}
+     */
+    protected static function relayExplanation($response)
+    {
+        $body = json_decode((string)wp_remote_retrieve_body($response), true);
+
+        if (!is_array($body)) {
+            return ['note' => '', 'reason' => ''];
+        }
+
+        return [
+            /* Trimmed hard: this is drawn on a screen, and it comes from over the network. */
+            'note'   => substr(sanitize_text_field((string)Arr::get($body, 'message', '')), 0, 400),
+            'reason' => substr(sanitize_key((string)Arr::get($body, 'reason', '')), 0, 40)
+        ];
+    }
+
+    /**
+     * Whether the relay has stored the extension inventory this report carried.
+     *
+     * Three answers, not two: yes, no, and a relay too old to say - which is why this reads
+     * the key's presence rather than just its truth. See postReport().
+     *
+     * @param array|\WP_Error $response
+     * @return bool
+     */
+    protected static function relayAcceptedInventory($response)
+    {
+        if (is_wp_error($response)) {
+            return false;
+        }
+
+        $code = (int)wp_remote_retrieve_response_code($response);
+
+        if ($code < 200 || $code >= 300) {
+            return false;
+        }
+
+        $body = json_decode((string)wp_remote_retrieve_body($response), true);
+
+        if (!is_array($body) || !array_key_exists('extensions_accepted', (array)Arr::get($body, 'data', []))) {
+            /* An older relay, which cannot tell us. Its 2xx is all there is to go on. */
+            return true;
+        }
+
+        return Arr::get($body, 'data.extensions_accepted') === true;
+    }
+
+    /**
+     * The relay's own reason for refusing, or '' when this did not come from the relay.
+     *
+     * Deliberately strict. An answer only counts when it parses as JSON, declares itself an
+     * error, and carries `error_code` - the field the relay actually emits, which is
+     * `error_code` and never `code`.
+     *
+     * @param array $response
+     * @return string
+     */
+    protected static function relayErrorCode($response)
+    {
+        $body = json_decode((string)wp_remote_retrieve_body($response), true);
+
+        if (!is_array($body) || Arr::get($body, 'status') !== 'error') {
+            return '';
+        }
+
+        return (string)Arr::get($body, 'error_code', '');
     }
 
     /*
@@ -809,21 +996,36 @@ class IntegrityHelper
      * Reporting stops by way of `status`, which the cron already guards on - so there is no
      * second switch that can disagree with this one about whether the site is connected.
      */
-    public static function markRelayRejected($reason)
+    public static function markRelayRejected($reason, $said = null)
     {
         $settings = self::getSettings();
 
         $settings['relay_rejection'] = $reason;
         $settings['relay_rejected_at'] = date('Y-m-d H:i:s');
         $settings['relay_auth_failures'] = 0;
+        $settings['relay_auth_failed_at'] = 0;
+        $settings['relay_rejection_note'] = (string)Arr::get((array)$said, 'note', '');
+        $settings['relay_rejection_reason'] = (string)Arr::get((array)$said, 'reason', '');
 
         if ($reason === self::RELAY_REVOKED) {
             /*
-             * Nothing survives: the relay has no row for these credentials, so keeping them
+             * The credential does not survive: the relay has no row for it, so keeping it
              * would only let the screen offer a reconnect that cannot work. Back to the state
              * a never-registered site is in, which is the one the screen knows how to offer
              * registration from.
+             *
+             * The id is kept, in a field of its own that nothing acts on. It is the only thing
+             * that can find this site at the other end once the row is gone - the relay files a
+             * tombstone under it, and its console can look one up by id but not by the address,
+             * which is precisely the search somebody with a superseded connection will try
+             * first. Clearing it destroyed the one reference that made the ticket tractable, at
+             * the exact moment the ticket gets raised.
+             *
+             * Separate from `api_id` rather than left in it, so nothing that reads a live
+             * credential can pick this one up by accident. And the id only: the key is a
+             * secret and is gone.
              */
+            $settings['relay_retired_api_id'] = (string)Arr::get($settings, 'api_id', '');
             $settings['status'] = 'unregistered';
             $settings['api_id'] = '';
             $settings['api_key'] = '';
@@ -850,11 +1052,36 @@ class IntegrityHelper
             return false;
         }
 
+        return self::saveSettings(self::withRelayRejectionCleared($settings));
+    }
+
+    /**
+     * Every field a rejection writes, cleared on a settings array in hand.
+     *
+     * Split out from clearRelayRejection() because the reconnect paths cannot call that
+     * one: they are part-way through building a settings array of their own, and a helper
+     * that re-read and re-saved in the middle would have its work overwritten by the save
+     * that follows. They listed the fields by hand instead, which was three of the seven -
+     * so a site that reconnected kept the note, the reason and the retired id belonging to
+     * a rejection it had just recovered from.
+     *
+     * One list, so the next field a rejection writes is cleared everywhere by being added
+     * here once.
+     *
+     * @param array $settings
+     * @return array
+     */
+    public static function withRelayRejectionCleared($settings)
+    {
         $settings['relay_rejection'] = '';
         $settings['relay_rejected_at'] = '';
         $settings['relay_auth_failures'] = 0;
+        $settings['relay_auth_failed_at'] = 0;
+        $settings['relay_rejection_note'] = '';
+        $settings['relay_rejection_reason'] = '';
+        $settings['relay_retired_api_id'] = '';
 
-        return self::saveSettings($settings);
+        return $settings;
     }
 
     /*

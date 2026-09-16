@@ -1,0 +1,172 @@
+/*
+ * The mailing list signup.
+ *
+ * One form, two hosts: a 620px column on the wizard's last screen and a 380px card in the
+ * dashboard aside. Only the field row differs between them - `is_wide` puts the name and
+ * the address side by side, and everything else is the same rules in both places, which is
+ * the point of the shared component.
+ *
+ * Owned here rather than in _onboarding.scss or _dashboard.scss because neither screen owns
+ * it: a rule filed under one of them would be a rule the other screen quietly depends on.
+ */
+
+.fls_optin {
+    /*
+     * A form reads left to right whatever its host does. The wizard's done screen centres
+     * its symbol and headline, and a centred label sitting over a left-aligned input puts
+     * the label away from the value it names.
+     */
+    @apply text-left;
+}
+
+.fls_optin_intro {
+    @apply text-sm text-ink-mid m-0;
+
+    line-height: 1.5;
+    margin-bottom: 14px;
+}
+
+.fls_optin_fields {
+    @apply grid;
+
+    gap: 12px;
+}
+
+/* Two across only where there is a column wide enough for two usable inputs. */
+.fls_optin.is_wide .fls_optin_fields {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px 16px;
+}
+
+.fls_optin_field {
+    @apply block;
+}
+
+.fls_optin_label {
+    @apply block text-xs font-medium;
+
+    color: var(--fls-text);
+    margin-bottom: 5px;
+}
+
+/*
+ * Element Plus keeps a checkbox label on one line and fixes the row height, which is right
+ * for a word and wrong for a sentence. This one runs to two or three lines in a 380px
+ * column, so the row has to be allowed to grow and the box to stay at the first line.
+ */
+.fls_optin_share {
+    @apply flex items-start;
+
+    height: auto;
+    margin: 14px 0 0;
+
+    .el-checkbox__input {
+        margin-top: 2px;
+    }
+
+    .el-checkbox__label {
+        @apply text-xs font-normal;
+
+        color: var(--fls-text-mid);
+        white-space: normal;
+        line-height: 1.5;
+        padding-left: 8px;
+    }
+}
+
+.fls_optin_info {
+    @apply cursor-help align-text-bottom;
+
+    color: var(--fls-text-light);
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.fls_optin_actions {
+    @apply flex items-center flex-wrap;
+
+    gap: 8px;
+    margin-top: 16px;
+}
+
+/*
+ * "No thanks" is a real button beside the real one, not a line of small print under it.
+ * Declining is an answer this form wants, and an answer somebody has to hunt for is how a
+ * signup card ends up being dismissed by closing the browser tab instead.
+ */
+.fls_optin_no {
+    color: var(--fls-text-mid);
+}
+
+.fls_optin_done {
+    @apply flex items-start text-sm m-0;
+
+    gap: 6px;
+    color: var(--fls-text-mid);
+    line-height: 1.5;
+
+    .dashicons {
+        color: var(--fls-success-fg);
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        flex: none;
+    }
+}
+
+/* --------------------------------------------------- the wizard's last screen */
+
+/*
+ * Matched to the "Worth doing next" panel above it rather than given a treatment of its
+ * own: they are two blocks of the same weight on the same screen, and an ask that drew
+ * more attention than the security guidance beside it would be the wrong way round.
+ */
+.fls_onb_done_optin {
+    @apply bg-surface border border-solid border-hairline rounded;
+
+    padding: 20px 22px;
+    margin-bottom: 26px;
+}
+
+/* ------------------------------------------------------- the dashboard aside */
+
+.fls_dash_optin {
+    /* The aside's stack of narrow cards; the form brings its own rhythm. */
+    .fls_optin {
+        margin-top: 12px;
+    }
+
+    /*
+     * A step down from the wizard's copy. On the done screen this paragraph is the only
+     * thing being read; in a 380px column it is four lines standing between the heading
+     * and the two fields that are the point of the card.
+     */
+    .fls_optin_intro {
+        @apply text-xs;
+    }
+
+    /*
+     * Stacked, because two buttons side by side in this column are two buttons too narrow
+     * to read. The primary takes the width; "No thanks" keeps to the left edge under it,
+     * where the labels and the copy already are - centred under a full-width button it
+     * reads as a second primary action rather than the quiet one.
+     */
+    .fls_optin_actions {
+        @apply flex-col items-stretch;
+
+        gap: 4px;
+    }
+
+    .fls_optin_no {
+        @apply self-start;
+
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 782px) {
+    .fls_optin.is_wide .fls_optin_fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

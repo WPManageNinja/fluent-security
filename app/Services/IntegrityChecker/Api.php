@@ -68,14 +68,22 @@ class Api
         return $apiId;
     }
 
+    /**
+     * Redeem the emailed key.
+     *
+     * The pair travels in the body, not the query string. A key in a URL is written to the
+     * web server's access log, to every proxy in front of it, and to the Referer of anything
+     * the page goes on to load - which is a copy of a live credential in several places
+     * nobody is guarding. The relay accepts the query form as well, for installs still
+     * running an older release; there is no reason for a current one to use it.
+     */
     public static function confirmSite($infoData)
     {
-        $url = add_query_arg([
-            'api_id'  => $infoData['api_id'],
-            'api_key' => $infoData['api_key']
-        ], self::getApiUrl() . 'confirm');
-
-        $request = wp_remote_get($url, [
+        $request = wp_remote_post(self::getApiUrl() . 'confirm', [
+            'body'    => json_encode([
+                'api_id'  => $infoData['api_id'],
+                'api_key' => $infoData['api_key']
+            ]),
             'headers' => [
                 'Content-Type' => 'application/json'
             ],
@@ -230,12 +238,12 @@ class Api
     {
         $settings = IntegrityHelper::getSettings();
 
-        $url = add_query_arg([
-            'api_id'  => $settings['api_id'],
-            'api_key' => $settings['api_key']
-        ], self::getApiUrl() . 'disable');
-
-        $request = wp_remote_get($url, [
+        /* In the body for the reason given on confirmSite(). */
+        $request = wp_remote_post(self::getApiUrl() . 'disable', [
+            'body'    => json_encode([
+                'api_id'  => $settings['api_id'],
+                'api_key' => $settings['api_key']
+            ]),
             'headers' => [
                 'Content-Type' => 'application/json'
             ],

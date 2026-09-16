@@ -64,6 +64,23 @@ class GoogleOneTapAuthHandler
 
     public function handleGoogleOneTapLogin()
     {
+        /*
+         * Asked first, because nothing else on this path asks.
+         *
+         * Every other entry point in this class is gated - the shortcode, the button, the
+         * script that draws it - but the endpoint they all post to was not, and it does not
+         * need any of them: it needs a Google ID token and the site's client id, and
+         * Helper::getSocialAuthSettings() hands back the client id whether or not the
+         * feature is switched on. So turning social login off removed the button and left
+         * the door, and an administrator switching it off during an incident would have had
+         * no idea. On a site with open registration that door also creates accounts.
+         */
+        if (!$this->isOnetapEnabled()) {
+            wp_send_json([
+                'message' => __('One tap sign-in is not available on this site.', 'fluent-security')
+            ], 422);
+        }
+
         if (is_user_logged_in()) {
             wp_send_json([
                 'message'      => __('You are already logged in.', 'fluent-security'),

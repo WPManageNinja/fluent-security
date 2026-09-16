@@ -57,5 +57,11 @@
   "__disconnect_confirm__": "Scheduled scanning stops and no more alert emails are sent. Your key is destroyed here and at the service, and there is no way back to it: reconnecting means registering again and confirming a new key by email. Scanning this site by hand is not affected. Disconnect anyway?",
   "__relay_disabled_desc__": "This site has been switched off on the alerts dashboard, so your scan reports are not being accepted and no emails are going out. Your key still works. Switch the site back on there, then use the button below.",
   "__relay_revoked_desc__": "The alerts service no longer recognises this site, so its key has been cleared. This usually means the site was deleted from the alerts dashboard. Scanning here still works. Connect again to get scheduled scans and email alerts back.",
-  "__scan_without_connecting__": "You can scan this site whenever you like and read the results here without connecting to anything. What you give up is the scheduled scan and the email alert, so you will only hear about a change when you come and look."
+  "__scan_without_connecting__": "You can scan this site whenever you like and read the results here without connecting to anything. What you give up is the scheduled scan and the email alert, so you will only hear about a change when you come and look.",
+  "__optin_intro__": "Get an email when there is a new FluentAuth release, plus the occasional WordPress security tip. No more than a few a month, and you can unsubscribe from any of them. We store your name, your email address and this site's address.",
+  "__optin_share__": "Optional: also send the PHP and WordPress versions this site runs, so we know which versions to keep supporting.",
+  "__optin_share_details__": "What is sent: your PHP version, your MySQL version and your WordPress version. Nothing else - not your plugins, nothing from your database, and nothing about your visitors.",
+  "__relay_reason_removed__": "This site was removed from the alerts dashboard, along with its report history, so its key was cleared here.",
+  "__relay_reason_superseded__": "The alerts service has this site connected from somewhere else. The usual cause is a copy — a staging or backup clone made from the database, which keeps the original site address and so looks like the same site connecting again. Give the copy its own address before reconnecting it, or the two will keep taking the connection from each other.",
+  "__relay_revoked_next__": "Scanning here still works. Connect again to get scheduled scans and email alerts back."
 }

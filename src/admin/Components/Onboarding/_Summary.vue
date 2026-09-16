@@ -11,8 +11,11 @@
  * A site that answered no to everything sees a shorter, honest version rather than an
  * invented achievement.
  */
+import OptinForm from '../Optin/_OptinForm.vue';
+
 export default {
     name: 'OnboardingSummary',
+    components: {OptinForm},
     props: {
         applied: {
             type: Array,
@@ -21,6 +24,28 @@ export default {
         steps: {
             type: Array,
             default: () => []
+        }
+    },
+    data() {
+        return {
+            /*
+             * Mirrors the app-wide flag rather than reading it directly, so the panel can
+             * fold away the moment it is answered. `optin_required` is what decides whether
+             * it is drawn at all; this only decides whether it is still drawn now.
+             */
+            askOptin: this.appVars.optin_required
+        };
+    },
+    methods: {
+        /*
+         * Only a refusal takes the panel away - see the same note on the dashboard aside.
+         * Hiding it on any answer unmounted the form's success state before anybody could
+         * read the instruction in it.
+         */
+        onOptinAnswered(answer) {
+            if (answer === 'dismissed') {
+                this.askOptin = false;
+            }
         }
     },
     computed: {
@@ -75,6 +100,17 @@ export default {
                     </li>
                 </ul>
             </div>
+
+            <!--
+                The last thing the wizard asks, and the only thing on this screen that is
+                for us rather than for the site. Under the security guidance on purpose: a
+                mailing list should not outrank the checklist on the screen that hands
+                somebody their finished setup.
+            -->
+            <section v-if="askOptin" class="fls_onb_done_optin" :aria-label="$t('Subscribe to updates')">
+                <h2 class="fls_onb_done_next_title">{{ $t('Stay updated') }}</h2>
+                <optin-form layout="wide" @answered="onOptinAnswered"/>
+            </section>
 
             <div class="fls_onb_done_actions">
                 <router-link class="el-button el-button--primary" :to="{name: 'dashboard'}">

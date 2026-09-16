@@ -139,6 +139,61 @@ class DashboardControllerTest extends BaseTestCase
         $this->assertTrue($this->dashboard()['protection']['two_fa_enabled']);
     }
 
+    /**
+     * The denominator on the dashboard tile is the people who could enrol, not everybody
+     * with an account - and it is the same number the 2FA Enrollment screen shows.
+     *
+     * The two used to compute it separately and disagreed: a shop with three administrators
+     * and thirty-two customers read "0 of 3" on one screen and "0 of 35" on the other. Only
+     * the first describes whether the policy has landed; customers are not offered a second
+     * factor, so none of them were ever going to appear on the top of the fraction.
+     */
+    public function testTheTwoFaTileCountsOnlyPeopleWhoCouldEnrol()
+    {
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['administrator'];
+        update_option('__fls_auth_settings', $settings);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+
+        $this->factory->user->create(['role' => 'administrator']);
+
+        foreach (range(1, 6) as $i) {
+            $this->factory->user->create(['role' => 'subscriber']);
+        }
+
+        $total = $this->dashboard()['protection']['two_fa']['total'];
+
+        $this->assertSame(
+            \FluentAuth\App\Http\Controllers\TwoFaController::countEligibleUsers(),
+            $total,
+            'the dashboard and the enrollment screen read the same number'
+        );
+
+        $everyone = (int)(new \WP_User_Query(['number' => 1, 'fields' => 'ID']))->get_total();
+
+        $this->assertLessThan($everyone, $total, 'the six subscribers are not counted');
+    }
+
+    /**
+     * Nobody is offered a second factor, so there is nobody to count - rather than every
+     * account on the site sitting under a zero.
+     */
+    public function testTheTwoFaTileCountsNobodyWhenNoRoleIsOfferedAFactor()
+    {
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'no';
+        $settings['totp_2fa_roles'] = [];
+        $settings['passkey_2fa'] = 'no';
+        $settings['passkey_2fa_roles'] = [];
+        update_option('__fls_auth_settings', $settings);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+
+        $this->factory->user->create(['role' => 'subscriber']);
+
+        $this->assertSame(0, $this->dashboard()['protection']['two_fa']['total']);
+    }
+
     public function testTwoFaTileCountsEnrolledUsers()
     {
         $userId = $this->factory->user->create();

@@ -359,18 +359,47 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
         }
     }
 
-    /* wp-admin gives every input in its content area a white background of its own. */
-    input[type="text"],
-    input[type="search"],
-    input[type="email"],
-    input[type="url"],
-    input[type="number"],
-    input[type="password"],
-    textarea,
-    select {
+    /*
+     * wp-admin gives every input in its content area a white background of its own.
+     *
+     * Element Plus's own inputs are excluded, which they were not. An `input[type="text"]`
+     * selector outscores Element Plus's `.el-input__inner`, so this rule was repainting the
+     * inside of every EP control too - giving each one a second background and a second
+     * border drawn inside the wrapper that already had both. On a `multiple` select that
+     * opaque inner box sat over the placeholder span, so "No role is restricted" on the IP
+     * rules screen rendered as an empty field with no way to tell it was a dropdown.
+     *
+     * The nested border was visible in the light theme as well; it was only the dark one
+     * where the fill hid the text underneath it.
+     */
+    input[type="text"]:not([class*="el-"]),
+    input[type="search"]:not([class*="el-"]),
+    input[type="email"]:not([class*="el-"]),
+    input[type="url"]:not([class*="el-"]),
+    input[type="number"]:not([class*="el-"]),
+    input[type="password"]:not([class*="el-"]),
+    textarea:not([class*="el-"]),
+    select:not([class*="el-"]) {
         background-color: var(--fls-surface-sunk);
         border-color: var(--fls-border);
         color: var(--fls-text);
+    }
+
+    /*
+     * And the arrow on a native select, which is a background image rather than a colour.
+     *
+     * wp-admin draws it as an inline SVG with `fill="#1e1e1e"` written into the data URI, so
+     * nothing in a colour token can reach it: on the dark surface above it came out near
+     * black on near black, about 1.05:1, and the control stopped reading as a dropdown at
+     * all. The only way to recolour an SVG delivered this way is to serve a different one.
+     *
+     * Same path, same geometry, same position as core's - only the fill differs, so the
+     * caret sits exactly where it did.
+     */
+    select:not([class*="el-"]) {
+        background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%202%201-7%207-7-7%202-1z%22%20fill%3D%22%23C9CFD6%22%2F%3E%3C%2Fsvg%3E');
+        background-repeat: no-repeat;
+        background-position: right 8px top 55%;
     }
 
     /* --------------------------------------------------- the light island */

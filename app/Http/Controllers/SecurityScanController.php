@@ -33,7 +33,8 @@ class SecurityScanController
         }
 
         return [
-            'settings' => $settings,
+            /* The site key is withheld from every response - see getPublicSettings(). */
+            'settings' => IntegrityHelper::getPublicSettings($settings),
             'ignores'  => IntegrityHelper::getIgnoreLists(),
             /*
              * What the last scan found, so arriving on the screen shows the standing picture
@@ -80,9 +81,21 @@ class SecurityScanController
         }
 
         /*
-         * The dashboard path. Somebody who already has an alerts account creates a key there
-         * and pastes it here, which skips the emailed-key handshake entirely: the key proves
-         * who they are, and what comes back is this site's own credential.
+         * The dashboard path: an account-level key, pasted here, skipping the emailed-key
+         * handshake entirely - the key proves who they are, and what comes back is this
+         * site's own credential.
+         *
+         * NOTHING REACHES THIS TODAY, at either end. No screen in this plugin posts
+         * `status = 'connect'` - the form sends `unregistered`, `pending` or `self` and
+         * nothing else - and the alerts dashboard has no interface that mints the key it
+         * would need (the route exists over there; no screen calls it). So this is a working,
+         * tested branch with no way in from either side, and the tests passing says nothing
+         * about whether anybody can get here.
+         *
+         * Left in place rather than deleted because both halves are one UI away from being
+         * useful, and the half that has to come first is the minting. Worth knowing before it
+         * appears in a support reply: telling somebody to "paste your API key" asks them for
+         * something they currently have no way to create.
          *
          * Automatic scanning goes on with it. Connecting a site to an alert relay and leaving
          * the schedule off would mean nothing is ever sent - it is the only reason to paste a
@@ -109,9 +122,7 @@ class SecurityScanController
             $settings['auto_scan'] = 'yes';
             /* Stated rather than inherited, so both ways in land on the same schedule. */
             $settings['scan_interval'] = 'daily';
-            $settings['relay_rejection'] = '';
-            $settings['relay_rejected_at'] = '';
-            $settings['relay_auth_failures'] = 0;
+            $settings = IntegrityHelper::withRelayRejectionCleared($settings);
             /* See the note on the other connection path: a new row reports from scratch. */
             $settings['last_report_sent'] = '';
             $settings['extensions_hash'] = '';
@@ -120,7 +131,7 @@ class SecurityScanController
 
             return [
                 'message'  => __('This site is connected. Daily scans will now be reported to your alert channels.', 'fluent-security'),
-                'settings' => $settings
+                'settings' => IntegrityHelper::getPublicSettings($settings)
             ];
         }
 
@@ -177,9 +188,7 @@ class SecurityScanController
              * Cleared in case this key is replacing one the relay had stopped accepting - the
              * site has just proved otherwise.
              */
-            $settings['relay_rejection'] = '';
-            $settings['relay_rejected_at'] = '';
-            $settings['relay_auth_failures'] = 0;
+            $settings = IntegrityHelper::withRelayRejectionCleared($settings);
 
             /*
              * A connection is a different site as far as the relay is concerned - a new row,
@@ -204,7 +213,7 @@ class SecurityScanController
             'message'  => $isConfirmed
                 ? __('This site is connected. Daily scans will now be reported to your alert channels.', 'fluent-security')
                 : __('Your site has been successfully registered. Please provide the API token.', 'fluent-security'),
-            'settings' => $settings
+            'settings' => IntegrityHelper::getPublicSettings($settings)
         ];
 
     }
@@ -848,6 +857,16 @@ class SecurityScanController
         if (!empty($target['single_file'])) {
             $filePath = $target['path'];
             $expectedDir = realpath(dirname($target['path']));
+            /*
+             * And the name is the installed one, not the caller's. The request's `file` was
+             * already ignored for the path on this branch, but it was still handed back in
+             * the return - and the restore path puts that string into the WordPress.org SVN
+             * URL it fetches the replacement from. So a caller could name a path belonging
+             * to some other plugin entirely, and its contents would be written over this
+             * one, with the md5 read-back agreeing because it only checks that what arrived
+             * is what landed.
+             */
+            $file = basename($target['path']);
         } else {
             $filePath = rtrim($target['path'], '/') . '/' . $file;
             $expectedDir = realpath($target['path']);
@@ -857,6 +876,22 @@ class SecurityScanController
 
         if (!$realPath || !$expectedDir || strpos($realPath, $expectedDir . DIRECTORY_SEPARATOR) !== 0) {
             return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400]);
+        }
+
+        /*
+         * Containment is not enough on its own, because the string that passed it is not the
+         * string that gets used afterwards. `a/../b.php` resolves inside the folder and so
+         * survives the check above, and then travels verbatim into the SVN URL the official
+         * copy is fetched from, where `..` means what it says. Requiring the caller's path to
+         * be the one that resolved - already normalised, no traversal, no symlink standing in
+         * for it - closes the gap between the path that was checked and the path that is used.
+         */
+        if (empty($target['single_file'])) {
+            $normalised = $expectedDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, (string)$file);
+
+            if ($realPath !== $normalised) {
+                return new \WP_Error('invalid_data', __('This file could not be viewed for security reason.', 'fluent-security'), ['status' => 400]);
+            }
         }
 
         $allowed = $forViewing
@@ -1223,7 +1258,7 @@ class SecurityScanController
 
         return [
             'message'  => __('Schedule scan has been updated.', 'fluent-security'),
-            'settings' => $globalSettings
+            'settings' => IntegrityHelper::getPublicSettings($globalSettings)
         ];
     }
 
@@ -1251,16 +1286,14 @@ class SecurityScanController
         $settings['auto_scan'] = 'no';
         $settings['scan_interval'] = 'daily';
         $settings['account_email_id'] = '';
-        $settings['relay_rejection'] = '';
-        $settings['relay_rejected_at'] = '';
-        $settings['relay_auth_failures'] = 0;
+        $settings = IntegrityHelper::withRelayRejectionCleared($settings);
         $settings['extensions_hash'] = '';
 
         IntegrityHelper::saveSettings($settings);
 
         return [
             'message'  => __('API has been reset successfully.', 'fluent-security'),
-            'settings' => $settings
+            'settings' => IntegrityHelper::getPublicSettings($settings)
         ];
     }
 
@@ -1291,9 +1324,7 @@ class SecurityScanController
          */
         $settings['status'] = 'active';
         $settings['auto_scan'] = 'yes';
-        $settings['relay_rejection'] = '';
-        $settings['relay_rejected_at'] = '';
-        $settings['relay_auth_failures'] = 0;
+        $settings = IntegrityHelper::withRelayRejectionCleared($settings);
 
         IntegrityHelper::saveSettings($settings);
 
@@ -1302,7 +1333,7 @@ class SecurityScanController
         $settings = IntegrityHelper::getSettings();
 
         if ($settings['relay_rejection'] === IntegrityHelper::RELAY_DISABLED) {
-            return new \WP_Error('still_disabled', __('This site is still disabled on your alerts dashboard. Re-enable it there, then try again.', 'fluent-security'), ['status' => 409, 'data' => ['settings' => $settings]]);
+            return new \WP_Error('still_disabled', __('This site is still disabled on your alerts dashboard. Re-enable it there, then try again.', 'fluent-security'), ['status' => 409, 'data' => ['settings' => IntegrityHelper::getPublicSettings($settings)]]);
         }
 
         /*
@@ -1314,12 +1345,12 @@ class SecurityScanController
         $code = is_wp_error($response) ? 0 : (int)wp_remote_retrieve_response_code($response);
 
         if ($code < 200 || $code >= 300) {
-            return new \WP_Error('probe_failed', __('Reporting has been switched back on, but your alerts dashboard could not be reached to confirm it. The next scheduled scan will try again.', 'fluent-security'), ['status' => 502, 'data' => ['settings' => $settings]]);
+            return new \WP_Error('probe_failed', __('Reporting has been switched back on, but your alerts dashboard could not be reached to confirm it. The next scheduled scan will try again.', 'fluent-security'), ['status' => 502, 'data' => ['settings' => IntegrityHelper::getPublicSettings($settings)]]);
         }
 
         return [
             'message'  => __('Reporting has resumed. Your alerts dashboard is receiving this site again.', 'fluent-security'),
-            'settings' => $settings
+            'settings' => IntegrityHelper::getPublicSettings($settings)
         ];
     }
 }

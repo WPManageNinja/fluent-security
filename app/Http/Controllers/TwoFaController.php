@@ -217,6 +217,50 @@ class TwoFaController
     }
 
     /**
+     * How many people on this site could have the second factor that is being counted.
+     *
+     * The denominator for every "x of y enrolled" on any screen, so the two that show one
+     * cannot disagree - which they did: the enrollment screen measured against the roles
+     * allowed an authenticator app and the dashboard measured against everybody with an
+     * account, so a shop with three administrators and thirty-two customers read "0 of 3"
+     * on one screen and "0 of 35" on the other. Only one of those numbers describes whether
+     * the policy has landed, and the other one is a membership list.
+     *
+     * Scoped to the roles allowed an authenticator app *or* a passkey, because that is what
+     * countEnrolledUsers() counts on the top of the fraction. Taking the roles for one
+     * method and the enrolments for two is how a denominator ends up smaller than its
+     * numerator.
+     *
+     * @return int
+     */
+    public static function countEligibleUsers()
+    {
+        $roles = [];
+
+        if (TotpTwoFaMethod::isEnabledForAnyRole()) {
+            $roles = (array)Helper::getSetting('totp_2fa_roles');
+        }
+
+        if (PasskeyTwoFaMethod::isEnabledForAnyRole()) {
+            $roles = array_merge($roles, (array)Helper::getSetting('passkey_2fa_roles'));
+        }
+
+        $roles = array_values(array_unique(array_filter($roles)));
+
+        if (!$roles) {
+            return 0;
+        }
+
+        $query = new \WP_User_Query([
+            'number'   => 1,
+            'fields'   => 'ID',
+            'role__in' => $roles
+        ]);
+
+        return (int)$query->get_total();
+    }
+
+    /**
      * The roles offered a second factor by one method or the other.
      *
      * @return array
@@ -301,21 +345,7 @@ class TwoFaController
          * account. "3 of 4000" describes a membership list; "3 of 5" describes whether
          * the policy has landed, which is the only reason to put a number here.
          */
-        $allowedRoles = TotpTwoFaMethod::isEnabledForAnyRole()
-            ? (array)Helper::getSetting('totp_2fa_roles')
-            : [];
-
-        $eligible = 0;
-
-        if ($allowedRoles) {
-            $query = new \WP_User_Query([
-                'number'    => 1,
-                'fields'    => 'ID',
-                'role__in'  => $allowedRoles
-            ]);
-
-            $eligible = (int)$query->get_total();
-        }
+        $eligible = self::countEligibleUsers();
 
         return [
             'enrolled' => $enrolled,

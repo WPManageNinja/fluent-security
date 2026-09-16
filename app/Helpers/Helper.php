@@ -643,21 +643,41 @@ class Helper
 
     public static function cleanUpLogs()
     {
-        $oldDays = self::getSetting('auto_delete_logs_day');
+        $oldDays = (int)self::getSetting('auto_delete_logs_day');
 
-        if (!$oldDays) {
-            return;
+        if ($oldDays) {
+            $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $oldDays * 86400);
+
+            flsDb()->table('fls_auth_logs')
+                ->where('created_at', '<', $dateTime)
+                ->delete();
         }
 
-        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $oldDays * 86400);
+        self::cleanUpLoginHashes($oldDays);
+    }
 
-        flsDb()->table('fls_auth_logs')
-            ->where('created_at', '<', $dateTime)
-            ->delete();
+    /**
+     * Housekeeping for the table that holds magic links, two-factor challenges and signup
+     * codes: expire what has run out, then delete what is long spent.
+     *
+     * Unconditional, which it was not. All of this used to sit behind the audit log's
+     * retention setting and returned early when that was empty - so a site that chose to
+     * keep its logs for ever also, without being told, kept every spent token row for ever,
+     * and stopped marking expired links as expired. The two are not the same decision: one
+     * is how long somebody wants to be able to read their history, the other is a working
+     * table tidying up after itself.
+     *
+     * Thirty days is the floor regardless, because the daily digest counts yesterday's
+     * sign-ins out of these rows and the rate limits read the recent ones.
+     *
+     * @param int $oldDays the audit log retention, when one is set
+     * @return void
+     */
+    public static function cleanUpLoginHashes($oldDays = 0)
+    {
+        $keepDays = (int)apply_filters('fluent_auth/login_hash_retention_days', max(30, (int)$oldDays));
 
-        if ($oldDays < 30) {
-            $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - 30 * 86400);
-        }
+        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $keepDays * 86400);
 
         flsDb()->table('fls_login_hashes')
             ->where('valid_till', '<', current_time('mysql'))
@@ -670,7 +690,6 @@ class Helper
             ->where('status', '!=', 'issued')
             ->where('created_at', '<', $dateTime)
             ->delete();
-
     }
 
     public static function getSocialAuthSettings($context = 'view')
@@ -959,6 +978,52 @@ class Helper
     }
 
 
+    /**
+     * The customizer fields whose value is written into CSS.
+     *
+     * @return array<int, string>
+     */
+    public static function colorFields()
+    {
+        return ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color'];
+    }
+
+    /**
+     * A colour, or nothing.
+     *
+     * Hex, rgb/rgba, hsl/hsla and the CSS named colours - which is every form the colour
+     * picker on that screen can produce. Anything else is dropped rather than escaped,
+     * because there is no such thing as a safely escaped arbitrary CSS value here: the
+     * output position is a declaration, and a value that is not a colour has no business
+     * being one.
+     *
+     * @param string $value
+     * @return string
+     */
+    public static function sanitizeCssColor($value)
+    {
+        $value = trim((string)$value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i', $value)) {
+            return $value;
+        }
+
+        if (preg_match('/^(?:rgb|rgba|hsl|hsla)\(\s*[0-9a-z.,%\/\s-]+\)$/i', $value)) {
+            return $value;
+        }
+
+        /* A bare keyword: `transparent`, `inherit`, `rebeccapurple`. Letters only. */
+        if (preg_match('/^[a-z]{3,24}$/i', $value)) {
+            return $value;
+        }
+
+        return '';
+    }
+
     public static function formatAuthCustomizerSettings($settingFields)
     {
         $textFields = ['type', 'title', 'button_label', 'position', 'title_color', 'text_color', 'button_color', 'button_label_color', 'background_color'];
@@ -973,6 +1038,24 @@ class Helper
 
             foreach ($settings as $key => $setting) {
                 $textValues = array_map('sanitize_text_field', Arr::only($setting, $textFields));
+
+                /*
+                 * The colours are interpolated into a `:root { ... }` block on wp-login.php,
+                 * and sanitize_text_field() leaves `{`, `}`, `;` and `(` alone - so a value
+                 * of `red } body { background: url(...) } x {` is not a colour, it is a
+                 * stylesheet, written onto the sign-in page of the site.
+                 *
+                 * Only an administrator can save these today, which is why this is a guard
+                 * rather than a hole. But the capability these screens require is itself
+                 * filterable, and a site that lowers it should not be handing out the login
+                 * page along with the settings page.
+                 */
+                foreach (self::colorFields() as $colorField) {
+                    if (isset($textValues[$colorField])) {
+                        $textValues[$colorField] = self::sanitizeCssColor($textValues[$colorField]);
+                    }
+                }
+
                 $mediaUrls = array_map('sanitize_url', Arr::only($setting, $mediaFields));
                 $formattedField = array_merge($textValues, $mediaUrls);
                 $formattedField['description'] = wp_kses_post(Arr::get($setting, 'description'));

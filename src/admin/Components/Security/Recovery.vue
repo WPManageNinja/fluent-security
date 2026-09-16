@@ -55,6 +55,16 @@ export default {
         lastUsed() {
             return this.history.length ? this.history[0] : null;
         },
+        /*
+         * Who did it, or nothing at all - never whatever happened to be stored. Rows written
+         * by an older release carry `false` here, and rows written over WP-CLI or by a
+         * scheduled task legitimately carry no name.
+         */
+        lastUsedBy() {
+            const by = this.lastUsed ? this.lastUsed.by : '';
+
+            return typeof by === 'string' ? by.trim() : '';
+        },
         newAdmins() {
             return this.administrators.filter(admin => admin.is_new);
         },
@@ -745,7 +755,20 @@ export default {
                     <p class="fls_recover_note">
                         {{ $t('__recovery_logged__') }}
                         <span v-if="lastUsed" class="fls_recover_last">
-                            {{ $t('Last used %1s by %2s', lastUsed.at, lastUsed.by) }} — {{ lastUsed.description }}
+                            <!--
+                                Two sentences, because there are two cases. An action taken
+                                over WP-CLI or by a scheduled task has no user behind it, and
+                                the stored value is empty - or, on rows written by an older
+                                release, the boolean false, which was being printed straight
+                                onto the screen as "by false".
+                            -->
+                            <template v-if="lastUsedBy">
+                                {{ $t('Last used %1s by %2s', lastUsed.at, lastUsedBy) }}
+                            </template>
+                            <template v-else>
+                                {{ $t('Last used %s, outside the dashboard', lastUsed.at) }}
+                            </template>
+                            — {{ lastUsed.description }}
                         </span>
                     </p>
                 </template>

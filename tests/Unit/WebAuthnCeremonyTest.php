@@ -471,6 +471,48 @@ class WebAuthnCeremonyTest extends BaseTestCase
         $this->assertSame(0, Assertion::verify($response, $credential, $this->challenge, $user));
     }
 
+    /**
+     * The gap the presented-zero exemption left.
+     *
+     * A hardware key that has been counting has a stored value above zero, and the one
+     * number an attacker holding a cloned private key is free to choose is the one it
+     * reports. While a presented zero was excused, sending zero switched the check off -
+     * so the check was absent precisely when somebody wanted it to be.
+     */
+    public function test_assertion_refuses_a_counting_credential_that_suddenly_reports_zero()
+    {
+        $user = $this->makeUser();
+        $credential = $this->register($user);
+        $credential->sign_count = 12;
+
+        $response = $this->authenticator->createAssertionResponse([
+            'challenge' => $this->challenge,
+            'signCount' => 0
+        ]);
+
+        $this->expectException(WebAuthnException::class);
+        Assertion::verify($response, $credential, $this->challenge, $user);
+    }
+
+    /**
+     * And the counter still has to move forwards from a standing start. A credential whose
+     * stored value is zero is exempt whatever it reports, which is what keeps synced
+     * passkeys working; the first non-zero answer is what starts the comparison.
+     */
+    public function test_a_credential_with_no_stored_counter_accepts_a_first_reading()
+    {
+        $user = $this->makeUser();
+        $credential = $this->register($user);
+        $credential->sign_count = 0;
+
+        $response = $this->authenticator->createAssertionResponse([
+            'challenge' => $this->challenge,
+            'signCount' => 4
+        ]);
+
+        $this->assertSame(4, Assertion::verify($response, $credential, $this->challenge, $user));
+    }
+
     // ----------------------------------------------------------------- scaffolding
 
     /**

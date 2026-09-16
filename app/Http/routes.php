@@ -26,6 +26,13 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('onboarding', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'getOnboarding'], $permissions)
     ->post('onboarding/complete', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'complete'], $permissions)
     ->post('onboarding/skip', ['\FluentAuth\App\Http\Controllers\OnboardingController', 'skip'], $permissions)
+    /*
+     * The mailing list signup, asked on the wizard's last screen and again from the
+     * dashboard aside. Two endpoints because there are two answers worth recording - see
+     * the Optin service, where a "not now" is a dated thing rather than a permanent one.
+     */
+    ->post('optin/subscribe', ['\FluentAuth\App\Http\Controllers\OptinController', 'subscribe'], $permissions)
+    ->post('optin/dismiss', ['\FluentAuth\App\Http\Controllers\OptinController', 'dismiss'], $permissions)
     ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $permissions)
     ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $permissions)
     /*
@@ -40,6 +47,16 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('two-fa/encryption/rekey', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'rekey'], $permissions)
     ->get('auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'getLogs'], $permissions)
     ->get('dashboard', ['\FluentAuth\App\Http\Controllers\DashboardController', 'getDashboard'], $permissions)
+    /*
+     * Superseded, and unreachable from this plugin's own screens: nothing calls it. The
+     * checklist moved to `security-findings/fix` below, which names a check *and* a finding -
+     * one check can raise several, and a file finding identifies itself by a path, which does
+     * not survive a route pattern. The service underneath is still very much alive; it is
+     * reached through SettingsCheck::fix() on the newer route.
+     *
+     * Kept because it is a public endpoint on a distributed plugin and something outside this
+     * repository may post to it. It is not dead logic, only a second door to the same room.
+     */
     ->post('security-checks/{key}/apply', ['\FluentAuth\App\Http\Controllers\DashboardController', 'applySecurityCheck'], $permissions)
     /*
      * The security screen. Three endpoints for every check the plugin has or will have -

@@ -66,7 +66,7 @@ class SettingsController
 
         return [
             'settings' => $settings,
-            'message'  => __('Settings has been updated', 'fluent-security')
+            'message'  => __('Settings have been updated', 'fluent-security')
         ];
     }
 
@@ -306,7 +306,7 @@ class SettingsController
         update_option('__fls_auth_forms_settings', $oldSettings, false);
 
         return [
-            'message'  => __('Settings has been updated', 'fluent-security'),
+            'message'  => __('Settings have been updated', 'fluent-security'),
             'settings' => $oldSettings
         ];
     }
@@ -326,7 +326,7 @@ class SettingsController
         update_option('__fls_auth_customizer_settings', $settings, false);
 
         return [
-            'message'  => __('Settings has been updated', 'fluent-security'),
+            'message'  => __('Settings have been updated', 'fluent-security'),
             'settings' => $settings
         ];
     }
@@ -507,11 +507,11 @@ class SettingsController
         ];
 
         if (!is_string($data['user_token']) || !is_string($data['server_token']) || !is_string($data['site_id'])) {
-            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'), ['status' => 400]);
         }
 
         if (empty($data['user_token']) || empty($data['server_token']) || empty($data['site_id'])) {
-            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'), ['status' => 400]);
         }
 
         $sites = get_option('__fls_child_sites', []);
@@ -528,11 +528,11 @@ class SettingsController
             : null;
 
         if (empty($site) || empty($site['secret_key'])) {
-            return new \WP_Error('invalid_request', __('Invalid Site ID', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid Site ID', 'fluent-security'), ['status' => 403]);
         }
 
         if (!hash_equals($site['secret_key'], $data['server_token'])) {
-            return new \WP_Error('invalid_request', __('Invalid server token', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid server token', 'fluent-security'), ['status' => 403]);
         }
 
         $userToken = explode('___', $data['user_token']);
@@ -540,17 +540,39 @@ class SettingsController
         $userId = Arr::get($userToken, '1', null);
 
         if (!$userId) {
-            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'), ['status' => 403]);
         }
 
         $user = get_user_by('ID', $userId);
         $userMeta = get_user_meta($userId, '__flsc_temp_token', true);
 
         if (empty($user) || empty($userMeta) || !hash_equals($userMeta, $data['user_token'])) {
-            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'), ['status' => 403]);
+        }
+
+        /*
+         * And it has to be recent. A token is spent when it is redeemed, so one that never
+         * was - a redirect somebody closed, a callback that failed - used to stay valid for
+         * ever, waiting in user meta. The hop it authorises takes seconds, so a few minutes
+         * is all the life it needs.
+         *
+         * A token with no timestamp is refused rather than trusted. The only ones are those
+         * minted before this was recorded, which is exactly the set that has been sitting
+         * there unspent; the cost of refusing is that somebody follows the link again and
+         * gets a fresh one.
+         */
+        $issuedAt = (int)get_user_meta($userId, '__flsc_temp_token_at', true);
+        $window = (int)apply_filters('fluent_auth/child_site_token_ttl', 5 * MINUTE_IN_SECONDS);
+
+        if (!$issuedAt || (time() - $issuedAt) > $window) {
+            delete_user_meta($userId, '__flsc_temp_token');
+            delete_user_meta($userId, '__flsc_temp_token_at');
+
+            return new \WP_Error('invalid_request', __('That sign-in link has expired. Please try again.', 'fluent-security'), ['status' => 403]);
         }
 
         update_user_meta($userId, '__flsc_temp_token', '');
+        delete_user_meta($userId, '__flsc_temp_token_at');
 
         // now we will prepare the data for the user
         $data = apply_filters('fluent_auth/remote_auth_response_data', [

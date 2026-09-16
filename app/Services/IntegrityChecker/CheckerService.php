@@ -212,12 +212,21 @@ class CheckerService
              */
             $parts = explode('/', $file, 2);
 
-            if (count($parts) === 1) {
-                $folder = 'root';
-                $relativePath = $file;
-            } else {
+            /*
+             * Only the two folders that are walked as folders get a group of their own.
+             * Anything else nested - an executable found under .well-known, say - belongs to
+             * the root group with its path intact, because the screen renders these three
+             * groups and no others: a fourth key is a finding that is counted and then never
+             * drawn. Keeping the whole path as the label is also what makes the row's ignore
+             * entry come out as /.well-known/... , the same shape every other accepted path
+             * has.
+             */
+            if (count($parts) === 2 && in_array($parts[0], ['wp-admin', 'wp-includes', WPINC], true)) {
                 $folder = $parts[0];
                 $relativePath = $parts[1];
+            } else {
+                $folder = 'root';
+                $relativePath = $file;
             }
 
             if (!isset($groupedFiles[$folder])) {
@@ -270,19 +279,19 @@ class CheckerService
         // get the root files and folders
         $rootFiles = scandir($rootFolder);
 
+        /*
+         * The parts of the tree this scan is not responsible for. wp-admin and wp-includes
+         * are walked separately and wp-content is another check's subject; the rest are
+         * WordPress's own files, which the checksums either cover or deliberately do not.
+         * Everything else a root may hold is RootExpectations' question, not this one's.
+         */
         $ignores = array_unique([
             '.',
             '..',
-            '.git',
-            '.gitignore',
-            '.DS_Store',
-            '.idea',
             'wp-admin',
             'wp-includes',
             'wp-config.php',
             'wp-config-sample.php',
-            '.htaccess',
-            '.env',
             WPINC,
             'wp-content',
             basename(WP_CONTENT_DIR)
@@ -290,39 +299,50 @@ class CheckerService
 
         $rootFiles = array_diff($rootFiles, $ignores);
 
-        $backupExtensions = ['.bak', '.back', '.backup', '.old', '.orig', '.save', '.swp', '.tmp', '.copy', '~'];
-
         $files = [];
         $extraFolders = [];
+
         foreach ($rootFiles as $file) {
+            $path = $rootFolder . '/' . $file;
+
             if (preg_match('/^(file-manager-|adminer-).*\.php$|\.conf$/i', $file)) {
                 continue; // we are ignoring known useful files
             }
 
-            $fileLower = strtolower($file);
-
-            // Skip backup/temp files
-            $isBackup = false;
-            foreach ($backupExtensions as $ext) {
-                if (substr($fileLower, -strlen($ext)) === $ext) {
-                    $isBackup = true;
-                    break;
-                }
-            }
-            if ($isBackup) {
+            /*
+             * Tested before the file-or-directory question, because it always was: `.git`
+             * and `.idea` are directories, and a rule that only reached files would start
+             * announcing every checkout and every editor folder as an unknown directory.
+             */
+            if (RootExpectations::isNoise($file)) {
                 continue;
             }
 
-            if (is_file($rootFolder . '/' . $file)) {
-                $files[$file] = md5_file($rootFolder . '/' . $file);
-            } elseif (is_dir($rootFolder . '/' . $file)) {
+            if (is_dir($path)) {
+                /*
+                 * Expected, so the directory itself is not announced - but it is the one
+                 * kind of directory this scan looks inside. See RootExpectations: silencing
+                 * the row without walking the tree would leave the likeliest drop spots on
+                 * the filesystem as the only places nothing is ever checked.
+                 */
+                if (RootExpectations::isExpectedDir($file)) {
+                    $files = array_merge($files, RootExpectations::executablesIn($path, $file));
+                    continue;
+                }
+
                 $xcloudDirs = ['before', 'after', 'server'];
                 if (in_array($file, $xcloudDirs)) {
-                    if ($this->isConfFolder($rootFolder . '/' . $file)) {
+                    if ($this->isConfFolder($path)) {
                         continue;
                     }
                 }
+
                 $extraFolders[] = '/' . $file;
+                continue;
+            }
+
+            if (is_file($path)) {
+                $files[$file] = md5_file($path);
             }
         }
 

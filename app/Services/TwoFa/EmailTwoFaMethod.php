@@ -229,10 +229,46 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         $limit = (int)apply_filters('fluent_auth/2fa_code_request_limit', $limit, $user);
         $minutes = (int)apply_filters('fluent_auth/2fa_code_request_timing', $minutes, $user);
 
+        /*
+         * A floor of its own, because these two settings are about something else.
+         *
+         * They configure the login attempt limit, and a site is entitled to turn that off -
+         * behind a WAF, or on a login page nobody else can reach. But this function was
+         * reading them as though they also meant "how many emails may we send", so switching
+         * the attempt limit off switched off the only thing standing between somebody
+         * holding a password and an unbounded number of code emails into that person's
+         * inbox. Each password submission raises one, and the headless paths raise them too.
+         *
+         * So the settings can only make this tighter, never absent: whichever gate is
+         * reached first stops the send.
+         */
+        $floorLimit = (int)apply_filters('fluent_auth/2fa_code_request_floor_limit', 10, $user);
+        $floorMinutes = (int)apply_filters('fluent_auth/2fa_code_request_floor_timing', 15, $user);
+
+        if (!$minutes || !$limit) {
+            $minutes = $floorMinutes;
+            $limit = $floorLimit;
+        } elseif ($floorMinutes > 0 && $floorLimit > 0 && $this->overFloor($user, $floorLimit, $floorMinutes)) {
+            return true;
+        }
+
         if (!$minutes || !$limit) {
             return false;
         }
 
+        return $this->overFloor($user, $limit, $minutes);
+    }
+
+    /**
+     * How many codes this account has been sent inside a window.
+     *
+     * @param $user \WP_User
+     * @param $limit int
+     * @param $minutes int
+     * @return bool
+     */
+    private function overFloor($user, $limit, $minutes)
+    {
         $count = flsDb()->table('fls_login_hashes')
             ->where('user_id', $user->ID)
             ->whereIn('use_type', [$this->getKey(), $this->getChallengeKey()])

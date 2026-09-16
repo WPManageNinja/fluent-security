@@ -883,6 +883,47 @@
  * worse answer than one with its own heading. Stacks on narrow screens, where the columns
  * would be two words wide.
  */
+/*
+ * Why a site that was connected is looking at the registration form again.
+ *
+ * Amber rather than red: nothing is broken here and nothing was lost - the scanner still
+ * works, the findings are still there, and the way back is the form directly below. Red
+ * would be the screen shouting about a state whose fix is already on it.
+ */
+.fls_scan_disconnected {
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border-left: 3px solid var(--fls-warning-fg);
+    background: var(--fls-warning-bg);
+
+    h4 {
+        @apply font-medium m-0;
+
+        font-size: 13px;
+        color: var(--fls-heading);
+        margin-bottom: 6px;
+    }
+
+    p {
+        @apply text-sm m-0;
+
+        color: var(--fls-text-mid);
+        line-height: 1.55;
+    }
+
+    /*
+     * The id itself is `.fls_code_inline` from _ui.scss - a value to copy out is exactly what
+     * that class is for, select-all included, and a second monospace span defined here would
+     * be the same rule filed in the wrong place.
+     */
+    .fls_scan_disconnected_ref {
+        @apply text-xs;
+
+        margin-top: 10px;
+    }
+}
+
 .fls_scan_disclosure {
     @apply grid;
 
@@ -942,6 +983,53 @@
     .fls_scan_disclosure {
         grid-template-columns: 1fr;
         gap: 16px;
+    }
+}
+
+/*
+ * Extension rows on a phone.
+ *
+ * The name is the only item on this row that can shrink, so on a narrow screen it was the
+ * only item that did - all the way to nothing. A row came out reading
+ * "2.0.0-beta.1  Version not on WordPress.org" with no plugin named at all, or "F.." where
+ * FluentAffiliate had been, which makes a finding impossible to act on: the one thing the
+ * reader needs is which plugin it is about.
+ *
+ * So the verdict takes a line of its own below, which is where the space was going. The
+ * name keeps the first line, still truncating if it has to, and a floor stops it being
+ * squeezed to an initial by a long version string beside it.
+ */
+@media (max-width: 600px) {
+    .fls_scan_summary.is_row {
+        @apply flex-wrap;
+
+        row-gap: 6px;
+    }
+
+    .fls_scan_summary.is_row .fls_scan_summary_name {
+        min-width: 7em;
+    }
+
+    /*
+     * Ordered after the chevron rather than before it, so the first line finishes with the
+     * open/close control the way it does on a wide screen. Left in source order the verdict
+     * takes the whole second line and pushes the chevron onto a third of its own.
+     */
+    .fls_scan_summary.is_row .fls_scan_summary_tags {
+        @apply flex-wrap;
+
+        order: 2;
+        flex-basis: 100%;
+        margin-left: 0;
+        row-gap: 6px;
+    }
+
+    .fls_scan_summary.is_row .fls_scan_summary_name {
+        margin-right: auto;
+    }
+
+    .fls_scan_summary.is_row .fls_scan_chevron {
+        order: 1;
     }
 }
 

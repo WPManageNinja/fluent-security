@@ -90,9 +90,17 @@ export default {
         }
     },
     computed: {
-        /* Scanning is available once the site has an API key, or has opted out of needing one. */
+        /*
+         * Scanning is available once the site has an API key, or has opted out of needing one.
+         *
+         * `disabled` counts. Scanning is local - checksums, hashes, the filesystem - and none
+         * of it needs the relay; what a disabled site loses is the reporting, which the server
+         * already withholds on the same flag. Left out, a site switched off on the dashboard
+         * fell through every branch of this screen to "Settings could not be loaded", with the
+         * Resume button that fixes it rendered inside the aside that was not drawn either.
+         */
         isReady() {
-            return this.settings && (this.settings.status === 'active' || this.settings.status === 'self');
+            return this.settings && ['active', 'self', 'disabled'].includes(this.settings.status);
         },
         needsRegistration() {
             return this.settings && (this.settings.status === 'unregistered' || this.settings.status === 'pending');

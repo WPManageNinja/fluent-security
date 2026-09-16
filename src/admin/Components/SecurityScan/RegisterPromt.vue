@@ -33,6 +33,35 @@ export default {
             return this.settings && this.settings.status === 'pending';
         },
         /*
+         * Why this site is back on the registration form.
+         *
+         * A revoked site is put back to `unregistered`, which lands it here - on a screen
+         * that otherwise reads as a first-time setup and says nothing about having been
+         * connected an hour ago. The relay knows why it refused, and the commonest cause is
+         * not the one anybody guesses: a staging clone copied from the database keeps the
+         * original's site address, so connecting it takes the connection from the original.
+         *
+         * Text, never v-html - this arrives over the network.
+         */
+        disconnectedReason() {
+            if (!this.settings || this.settings.relay_rejection !== 'revoked') {
+                return null;
+            }
+
+            const known = {
+                superseded: '__relay_reason_superseded__',
+                removed: '__relay_reason_removed__'
+            };
+
+            const key = known[this.settings.relay_rejection_reason];
+
+            if (key) {
+                return this.$t(key);
+            }
+
+            return this.settings.relay_rejection_note || this.$t('__relay_revoked_desc__');
+        },
+        /*
          * Both halves of this screen - the disclosure and the way out of it - belong to the
          * one moment where connecting is still a decision. Keyed on that state rather than on
          * which route drew the form, so the choice is not reachable from one and hidden on the
@@ -49,7 +78,13 @@ export default {
             this.$get('security-scan-settings')
                 .then(response => {
                     this.settings = response.settings;
-                    this.onboardForm.api_key = response.settings.api_key;
+                    /*
+                     * The key is not prefilled, because it never could be: the server does
+                     * not send it (see IntegrityHelper::getPublicSettings), and it was only
+                     * ever stored alongside a site going active - which is a state this form
+                     * is not drawn in. The field is filled by whoever types it out of their
+                     * email, which is the only place it has ever come from.
+                     */
                     this.onboardForm.api_id = response.settings.api_id;
                 })
                 .catch(errors => {
@@ -83,7 +118,6 @@ export default {
                 .then(response => {
                     this.$notify.success(response.message);
                     this.settings.status = response.settings.status;
-                    this.settings.api_key = response.settings.api_key;
                     this.settings.api_id = response.settings.api_id;
                     this.settings.account_email_id = response.settings.account_email_id;
                     /*
@@ -132,7 +166,6 @@ export default {
     mounted() {
         if (this.pre_settings) {
             this.settings = this.pre_settings;
-            this.onboardForm.api_key = this.pre_settings.api_key;
             this.onboardForm.api_id = this.pre_settings.api_id;
         } else {
             this.getSettings();
@@ -178,6 +211,25 @@ export default {
                             <span v-html="$t('__api_key_email_sent__', settings.account_email_id)"></span>
                         </p>
                         <p v-else>{{ $t('__free_api_desc__') }}</p>
+                    </div>
+
+                    <!--
+                        Why this screen is being shown again, before anything that assumes it
+                        is a first visit. Only ever drawn for a site the relay disowned.
+                    -->
+                    <div v-if="disconnectedReason" class="fls_scan_disconnected" role="status">
+                        <h4>{{ $t('This site was disconnected from the alerts service') }}</h4>
+                        <p>{{ disconnectedReason }}</p>
+                        <!--
+                            The reference a support conversation can actually be resolved by.
+                            The alerts service can find a closed connection by this id but not
+                            by the site address - which is the search anybody with a superseded
+                            connection tries first, and the one that comes back empty.
+                        -->
+                        <p v-if="settings.relay_retired_api_id" class="fls_scan_disconnected_ref">
+                            {{ $t('If you contact support, quote this connection ID:') }}
+                            <code class="fls_code_inline">{{ settings.relay_retired_api_id }}</code>
+                        </p>
                     </div>
 
                     <!--

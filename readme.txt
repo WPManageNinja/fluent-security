@@ -2,7 +2,7 @@
 Contributors: techjewel, wpmanageninja, adreastrian
 Tags: security, two factor authentication, limit login attempts, social login, login
 Requires at least: 5.0
-Tested up to: 6.9
+Tested up to: 7.1
 Requires PHP: 7.3
 Stable tag: 2.2.0
 License: GPLv2 or later
@@ -196,7 +196,18 @@ All that is sent is the name, version and file path of the item being checked. N
 
 WordPress.org [Privacy Policy](https://wordpress.org/about/privacy/). GitHub [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
 
-= 3. Social login providers (only if you turn them on) =
+= 3. FluentAuth update emails (optional, only if you subscribe) =
+
+The setup wizard and the dashboard offer a sign-up for release announcements and occasional WordPress security tips. If you fill it in and press Subscribe, your name, your email address and this site's address are sent to `dash.fluentauth.com`, run by WPManageNinja LLC, and you are sent an email asking you to confirm the address before anything else is delivered.
+
+If you also tick the optional box, your PHP version, MySQL version and WordPress version go with it, so we know which versions to keep supporting. That box is off unless you tick it, and those three values are the whole of what it adds.
+
+Nothing is sent unless you press Subscribe. Declining puts the card away, and every email has an unsubscribe link.
+
+Privacy policy: [https://fluentauth.com/privacy-policy/](https://fluentauth.com/privacy-policy/)
+Terms and conditions: [https://wpmanageninja.com/terms-and-conditions/](https://wpmanageninja.com/terms-and-conditions/)
+
+= 4. Social login providers (only if you turn them on) =
 
 If you enable a provider, your site talks to it when a user clicks its button to sign in. What is exchanged is the standard OAuth handshake, plus the user's name and email address so the account can be matched or created. Nothing is sent unless you set the provider up yourself.
 
@@ -340,7 +351,7 @@ It is not a malware scanner. It tells you which files no longer match the offici
 
 == Changelog ==
 
-= 2.2.0 - Date: Sep 14, 2026 =
+= 2.2.0 - Date: Sep 16, 2026 =
 * New: Passkey two-factor authentication with Touch ID, Windows Hello, security keys and password managers
 * New: Authenticator app (TOTP) two-factor authentication, with the QR code drawn on your own server
 * New: Ten single use recovery codes issued with every authenticator app setup, usable as a passkey fallback
@@ -359,6 +370,7 @@ It is not a malware scanner. It tells you which files no longer match the offici
 * New: Six hourly and twelve hourly scan schedules
 * New: Extension inventory sent with each scan report, so alerts can name the plugin or theme involved
 * New: Login with Facebook documentation and setup screen
+* New: Optional sign-up for release announcements and security tips, asked once and put away for a week if you decline
 * Improved: The scanning service now tells you what it sends before you connect, and asks before disconnecting
 * Improved: A scan you run by hand is now reported, not just the scheduled one
 * Improved: Settings rebuilt around a sidebar, with related settings grouped on one page
@@ -366,6 +378,19 @@ It is not a malware scanner. It tells you which files no longer match the offici
 * Improved: Login attempt limits hardened, and login activity is always recorded
 * Improved: Social login hardening
 * Improved: Admin UI refreshed across the dashboard, settings, scanning and email screens
+* Improved: The alerts service key is no longer sent to the browser in any response
+* Improved: The alerts service key and site id now travel in the request body rather than the URL, so neither is written to a server log
+* Improved: A backup copy left in your site's folder is reported whatever its extension, including copies of the rules file
+* Improved: Two-factor code emails now have a send limit of their own, so turning the login attempt limit off no longer removes it
+* Improved: Passkey clone detection now applies whenever the key has a counter, rather than being skipped when a zero is reported
+* Improved: Email smart codes can no longer resolve to a password hash, a password reset key or private user data
+* Improved: Sign-in links to a child site now expire after five minutes
+* Fixed: Settings migrations now run when the plugin is updated, not only when it is activated by hand
+* Fixed: A site switched off on the alerts dashboard could not open its own scanning screen
+* Fixed: The dashboard counted everyone with an account when reporting two-factor enrollment, instead of the people who can actually enrol
+* Fixed: Dark mode - dropdown arrows were invisible, and the restricted roles field appeared empty
+* Fixed: Plugin and theme names were squeezed out of the Monitoring list on a phone
+* Fixed: Recovery history showed "by false" for actions taken outside the dashboard, and the activity log showed "User #0"
 * Fixed: Password reset email link
 
 = 2.1.2 - Date: Apr 28, 2026 =

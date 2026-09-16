@@ -27,6 +27,36 @@ class Activator
         }
     }
 
+    /**
+     * The migrations, run once per plugin version on the first admin request after an update.
+     *
+     * WordPress fires the activation hook when a plugin is switched on and never when it is
+     * updated in place - so everything in migrate() that exists for the sake of sites that
+     * already had the plugin (the onboarding flag, the authenticator role fix, a column
+     * rename) would only ever reach a site that deactivated and reactivated by hand.
+     * Every install that takes the update through the updater would be walked into the
+     * setup wizard as though it were new.
+     *
+     * Keyed on the plugin version rather than a schema number so that any release can carry
+     * a migration without a second counter to remember to bump. Every step in migrate() is
+     * idempotent, so running the lot again after each update is safe and cheap: one option
+     * read per admin request until the version matches, and nothing afterwards.
+     *
+     * @return void
+     */
+    public static function maybeUpgrade()
+    {
+        if (get_option('__fluent_security_version') === FLUENT_AUTH_VERSION) {
+            return;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        self::migrate();
+
+        update_option('__fluent_security_version', FLUENT_AUTH_VERSION, false);
+    }
+
     private static function migrate()
     {
         self::migrateLogsTable();

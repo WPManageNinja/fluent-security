@@ -26,10 +26,21 @@
  * The fix is the same in both places: the inner element is stripped back to nothing and
  * the wrapper is left to do the drawing.
  */
-.el-input__inner {
+/*
+ * `.el-select__input` is the same element on a `multiple` select and was missing from this
+ * list, so those alone kept wp-admin's border, its 40px min-height and its padding - a
+ * visible box drawn inside the wrapper's own box, sized to something Element Plus never
+ * asked for. On the IP rules screen's "Restricted roles" field it also sat over the
+ * placeholder, which in the dark theme left an empty rectangle with nothing to say it was
+ * a dropdown at all.
+ */
+.el-input__inner,
+.el-select__input {
     border: 0 !important;
     min-height: inherit;
     padding: inherit;
+    margin: 0;
+    background: transparent;
 
     &:focus {
         box-shadow: none !important;

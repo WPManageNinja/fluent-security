@@ -165,15 +165,68 @@ class ExtensionInventoryReportTest extends BaseTestCase
 
     public function deliveryProvider()
     {
-        $body = function ($code) {
-            return ['response' => ['code' => $code, 'message' => ''], 'body' => json_encode(['status' => 'success']), 'headers' => []];
+        $body = function ($code, $data = null) {
+            $payload = ['status' => $code < 300 ? 'success' : 'error'];
+
+            if ($data !== null) {
+                $payload['data'] = $data;
+            }
+
+            return ['response' => ['code' => $code, 'message' => ''], 'body' => json_encode($payload), 'headers' => []];
         };
 
         return [
-            'accepted'    => [$body(200), true],
-            'rate limited' => [$body(429), false],
-            'relay down'  => [$body(500), false],
+            /*
+             * A 2xx is not the answer on its own. The relay used to write the inventory after
+             * its response had gone out, so a successful report said nothing about whether the
+             * list survived - and because it is only re-sent when its hash changes, one dropped
+             * write withheld a site's plugins until it next installed one. It now files the
+             * rows first and says so.
+             */
+            'filed'                  => [$body(200, ['extensions_accepted' => true]), true],
+            'accepted but not filed' => [$body(200, ['extensions_accepted' => false]), false],
+            /* A relay too old to say. Its 2xx is all there is to go on, as before. */
+            'relay cannot say'       => [$body(200), true],
+            'rate limited'           => [$body(429), false],
+            'relay down'             => [$body(500), false],
         ];
+    }
+
+    /**
+     * The direction of the failure is the point: never "believe it is filed".
+     *
+     * A report the relay took but could not file must leave the hash where it was, so the very
+     * next scan carries the whole inventory again. The opposite mistake is silent and lasts
+     * until the site's plugins happen to change.
+     */
+    public function testAnInventoryTheRelayCouldNotFileIsSentAgainNextTime()
+    {
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status' => 'active', 'api_id' => 'a', 'api_key' => 'b', 'auto_scan' => 'yes'
+        ]));
+
+        $this->stubInventory($this->inventory());
+
+        $sent = [];
+        $refuseToFile = function ($preempt, $args) use (&$sent) {
+            $sent[] = json_decode($args['body'], true);
+
+            return [
+                'response' => ['code' => 200, 'message' => ''],
+                'body'     => json_encode(['status' => 'success', 'data' => ['extensions_accepted' => false]]),
+                'headers'  => []
+            ];
+        };
+
+        add_filter('pre_http_request', $refuseToFile, 10, 2);
+        IntegrityHelper::sendStoredReport();
+        IntegrityHelper::sendStoredReport();
+        remove_filter('pre_http_request', $refuseToFile, 10);
+        remove_all_filters('fluent_auth/pre_report_extension_inventory');
+
+        $this->assertCount(2, $sent);
+        $this->assertArrayHasKey('extensions', $sent[0]);
+        $this->assertArrayHasKey('extensions', $sent[1], 'An unfiled inventory must travel again.');
     }
 
     public function testATransportFailureDoesNotMarkItDelivered()

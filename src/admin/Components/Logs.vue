@@ -355,7 +355,13 @@ export default {
                                 <div class="fls_cell_stack">
                                     <div class="fls_cell_main">{{ scope.row.username }}</div>
                                     <div class="fls_cell_sub">
-                                        {{ scope.row.user_id ? $t('User #%s', scope.row.user_id) : $t('No account') }}
+                                        <!--
+                                            Compared as a number. The column arrives from the
+                                            database as a string, and "0" is truthy in
+                                            JavaScript - so every row written by the system
+                                            rather than by a person announced "User #0".
+                                        -->
+                                        {{ Number(scope.row.user_id) > 0 ? $t('User #%s', scope.row.user_id) : $t('No account') }}
                                     </div>
                                 </div>
                             </template>

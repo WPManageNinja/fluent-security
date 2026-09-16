@@ -145,8 +145,17 @@ class Assertion
      * Only meaningful where the authenticator keeps a counter at all. Synced passkeys -
      * iCloud Keychain, a password manager - deliberately report zero forever, because
      * the same credential genuinely does live on several devices at once. Treating that
-     * as a clone would lock out most of the people this feature is for, so a zero on
-     * either side means the check does not apply.
+     * as a clone would lock out most of the people this feature is for, so a credential
+     * that has never counted is exempt.
+     *
+     * Exempt on what is *stored*, though, and not on what is presented. Those read the
+     * same on a synced passkey - it reports zero, so zero is what was kept - and they are
+     * not the same on a hardware key: once a counter has advanced, the stored value stays
+     * above zero, and an answer of zero from a credential with a history is precisely the
+     * clone this check is for. Excusing a presented zero let a clone switch the check off
+     * by reporting one, which is the single value an attacker holding the private key is
+     * free to choose. WebAuthn 7.2 step 22 says the same: the comparison is owed whenever
+     * the stored counter is non-zero.
      *
      * @param $presented int
      * @param $stored int
@@ -156,7 +165,7 @@ class Assertion
      */
     private static function verifySignCount($presented, $stored, $credential)
     {
-        if ($presented === 0 || $stored === 0) {
+        if ($stored === 0) {
             return;
         }
 

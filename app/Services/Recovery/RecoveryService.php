@@ -577,7 +577,9 @@ class RecoveryService
         array_unshift($history, [
             'action'      => $action,
             'description' => $description,
-            'by'          => $user ? $user->user_login : '',
+            /* A string or nothing: the screen prints this, and an action taken over
+               WP-CLI or by a scheduled task has no user behind it. */
+            'by'          => $user instanceof \WP_User ? (string)$user->user_login : '',
             'at'          => current_time('mysql')
         ]);
 
