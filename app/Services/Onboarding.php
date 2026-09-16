@@ -242,10 +242,22 @@ class Onboarding
                         ];
                     }
 
+                    /*
+                     * Which comes out as emailed codes on and the authenticator app off -
+                     * see Helper::getRecommendedSettings() for why that pair is the one a
+                     * site nobody has looked at should open on.
+                     *
+                     * The roles follow the method that is actually on, so the list the
+                     * reader sees is the list of people who will start getting a code.
+                     */
                     return [
                         'totp'  => Arr::get($recommended, 'totp_2fa') === 'yes',
                         'email' => Arr::get($recommended, 'email2fa') === 'yes',
-                        'roles' => (array)Arr::get($recommended, 'totp_2fa_roles', [])
+                        'roles' => (array)Arr::get(
+                            $recommended,
+                            Arr::get($recommended, 'email2fa') === 'yes' ? 'email2fa_roles' : 'totp_2fa_roles',
+                            []
+                        )
                     ];
                 }
             ],

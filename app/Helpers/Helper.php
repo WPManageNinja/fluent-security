@@ -199,11 +199,27 @@ class Helper
             'magic_link_primary'      => 'no',
             'email2fa'                => 'yes',
             'email2fa_roles'          => ['administrator', 'editor', 'author'],
-            'totp_2fa'                => 'yes',
             /*
-             * Offered to the roles that can change the site, matching the email codes
-             * above. An empty list here would switch the method on for nobody, which is
-             * a recommendation that reads as done and protects no one.
+             * Off, while emailed codes above are on, and that pair is deliberate.
+             *
+             * Both methods are good; only one of them can be recommended to a site nobody
+             * has looked at. An emailed code needs nothing explained and nothing installed
+             * - the person already has the inbox. An authenticator app needs somebody to
+             * know what TOTP is, install an app, scan a QR code and keep the phone, and a
+             * default that assumes all four is a default that silently fails the people
+             * least equipped to notice. So the app is a setting to turn on rather than one
+             * to discover already on, and the wizard opens with it off.
+             *
+             * This is the recommendation the checklist and "apply recommended" read too,
+             * so the one-click answer to "turn on two-factor" is emailed codes. Neither
+             * screen hides the app, and turning it on is one switch away.
+             */
+            'totp_2fa'                => 'no',
+            /*
+             * Kept, even with the method off above, so the roles are already filled in the
+             * moment somebody does switch the app on - an empty list there switches the
+             * method on for nobody, which is the one state that reads as done and protects
+             * no one.
              *
              * Offering it is all this does. Which roles must have one stays absent for
              * the reason given above: imposing that locks people out.

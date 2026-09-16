@@ -15,6 +15,11 @@ import RoleChoice from './_RoleChoice.vue';
  * places, and `recommend` behaves the same way here as it does there: nothing is said while
  * the setting is what it should be, and a note appears once it is not. The wizard opens on
  * the recommended answer, so that note is the wizard telling you what you just turned off.
+ *
+ * Only the emailed code carries a recommendation. The authenticator app is the stronger
+ * method and still the wrong thing to press on somebody during setup - it is off here, and
+ * flagging it "recommended: off" would read as advice against a method we are glad to have
+ * people use. So it passes no recommendation at all and says nothing either way.
  */
 export default {
     name: 'OnboardingTwoFactor',
@@ -77,13 +82,13 @@ export default {
             values came from. One line covers that without a badge on each row.
         -->
         <p class="fls_onb_hint">
-            {{ $t('The recommended methods are already on. Turn off any you do not want, then choose who gets them.') }}
+            {{ $t('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.') }}
         </p>
 
         <div class="fls_onb_opts">
             <div class="fls_onb_opt" :class="{'is-on': answer.totp}">
                 <setting-toggle :model-value="answer.totp" :active-value="true" :inactive-value="false"
-                                :recommend="true"
+                                :recommend="null"
                                 :label="$t('Authenticator app')"
                                 :description="$t('A code from an app on their phone, such as Google Authenticator or Authy. No email needed.')"
                                 @update:model-value="v => update('totp', v)"/>

@@ -183,7 +183,15 @@ class SecurityChecksTest extends BaseTestCase
 
         $settings = get_option('__fls_auth_settings');
 
-        $this->assertEquals('yes', $settings['totp_2fa']);
+        /*
+         * Emailed codes, not the authenticator app. One click has to leave a site with a
+         * second factor its users can actually reach, and an app nobody has been told
+         * about is a switch that protects the people who already knew to look for it.
+         * See Helper::getRecommendedSettings().
+         */
+        $this->assertEquals('yes', $settings['email2fa']);
+        $this->assertEquals('no', $settings['totp_2fa']);
+        $this->assertNotEmpty($settings['email2fa_roles']);
         // Requiring a factor is what locks people out, so a one-click button must not.
         $this->assertEquals(['administrator'], $settings['totp_required_roles']);
     }

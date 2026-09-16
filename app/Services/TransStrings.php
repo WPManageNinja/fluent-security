@@ -876,7 +876,7 @@ class TransStrings
             'The mail WordPress sends, rewritten' => __('The mail WordPress sends, rewritten', 'fluent-security'),
             'The message text.' => __('The message text.', 'fluent-security'),
             'The preview could not be loaded.' => __('The preview could not be loaded.', 'fluent-security'),
-            'The recommended methods are already on. Turn off any you do not want, then choose who gets them.' => __('The recommended methods are already on. Turn off any you do not want, then choose who gets them.', 'fluent-security'),
+            'Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.' => __('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.', 'fluent-security'),
             'The recommended ones are already on. Turn off any that would get in your way.' => __('The recommended ones are already on. Turn off any that would get in your way.', 'fluent-security'),
             'The safest way to sign in. There is no password to type, steal or guess.' => __('The safest way to sign in. There is no password to type, steal or guess.', 'fluent-security'),
             'The secret keys in wp-config.php that keep everyone signed in. Replacing them is the usual advice after a break-in, but it can break other plugins, so read the warning before you confirm.' => __('The secret keys in wp-config.php that keep everyone signed in. Replacing them is the usual advice after a break-in, but it can break other plugins, so read the warning before you confirm.', 'fluent-security'),

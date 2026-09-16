@@ -560,9 +560,16 @@ class OnboardingTest extends BaseTestCase
         $recommended = Helper::getRecommendedSettings();
         $steps = $this->keyedSteps();
 
-        $this->assertTrue($steps['two_fa']['answer']['totp']);
+        /*
+         * Emailed codes on, the authenticator app off, and the roles taken from the
+         * method that is actually on - see Helper::getRecommendedSettings(). A wizard
+         * that opens with an app switched on is a wizard telling somebody who has never
+         * heard of TOTP that they have already chosen it.
+         */
+        $this->assertFalse($steps['two_fa']['answer']['totp']);
+        $this->assertTrue($steps['two_fa']['answer']['email']);
         $this->assertSame(
-            $recommended['totp_2fa_roles'],
+            $recommended['email2fa_roles'],
             $steps['two_fa']['answer']['roles']
         );
         $this->assertSame(
