@@ -110,10 +110,19 @@ class TwoFaService
          * proof of a device, still unanswerable by whoever holds the mailbox, but six
          * digits that work wherever they are typed. A mailed code is last because it
          * proves only the mailbox, which is often the thing already lost.
+         *
+         * Enrollment sits between the device methods and the mailed code, and the
+         * placement is the policy. Above email, because a user whose role must hold a
+         * device factor has to go and get one rather than be waved through on a code to
+         * an address - putting it below would let the weakest method satisfy a rule
+         * written to demand the strongest, which is the rule meaning nothing. Below the
+         * two real device methods, because somebody who already has one owes nothing:
+         * both answer isAvailableForUser() first and this is never reached.
          */
         $registered = apply_filters('fluent_auth/2fa_methods', [
             new PasskeyTwoFaMethod(),
             new TotpTwoFaMethod(),
+            new EnrollmentTwoFaMethod(),
             new EmailTwoFaMethod()
         ]);
 
@@ -186,6 +195,16 @@ class TwoFaService
     public static function getRequiredMethod($user, $satisfiedFactors = null, $challengeRequired = false)
     {
         if (!$user instanceof \WP_User) {
+            return null;
+        }
+
+        /*
+         * The lockout escape, asked first so it covers every method equally - a lost
+         * phone and a browser that cannot do WebAuthn are the same problem from here.
+         * See TwoFaBypass: setting it needs write access to wp-config.php, which is
+         * already more authority than any second factor protects.
+         */
+        if (TwoFaBypass::isActiveFor($user)) {
             return null;
         }
 

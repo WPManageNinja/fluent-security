@@ -5,6 +5,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Services\QrCode;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
 /**
@@ -67,12 +68,18 @@ class TotpProfileHandler
                     } elseif (!TotpTwoFaMethod::isAllowedForUser($user)) {
                         echo '<p class="description">' . esc_html__('An authenticator app is not enabled for this account.', 'fluent-security') . '</p>';
                     } elseif ($isSelf) {
-                        if (TotpTwoFaMethod::isRequiredForUser($user)) {
+                        /*
+                         * "Still owed", not "your role is required". They are different
+                         * answers for the user who has met the requirement with a passkey
+                         * and is here to add an app as well - telling that person they
+                         * must do this is simply untrue.
+                         */
+                        if (DeviceRequirement::isOwedBy($user)) {
                             ?>
                             <div style="border-left: 4px solid #dba617;background:#fff;padding: 10px 14px;margin: 0 0 16px;box-shadow: 0 1px 1px rgba(0,0,0,.04);">
                                 <p style="margin: 0;">
                                     <strong><?php esc_html_e('Required for your account.', 'fluent-security'); ?></strong>
-                                    <?php esc_html_e('Set up an authenticator app to continue using the admin area.', 'fluent-security'); ?>
+                                    <?php esc_html_e('Set up a second factor - this app, or a passkey - to carry on signing in.', 'fluent-security'); ?>
                                 </p>
                             </div>
                             <?php
@@ -244,7 +251,14 @@ class TotpProfileHandler
             return;
         }
 
-        if (Arr::get($_POST, 'fls_totp_regenerate_recovery') === 'yes' && TotpTwoFaMethod::isEnrolled($userId)) {
+        /*
+         * Any device factor, not this one. Recovery codes belong to the account rather
+         * than to the authenticator app - see RecoveryCodes - and gating regeneration on
+         * the app left a passkey-only holder with no way to replace a set they never saw.
+         * That matters because hasFallback() counts those codes: the account reads as
+         * recoverable on the strength of something nobody has.
+         */
+        if (Arr::get($_POST, 'fls_totp_regenerate_recovery') === 'yes' && DeviceRequirement::hasDeviceFactor($userId)) {
             $codes = TotpTwoFaMethod::generateRecoveryCodes($userId);
             self::setNotice($userId, 'codes', __('Your previous recovery codes no longer work. Here is the new set.', 'fluent-security'), $codes);
             return;

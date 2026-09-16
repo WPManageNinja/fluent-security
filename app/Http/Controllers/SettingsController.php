@@ -60,7 +60,11 @@ class SettingsController
          * the screen doing nothing. ensureTable() is a single option read once the
          * table exists, so there is nothing to save by being cleverer.
          */
-        if (Arr::get($settings, 'totp_2fa') === 'yes' || Arr::get($settings, 'passkey_2fa') === 'yes') {
+        if (Arr::get($settings, 'totp_2fa') === 'yes'
+            || Arr::get($settings, 'passkey_2fa') === 'yes'
+            // Requiring a factor grants the methods, so it needs the table as much as
+            // switching one on does - and can now be set without switching either on.
+            || Arr::get($settings, 'totp_required_roles')) {
             FactorStore::ensureTable();
         }
 
@@ -149,31 +153,15 @@ class SettingsController
         }
 
         /*
-         * A role cannot be made to set up an authenticator app unless it is also allowed
-         * one - that would be a policy demanding something the setup screen refuses to
-         * offer, which is a locked out user rather than a secured one.
-         *
-         * An empty allow list means nobody may, so it conflicts with every required role
-         * rather than with none of them - which is why this is not guarded on the allow
-         * list being non-empty.
+         * The two rules that used to live here - required roles must also appear in the
+         * allow list, and authenticator apps must be switched on first - are gone, and
+         * their absence is the point. They existed because requiring a factor did not
+         * grant the means to get one, so the lists could disagree and the disagreement
+         * was a locked out user. Requiring now grants; the lists cannot disagree; there
+         * is nothing left to validate. See DeviceRequirement::isRequiredForUser().
          */
-        if (!empty($settings['totp_required_roles'])) {
-            $undeclared = array_diff((array)$settings['totp_required_roles'], (array)$settings['totp_2fa_roles']);
-
-            if ($undeclared) {
-                $errors['totp_required_roles'] = [
-                    'invalid' => sprintf(
-                        'These roles are required to use an authenticator app but are not allowed one: %s',
-                        implode(', ', $undeclared)
-                    )
-                ];
-            }
-        }
-
-        if ($settings['totp_2fa'] !== 'yes' && !empty($settings['totp_required_roles'])) {
-            $errors['totp_required_roles'] = [
-                'invalid' => 'Authenticator apps must be enabled before any role can be required to use one'
-            ];
+        if (!in_array(Arr::get($settings, 'two_fa_required_level'), ['device', 'any'], true)) {
+            $settings['two_fa_required_level'] = 'device';
         }
 
         if ($errors) {

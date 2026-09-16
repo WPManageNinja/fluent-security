@@ -41,6 +41,71 @@ class Activator
      *
      * @return void
      */
+    /**
+     * Brings an existing site's settings forward, once.
+     *
+     * Separate from migrate(), which activation alone reaches - so anything put there
+     * lands on new installs and on nobody who updated. This runs on `admin_init` behind
+     * its own flag, and it deliberately touches nothing but the options row: no tables,
+     * no schedules, nothing that would be expensive to run on a site that has just
+     * updated and is being browsed.
+     *
+     * @return void
+     */
+    public static function maybeMigrateSettings()
+    {
+        if (get_option('__fls_required_roles_migrated')) {
+            return;
+        }
+
+        self::migrateRequiredRoles();
+
+        // Autoloaded: this is read on every request, and a non-autoloaded flag would be
+        // a query on each one for the entire life of the install.
+        update_option('__fls_required_roles_migrated', 'yes', true);
+    }
+
+    /**
+     * Keeps a required-roles list meaning exactly what it meant before.
+     *
+     * The requirement used to be inert unless the same role also appeared in
+     * `totp_2fa_roles` with `totp_2fa` switched on - a role named in one list and not the
+     * other was a policy that silently did nothing. That is now fixed: requiring a factor
+     * grants the methods that satisfy it, so those roles would start being enforced.
+     *
+     * Which is what the site owner asked for, but not today and without warning: the
+     * first they would know is being held at the login screen on a morning they did not
+     * plan for it. So the list is narrowed once, to what was actually in force, and the
+     * new meaning applies to anything they save from here on.
+     *
+     * @return void
+     */
+    private static function migrateRequiredRoles()
+    {
+        $settings = get_option('__fls_auth_settings');
+
+        if (!is_array($settings) || empty($settings['totp_required_roles'])) {
+            return;
+        }
+
+        $required = array_values((array)$settings['totp_required_roles']);
+
+        $enforceable = [];
+
+        if (isset($settings['totp_2fa']) && $settings['totp_2fa'] === 'yes') {
+            $allowed = isset($settings['totp_2fa_roles']) ? (array)$settings['totp_2fa_roles'] : [];
+            $enforceable = array_values(array_intersect($required, $allowed));
+        }
+
+        if ($enforceable === $required) {
+            return;
+        }
+
+        $settings['totp_required_roles'] = $enforceable;
+
+        update_option('__fls_auth_settings', $settings);
+    }
+
     private static function migrate()
     {
         self::migrateLogsTable();

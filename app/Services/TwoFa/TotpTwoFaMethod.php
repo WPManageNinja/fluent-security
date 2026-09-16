@@ -98,11 +98,30 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
             return false;
         }
 
-        if (Helper::getSetting('totp_2fa') !== 'yes') {
+        /*
+         * Asked before anything else now, so that it vetoes both routes below. A site
+         * that says this user may not have an authenticator app means it whether the app
+         * was offered to them or demanded of them.
+         */
+        if (!apply_filters('fluent_auth/totp_enabled', true, $user)) {
             return false;
         }
 
-        if (!apply_filters('fluent_auth/totp_enabled', true, $user)) {
+        /*
+         * Requiring a second factor grants the methods that can satisfy it. An owner who
+         * says "these roles must hold a second factor" has already said those roles may
+         * set one up; making them also tick the allow list is a way for the requirement
+         * to be switched on and quietly do nothing, which is the worst outcome available
+         * to a security setting.
+         *
+         * This is also what makes DeviceRequirement's anti-lockout guard unnecessary:
+         * an app needs nothing from the site, so a required user can always reach one.
+         */
+        if (DeviceRequirement::isRequiredForUser($user)) {
+            return true;
+        }
+
+        if (Helper::getSetting('totp_2fa') !== 'yes') {
             return false;
         }
 
@@ -444,6 +463,36 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         ]);
 
         return is_wp_error($stored) ? '' : $pending;
+    }
+
+    /**
+     * Throws away any half-finished setup and starts a new one.
+     *
+     * The difference from getOrCreatePendingSecret() matters wherever the setup screen
+     * can be reached by somebody who only knows the password. That screen shows the
+     * secret, and a pending secret has no expiry - so an attacker who signs in, reads
+     * it and walks away leaves it sitting there for the real account holder to be
+     * handed, scan and activate. Both then hold the same authenticator, the site
+     * reports the account as protected, and nothing on either side ever says otherwise.
+     *
+     * Reusing a pending secret is right on the profile screen, where the only person
+     * who can reach it is already signed in. It is wrong at the login gate, so that
+     * caller asks for this instead and every attempt starts its own.
+     *
+     * @param $user \WP_User|int
+     * @return string
+     */
+    public static function regeneratePendingSecret($user)
+    {
+        $userId = self::resolveUserId($user);
+
+        if (!$userId) {
+            return '';
+        }
+
+        FactorStore::deleteForUser($userId, FactorStore::TYPE_TOTP, FactorStore::STATUS_PENDING);
+
+        return self::getOrCreatePendingSecret($userId);
     }
 
     /**

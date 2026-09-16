@@ -114,6 +114,13 @@ class Helper
             'passkey_2fa'             => 'no',
             // Roles that may register a passkey. Empty means none of them can.
             'passkey_2fa_roles'       => [],
+            /*
+             * How strong a factor satisfies `totp_required_roles`: `device` (a passkey or
+             * an authenticator app) or `any` (those, or an emailed code). See
+             * DeviceRequirement::getLevel(). Defaults to the strong reading, so a site
+             * that never touches it keeps the meaning the required list already had.
+             */
+            'two_fa_required_level'   => 'device',
             'disable_admin_bar'       => 'no',
             'disable_bar_roles'       => [
                 'subscriber'
@@ -298,6 +305,9 @@ class Helper
             // What the methods actually record - see BaseTwoFaMethod::getLoginMedia().
             'two_factor_email' => __('Email code', 'fluent-security'),
             'two_factor_totp'  => __('Authenticator app', 'fluent-security'),
+            'two_factor_passkey' => __('Passkey', 'fluent-security'),
+            'two_factor_enroll_device' => __('Two-factor setup', 'fluent-security'),
+            'two_fa_bypassed' => __('Two-factor skipped (wp-config)', 'fluent-security'),
             'app_password' => __('Application password', 'fluent-security'),
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),

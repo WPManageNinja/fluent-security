@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Services\QrCode;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
@@ -234,7 +235,8 @@ class TotpSetupPageHandler
                  * Somebody who was redirected here was going somewhere else, and a screen
                  * they did not ask for should say who asked for it.
                  */
-                if (TotpTwoFaMethod::isRequiredForUser($user)) {
+                // Still owed rather than required - see TotpProfileHandler for why.
+                if (DeviceRequirement::isOwedBy($user)) {
                     ?>
                     <div style="border-left: 4px solid #dba617;background:#f6f7f7;padding: 10px 14px;margin: 0 0 20px;">
                         <p style="margin: 0;">

@@ -7,6 +7,7 @@ use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\FactorMigration;
 use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
 /**
@@ -321,7 +322,13 @@ class TwoFaController
             'totp_enrolled'   => $enrolled,
             'passkey_count'   => PasskeyTwoFaMethod::isEnrolled($user) ? \FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore::countForUser($user) : 0,
             'totp_allowed'    => TotpTwoFaMethod::isAllowedForUser($user),
-            'totp_required'   => TotpTwoFaMethod::isRequiredForUser($user),
+            /*
+             * Whether anything is still owed, not whether the role is named. A user who
+             * met the requirement with a passkey is compliant, and the table used to flag
+             * them "Required, not set up" - the same false alarm this rule was rewritten
+             * to remove. The key keeps its name: it is read by the admin app.
+             */
+            'totp_required'   => DeviceRequirement::isOwedBy($user),
             'activated_at'    => $enrolled ? TotpTwoFaMethod::getActivatedAt($user) : '',
             'recovery_codes'  => $enrolled ? TotpTwoFaMethod::getRemainingRecoveryCount($user) : 0,
             'recovery_total'  => TotpTwoFaMethod::RECOVERY_CODE_COUNT,

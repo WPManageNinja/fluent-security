@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\TwoFaBypass;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 /**
@@ -218,6 +219,15 @@ class TwoFaHandler
         login_header(__('Provide Login Code', 'fluent-security'), '', null);
         do_action('fls_load_login_helper');
         echo $method->renderForm($_REQUEST); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+        /*
+         * The way out, for somebody who cannot answer what is above. Rendered for every
+         * method rather than inside any of them: a lost phone, an authenticator that was
+         * never moved to the new one and a browser that will not do WebAuthn are all the
+         * same dead end, and each method would otherwise have to grow its own copy.
+         */
+        echo TwoFaBypass::renderHelp(get_user_by('ID', $logHash->user_id)); // PHPCS:Ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
         login_footer();
         exit();
     }
@@ -488,9 +498,14 @@ class TwoFaHandler
 
                 $redirectTo = apply_filters('login_redirect', $redirectTo, $logHash->redirect_intend, $user);
 
-                wp_send_json([
+                /*
+                 * The method gets the last word on the reply. Almost all of them want
+                 * only the redirect; enrollment has recovery codes to hand over, and
+                 * they are shown once or never.
+                 */
+                wp_send_json($method->getSuccessResponse([
                     'redirect' => $redirectTo
-                ]);
+                ], $user, $logHash));
             }
         }
 

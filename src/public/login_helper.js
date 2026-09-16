@@ -166,7 +166,50 @@ document.addEventListener('DOMContentLoaded', () => {
         request.send(data);
     }
 
+    /*
+     * Recovery codes are shown once and never again, so this stops on the way out
+     * rather than following response.redirect straight past them. The continue button
+     * carries the redirect, so leaving is still one click - it just has to be a click.
+     */
+    function showRecoveryCodes(response, form) {
+        const panel = document.createElement('div');
+        panel.style.cssText = 'margin-top:16px;padding:14px;border-left:4px solid #00a32a;background:#f6f7f7;';
+
+        const intro = document.createElement('p');
+        intro.style.cssText = 'margin:0 0 10px;';
+        intro.textContent = response.recovery_message || '';
+        panel.appendChild(intro);
+
+        const box = document.createElement('textarea');
+        box.readOnly = true;
+        box.rows = response.recovery_codes.length;
+        box.style.cssText = 'width:100%;font-family:Menlo,Consolas,monospace;letter-spacing:2px;';
+        // textContent, not innerHTML: nothing here is meant to be markup.
+        box.textContent = response.recovery_codes.join('\n');
+        box.addEventListener('click', () => box.select());
+        panel.appendChild(box);
+
+        const go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'button button-primary button-large';
+        go.style.cssText = 'display:block;width:100%;margin-top:12px;cursor:pointer;';
+        go.textContent = response.recovery_continue || 'Continue';
+        go.addEventListener('click', () => {
+            window.location.href = response.redirect;
+        });
+        panel.appendChild(go);
+
+        form.innerHTML = '';
+        form.appendChild(panel);
+        go.focus();
+    }
+
     function handleSuccess(response, form) {
+        if (response.recovery_codes && response.recovery_codes.length && response.redirect) {
+            showRecoveryCodes(response, form);
+            return;
+        }
+
         if (response.load_2fa) {
             document.getElementById('fls_login_form').innerHTML = response.two_fa_form;
             setTimeout(() => {

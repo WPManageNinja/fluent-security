@@ -91,11 +91,23 @@ class TotpPolicyTest extends BaseTestCase
      * allow list offers nothing to anybody - so it cannot be the one shape of that
      * mistake the policy waves through.
      */
-    public function testARoleCannotBeRequiredWhileNoRoleIsAllowed()
+    /**
+     * The old rule was that a role could not be required unless it was also allowed,
+     * because requiring something the setup screen refused to offer was a lockout. That
+     * is now handled the other way round: requiring a factor grants the methods that
+     * satisfy it, so the two lists can no longer disagree and the requirement is what it
+     * says it is.
+     */
+    public function testRequiringARoleAllowsItEvenWithAnEmptyAllowList()
     {
         $this->policy('yes', [], ['administrator']);
 
-        $this->assertFalse(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(
+            TotpTwoFaMethod::isAllowedForUser($this->admin),
+            'A policy that demands a factor has to offer the means to get one.'
+        );
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
     }
 
     /**
@@ -103,21 +115,28 @@ class TotpPolicyTest extends BaseTestCase
      * option write can still produce it - and demanding something the profile screen
      * refuses to offer is a locked out user, not a secured one.
      */
-    public function testARoleCannotBeRequiredWithoutBeingAllowed()
+    public function testARequiredRoleIsOfferedTheMethodEvenIfTheAllowListNamesOthers()
     {
         $this->policy('yes', ['editor'], ['administrator']);
 
-        $this->assertFalse(
-            TotpTwoFaMethod::isRequiredForUser($this->admin),
-            'A role that cannot set one up must never be told it has to.'
-        );
+        $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isAllowedForUser($this->admin));
     }
 
-    public function testTurningTheMethodOffCancelsTheRequirement()
+    /**
+     * The master switch governs who may set one up voluntarily. It does not cancel a
+     * requirement - a site that says a role must hold a second factor while every method
+     * is switched off used to mean nothing at all, which is the worst reading available.
+     */
+    public function testTurningTheMethodOffDoesNotCancelTheRequirement()
     {
         $this->policy('no', [], ['administrator']);
 
-        $this->assertFalse(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isAllowedForUser($this->admin));
+
+        // ...and still off for everybody who was not required.
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
     }
 
     /**

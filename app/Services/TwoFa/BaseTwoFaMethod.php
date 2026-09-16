@@ -123,6 +123,25 @@ abstract class BaseTwoFaMethod
     abstract public function verifyProof($user, $logHash, $request);
 
     /**
+     * The JSON a completed sign in answers with.
+     *
+     * Almost every method wants exactly one thing here - where to go next - and takes
+     * this as it stands. It exists for the one that has something to say before the
+     * browser leaves the page: enrollment finishes by handing over recovery codes, and
+     * those are shown once or never, so redirecting straight past them would lose the
+     * only copy the user will ever be offered.
+     *
+     * @param $response array
+     * @param $user \WP_User
+     * @param $logHash object
+     * @return array
+     */
+    public function getSuccessResponse($response, $user, $logHash)
+    {
+        return $response;
+    }
+
+    /**
      * Recorded on the auth log so an admin can see which factor was actually used.
      *
      * @return string

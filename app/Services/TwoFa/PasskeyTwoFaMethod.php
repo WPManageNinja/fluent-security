@@ -92,15 +92,27 @@ class PasskeyTwoFaMethod extends BaseTwoFaMethod
     {
         $user = self::resolveUser($user);
 
+        /*
+         * The secure-context test stays in front of everything, requirement included. It
+         * is not a policy but a fact about the browser: over plain http no passkey can be
+         * created at all, so "allowed" here would be a promise the platform refuses to
+         * keep.
+         */
         if (!$user || !RelyingParty::isSupported()) {
             return false;
         }
 
-        if (Helper::getSetting('passkey_2fa') !== 'yes') {
+        if (!apply_filters('fluent_auth/passkey_enabled', true, $user)) {
             return false;
         }
 
-        if (!apply_filters('fluent_auth/passkey_enabled', true, $user)) {
+        // Requiring a second factor grants the methods that can satisfy it - see
+        // TotpTwoFaMethod::isAllowedForUser() for why.
+        if (DeviceRequirement::isRequiredForUser($user)) {
+            return true;
+        }
+
+        if (Helper::getSetting('passkey_2fa') !== 'yes') {
             return false;
         }
 

@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\RecoveryCodes;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\WebAuthn\Base64Url;
 use FluentAuth\App\Services\TwoFa\WebAuthn\Ceremony;
@@ -89,6 +90,7 @@ class PasskeyProfileHandler
 
                     if ($isSelf) {
                         $this->renderFallbackNotice($user, $credentials);
+                        $this->renderRecoveryCodes($user, $credentials);
                         $this->renderAddForm($user);
                     } elseif (!$credentials) {
                         echo '<p class="description">' . esc_html__('This user has not registered a passkey.', 'fluent-security') . '</p>';
@@ -102,6 +104,52 @@ class PasskeyProfileHandler
         if ($isSelf) {
             $this->renderScript();
         }
+    }
+
+    /**
+     * The account's recovery codes, for somebody whose only factor is a passkey.
+     *
+     * Rendered here only when the authenticator app section is not already offering it,
+     * so the profile never shows the same control twice. The checkbox is the app
+     * section's own field name on purpose: the profile screen is one form, and
+     * TotpProfileHandler::handleUpdate() is what reads it.
+     *
+     * It exists because a passkey has no code to fall back on. PasskeyTwoFaMethod counts
+     * these codes as the fallback that lets a single credential stand alone, so somebody
+     * holding one passkey and a set of codes they cannot replace is one lost laptop from
+     * being locked out of an account the site believes is recoverable.
+     *
+     * @param $user \WP_User
+     * @param $credentials array
+     * @return void
+     */
+    private function renderRecoveryCodes($user, $credentials)
+    {
+        if (!$credentials || TotpTwoFaMethod::isEnrolled($user)) {
+            return;
+        }
+
+        $remaining = RecoveryCodes::countRemaining($user);
+
+        ?>
+        <p class="description" style="margin: 16px 0 8px;">
+            <?php
+            /* translators: %d: number of unused recovery codes */
+            echo esc_html(sprintf(_n('%d unused recovery code remaining.', '%d unused recovery codes remaining.', $remaining, 'fluent-security'), $remaining));
+            ?>
+        </p>
+        <?php if ($remaining < 3) : ?>
+            <p class="description" style="color:#b32d2e;margin-bottom: 8px;">
+                <?php esc_html_e('You are running low. Generate a new set and store them somewhere other than the device holding your passkey.', 'fluent-security'); ?>
+            </p>
+        <?php endif; ?>
+        <p>
+            <label>
+                <input type="checkbox" name="fls_totp_regenerate_recovery" value="yes"/>
+                <?php esc_html_e('Generate a new set of recovery codes (this invalidates the old ones)', 'fluent-security'); ?>
+            </label>
+        </p>
+        <?php
     }
 
     /**

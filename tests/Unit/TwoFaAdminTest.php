@@ -68,10 +68,13 @@ class TwoFaAdminTest extends BaseTestCase
     }
 
     /**
-     * The screen narrows the choices so this cannot normally be built, but the API is
-     * reachable on its own and must not accept a policy that locks a role out.
+     * Both of the rules that used to guard this are gone, and their absence is the
+     * feature. They existed because requiring a factor did not grant the means to get
+     * one, so the two lists could disagree and the disagreement locked a role out.
+     * Requiring now grants, so there is nothing left to refuse - and refusing here was
+     * how an owner ended up with a requirement that silently did nothing.
      */
-    public function testARoleCannotBeRequiredWithoutBeingAllowed()
+    public function testARoleCanBeRequiredWithoutAppearingInTheAllowList()
     {
         $result = $this->save([
             'totp_2fa'            => 'yes',
@@ -79,34 +82,46 @@ class TwoFaAdminTest extends BaseTestCase
             'totp_required_roles' => ['administrator']
         ]);
 
-        $this->assertWPError($result);
-        $this->assertArrayHasKey('totp_required_roles', $result->get_error_data());
+        $this->assertNotWPError($result);
+        $this->assertSame(['administrator'], Helper::getSetting('totp_required_roles'));
     }
 
-    /**
-     * An empty allow list offers the method to nobody, so it conflicts with every
-     * required role rather than with none of them.
-     */
-    public function testAnEmptyAllowListRefusesEveryRequiredRole()
-    {
-        $result = $this->save([
-            'totp_2fa'            => 'yes',
-            'totp_2fa_roles'      => [],
-            'totp_required_roles' => ['administrator']
-        ]);
-
-        $this->assertWPError($result);
-        $this->assertArrayHasKey('totp_required_roles', $result->get_error_data());
-    }
-
-    public function testNobodyCanBeRequiredWhileTheMethodIsOff()
+    public function testARoleCanBeRequiredWhileTheMethodIsOff()
     {
         $result = $this->save([
             'totp_2fa'            => 'no',
             'totp_required_roles' => ['administrator']
         ]);
 
-        $this->assertWPError($result);
+        $this->assertNotWPError($result);
+        $this->assertSame(['administrator'], Helper::getSetting('totp_required_roles'));
+    }
+
+    public function testTheRequiredLevelDefaultsToTheStrongReading()
+    {
+        $this->save(['totp_required_roles' => ['administrator']]);
+
+        $this->assertSame('device', Helper::getSetting('two_fa_required_level'));
+    }
+
+    public function testAnUnknownRequiredLevelFallsBackToDevice()
+    {
+        $this->save([
+            'totp_required_roles'   => ['administrator'],
+            'two_fa_required_level' => 'whatever'
+        ]);
+
+        $this->assertSame('device', Helper::getSetting('two_fa_required_level'));
+    }
+
+    public function testTheRequiredLevelCanBeRelaxed()
+    {
+        $this->save([
+            'totp_required_roles'   => ['administrator'],
+            'two_fa_required_level' => 'any'
+        ]);
+
+        $this->assertSame('any', Helper::getSetting('two_fa_required_level'));
     }
 
     public function testEmailCodesStillNeedARole()
