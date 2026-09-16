@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\LoginAssets;
+use FluentAuth\App\Services\LoginBridge;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 
 class CustomAuthHandler
@@ -207,6 +208,7 @@ class CustomAuthHandler
 
         $registrationForm .= '<input type="hidden" name="__redirect_to" value="' . esc_url($attributes['redirect_to']) . '">';
         $registrationForm .= '<input type="hidden" name="_fls_signup_nonce" value="' . wp_create_nonce('fluent_auth_signup_nonce') . '">';
+        $registrationForm .= LoginBridge::markerFields();
         $registrationForm .= '<button type="submit" id="fls_submit">' . $this->submitBtnLoadingSvg() . '<span>' . __('Signup', 'fluent-security') . '</span></button>';
 
         $registrationForm .= '</div></form>';
@@ -268,6 +270,7 @@ class CustomAuthHandler
 
         $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . esc_attr($attributes['redirect_to']) . '">';
         $resetPasswordForm .= '<input type="hidden" name="_fls_reset_pass_nonce" value="' . wp_create_nonce('fluent_auth_reset_pass_nonce') . '">';
+        $resetPasswordForm .= LoginBridge::markerFields();
         $resetPasswordForm .= '<button type="submit" id="fls_reset_pass">' . $this->submitBtnLoadingSvg() . '<span>' . __('Reset Password', 'fluent-security') . '</span></button>';
 
         $resetPasswordForm .= '</form>';
@@ -568,10 +571,25 @@ class CustomAuthHandler
         LoginAssets::enqueue();
     }
 
+    /**
+     * Whether the front end auth forms may render and their endpoints answer.
+     *
+     * Two ways to yes. The setting is the site's own - it governs whether an editor may
+     * put `[fluent_auth_login]` on a page. A claim from LoginBridge is a plugin saying
+     * this request belongs to an auth screen it has handed us, which is a different
+     * question and was never the setting's to answer: read as one, it left
+     * FluentCommunity's portal rendering a login form of its own while the rest of
+     * FluentAuth went on decorating and gating it.
+     *
+     * @return bool
+     */
     public function isEnabled()
     {
         $settings = Helper::getAuthFormsSettings();
-        return Arr::get($settings, 'enabled') === 'yes';
+
+        $enabled = Arr::get($settings, 'enabled') === 'yes' || LoginBridge::claimed();
+
+        return (bool)apply_filters('fluent_auth/auth_forms_enabled', $enabled);
     }
 
     /**
@@ -1188,7 +1206,7 @@ class CustomAuthHandler
 
         $args = wp_parse_args($args, apply_filters('login_form_defaults', $defaults));
 
-        $login_form_top = apply_filters('login_form_top', '', $args);
+        $login_form_top = apply_filters('login_form_top', '', $args) . LoginBridge::markerFields();
 
         $login_form_middle = apply_filters('login_form_middle', '', $args);
 

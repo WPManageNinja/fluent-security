@@ -30,6 +30,21 @@ const config = () => window.fluentAuthPublic || {};
 const byId = (id) => document.getElementById(id);
 
 /**
+ * The form one of our blocks was printed into.
+ *
+ * Both the passkey button and the magic form arrive through `login_form` or
+ * `login_form_bottom`, so whoever drew the form, our block is already inside it. Asking
+ * the element rather than the page is what lets a login form that is not core's
+ * `#loginform` - FluentCommunity's portal renders its own, with its own id - still get
+ * the password fields hidden and its submit suppressed. On wp-login.php this resolves
+ * to `#loginform` anyway, so that page is unchanged.
+ *
+ * The id is kept as a fallback for the one shape this cannot see: a theme that prints
+ * the hook's output outside the <form> it belongs to.
+ */
+const hostForm = (el) => (el && el.closest('form')) || byId('loginform');
+
+/**
  * Reads one of the JSON islands the PHP prints beside a form. Null rather than a throw:
  * an absent island just means this page is not that kind of screen.
  */
@@ -340,8 +355,7 @@ function handleSuccess(response, form) {
          * elements, not code - so re-binding is all it takes to bring the form that just
          * landed to life.
          */
-        byId('fls_login_form').innerHTML = response.two_fa_form;
-        initChallenge();
+        mountChallenge(response.two_fa_form, byId('fls_login_form') || form.parentElement);
         return;
     }
 
@@ -576,7 +590,7 @@ function initPasskeyLogin() {
      * button, so on that page the block has to be moved down past it. A wp_login_form()
      * form gives us a hook that is already at the bottom, so there is nothing to move.
      */
-    const loginForm = settings.move ? byId('loginform') : null;
+    const loginForm = settings.move ? hostForm(wrap) : null;
 
     if (loginForm) {
         loginForm.appendChild(wrap);
@@ -667,7 +681,7 @@ function initMagicLogin(passkeyButtonShowing) {
         return;
     }
 
-    const loginForm = byId('loginform');
+    const loginForm = hostForm(magicLogin);
     const initialWrapper = document.querySelector('.fls_magic_initial');
     const formWrapper = document.querySelector('.fls_magic_login_form');
     const showMagic = document.querySelector('.fls_magic_show_btn');
@@ -893,6 +907,32 @@ function initChallenge() {
     initLockoutHelp();
 }
 
+/**
+ * Installs a challenge that arrived as html and brings it to life.
+ *
+ * Exported on `window.fluentAuthLogin` because the form a challenge interrupts is not
+ * always ours. A host that renders its own login form and posts it to its own
+ * admin-ajax action - FluentCommunity's portal is the case this was written for - gets
+ * `two_fa_form` back in that reply, and without this it has the markup and no way to
+ * wire it: the ceremonies live in this file precisely because innerHTML will not run a
+ * <script>, so a host that simply assigns the html gets a form nobody can operate.
+ *
+ * @param html {string} the `two_fa_form` from the login reply
+ * @param container {Element} where to put it - not a <form>, since the markup carries
+ *                            its own and the parser drops a nested one
+ * @return {boolean} false when there was nowhere to put it
+ */
+function mountChallenge(html, container) {
+    if (!container || !html) {
+        return false;
+    }
+
+    container.innerHTML = html;
+    initChallenge();
+
+    return true;
+}
+
 /* ------------------------------------------------------------------ the shortcodes */
 
 function initShortcodeForms() {
@@ -995,6 +1035,17 @@ function start() {
 
     initMagicLogin(passkeyButtonShowing);
 }
+
+/*
+ * The seam for a host that owns its own login form. Everything else here binds to
+ * markup we printed; these two are for a caller who has our html but not our DOM. Kept
+ * to the smallest surface that makes a third-party challenge answerable, because
+ * anything published here has to keep working.
+ */
+window.fluentAuthLogin = window.fluentAuthLogin || {
+    mountChallenge: mountChallenge,
+    initChallenge: initChallenge
+};
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);

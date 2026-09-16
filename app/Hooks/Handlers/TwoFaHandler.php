@@ -294,9 +294,17 @@ class TwoFaHandler
         }
 
         if (wp_doing_ajax()) {
+            /*
+             * challenge_url alongside the markup, for a caller that would rather send the
+             * browser to the full page than mount the form. A host that opted in through
+             * `fluent_auth/can_render_2fa_inline` may still find our script absent - it is
+             * only enqueued where something asked for it - and this is what it falls back
+             * to rather than showing a form nothing has wired.
+             */
             wp_send_json([
-                'load_2fa'    => 'yes',
-                'two_fa_form' => $this->get2FaFormHtml($return)
+                'load_2fa'      => 'yes',
+                'two_fa_form'   => $this->get2FaFormHtml($return),
+                'challenge_url' => $return['redirect_to']
             ]);
         }
 
@@ -977,7 +985,21 @@ class TwoFaHandler
     private function cannotShowChallenge()
     {
         if (wp_doing_ajax()) {
-            return empty($_REQUEST['_is_fls_form']);
+            /*
+             * `_is_fls_form` is the marker login_helper.js puts on our own posts, and for
+             * a while it was the only way to be recognised. A host that renders its own
+             * login form posts to its own admin-ajax action and cannot set it, so every
+             * such login was read as headless and handed the WP_Error meant for XML-RPC -
+             * which a form that prints the message it gets back shows as a plain error.
+             *
+             * The filter is the way in for those. Answer true and the challenge comes
+             * back as `two_fa_form` for the caller to mount; window.fluentAuthLogin
+             * .mountChallenge() is what wires it once it is on the page.
+             */
+            return !apply_filters(
+                'fluent_auth/can_render_2fa_inline',
+                !empty($_REQUEST['_is_fls_form'])
+            );
         }
 
         return (defined('REST_REQUEST') && REST_REQUEST)

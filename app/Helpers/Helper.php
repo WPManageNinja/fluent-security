@@ -23,6 +23,7 @@ class Helper
         self::$satisfiedFactors = null;
         \FluentAuth\App\Services\TwoFa\TwoFaService::resetMethods();
         \FluentAuth\App\Hooks\Handlers\TwoFaHandler::resetRequestState();
+        \FluentAuth\App\Services\LoginBridge::reset();
     }
 
     /**
