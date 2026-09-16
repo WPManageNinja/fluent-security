@@ -49,34 +49,59 @@ class IpRulesTest extends BaseTestCase
     public function testStoresBothListsAndReportsTheCurrentAddress()
     {
         $result = $this->save([
-            'allow' => [['ip' => '203.0.113.0/24', 'label' => 'Office']],
-            'block' => [['ip' => '45.148.10.72', 'label' => 'Brute force']]
+            'allow' => ['203.0.113.0/24'],
+            'block' => ['45.148.10.72']
         ]);
 
         $this->assertIsArray($result);
-        $this->assertEquals('203.0.113.0/24', $result['rules']['allow'][0]['ip']);
-        $this->assertEquals('Office', $result['rules']['allow'][0]['label']);
-        $this->assertEquals('45.148.10.72', $result['rules']['block'][0]['ip']);
+        $this->assertEquals(['203.0.113.0/24'], $result['rules']['allow']);
+        $this->assertEquals(['45.148.10.72'], $result['rules']['block']);
         $this->assertEquals('198.51.100.20', $result['current_ip']);
-        $this->assertNotEmpty($result['rules']['allow'][0]['created_at']);
     }
 
-    public function testMarksTheEntryCoveringWhoeverIsReading()
+    /**
+     * A text box, so the server takes the text. Splitting it in the browser and posting an
+     * array would only mean trusting that the browser split it the same way.
+     */
+    public function testTakesAListTypedOneAddressToALine()
     {
-        $result = $this->save(['allow' => [
-            ['ip' => '198.51.100.0/24'],
-            ['ip' => '203.0.113.4']
-        ]]);
+        $result = $this->save(['allow' => "203.0.113.0/24\n198.51.100.20\n\n"]);
 
-        $this->assertTrue($result['rules']['allow'][0]['is_current']);
-        $this->assertFalse($result['rules']['allow'][1]['is_current']);
+        $this->assertEquals(['203.0.113.0/24', '198.51.100.20'], $result['rules']['allow']);
+    }
+
+    /**
+     * The screen cannot flag the line covering its reader the way a table of rows could, so
+     * the one thing it needs that answer for - the restriction warning - is answered here,
+     * where CIDR matching already exists rather than a second time in JavaScript.
+     */
+    public function testSaysWhetherTheAllowListCoversWhoeverIsReading()
+    {
+        $this->assertFalse($this->save(['allow' => ['203.0.113.4']])['current_ip_listed']);
+        $this->assertTrue($this->save(['allow' => ['198.51.100.0/24']])['current_ip_listed']);
+    }
+
+    /**
+     * These lists used to be rows carrying a label and an expiry date. An install that has
+     * not saved since must keep being enforced; its first save rewrites the shape.
+     */
+    public function testReadsTheShapeTheListsUsedToHave()
+    {
+        update_option(IpRules::OPTION, [
+            'allow' => [['ip' => '198.51.100.20', 'label' => 'Office', 'expires_at' => '']],
+            'block' => [['ip' => '45.148.10.72', 'label' => 'Brute force', 'expires_at' => '']]
+        ]);
+
+        $this->assertEquals(['198.51.100.20'], IpRules::get()['allow']);
+        $this->assertTrue(IpRules::isAllowed('198.51.100.20'));
+        $this->assertTrue(IpRules::isBlocked('45.148.10.72'));
     }
 
     /* --------------------------------------------------------------- allow list */
 
     public function testAnAllowedAddressSkipsTheAttemptLimit()
     {
-        $this->save(['allow' => [['ip' => '198.51.100.20']]]);
+        $this->save(['allow' => ['198.51.100.20']]);
 
         $this->assertTrue(IpRules::isAllowed('198.51.100.20'));
         $this->assertFalse(IpRules::isAllowed('198.51.100.21'));
@@ -84,7 +109,7 @@ class IpRulesTest extends BaseTestCase
 
     public function testAllowListUnderstandsRanges()
     {
-        $this->save(['allow' => [['ip' => '203.0.113.0/24']]]);
+        $this->save(['allow' => ['203.0.113.0/24']]);
 
         $this->assertTrue(IpRules::isAllowed('203.0.113.1'));
         $this->assertTrue(IpRules::isAllowed('203.0.113.255'));
@@ -97,7 +122,7 @@ class IpRulesTest extends BaseTestCase
      */
     public function testAllowListDoesNotApplyWhileAddressesAreAmbiguous()
     {
-        $this->save(['allow' => [['ip' => '198.51.100.20']]]);
+        $this->save(['allow' => ['198.51.100.20']]);
 
         $this->assertTrue(IpRules::isAllowed('198.51.100.20'));
 
@@ -111,7 +136,7 @@ class IpRulesTest extends BaseTestCase
 
     public function testDeclaringTheProxyBringsTheAllowListBack()
     {
-        $this->save(['allow' => [['ip' => '198.51.100.20']]]);
+        $this->save(['allow' => ['198.51.100.20']]);
 
         $_SERVER['REMOTE_ADDR'] = '10.0.0.5';
         $_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.20';
@@ -129,7 +154,7 @@ class IpRulesTest extends BaseTestCase
 
     public function testABlockedAddressIsBlocked()
     {
-        $this->save(['block' => [['ip' => '45.148.10.0/24']]]);
+        $this->save(['block' => ['45.148.10.0/24']]);
 
         $this->assertTrue(IpRules::isBlocked('45.148.10.72'));
         $this->assertFalse(IpRules::isBlocked('45.148.11.72'));
@@ -141,7 +166,7 @@ class IpRulesTest extends BaseTestCase
      */
     public function testBlockListStillAppliesWhileAddressesAreAmbiguous()
     {
-        $this->save(['block' => [['ip' => '45.148.10.72']]]);
+        $this->save(['block' => ['45.148.10.72']]);
 
         $_SERVER['REMOTE_ADDR'] = '10.0.0.5';
         Helper::resetStatics();
@@ -151,63 +176,23 @@ class IpRulesTest extends BaseTestCase
 
     public function testBlockAppendsWithoutDisturbingTheAllowList()
     {
-        $this->save(['allow' => [['ip' => '203.0.113.0/24', 'label' => 'Office']]]);
+        $this->save(['allow' => ['203.0.113.0/24']]);
 
-        $result = IpRules::add('block', '45.148.10.72', 'From the dashboard');
+        $result = IpRules::add('block', '45.148.10.72');
 
         $this->assertIsArray($result);
-        $this->assertCount(1, $result['rules']['allow']);
-        $this->assertEquals('203.0.113.0/24', $result['rules']['allow'][0]['ip']);
-        $this->assertCount(1, $result['rules']['block']);
-        $this->assertEquals('From the dashboard', $result['rules']['block'][0]['label']);
-    }
-
-    /* ------------------------------------------------------------------ expiry */
-
-    public function testAnExpiredEntryStopsApplyingButStaysOnTheList()
-    {
-        $yesterday = date('Y-m-d', strtotime('-1 day', current_time('timestamp')));
-
-        $result = $this->save(['allow' => [['ip' => '198.51.100.20', 'expires_at' => $yesterday]]]);
-
-        $this->assertCount(1, $result['rules']['allow']);
-        $this->assertTrue($result['rules']['allow'][0]['is_expired']);
-        $this->assertFalse(IpRules::isAllowed('198.51.100.20'));
-    }
-
-    public function testAnEntryLastsToTheEndOfTheDayItExpiresOn()
-    {
-        $today = date('Y-m-d', current_time('timestamp'));
-
-        $this->save(['allow' => [['ip' => '198.51.100.20', 'expires_at' => $today]]]);
-
-        $this->assertTrue(IpRules::isAllowed('198.51.100.20'));
-    }
-
-    public function testExpiryAlsoEndsABlock()
-    {
-        $yesterday = date('Y-m-d', strtotime('-1 day', current_time('timestamp')));
-
-        $this->save(['block' => [['ip' => '45.148.10.72', 'expires_at' => $yesterday]]]);
-
-        $this->assertFalse(IpRules::isBlocked('45.148.10.72'));
-    }
-
-    public function testRejectsAnUnreadableExpiryDate()
-    {
-        $this->assertWpErrorWithCode(
-            $this->save(['allow' => [['ip' => '198.51.100.20', 'expires_at' => 'next tuesday']]]),
-            'invalid_date'
-        );
+        $this->assertEquals(['203.0.113.0/24'], $result['rules']['allow']);
+        $this->assertEquals(['45.148.10.72'], $result['rules']['block']);
     }
 
     /* -------------------------------------------------------------- validation */
 
     public function testRejectsThingsThatAreNotAddresses()
     {
-        foreach (['', 'not-an-ip', '999.1.1.1', '203.0.113.0/', '203.0.113.0/abc'] as $value) {
+        // Not '': an empty line is what the end of a text box looks like, and is dropped.
+        foreach (['not-an-ip', '999.1.1.1', '203.0.113.0/', '203.0.113.0/abc'] as $value) {
             $this->assertWpErrorWithCode(
-                $this->save(['allow' => [['ip' => $value]]]),
+                $this->save(['allow' => [$value]]),
                 'invalid_ip',
                 $value
             );
@@ -220,21 +205,21 @@ class IpRulesTest extends BaseTestCase
     public function testRejectsAnAllowRangeThatCoversTooMuch()
     {
         foreach (['0.0.0.0/0', '10.0.0.0/8', '0.0.0.0/1'] as $range) {
-            $result = $this->save(['allow' => [['ip' => $range]]]);
+            $result = $this->save(['allow' => [$range]]);
 
             $this->assertWPError($result, $range);
             $this->assertContains($result->get_error_code(), ['range_too_broad', 'invalid_ip'], $range);
         }
 
         // A /24 office and a /16 data centre are the point of the feature.
-        $this->assertIsArray($this->save(['allow' => [['ip' => '203.0.113.0/24']]]));
-        $this->assertIsArray($this->save(['allow' => [['ip' => '203.0.0.0/16']]]));
+        $this->assertIsArray($this->save(['allow' => ['203.0.113.0/24']]));
+        $this->assertIsArray($this->save(['allow' => ['203.0.0.0/16']]));
     }
 
     public function testABroadRangeIsStillAllowedOnTheBlockList()
     {
-        $this->assertIsArray($this->save(['block' => [['ip' => '10.0.0.0/8']]]));
-        $this->assertWpErrorWithCode($this->save(['block' => [['ip' => '0.0.0.0/0']]]), 'invalid_ip');
+        $this->assertIsArray($this->save(['block' => ['10.0.0.0/8']]));
+        $this->assertWpErrorWithCode($this->save(['block' => ['0.0.0.0/0']]), 'invalid_ip');
     }
 
     /**
@@ -242,21 +227,24 @@ class IpRulesTest extends BaseTestCase
      */
     public function testRefusesToBlockYourOwnAddress()
     {
-        $error = $this->save(['block' => [['ip' => '198.51.100.20']]]);
+        $error = $this->save(['block' => ['198.51.100.20']]);
 
         $this->assertWpErrorWithCode($error, 'self_block');
         $this->assertEmpty(get_option(IpRules::OPTION));
 
         // And by range, not just exactly.
-        $this->assertWpErrorWithCode($this->save(['block' => [['ip' => '198.51.100.0/24']]]), 'self_block');
+        $this->assertWpErrorWithCode($this->save(['block' => ['198.51.100.0/24']]), 'self_block');
     }
 
-    public function testRejectsDuplicates()
+    /**
+     * The same line twice is a slip in a text box, not a decision - and the box is redrawn
+     * from what was stored, so collapsing them shows rather than hides.
+     */
+    public function testCollapsesTheSameAddressTypedTwice()
     {
-        $this->assertWpErrorWithCode(
-            $this->save(['allow' => [['ip' => '203.0.113.4'], ['ip' => '203.0.113.4']]]),
-            'duplicate'
-        );
+        $result = $this->save(['allow' => ['203.0.113.4', ' 203.0.113.4 ']]);
+
+        $this->assertEquals(['203.0.113.4'], $result['rules']['allow']);
     }
 
     public function testRejectsAListLongerThanItWillWalkOnEveryLogin()
@@ -264,7 +252,7 @@ class IpRulesTest extends BaseTestCase
         $entries = [];
 
         for ($i = 0; $i < IpRules::MAX_ENTRIES + 1; $i++) {
-            $entries[] = ['ip' => '203.0.113.' . ($i % 255)];
+            $entries[] = '203.0.113.' . ($i % 255);
         }
 
         $this->assertWpErrorWithCode($this->save(['block' => $entries]), 'too_many');
@@ -275,28 +263,27 @@ class IpRulesTest extends BaseTestCase
      */
     public function testARejectedSaveChangesNothing()
     {
-        $this->save(['allow' => [['ip' => '203.0.113.0/24', 'label' => 'Office']]]);
+        $this->save(['allow' => ['203.0.113.0/24']]);
 
         $this->assertWpErrorWithCode(
             $this->save([
-                'allow' => [['ip' => '203.0.113.0/24', 'label' => 'Office']],
-                'block' => [['ip' => 'nonsense']]
+                'allow' => ['203.0.113.0/24'],
+                'block' => ['nonsense']
             ]),
             'invalid_ip'
         );
 
         $stored = get_option(IpRules::OPTION);
 
-        $this->assertCount(1, $stored['allow']);
-        $this->assertEquals('Office', $stored['allow'][0]['label']);
+        $this->assertEquals(['203.0.113.0/24'], $stored['allow']);
         $this->assertEmpty($stored['block']);
     }
 
     public function testNormalisesARangeToItsCanonicalForm()
     {
-        $result = $this->save(['allow' => [['ip' => '  203.0.113.0/024  ']]]);
+        $result = $this->save(['allow' => ['  203.0.113.0/024  ']]);
 
-        $this->assertEquals('203.0.113.0/24', $result['rules']['allow'][0]['ip']);
+        $this->assertEquals(['203.0.113.0/24'], $result['rules']['allow']);
     }
 
     public function testEmptyListsMeanNothingIsExemptOrBlocked()
@@ -310,13 +297,12 @@ class IpRulesTest extends BaseTestCase
     public function testAnAddressOnBothListsIsDroppedFromTheBlockList()
     {
         $result = $this->save([
-            'allow' => [['ip' => '203.0.113.0/24', 'label' => 'Office']],
-            'block' => [['ip' => '203.0.113.9'], ['ip' => '45.148.10.72']]
+            'allow' => ['203.0.113.0/24'],
+            'block' => ['203.0.113.9', '45.148.10.72']
         ]);
 
         $this->assertIsArray($result);
-        $this->assertCount(1, $result['rules']['block']);
-        $this->assertEquals('45.148.10.72', $result['rules']['block'][0]['ip']);
+        $this->assertEquals(['45.148.10.72'], $result['rules']['block']);
         $this->assertEquals(['203.0.113.9'], $result['dropped_blocks']);
 
         $this->assertFalse(IpRules::isBlocked('203.0.113.9'));
@@ -325,8 +311,8 @@ class IpRulesTest extends BaseTestCase
     public function testABlockedRangeInsideAnAllowedRangeIsDroppedToo()
     {
         $result = $this->save([
-            'allow' => [['ip' => '203.0.0.0/16']],
-            'block' => [['ip' => '203.0.113.0/24']]
+            'allow' => ['203.0.0.0/16'],
+            'block' => ['203.0.113.0/24']
         ]);
 
         $this->assertEmpty($result['rules']['block']);
@@ -335,10 +321,11 @@ class IpRulesTest extends BaseTestCase
 
     public function testAddingAnAddressAlreadyCoveredIsRefusedRatherThanDuplicated()
     {
-        $this->save(['allow' => [['ip' => '203.0.113.0/24']]]);
+        $this->save(['allow' => ['203.0.113.0/24']]);
 
         $this->assertWpErrorWithCode(IpRules::add('allow', '203.0.113.9'), 'already_listed');
         $this->assertWpErrorWithCode(IpRules::add('nowhere', '203.0.113.9'), 'unknown_list');
+        $this->assertWpErrorWithCode(IpRules::add('block', ''), 'invalid_ip');
     }
 
     /**
@@ -348,7 +335,7 @@ class IpRulesTest extends BaseTestCase
      */
     public function testBlockingAnAllowedAddressIsRefusedRatherThanSilentlyDropped()
     {
-        $this->save(['allow' => [['ip' => '203.0.113.0/24', 'label' => 'Office']]]);
+        $this->save(['allow' => ['203.0.113.0/24']]);
 
         $error = IpRules::add('block', '203.0.113.55');
 
@@ -360,16 +347,16 @@ class IpRulesTest extends BaseTestCase
     public function testAddingKeepsTheRestOfTheConfiguration()
     {
         $this->save([
-            'allow'            => [['ip' => '198.51.100.20', 'label' => 'Me']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator']
         ]);
 
-        $result = IpRules::add('block', '45.148.10.72', 'From the logs');
+        $result = IpRules::add('block', '45.148.10.72');
 
         $this->assertIsArray($result);
         $this->assertEquals(['administrator'], $result['restricted_roles']);
-        $this->assertCount(1, $result['rules']['allow']);
-        $this->assertEquals('From the logs', $result['rules']['block'][0]['label']);
+        $this->assertEquals(['198.51.100.20'], $result['rules']['allow']);
+        $this->assertEquals(['45.148.10.72'], $result['rules']['block']);
     }
 
     /* -------------------------------------------------------- restricted roles */
@@ -388,7 +375,7 @@ class IpRulesTest extends BaseTestCase
         $admin = $this->userWithRole('administrator');
 
         $this->save([
-            'allow'            => [['ip' => '198.51.100.20']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator']
         ]);
 
@@ -405,7 +392,7 @@ class IpRulesTest extends BaseTestCase
         $subscriber = $this->userWithRole('subscriber');
 
         $this->save([
-            'allow'            => [['ip' => '198.51.100.20']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator']
         ]);
 
@@ -420,7 +407,7 @@ class IpRulesTest extends BaseTestCase
         $admin = $this->userWithRole('administrator');
 
         $this->save([
-            'allow'            => [['ip' => '198.51.100.0/24']],
+            'allow'            => ['198.51.100.0/24'],
             'restricted_roles' => ['administrator']
         ]);
 
@@ -446,7 +433,7 @@ class IpRulesTest extends BaseTestCase
     public function testTurningItOnFromAnAddressThatIsNotListedIsRefused()
     {
         $error = $this->save([
-            'allow'            => [['ip' => '203.0.113.9']],
+            'allow'            => ['203.0.113.9'],
             'restricted_roles' => ['administrator']
         ]);
 
@@ -462,19 +449,6 @@ class IpRulesTest extends BaseTestCase
         );
     }
 
-    public function testRestrictingWithOnlyExpiredAddressesIsRefused()
-    {
-        $yesterday = date('Y-m-d', strtotime('-1 day', current_time('timestamp')));
-
-        $this->assertWpErrorWithCode(
-            $this->save([
-                'allow'            => [['ip' => '198.51.100.20', 'expires_at' => $yesterday]],
-                'restricted_roles' => ['administrator']
-            ]),
-            'no_allowed_addresses'
-        );
-    }
-
     public function testRestrictingIsRefusedWhileAddressesAreAmbiguous()
     {
         $_SERVER['REMOTE_ADDR'] = '10.0.0.5';
@@ -483,7 +457,7 @@ class IpRulesTest extends BaseTestCase
 
         $this->assertWpErrorWithCode(
             $this->save([
-                'allow'            => [['ip' => '10.0.0.5']],
+                'allow'            => ['10.0.0.5'],
                 'restricted_roles' => ['administrator']
             ]),
             'addresses_ambiguous'
@@ -493,7 +467,7 @@ class IpRulesTest extends BaseTestCase
     public function testUnknownRolesAreDiscarded()
     {
         $result = $this->save([
-            'allow'            => [['ip' => '198.51.100.20']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator', 'not_a_role']
         ]);
 
@@ -512,7 +486,7 @@ class IpRulesTest extends BaseTestCase
         $admin = $this->userWithRole('administrator');
 
         $this->save([
-            'allow'            => [['ip' => '198.51.100.20']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator']
         ]);
 
@@ -531,7 +505,7 @@ class IpRulesTest extends BaseTestCase
         $admin = $this->userWithRole('administrator');
 
         $this->save([
-            'allow'            => [['ip' => '198.51.100.20']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator']
         ]);
 
@@ -544,7 +518,7 @@ class IpRulesTest extends BaseTestCase
     public function testTheRestrictionOnlyAppliesToRealUsers()
     {
         $this->save([
-            'allow'            => [['ip' => '198.51.100.20']],
+            'allow'            => ['198.51.100.20'],
             'restricted_roles' => ['administrator']
         ]);
 

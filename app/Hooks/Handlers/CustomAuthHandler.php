@@ -5,11 +5,12 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\LoginAssets;
+use FluentAuth\App\Services\LoginBridge;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
 
 class CustomAuthHandler
 {
-
-    protected $loaded = false;
 
     public function register()
     {
@@ -207,6 +208,7 @@ class CustomAuthHandler
 
         $registrationForm .= '<input type="hidden" name="__redirect_to" value="' . esc_url($attributes['redirect_to']) . '">';
         $registrationForm .= '<input type="hidden" name="_fls_signup_nonce" value="' . wp_create_nonce('fluent_auth_signup_nonce') . '">';
+        $registrationForm .= LoginBridge::markerFields();
         $registrationForm .= '<button type="submit" id="fls_submit">' . $this->submitBtnLoadingSvg() . '<span>' . __('Signup', 'fluent-security') . '</span></button>';
 
         $registrationForm .= '</div></form>';
@@ -268,6 +270,7 @@ class CustomAuthHandler
 
         $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . esc_attr($attributes['redirect_to']) . '">';
         $resetPasswordForm .= '<input type="hidden" name="_fls_reset_pass_nonce" value="' . wp_create_nonce('fluent_auth_reset_pass_nonce') . '">';
+        $resetPasswordForm .= LoginBridge::markerFields();
         $resetPasswordForm .= '<button type="submit" id="fls_reset_pass">' . $this->submitBtnLoadingSvg() . '<span>' . __('Reset Password', 'fluent-security') . '</span></button>';
 
         $resetPasswordForm .= '</form>';
@@ -557,31 +560,36 @@ class CustomAuthHandler
         }
     }
 
+    /**
+     * @param $hide string kept for the signature this is hooked with; the wrapper's
+     *                     hidden state is a class on the markup, not something the
+     *                     script has ever read.
+     * @return void
+     */
     public function loadAssets($hide = '')
     {
-        if ($this->loaded) {
-            return false;
-        }
-
-        wp_enqueue_script('fluent_auth_login_helper', FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_helper.js', [], FLUENT_AUTH_VERSION);
-        wp_localize_script('fluent_auth_login_helper', 'fluentAuthPublic', [
-            'hide'              => $hide,
-            'redirect_fallback' => site_url(),
-            'fls_login_nonce'   => wp_create_nonce('fsecurity_login_nonce'),
-            'ajax_url'          => admin_url('admin-ajax.php'),
-            'i18n'              => [
-                'Username_or_Email' => __('Username or Email', 'fluent-security'),
-                'Password'          => __('Password', 'fluent-security')
-            ]
-        ]);
-
-        $this->loaded = true;
+        LoginAssets::enqueue();
     }
 
+    /**
+     * Whether the front end auth forms may render and their endpoints answer.
+     *
+     * Two ways to yes. The setting is the site's own - it governs whether an editor may
+     * put `[fluent_auth_login]` on a page. A claim from LoginBridge is a plugin saying
+     * this request belongs to an auth screen it has handed us, which is a different
+     * question and was never the setting's to answer: read as one, it left
+     * FluentCommunity's portal rendering a login form of its own while the rest of
+     * FluentAuth went on decorating and gating it.
+     *
+     * @return bool
+     */
     public function isEnabled()
     {
         $settings = Helper::getAuthFormsSettings();
-        return Arr::get($settings, 'enabled') === 'yes';
+
+        $enabled = Arr::get($settings, 'enabled') === 'yes' || LoginBridge::claimed();
+
+        return (bool)apply_filters('fluent_auth/auth_forms_enabled', $enabled);
     }
 
     /**
@@ -608,7 +616,7 @@ class CustomAuthHandler
         $caps = array_filter(array_keys(array_filter($caps)));
 
         foreach ($rules as $rule) {
-            $result = $this->isConditionsMatched($rule['conditions'], $user, $caps);
+            $result = $this->isConditionsMatched((array)Arr::get($rule, 'conditions', []), $user, $caps);
             if ($result && !empty($rule['login'])) {
                 return $rule['login'];
             }
@@ -640,7 +648,7 @@ class CustomAuthHandler
         $caps = array_filter(array_keys(array_filter($caps)));
 
         foreach ($rules as $rule) {
-            $result = $this->isConditionsMatched($rule['conditions'], $user, $caps);
+            $result = $this->isConditionsMatched((array)Arr::get($rule, 'conditions', []), $user, $caps);
             if ($result && !empty($rule['logout'])) {
                 return $rule['logout'];
             }
@@ -660,14 +668,19 @@ class CustomAuthHandler
         $isMatched = false;
 
         foreach ($conditions as $condition) {
-            if (!$condition['values']) {
+            // A condition with nothing picked is skipped rather than failing the rule -
+            // and rules saved before the screen always sent one have no `values` at all.
+            $values = (array)Arr::get($condition, 'values', []);
+
+            if (!$values) {
                 continue;
             }
-            $key = $condition['condition'];
+
+            $key = Arr::get($condition, 'condition');
             if ($key == 'user_role') {
-                $isMatched = (bool)array_intersect((array)$condition['values'], (array)$user->roles);
+                $isMatched = (bool)array_intersect($values, (array)$user->roles);
             } else if ($key == 'user_capability') {
-                $isMatched = (bool)array_intersect((array)$condition['values'], (array)$caps);
+                $isMatched = (bool)array_intersect($values, (array)$caps);
             }
 
             if (!$isMatched) {
@@ -873,6 +886,9 @@ class CustomAuthHandler
                         'message' => $isTokenValidated->get_error_message()
                     ], 422);
                 }
+
+                // The mailbox has just been proven; the sign in that follows may rely on it.
+                Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
             }
         }
 
@@ -1134,11 +1150,46 @@ class CustomAuthHandler
         do_action('fluent_auth/after_logging_in_user', $userId);
     }
 
+    /**
+     * The address being viewed, with the host taken from the site rather than the request.
+     *
+     * @return string
+     */
+    protected static function currentUrl()
+    {
+        $host = wp_parse_url(home_url(), PHP_URL_HOST);
+
+        if (!$host) {
+            return home_url('/');
+        }
+
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+
+        if (strpos($uri, '/') !== 0) {
+            $uri = '/' . $uri;
+        }
+
+        return set_url_scheme('http://' . $host . $uri);
+    }
+
     protected function nativeLoginForm($args = array())
     {
         $defaults = array(
             'echo'           => true,
-            'redirect'       => (is_ssl() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'],
+            /*
+             * The host comes from the site's own address, not from the Host header, which
+             * is the client's to set. Core's wp_login_form() reads HTTP_HOST here; on a
+             * site that does not pin the header at the web server that puts whatever was
+             * sent into the form's redirect_to. wp_safe_redirect() refuses it later, so
+             * the visitor lands somewhere harmless either way - but the form should not be
+             * quoting a stranger's hostname back at them in the first place.
+             *
+             * Assembled rather than passed to home_url(), which would prepend the path of
+             * an install in a subdirectory to a REQUEST_URI that already carries it.
+             */
+            'redirect'       => self::currentUrl(),
             'form_id'        => 'loginform',
             'label_username' => __('Username or Email Address', 'fluent-security'),
             'label_password' => __('Password', 'fluent-security'),
@@ -1155,7 +1206,7 @@ class CustomAuthHandler
 
         $args = wp_parse_args($args, apply_filters('login_form_defaults', $defaults));
 
-        $login_form_top = apply_filters('login_form_top', '', $args);
+        $login_form_top = apply_filters('login_form_top', '', $args) . LoginBridge::markerFields();
 
         $login_form_middle = apply_filters('login_form_middle', '', $args);
 

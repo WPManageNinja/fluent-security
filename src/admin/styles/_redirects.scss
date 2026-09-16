@@ -1,0 +1,249 @@
+/*
+ * Login redirects.
+ *
+ * The screen is a list whose order is its behaviour, so it is built like a list and not
+ * like a stack of forms: one row per rule, the rule stated in words on the row, and the
+ * fields only when a row is opened. A site with one rule loses a click to that; a site with
+ * ten stops having to scroll through ten open forms to find the one that is wrong.
+ */
+
+.fls_rules {
+    margin: 4px 0 12px;
+}
+
+/* ------------------------------------------------------------------- one rule */
+
+.fls_rule {
+    @apply bg-surface rounded-xs border border-solid border-hairline;
+
+    margin-bottom: 8px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Open, the row above the fields is a heading for them rather than a row of its own. */
+    &.is_open {
+        @apply border-hairline-strong;
+    }
+}
+
+.fls_rule_head {
+    @apply flex items-center;
+}
+
+/*
+ * The whole summary is the control that opens the rule - a chevron alone is a 14px target
+ * for the main thing you do on this screen.
+ */
+.fls_rule_toggle {
+    @apply flex flex-1 items-center gap-3 bg-transparent border-0 text-left;
+
+    min-width: 0;
+    padding: 10px 10px 10px 10px;
+    cursor: pointer;
+    border-radius: 4px 0 0 4px;
+
+    &:hover {
+        @apply bg-surface-sunk;
+    }
+
+    /* The app's own focus ring - the button has no border to show one on otherwise. */
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: -2px;
+    }
+}
+
+/* Its place in the order, which is the one thing about a rule that is a number. */
+.fls_rule_index {
+    @apply flex-none bg-surface-raised text-ink-mid text-xs font-medium rounded-xs;
+
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+}
+
+/*
+ * The rule as a sentence. It wraps rather than truncates: a long list of roles is exactly
+ * the case where the closed row has to stay readable, and there is room for two lines.
+ */
+.fls_rule_sum {
+    @apply flex flex-1 flex-wrap items-baseline text-sm text-ink;
+
+    min-width: 0;
+    gap: 2px 12px;
+}
+
+
+.fls_rule_who {
+    @apply font-medium;
+}
+
+.fls_rule_dest {
+    @apply text-xs text-ink-mid;
+
+    em {
+        @apply text-ink-light;
+
+        font-style: normal;
+    }
+}
+
+/*
+ * The disclosure mark, at the left edge where a list of openable things puts it. It spent
+ * a version on the right, next to the move-up and move-down buttons, where three chevrons
+ * in a row made it impossible to tell which one opened the rule.
+ */
+.fls_rule_chevron {
+    @apply flex-none text-ink-light;
+
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.fls_rule_actions {
+    @apply flex flex-none items-center;
+
+    padding-right: 8px;
+
+    /* Element Plus spaces buttons like form actions; these are a toolbar. */
+    .el-button + .el-button {
+        margin-left: 2px;
+    }
+
+    .dashicons {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.fls_rule_body {
+    @apply border-0 border-t border-solid border-hairline;
+
+    padding: 12px 16px 4px;
+
+    /* Two captions in one panel, so the second needs air above it. */
+    .fls_eyebrow + * {
+        margin-top: 0;
+    }
+
+    .fls_action_note {
+        margin: 10px 0 16px;
+    }
+
+    > .fls_eyebrow:not(:first-child) {
+        margin-top: 18px;
+    }
+}
+
+/* ------------------------------------------------------------- one condition */
+
+/*
+ * Laid out as a sentence rather than as a form - "their role is one of ..." - because the
+ * three fields mean nothing apart and every label a form would need is already a word in
+ * the sentence.
+ */
+.fls_condition_line {
+    @apply flex flex-wrap items-center;
+
+    gap: 8px;
+}
+
+.fls_condition_word {
+    @apply flex-none text-xs text-ink-mid;
+}
+
+.fls_condition_type {
+    flex: 0 0 auto;
+    width: 130px;
+}
+
+/*
+ * Takes the rest of the line up to a point - past about this it is a field the width of
+ * the panel holding three words - and keeps its own line when the rest has to wrap.
+ */
+.fls_condition_pick {
+    @apply flex items-center;
+
+    flex: 1 1 240px;
+    min-width: 200px;
+    max-width: 470px;
+    gap: 4px;
+}
+
+.fls_condition_values {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Says how the two lines are combined, standing between them where that reads. */
+.fls_condition_join {
+    @apply block text-xs text-ink-light;
+
+    margin: 6px 0;
+}
+
+/*
+ * Sits below the rows, separated by the same hairline the header uses, so the button reads
+ * as the end of the list rather than another row in it.
+ */
+.fls_rules_add {
+    @apply border-0 border-t border-solid border-hairline;
+
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+/* A quiet line under a field saying something about it - ignored, incomplete, in force. */
+.fls_rules_flag {
+    @apply inline-block text-xs text-ink-light;
+
+    margin-top: 4px;
+
+    &.is_warning {
+        @apply text-caution-fg;
+    }
+}
+
+.fls_condition .fls_rules_flag {
+    margin: 4px 0 0;
+}
+
+/* ------------------------------------------------------------- a destination */
+
+/*
+ * The picker, the address it stands for, and the box for typing one that is not on the
+ * list. Held to the width of the control column so the three stay one column.
+ */
+.fls_destination {
+    @apply flex flex-col items-stretch;
+
+    width: 280px;
+    gap: 6px;
+}
+
+.fls_destination_url {
+    @apply text-xs text-ink-light;
+
+    word-break: break-all;
+}
+
+/* ------------------------------------------------------------- narrow screens */
+
+@media (max-width: 960px) {
+    .fls_destination {
+        width: 100%;
+    }
+
+    /* The sentence has nowhere to run to, so each field takes its own line. */
+    .fls_condition_type,
+    .fls_condition_pick {
+        flex: 1 1 100%;
+        width: auto;
+        max-width: none;
+    }
+}

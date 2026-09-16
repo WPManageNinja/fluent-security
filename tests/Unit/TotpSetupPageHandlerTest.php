@@ -135,8 +135,7 @@ class TotpSetupPageHandlerTest extends BaseTestCase
 
         $this->actAs($this->user);
 
-        $pending = TotpProvider::generateSecret();
-        update_user_meta($this->user->ID, TotpTwoFaMethod::META_PENDING_SECRET, $pending);
+        $pending = TotpTwoFaMethod::getOrCreatePendingSecret($this->user);
         $_POST['fls_totp_confirm_code'] = $this->codeFor($pending);
 
         $this->assertFalse($this->handler->processSubmission($this->user));

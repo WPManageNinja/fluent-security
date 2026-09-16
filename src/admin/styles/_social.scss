@@ -1,0 +1,38 @@
+/*
+ * The social login screen.
+ *
+ * One card per provider, and the provider's own mark heads it. A column of cards saying
+ * Google, GitHub, Facebook in the app's own type is a list to be read; the marks make it
+ * a list to be recognised, which is all anyone is doing on this screen - finding the one
+ * row they came to switch on.
+ */
+
+/*
+ * The plate the mark sits on.
+ *
+ * The three marks are different shapes - a square G, a round-shouldered f, a circle -
+ * and set loose they line up at three different widths. The plate is the same size for
+ * all of them, so the titles start on one vertical line.
+ */
+.fls_social_mark {
+    @apply flex flex-none items-center justify-center bg-surface-sunk border border-solid border-hairline rounded;
+
+    width: 36px;
+    height: 36px;
+
+    svg {
+        @apply block;
+
+        width: 20px;
+        height: 20px;
+    }
+
+    /*
+     * GitHub's mark is one colour, and that colour is near-black. Taking the app's
+     * heading colour rather than its own keeps it visible on a dark card, where a
+     * black mark on a dark plate is a blank square.
+     */
+    &.is_github {
+        @apply text-ink-head;
+    }
+}

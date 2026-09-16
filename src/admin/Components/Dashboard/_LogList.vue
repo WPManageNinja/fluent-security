@@ -46,7 +46,7 @@ export default {
         <li v-for="log in logs" :key="log.id">
             <div class="fls_dash_list_main">
                 <div class="fls_dash_list_title">
-                    <span>{{ log.username }}</span>
+                    <span>{{ log.username || $t('No username provided') }}</span>
                     <span class="fls_tag" :class="'is_' + log.status">{{ statusLabel(log.status) }}</span>
                 </div>
                 <div class="fls_dash_list_meta">{{ meta(log) }}</div>
@@ -55,7 +55,7 @@ export default {
         </li>
     </ul>
 
-    <div v-else class="fls_dash_empty">
+    <div v-else class="fls_empty">
         <span v-html="icons.empty"></span>
         {{ emptyText }}
     </div>

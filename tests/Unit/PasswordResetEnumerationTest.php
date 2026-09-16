@@ -116,6 +116,15 @@ class PasswordResetEnumerationTest extends BaseTestCase
             $row = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `status` = 'password_reset'");
             $this->assertNotNull($row);
             $this->assertNull($row->user_id);
+            /*
+             * The log shows these beside plugin updates and file quarantines, so the row
+             * has to name the event rather than the form it arrived through.
+             */
+            $this->assertSame('password_reset_request', $row->media);
+            $this->assertSame(
+                'Password reset requested',
+                \FluentAuth\App\Helpers\Helper::getLoginMediaLabel($row->media)
+            );
         } finally {
             $wpdb->query($wpdb->prepare('SET SESSION sql_mode = %s', $previousMode));
         }

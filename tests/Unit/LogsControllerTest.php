@@ -66,6 +66,17 @@ class LogsControllerTest extends BaseTestCase
         return LogsController::getLogs($request)['logs'];
     }
 
+    private function response($params = [])
+    {
+        $request = new \WP_REST_Request();
+
+        foreach ($params as $key => $value) {
+            $request->set_param($key, $value);
+        }
+
+        return LogsController::getLogs($request);
+    }
+
     public function testReturnsLogsNewestFirst()
     {
         $this->log(['username' => 'older', 'created_at' => gmdate('Y-m-d H:i:s', strtotime('-2 days'))]);
@@ -139,6 +150,102 @@ class LogsControllerTest extends BaseTestCase
         $this->log(['media' => 'some_provider']);
 
         $this->assertEquals('Some Provider', $this->logs()['data'][0]->media_label);
+    }
+
+    public function testTheEventFilterNarrowsWithinAView()
+    {
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_activated']);
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_updated']);
+        $this->log(['status' => 'site_activity', 'media' => 'delete_file']);
+
+        $result = $this->logs(['statuses' => ['site_activity'], 'events' => ['plugin_updated']]);
+
+        $this->assertCount(1, $result['data']);
+        $this->assertEquals('plugin_updated', $result['data'][0]->media);
+    }
+
+    public function testSeveralEventsCanBeAskedForAtOnce()
+    {
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_activated']);
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_deactivated']);
+        $this->log(['status' => 'site_activity', 'media' => 'delete_file']);
+
+        $result = $this->logs([
+            'statuses' => ['site_activity'],
+            'events'   => ['plugin_activated', 'plugin_deactivated']
+        ]);
+
+        $this->assertCount(2, $result['data']);
+    }
+
+    /** "all" and an absent filter both mean the same thing: do not narrow. */
+    public function testAllEventsMeansEveryEvent()
+    {
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_activated']);
+        $this->log(['status' => 'site_activity', 'media' => 'delete_file']);
+
+        $this->assertCount(2, $this->logs(['events' => ['all']])['data']);
+        $this->assertCount(2, $this->logs([])['data']);
+    }
+
+    /**
+     * The dropdown is built from the rows, so it offers what the view holds and nothing
+     * else - a hand-kept list would go stale the first time something new was recorded.
+     */
+    public function testTheEventListIsBuiltFromTheRowsTheViewCovers()
+    {
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_activated']);
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_activated']);
+        $this->log(['status' => 'site_activity', 'media' => 'delete_file']);
+        $this->log(['status' => 'failed', 'media' => 'magic_login']);
+
+        $events = $this->response(['view' => 'site_activity', 'statuses' => ['site_activity']])['events'];
+
+        $values = wp_list_pluck($events, 'value');
+
+        $this->assertCount(2, $events, 'Each kind once, however many rows carry it.');
+        $this->assertContains('plugin_activated', $values);
+        $this->assertContains('delete_file', $values);
+        $this->assertNotContains('magic_login', $values, 'Another view\'s events are not this view\'s.');
+    }
+
+    public function testTheEventListNamesEachEventRatherThanSlugsIt()
+    {
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_updated']);
+
+        $events = $this->response(['view' => 'site_activity', 'statuses' => ['site_activity']])['events'];
+
+        $this->assertEquals('Plugin updated', $events[0]['label']);
+    }
+
+    /** Otherwise choosing one would collapse the list it was chosen from down to itself. */
+    public function testChoosingAnEventDoesNotShortenTheList()
+    {
+        $this->log(['status' => 'site_activity', 'media' => 'plugin_activated']);
+        $this->log(['status' => 'site_activity', 'media' => 'delete_file']);
+
+        $response = $this->response([
+            'view'     => 'site_activity',
+            'statuses' => ['site_activity'],
+            'events'   => ['delete_file']
+        ]);
+
+        $this->assertCount(1, $response['logs']['data']);
+        $this->assertCount(2, $response['events']);
+    }
+
+    /**
+     * Only site activity gets the control, so only site activity pays for the query that
+     * feeds it. A view that never shows it should not be building its list either.
+     */
+    public function testNoOtherViewIsOfferedAnEventList()
+    {
+        $this->log(['status' => 'failed', 'media' => 'web']);
+        $this->log(['status' => 'failed', 'media' => 'magic_login']);
+
+        $this->assertEmpty($this->response(['view' => 'failed', 'statuses' => ['failed']])['events']);
+        $this->assertEmpty($this->response(['view' => 'all'])['events']);
+        $this->assertEmpty($this->response([])['events'], 'No view named means no list.');
     }
 
     public function testStatusFilterAndSearchApplyTogether()

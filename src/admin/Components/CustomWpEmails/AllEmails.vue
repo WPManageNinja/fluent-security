@@ -96,7 +96,12 @@ export default {
                         :description="$t('The emails WordPress itself sends, in your own words and your own design.')"
                         :show-save="false">
             <template #actions>
-                <el-button size="small" @click="$router.push({name: 'settings_email_template'})">
+                <!--
+                    Bordered, unlike the secondary actions on the screens that have a Save.
+                    A borderless button reads as the lesser of two things; with nothing
+                    beside it to be lesser than, it just reads as a caption.
+                -->
+                <el-button size="large" @click="$router.push({name: 'settings_email_template'})">
                     {{ $t('Template design') }}
                 </el-button>
             </template>

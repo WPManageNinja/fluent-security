@@ -1,0 +1,1166 @@
+/*
+ * The security screen's findings list.
+ *
+ * Everything the screen says about the site is one of these rows, whatever produced it - a
+ * setting, a file hash, a question put to the web server. So the component is deliberately
+ * plain: a severity stripe, a body that reads as a sentence, and the buttons pushed to the
+ * far edge where the eye finds them in the same place on every row.
+ *
+ * Colours come from the shared semantic names rather than from anything invented here, so a
+ * finding sits in the same red and amber as a blocked login and a failed scan.
+ */
+
+/* --------------------------------------------------------------- list */
+
+.fls_find_list {
+    @apply rounded overflow-hidden border border-solid;
+
+    background: var(--fls-surface);
+    border-color: var(--fls-border);
+}
+
+/*
+ * Stripe, body, actions. The stripe is a column of the grid rather than a border on the row,
+ * so it runs the full height of whatever the body grows to - including an opened details list.
+ */
+.fls_finding {
+    @apply grid items-start border-0 border-b border-solid;
+
+    grid-template-columns: 3px minmax(0, 1fr) auto;
+    gap: 0 16px;
+    padding: 16px 18px;
+    border-color: var(--fls-border);
+
+    &:last-child {
+        @apply border-b-0;
+    }
+
+    .fls_finding_stripe {
+        @apply self-stretch rounded-xs;
+    }
+
+    &.is_fix .fls_finding_stripe {
+        background: var(--fls-danger-fg);
+    }
+
+    &.is_look .fls_finding_stripe {
+        background: var(--fls-warning-fg);
+    }
+    /*
+     * Grey on purpose. Advice is not a finding about this site, and a third colour here would
+     * be a third thing to learn before the list can be read at a glance.
+     */
+    &.is_advice .fls_finding_stripe {
+        background: var(--fls-border-strong);
+    }
+
+    .fls_finding_body {
+        min-width: 0;
+    }
+
+    .fls_finding_meta {
+        @apply flex flex-wrap items-center;
+
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .fls_finding_group {
+        @apply text-xs;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_finding_title {
+        @apply text-sm font-medium m-0;
+
+        line-height: 20px;
+        color: var(--fls-heading);
+    }
+
+    .fls_finding_why {
+        @apply text-xs m-0;
+
+        margin-top: 4px;
+        line-height: 1.6;
+        color: var(--fls-text-mid);
+        max-width: 60ch;
+    }
+
+    /* Level three, and it stays shut until asked for. */
+    .fls_finding_toggle {
+        @apply inline-flex items-center bg-transparent border-0 p-0 text-xs cursor-pointer;
+
+        gap: 4px;
+        margin-top: 8px;
+        color: var(--fls-text-mid);
+
+        &:hover {
+            color: var(--fls-text);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+        }
+    }
+
+    .fls_finding_chev {
+        @apply inline-flex;
+
+        transition: transform .15s ease;
+
+        &.is_open {
+            transform: rotate(180deg);
+        }
+
+        svg {
+            width: 14px;
+            height: 14px;
+        }
+    }
+
+    /*
+     * Paths, hashes and dates, in the one place on the screen where a monospace face earns
+     * itself: these are read character by character, and a proportional font hides the
+     * difference between two paths that differ by one letter.
+     */
+    .fls_finding_details {
+        @apply list-none rounded m-0;
+
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: var(--fls-surface-sunk);
+
+        li {
+            @apply text-xs m-0;
+
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            line-height: 1.7;
+            color: var(--fls-text-mid);
+            word-break: break-all;
+        }
+    }
+
+    .fls_finding_actions {
+        @apply flex flex-wrap items-center justify-end flex-none;
+
+        gap: 8px;
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+
+        /*
+         * The row that opens a WordPress screen is a real link, and a link in this app is
+         * underlined. Here it should read as the button beside it rather than as prose.
+         */
+        a.el-button {
+            @apply no-underline;
+        }
+    }
+}
+
+/* ----------------------------------------------------------- recovery */
+
+/* Sits at the end of the footnote under the list, not above it: context, not a heading. */
+.fls_recover_last {
+    @apply block text-xs;
+
+    margin-top: 4px;
+    color: var(--fls-text-light);
+}
+
+/*
+ * Numbered, and the numbers mean something: mailing everyone a reset link before the open
+ * sessions are gone accomplishes very little. This is one of the few lists in the app where
+ * the order is information rather than decoration.
+ */
+.fls_recover_steps {
+    @apply flex flex-col m-0 p-0 rounded overflow-hidden border border-solid;
+
+    list-style: none;
+    background: var(--fls-surface);
+    border-color: var(--fls-border);
+
+    > li {
+        @apply grid items-start border-0 border-b border-solid m-0;
+
+        grid-template-columns: 26px minmax(0, 1fr) auto;
+        gap: 0 14px;
+        padding: 16px 18px;
+        border-color: var(--fls-border);
+
+        &:last-child {
+            @apply border-b-0;
+        }
+    }
+
+    .fls_recover_num {
+        @apply flex flex-none items-center justify-center rounded-full text-xs font-medium;
+
+        width: 22px;
+        height: 22px;
+        margin-top: 1px;
+        background: var(--fls-surface-raised);
+        color: var(--fls-text-mid);
+    }
+
+    .is_warning .fls_recover_num {
+        @apply bg-caution-bg text-caution-fg;
+    }
+
+    /* Only step one, and only on a site where it would delete something. */
+    .is_danger .fls_recover_num {
+        @apply bg-danger-bg text-danger-fg;
+    }
+
+    .fls_recover_body {
+        min-width: 0;
+
+        h3 {
+            @apply text-sm font-medium m-0;
+
+            line-height: 20px;
+            color: var(--fls-heading);
+        }
+
+        p {
+            @apply text-xs m-0;
+
+            margin-top: 4px;
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+            max-width: 62ch;
+        }
+    }
+
+    .fls_recover_actions {
+        @apply flex flex-wrap items-center justify-end flex-none;
+
+        gap: 8px;
+
+        .el-button + .el-button {
+            margin-left: 0;
+        }
+    }
+
+    .fls_recover_progress {
+        @apply text-xs;
+
+        margin-top: 8px;
+        color: var(--fls-text-light);
+    }
+
+    /*
+     * What step one would cost here, and what it leaves alone. Two paragraphs rather than one
+     * because they are two different claims and people stop reading a red box early - the number
+     * that decides whether to press the button has to be the first thing in it.
+     *
+     * Red only when there is something irreversible to be red about. A site with no application
+     * passwords gets the same two paragraphs in a plain box, because colouring an ordinary action
+     * like a dangerous one is how people learn to click past the colour.
+     */
+    .fls_recover_impact {
+        @apply rounded border border-solid;
+
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: var(--fls-surface-sunk);
+        border-color: var(--fls-border);
+
+        &.is_danger {
+            background: var(--fls-danger-wash);
+            border-color: var(--fls-danger-line);
+        }
+
+        p {
+            @apply text-xs m-0;
+
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+            max-width: 62ch;
+        }
+
+        &.is_danger p:first-child {
+            @apply font-medium;
+
+            color: var(--fls-danger-fg);
+        }
+
+        p + p {
+            margin-top: 6px;
+        }
+    }
+}
+
+/*
+ * The confirmation for step one. Reads top to bottom as the decision it is: what this costs
+ * here, what it leaves alone, the one thing that would change that answer, and then the word.
+ *
+ * The typed field is last on purpose. It appears when something irreversible has been chosen
+ * and sits below everything that explains why - so the act of typing comes after the reading
+ * rather than beside it.
+ */
+.fls_secure_dialog {
+    .fls_secure_impact {
+        @apply text-sm m-0;
+
+        line-height: 1.6;
+        color: var(--fls-text-mid);
+
+        &.is_danger {
+            @apply font-medium;
+
+            color: var(--fls-danger-fg);
+        }
+    }
+
+    .fls_secure_keeps {
+        @apply text-xs m-0;
+
+        margin-top: 8px;
+        line-height: 1.6;
+        color: var(--fls-text-light);
+    }
+
+    /* The opt-in, boxed off so it reads as a separate decision from the one above it. */
+    .fls_secure_option {
+        @apply rounded border border-solid;
+
+        margin-top: 14px;
+        padding: 12px;
+        background: var(--fls-surface-sunk);
+        border-color: var(--fls-border);
+
+        .fls_secure_option_reason {
+            @apply text-xs m-0;
+
+            margin-top: 6px;
+            padding-left: 24px;
+            line-height: 1.6;
+            color: var(--fls-text-light);
+        }
+    }
+
+    /*
+     * Only on screen while the box is ticked, which is the only time any of it is true. The
+     * first line is the one somebody has to weigh and the other two are what stops them
+     * abandoning the recovery over it, so the colour goes on the first line alone.
+     */
+    .fls_secure_salts {
+        @apply rounded border border-solid;
+
+        margin-top: 10px;
+        margin-left: 24px;
+        padding: 10px 12px;
+        background: var(--fls-danger-wash);
+        border-color: var(--fls-danger-line);
+
+        p {
+            @apply text-xs m-0;
+
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+        }
+
+        p + p {
+            margin-top: 6px;
+        }
+
+        .fls_secure_salts_warn {
+            @apply font-medium;
+
+            color: var(--fls-danger-fg);
+        }
+    }
+
+    .fls_secure_gate {
+        margin-top: 16px;
+
+        label {
+            @apply block text-xs font-medium;
+
+            margin-bottom: 6px;
+            color: var(--fls-heading);
+        }
+    }
+}
+
+/* Who can change the site, and when they turned up. The dates are the reason this exists. */
+.fls_recover_admins {
+    @apply flex flex-col rounded;
+
+    gap: 2px;
+    margin-top: 12px;
+    padding: 4px;
+    background: var(--fls-surface-sunk);
+
+    /*
+     * A grid rather than a flex row, so every account's dates start at the same place and the
+     * column can be read down. Left to wrap, the one account with a long email pushed its own
+     * dates onto a second line and the list stopped scanning as a list.
+     */
+    .fls_recover_admin {
+        @apply grid items-center rounded;
+
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 16px;
+        padding: 8px 10px;
+
+        &.is_new {
+            background: var(--fls-warning-wash);
+        }
+
+        > div {
+            @apply flex flex-wrap items-center;
+
+            gap: 8px;
+            min-width: 0;
+        }
+
+        strong {
+            @apply text-sm font-medium;
+
+            color: var(--fls-text);
+        }
+    }
+
+    .fls_recover_admin_email {
+        @apply text-xs truncate;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_recover_admin_dates {
+        @apply text-xs flex-none justify-end;
+
+        color: var(--fls-text-mid);
+        white-space: nowrap;
+
+        span + span:before {
+            content: '·';
+            margin: 0 6px;
+            color: var(--fls-text-light);
+        }
+
+        a {
+            margin-left: 10px;
+        }
+    }
+
+    /* Below 782px wp-admin is already stacking; the dates go under the name with it. */
+    @media screen and (max-width: 782px) {
+        .fls_recover_admin {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .fls_recover_admin_dates {
+            @apply justify-start;
+
+            white-space: normal;
+        }
+    }
+}
+
+/*
+ * The things that can be put back, one per row. Buttons sit on the rows rather than in the
+ * step's action column because each one names a different download.
+ */
+.fls_recover_files {
+    @apply flex flex-col rounded;
+
+    gap: 2px;
+    margin-top: 12px;
+    padding: 4px;
+    background: var(--fls-surface-sunk);
+
+    .fls_recover_file {
+        @apply flex items-center justify-between rounded;
+
+        gap: 12px;
+        padding: 8px 10px;
+
+        &.is_busy {
+            background: var(--fls-warning-wash);
+        }
+
+        > .el-button {
+            flex: none;
+        }
+    }
+
+    .fls_recover_file_main {
+        @apply flex flex-col;
+
+        gap: 2px;
+        min-width: 0;
+
+        strong {
+            @apply flex flex-wrap items-center text-sm font-medium;
+
+            gap: 6px;
+            color: var(--fls-text);
+        }
+    }
+
+    .fls_recover_file_version {
+        @apply font-normal;
+
+        color: var(--fls-text-light);
+    }
+
+    .fls_recover_file_status {
+        @apply text-xs;
+
+        color: var(--fls-text-mid);
+
+        &.is_suspicious {
+            color: var(--fls-danger-fg);
+        }
+    }
+
+    /* Why this row has no button. A sentence, in the same grey as the rest of the row. */
+    .fls_recover_file_blocked {
+        @apply text-xs;
+
+        color: var(--fls-text-light);
+        max-width: 62ch;
+
+        a {
+            margin-left: 6px;
+        }
+    }
+
+    .fls_recover_files_all {
+        @apply flex justify-end;
+
+        padding: 6px 6px 2px;
+    }
+}
+
+/* What no checksum covers. Quieter than the rows above: this is a reading list, not a task. */
+.fls_recover_unverifiable {
+    margin-top: 12px;
+
+    > p {
+        @apply text-xs m-0;
+
+        color: var(--fls-text-mid);
+        max-width: 62ch;
+    }
+
+    ul {
+        @apply m-0 p-0;
+
+        list-style: none;
+        margin-top: 6px;
+    }
+
+    li {
+        @apply flex flex-wrap items-baseline text-xs m-0;
+
+        gap: 4px 8px;
+        padding: 3px 0;
+        color: var(--fls-text-light);
+
+        strong {
+            @apply font-medium;
+
+            color: var(--fls-text);
+        }
+    }
+}
+
+.fls_recover_quarantine {
+    @apply text-xs m-0;
+
+    margin-top: 10px;
+    color: var(--fls-text-mid);
+    max-width: 62ch;
+}
+
+.fls_recover_note {
+    @apply text-xs m-0;
+
+    margin-top: 14px;
+    color: var(--fls-text-light);
+}
+
+/* Desktop security workspace. The findings get the space; coverage stays secondary. */
+.fls_security {
+    .fls_security_inner {
+        max-width: 1380px;
+        margin: 0 auto;
+    }
+
+    .fls_page_head {
+        margin-bottom: 24px;
+    }
+
+    .fls_page_title {
+        font-size: 26px;
+        line-height: 34px;
+        letter-spacing: -.02em;
+    }
+
+    .fls_security_refresh {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 12px;
+        color: var(--fls-text-mid);
+    }
+
+    .fls_security_summary {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 22px;
+        margin-bottom: 20px;
+        background: var(--fls-surface);
+        border: 1px solid var(--fls-border);
+        border-radius: 10px;
+
+        h2 {
+            margin: 0 0 5px;
+            color: var(--fls-heading);
+            font-size: 19px;
+            line-height: 26px;
+            font-weight: 600;
+        }
+
+        p {
+            margin: 0;
+            color: var(--fls-text-mid);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+    }
+
+    .fls_security_summary_icon {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        color: var(--fls-warning-fg);
+        background: var(--fls-warning-bg);
+
+        svg {
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+    .is_fix .fls_security_summary_icon {
+        color: var(--fls-danger-fg);
+        background: var(--fls-danger-bg);
+    }
+
+    .is_passed .fls_security_summary_icon {
+        color: var(--fls-success-fg);
+        background: var(--fls-success-bg);
+    }
+
+    .fls_security_passed_link {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 8px;
+        margin-left: auto;
+        padding: 10px 0 10px 16px;
+        border: 0;
+        background: none;
+        color: var(--fls-success-fg);
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+
+        span {
+            display: inline-flex;
+        }
+    }
+
+    .fls_security_workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        align-items: start;
+        gap: 28px;
+    }
+
+    .fls_security_results {
+        min-width: 0;
+        background: var(--fls-surface);
+        border: 1px solid var(--fls-border);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .fls_security_views {
+        display: flex;
+        gap: 20px;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--fls-border);
+        overflow-x: auto;
+
+        button {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-shrink: 0;
+            padding: 18px 0 15px;
+            border: 0;
+            border-bottom: 2px solid transparent;
+            background: none;
+            color: var(--fls-text-mid);
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            transition: color .15s ease, border-color .15s ease;
+
+            span {
+                padding: 1px 6px;
+                border-radius: 5px;
+                background: var(--fls-surface-sunk);
+                font-size: 11px;
+                line-height: 18px;
+                font-variant-numeric: tabular-nums;
+            }
+
+            &.is_active {
+                color: var(--fls-heading);
+                font-weight: 600;
+                border-bottom-color: var(--fls-accent);
+
+                span {
+                    color: var(--fls-accent-contrast);
+                    background: var(--fls-accent);
+                }
+            }
+
+            &:hover {
+                color: var(--fls-heading);
+            }
+        }
+    }
+
+    .fls_security_toolbar {
+        display: flex;
+        gap: 12px;
+        padding: 16px 22px;
+
+        .el-input {
+            flex: 1;
+            max-width: 340px;
+        }
+
+        select {
+            max-width: 190px;
+            min-height: 34px;
+            margin-left: auto;
+            padding: 5px 30px 5px 10px;
+            border-color: var(--fls-border-strong);
+            background-color: var(--fls-surface);
+            color: var(--fls-text);
+            font-family: inherit;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+    }
+
+    .fls_security_list_intro {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        justify-content: space-between;
+        padding: 0 22px 16px;
+
+        p {
+            margin: 0;
+            color: var(--fls-text-mid);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        button {
+            flex-shrink: 0;
+            padding: 0;
+            border: 0;
+            background: none;
+            color: var(--fls-link);
+            text-decoration: underline;
+            font: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+    }
+
+    .fls_security_match_count {
+        margin: 0;
+        padding: 0 22px 12px;
+        color: var(--fls-text-mid);
+        font-size: 12px;
+    }
+
+    .fls_find_list {
+        border: 0;
+        border-radius: 0;
+        border-top: 1px solid var(--fls-border);
+    }
+
+    .fls_finding {
+        grid-template-columns: 20px minmax(0, 1fr) 140px;
+        gap: 0 14px;
+        padding: 22px;
+        transition: background-color .15s ease;
+
+        &:hover {
+            background: var(--fls-surface-sunk);
+        }
+
+        &.is_passed {
+            grid-template-columns: 20px minmax(0, 1fr);
+            padding-top: 16px;
+            padding-bottom: 16px;
+        }
+
+        .fls_finding_status {
+            display: flex;
+            margin-top: 2px;
+            color: var(--fls-warning-fg);
+
+            svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        &.is_fix .fls_finding_status {
+            color: var(--fls-danger-fg);
+        }
+
+        &.is_advice .fls_finding_status,
+        &.is_accepted .fls_finding_status {
+            color: var(--fls-text-mid);
+        }
+
+        &.is_passed .fls_finding_status {
+            color: var(--fls-success-fg);
+        }
+
+        .fls_finding_meta {
+            gap: 10px;
+            margin-bottom: 7px;
+        }
+
+        .fls_finding_group {
+            color: var(--fls-text-mid);
+        }
+
+        .fls_finding_title {
+            font-size: 14px;
+            line-height: 21px;
+            font-weight: 600;
+        }
+
+        .fls_finding_why {
+            font-size: 13px;
+            line-height: 1.65;
+            max-width: 72ch;
+            margin-top: 6px;
+        }
+
+        .fls_finding_actions {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+
+            .el-button {
+                min-height: 32px;
+                max-width: 100%;
+                white-space: normal;
+                line-height: 1.4;
+                height: auto;
+            }
+
+            .el-button.is-text {
+                color: var(--fls-text-mid);
+                min-height: 28px;
+            }
+
+            .el-button > span {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+        }
+
+        .fls_finding_details,
+        .fls_finding_confirm {
+            grid-column: 2 / -1;
+            animation: fls-finding-reveal .18s ease-out;
+        }
+
+        .fls_finding_details {
+            border: 1px solid var(--fls-border);
+            margin-top: 14px;
+            padding: 14px 16px;
+
+            li {
+                font-family: inherit;
+                overflow-wrap: anywhere;
+                word-break: normal;
+            }
+
+            li + li {
+                margin-top: 5px;
+            }
+        }
+
+        .fls_finding_confirm {
+            margin-top: 14px;
+            padding: 14px 16px;
+            background: var(--fls-surface-sunk);
+            border: 1px solid var(--fls-border-strong);
+            border-radius: 6px;
+
+            p {
+                margin: 0 0 12px;
+                color: var(--fls-text-mid);
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+            > div {
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+        }
+    }
+
+    .fls_security_aside {
+        position: sticky;
+        /* Below the chrome, plus the page's own top gap. See _layout.scss. */
+        top: calc(var(--fls-chrome-bottom) + 24px);
+        min-width: 0;
+
+        section {
+            padding: 4px 0 24px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--fls-border-strong);
+
+            &:last-child {
+                border-bottom: 0;
+            }
+        }
+
+        h2 {
+            margin: 0 0 14px;
+            color: var(--fls-heading);
+            font-size: 14px;
+            line-height: 21px;
+            font-weight: 600;
+        }
+
+        p {
+            margin: 12px 0 0;
+            color: var(--fls-text-mid);
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .fls_security_coverage_value {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin: 0 0 16px;
+
+            strong {
+                color: var(--fls-heading);
+                font-size: 32px;
+                line-height: 1;
+                font-weight: 600;
+            }
+        }
+
+        dl {
+            margin: 0;
+        }
+
+        dt {
+            color: var(--fls-text-mid);
+            font-size: 12px;
+        }
+
+        dd {
+            margin: 4px 0 0;
+            color: var(--fls-heading);
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .fls_security_monitoring_warning {
+            color: var(--fls-warning-fg);
+        }
+    }
+
+    .fls_security_coverage_track {
+        overflow: hidden;
+        height: 5px;
+        border-radius: 8px;
+        background: var(--fls-border);
+
+        span {
+            display: block;
+            height: 100%;
+            background: var(--fls-success-fg);
+            transition: width .25s ease;
+        }
+    }
+
+    .fls_security_aside_link {
+        display: inline-flex;
+        gap: 8px;
+        margin-top: 16px;
+        color: var(--fls-link);
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .fls_security_empty {
+        padding: 44px 24px;
+        text-align: center;
+        border-top: 1px solid var(--fls-border);
+
+        > span {
+            color: var(--fls-text-mid);
+        }
+
+        h2 {
+            margin: 14px 0 8px;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--fls-heading);
+        }
+
+        p {
+            margin: 0 auto 20px;
+            max-width: 50ch;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--fls-text-mid);
+        }
+    }
+
+    .fls_security_error {
+        padding: 20px;
+        margin-bottom: 20px;
+        background: var(--fls-danger-wash);
+        border: 1px solid var(--fls-danger-line);
+        border-radius: 8px;
+        color: var(--fls-danger-fg);
+
+        p {
+            margin: 8px 0;
+        }
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    a:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: -2px;
+    }
+}
+
+@keyframes fls-finding-reveal {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1200px) {
+    .fls_security {
+        .fls_security_workspace {
+            grid-template-columns: minmax(0, 1fr) 240px;
+            gap: 20px;
+        }
+
+        .fls_security_views {
+            gap: 14px;
+            padding: 0 16px;
+        }
+
+        .fls_finding {
+            grid-template-columns: 18px minmax(0, 1fr) 116px;
+            padding: 18px 16px;
+            gap: 0 10px;
+        }
+    }
+}
+
+@media (max-width: 900px) {
+    .fls_security {
+        .fls_security_workspace {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .fls_security_aside {
+            position: static;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+        }
+
+        .fls_security_summary {
+            flex-wrap: wrap;
+        }
+
+        .fls_security_passed_link {
+            margin-left: 60px;
+            padding-left: 0;
+        }
+    }
+}
+
+@media (max-width: 600px) {
+    .fls_security {
+        padding: 20px 14px;
+
+        .fls_security_toolbar {
+            flex-direction: column;
+
+            .el-input, select {
+                max-width: 100%;
+                width: 100%;
+                margin-left: 0;
+            }
+        }
+
+        .fls_finding {
+            grid-template-columns: 18px minmax(0, 1fr);
+
+            .fls_finding_actions {
+                grid-column: 2;
+                flex-direction: row;
+                justify-content: flex-start;
+                margin-top: 12px;
+            }
+        }
+
+        .fls_security_aside {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fls_security *, .fls_security *::before {
+        animation: none !important;
+        transition: none !important;
+    }
+}

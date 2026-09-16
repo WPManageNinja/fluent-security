@@ -7,7 +7,11 @@ import icons from './icons';
  * A core-only scan was one request, so a sweeping bar was honest enough. Checking every
  * plugin and theme takes one request each and can run to a minute or more on a large site,
  * and an indeterminate bar for that long reads as a hang. So this says the real thing: which
- * of the three phases is running, and how far through its list it is.
+ * phase is running, and how far through its list it is.
+ *
+ * The snapshot phase is only listed on sites that have taken one. A greyed-out step somebody
+ * can never reach is a permanent unfinished-looking thing on a screen whose whole job is to
+ * say whether this site is finished and fine.
  *
  * The phases stay on screen after they finish rather than being replaced, because "core was
  * fine" is worth seeing while the plugins are still going.
@@ -15,10 +19,15 @@ import icons from './icons';
 export default {
     name: 'ScanProgress',
     props: {
-        /* core | plugins | themes */
+        /* core | plugins | themes | baseline */
         phase: {
             type: String,
             required: true
+        },
+        /* Whether this site has a snapshot, and so whether there is a fourth phase at all. */
+        hasBaseline: {
+            type: Boolean,
+            default: false
         },
         done: {
             type: Number,
@@ -41,14 +50,19 @@ export default {
     },
     computed: {
         phases() {
-            const order = ['core', 'plugins', 'themes'];
-            const at = order.indexOf(this.phase);
-
-            return [
+            const steps = [
                 {key: 'core', label: this.$t('Core')},
                 {key: 'plugins', label: this.$t('Plugins')},
                 {key: 'themes', label: this.$t('Themes')}
-            ].map((item, index) => ({
+            ];
+
+            if (this.hasBaseline) {
+                steps.push({key: 'baseline', label: this.$t('Snapshot')});
+            }
+
+            const at = steps.findIndex(item => item.key === this.phase);
+
+            return steps.map((item, index) => ({
                 ...item,
                 state: index < at ? 'done' : (index === at ? 'active' : 'waiting')
             }));
@@ -73,7 +87,21 @@ export default {
                 return this.$t('Checking themes…');
             }
 
+            if (this.phase === 'baseline') {
+                return this.$t('Checking against your snapshot…');
+            }
+
             return this.$t('Checking plugins…');
+        },
+        /*
+         * What the wait is actually doing, which stops being true in the last phase. Nothing
+         * is reaching WordPress.org by then - the comparison is entirely local, against this
+         * site's own record, which is the point of it.
+         */
+        subhead() {
+            return this.phase === 'baseline'
+                ? this.$t('Comparing the files WordPress.org cannot vouch for against your own record of them.')
+                : this.$t('Comparing this site against the official releases on WordPress.org.');
         }
     }
 }
@@ -85,7 +113,7 @@ export default {
         <h2>{{ headline }}</h2>
 
         <p v-if="current" class="fls_scan_current">{{ current }}</p>
-        <p v-else>{{ $t('Comparing this site against the official releases on WordPress.org.') }}</p>
+        <p v-else>{{ subhead }}</p>
 
         <!-- A real proportion where there is one to give, and the sweep where there is not. -->
         <div v-if="percent !== null" class="fls_scan_meter">

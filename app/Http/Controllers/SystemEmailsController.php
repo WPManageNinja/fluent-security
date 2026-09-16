@@ -295,7 +295,7 @@ class SystemEmailsController
 
         foreach ($smartCodes as $smartCode) {
             $codes = ['{{' . $smartCode . '}}', '##' . $smartCode . '##'];
-            $hasCode = str_contains($emailBody, $codes[0]) || str_contains($emailBody, $codes[1]);
+            $hasCode = strpos($emailBody, $codes[0]) !== false || strpos($emailBody, $codes[1]) !== false;
             if (!$hasCode) {
                 return false;
             }

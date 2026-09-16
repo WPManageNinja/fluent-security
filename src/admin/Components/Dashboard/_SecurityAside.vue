@@ -1,52 +1,50 @@
 <script type="text/babel">
 import icons from './icons';
+import OptinForm from '../Optin/_OptinForm.vue';
 
-/*
- * The right-hand column: what is protecting this site, and what is not yet.
- *
- * Deliberately not a second set of counters. The main column is what happened over a date
- * range; this is the site's standing configuration, which does not change when the range
- * does - so the two never say the same thing twice.
- */
 export default {
     name: 'SecurityAside',
+    components: {OptinForm},
     props: {
-        checklist: {
-            type: Object,
-            required: true
-        },
         protection: {
             type: Object,
             required: true
         }
     },
-    emits: ['applied'],
     data() {
         return {
             icons,
+            /*
+             * Whether the signup card is still on the page. Seeded from the app-wide flag
+             * and lowered locally when it is answered, so the column closes up at once
+             * rather than on the next load - see Optin::isRequired() for what sets it.
+             */
+            askOptin: this.appVars.optin_required,
+            loading: false,
+            loadError: false,
             installing: false,
-            /* Which check is mid-request, so only its own button spins. */
-            applying: ''
+            findings: [],
+            counts: {open: 0, to_fix: 0, look: 0, passed: 0, accepted: 0},
+            score: {done: 0, total: 0, percent: 100}
         }
     },
     computed: {
-        score() {
-            if (!this.checklist.total) {
-                return 0;
-            }
-
-            return Math.round((this.checklist.done / this.checklist.total) * 100);
+        attention() {
+            return this.findings.filter(finding => finding.severity !== 'advice')
+                .sort((a, b) => (a.severity === 'fix' ? 0 : 1) - (b.severity === 'fix' ? 0 : 1));
+        },
+        recommendations() {
+            return this.findings.filter(finding => finding.severity === 'advice').length;
         },
         /*
-         * Only the recommendations that apply to every site are scored. The rest are shown
-         * under their own heading, because a site can be configured exactly right and still
-         * not want them - and a score you cannot reach is a score you stop reading.
+         * Three, and never the fourth. This is a preview of a list that lives elsewhere, and
+         * a preview long enough to work down is just the list again in the wrong place.
          */
-        scoredItems() {
-            return this.checklist.items.filter(item => item.scored);
+        preview() {
+            return this.attention.slice(0, 3);
         },
-        unscoredItems() {
-            return this.checklist.items.filter(item => !item.scored);
+        remaining() {
+            return Math.max(0, this.attention.length - this.preview.length);
         },
         /*
          * A handful of standing facts, each with the same shape: a label, an answer, and
@@ -61,15 +59,27 @@ export default {
                 {
                     key: 'two_fa',
                     label: this.$t('Authenticator app'),
-                    value: this.$t('%1s of %2s users', twoFa.enrolled, twoFa.total),
-                    warning: twoFa.enrolled === 0,
-                    route: 'settings_two_fa_enrollment'
+                    value: this.protection.two_fa_enabled ? this.$t('%1s of %2s enrolled', twoFa.enrolled, twoFa.total) : this.$t('Disabled'),
+                    warning: !this.protection.two_fa_enabled || twoFa.enrolled === 0,
+                    route: this.protection.two_fa_enabled ? 'settings_two_fa_enrollment' : 'settings_general'
                 },
                 {
                     key: 'scan',
                     label: this.$t('Last file scan'),
                     value: scan.last_checked || (scan.registered ? this.$t('Not run yet') : this.$t('Not set up')),
                     warning: !scan.registered || !scan.last_checked || !scan.is_ok,
+                    route: 'security_scans'
+                },
+                {
+                    key: 'auto_scan',
+                    label: this.$t('Auto scanning'),
+                    value: this.autoScanLabel,
+                    /*
+                     * A site that deliberately scans without the alerts service has no schedule
+                     * to be missing, so "Off" there is the arrangement rather than something to
+                     * put right.
+                     */
+                    warning: !scan.self_managed && !scan.scheduled,
                     route: 'security_scans'
                 },
                 {
@@ -87,58 +97,69 @@ export default {
                 items.push({
                     key: 'digest',
                     label: this.$t('Summary email'),
-                    value: this.protection.digest,
+                    value: ({
+                        daily: this.$t('Daily'), mon: this.$t('Monday'), tue: this.$t('Tuesday'),
+                        wed: this.$t('Wednesday'), thu: this.$t('Thursday'), fri: this.$t('Friday'),
+                        sat: this.$t('Saturday'), sun: this.$t('Sunday'),
+                        weekly: this.$t('Monday'), monthly: this.$t('Monthly')
+                    })[this.protection.digest] || this.protection.digest,
                     warning: false,
                     route: 'settings_general'
                 });
             }
 
-            return items;
+            return items.filter(item => item.key !== 'auto_scan' || scan.registered || scan.disconnected);
+        },
+        /*
+         * How often, or why never. Kept apart from the fact list so the four cases read as four
+         * cases rather than as a nested ternary inside an object literal.
+         */
+        autoScanLabel() {
+            const scan = this.protection.scan;
+
+            if (scan.disconnected) {
+                return this.$t('Disconnected');
+            }
+
+            if (!scan.scheduled) {
+                return this.$t('Off');
+            }
+
+            return {
+                hourly: this.$t('Every hour'),
+                six_hourly: this.$t('Every 6 hours'),
+                twelve_hourly: this.$t('Every 12 hours'),
+                daily: this.$t('Every day')
+            }[scan.interval] || this.$t('Every day');
         }
     },
     methods: {
         /*
-         * A checklist row is a link to the setting that would tick it. The section is a
-         * query parameter rather than a hash: the settings pane scrolls its own body, so
-         * the browser's own fragment scrolling cannot reach it, and the layout reads this
-         * on arrival instead (see SettingsLayout).
+         * Only a refusal takes the card away. Hiding it on any answer at all destroyed the
+         * form's own success state in the same tick it was set - "check your inbox" is an
+         * instruction somebody has to act on, and it was being unmounted before it could be
+         * read, leaving a toast that vanishes as the only trace. Declining has nothing to
+         * leave behind, so that still closes the block.
          */
-        target(item) {
-            const target = {name: item.route};
-
-            if (item.section) {
-                target.query = {section: item.section};
+        onOptinAnswered(answer) {
+            if (answer === 'dismissed') {
+                this.askOptin = false;
             }
-
-            return target;
         },
-        /*
-         * The button label says what will happen, because these differ in kind: one writes
-         * a setting from here, the other can only take you to where the work is done.
-         */
-        actionLabel(item) {
-            return item.action === 'enable' ? this.$t('Enable') : this.$t('Set up');
-        },
-        applyCheck(item) {
-            this.applying = item.key;
-
-            this.$post('security-checks/' + item.key + '/apply')
-                .then(response => {
-                    this.$notify.success(response.message);
-                    /*
-                     * The response carries the recalculated checklist, so the score and any
-                     * evidence that moved with it come from the server rather than being
-                     * guessed at here.
-                     */
-                    this.appVars.auth_settings = response.settings;
-                    this.$emit('applied', response.checklist);
-                })
-                .catch(errors => {
-                    this.$handleError(errors);
-                })
-                .finally(() => {
-                    this.applying = '';
-                });
+        async getFindings() {
+            if (this.loading) return;
+            this.loading = true;
+            this.loadError = false;
+            try {
+                const response = await this.$get('security-findings');
+                this.findings = response.findings || [];
+                this.counts = response.counts || this.counts;
+                this.score = response.score || this.score;
+            } catch (errors) {
+                this.loadError = true;
+            } finally {
+                this.loading = false;
+            }
         },
         installPlugin(plugin) {
             this.installing = true;
@@ -152,79 +173,50 @@ export default {
                     this.installing = false;
                 });
         }
+    },
+    mounted() {
+        this.getFindings();
     }
 }
 </script>
 
 <template>
     <aside class="fls_page_aside">
-        <div class="fls_aside_block">
-            <h3>
-                {{ $t('Security Checklist') }}
-                <small>{{ $t('%1s of %2s', checklist.done, checklist.total) }}</small>
-            </h3>
-
-            <div class="fls_dash_score">
-                <div class="fls_dash_score_track">
-                    <div class="fls_dash_score_fill" :style="{width: score + '%'}"></div>
-                </div>
+        <div class="fls_aside_block fls_dashboard__security">
+            <h2>{{ $t('Security status') }}</h2>
+            <el-skeleton v-if="loading" :animated="true" :rows="3"/>
+            <div v-else-if="loadError" class="fls_dashboard__security-error" role="alert">
+                <p>{{ $t('Security status is unavailable. Try loading the checks again.') }}</p>
+                <el-button size="small" @click="getFindings">{{ $t('Try again') }}</el-button>
             </div>
-
-            <ul class="fls_dash_checklist">
-                <li v-for="item in scoredItems" :key="item.key" :class="'is_' + item.state">
-                    <div class="fls_dash_check">
-                        <span class="fls_dash_check_mark">
-                            <span v-if="item.state === 'done'" v-html="icons.tick"></span>
-                        </span>
-                        <div class="fls_dash_check_body">
-                            <router-link class="fls_dash_check_title" :to="target(item)">
-                                {{ item.title }}
-                            </router-link>
-                            <p v-if="item.note" class="fls_dash_check_note">{{ item.note }}</p>
-                        </div>
-                        <el-button v-if="item.state === 'todo'" class="fls_dash_check_action"
-                                   size="small" :loading="applying === item.key"
-                                   @click="applyCheck(item)">
-                            {{ actionLabel(item) }}
-                        </el-button>
+            <template v-else>
+                <div class="fls_dashboard__verdict" :class="{is_clear: !attention.length}">
+                    <span class="fls_dashboard__verdict-icon" aria-hidden="true" v-html="attention.length ? icons.threat : icons.check"></span>
+                    <div>
+                        <strong>{{ attention.length ? $_n('%s item needs attention', '%s items need attention', attention.length) : $t('No open issues found') }}</strong>
+                        <p>{{ $t('Based on the latest security checks') }}</p>
                     </div>
-                </li>
-            </ul>
-        </div>
-
-        <!--
-            Everything the plugin will not recommend for every site: it either depends on
-            what this site connects to, or it needs setting up somewhere else. Shown, with
-            whatever is known about this site, but never counted against it.
-        -->
-        <div v-if="unscoredItems.length" class="fls_aside_block">
-            <h3>{{ $t('Worth a Look') }}</h3>
-
-            <ul class="fls_dash_checklist">
-                <li v-for="item in unscoredItems" :key="item.key" :class="'is_' + item.state">
-                    <div class="fls_dash_check">
-                        <span class="fls_dash_check_mark">
-                            <span v-if="item.state === 'done'" v-html="icons.tick"></span>
-                            <span v-else-if="item.state === 'in_use'" class="fls_dash_check_dot"></span>
-                        </span>
-                        <div class="fls_dash_check_body">
-                            <router-link class="fls_dash_check_title" :to="target(item)">
-                                {{ item.title }}
-                            </router-link>
-                            <p v-if="item.note" class="fls_dash_check_note">{{ item.note }}</p>
-                        </div>
-                        <el-button v-if="item.state === 'todo'" class="fls_dash_check_action"
-                                   size="small" :loading="applying === item.key"
-                                   @click="item.action === 'enable' ? applyCheck(item) : $router.push(target(item))">
-                            {{ actionLabel(item) }}
-                        </el-button>
-                    </div>
-                </li>
-            </ul>
+                </div>
+                <ul v-if="preview.length" class="fls_dash_findings">
+                    <li v-for="finding in preview" :key="finding.id"
+                        :class="'is_' + (finding.severity === 'fix' ? 'fix' : 'look')">
+                        <router-link :to="{name: 'security_findings'}">{{ finding.title }}</router-link>
+                    </li>
+                </ul>
+                <p v-if="remaining" class="fls_dashboard__caption">{{ $_n('%s more item to review', '%s more items to review', remaining) }}</p>
+                <p v-if="recommendations" class="fls_dashboard__caption">{{ $_n('%s optional recommendation', '%s optional recommendations', recommendations) }}</p>
+                <el-button type="primary" class="fls_dashboard__review" @click="$router.push({name: 'security_findings'})">
+                    {{ attention.length ? $t('Review security issues') : $t('View security checks') }}
+                </el-button>
+                <div v-if="score.total" class="fls_dashboard__checks">
+                    <span>{{ $t('Recommended checks addressed') }}</span><b>{{ $t('%1s of %2s', score.done, score.total) }}</b>
+                </div>
+                <p v-if="score.total" class="fls_dashboard__caption">{{ $t('Passed or dismissed checks. File findings are reviewed separately.') }}</p>
+            </template>
         </div>
 
         <div class="fls_aside_block">
-            <h3>{{ $t('At a Glance') }}</h3>
+            <h3>{{ $t('Protection at a glance') }}</h3>
 
             <ul class="fls_dash_facts">
                 <li v-for="fact in facts" :key="fact.key" :class="{is_warning: fact.warning}">
@@ -236,27 +228,22 @@ export default {
             </ul>
         </div>
 
+        <!--
+            Last of the useful blocks and before the promo, which is where an ask belongs:
+            everything above it answers a question about this site, and this one does not.
+            Dismissing it parks it for a week rather than for good - see Optin::dismiss().
+        -->
+        <div v-if="askOptin" class="fls_aside_block fls_dash_optin">
+            <h3>{{ $t('Stay updated') }}</h3>
+            <optin-form @answered="onOptinAnswered"/>
+        </div>
+
         <div v-if="!appVars.fluent_smtp_url" class="fls_aside_block fls_dash_promo">
             <h3>{{ $t('Are your emails arriving?') }}</h3>
 
             <p>
                 {{ $t('Login alerts, magic links and two-factor codes are only as reliable as the email that carries them.') }}
             </p>
-
-            <ul>
-                <li>
-                    <span v-html="icons.tickSmall"></span>
-                    {{ $t('Sends through your own provider, not the web server') }}
-                </li>
-                <li>
-                    <span v-html="icons.tickSmall"></span>
-                    {{ $t('Logs every email, with a resend button') }}
-                </li>
-                <li>
-                    <span v-html="icons.tickSmall"></span>
-                    {{ $t('Free, with no premium version') }}
-                </li>
-            </ul>
 
             <el-button :loading="installing" @click="installPlugin('fluent-smtp')" type="primary">
                 {{ $t('Install FluentSMTP') }}

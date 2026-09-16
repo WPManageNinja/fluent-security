@@ -116,7 +116,7 @@ export default {
                         :description="email ? email.description : ''"
                         :saving="saving" :disabled="!settings" @save="saveEmail()">
             <template #actions>
-                <el-button size="small" @click="$router.push({name: 'settings_emails'})">
+                <el-button link size="large" @click="$router.push({name: 'settings_emails'})">
                     {{ $t('Back to emails') }}
                 </el-button>
             </template>
@@ -190,11 +190,3 @@ export default {
         </el-dialog>
     </div>
 </template>
-
-<style lang="scss">
-.fls_required_codes {
-    margin: 6px 0 0;
-    padding-left: 18px;
-    font-size: 12px;
-}
-</style>

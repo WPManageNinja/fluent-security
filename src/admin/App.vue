@@ -1,10 +1,15 @@
 <script type="text/babel">
 import ThemeSwitch from './Bits/ThemeSwitch.vue';
+import GlobalSearch from './Bits/GlobalSearch.vue';
+import SubNav from './Bits/SubNav.vue';
+import {sectionFor} from './Bits/subNav';
 
 export default {
     name: 'FluentAuthApp',
     components: {
-        ThemeSwitch
+        ThemeSwitch,
+        GlobalSearch,
+        SubNav
     },
     data() {
         return {
@@ -18,12 +23,48 @@ export default {
             menuItems: [
                 {route: 'dashboard', title: this.$t('Dashboard')},
                 {route: 'logs', title: this.$t('Logs')},
-                {route: 'security_scans', title: this.$t('Security Scans')},
+                {route: 'security_findings', title: this.$t('Security'), match: 'security'},
                 {route: 'settings_general', title: this.$t('Settings'), match: 'settings'}
             ]
         }
     },
+    computed: {
+        /*
+         * The wizard covers the whole screen and carries its own header, so the app bar
+         * would only be a second navigation offering to abandon it. See routes.js.
+         */
+        isBare() {
+            return !!(this.$route.meta && this.$route.meta.bare);
+        },
+        /*
+         * Whether a second bar is drawn under the first one. The shell has to know, and not
+         * only the bar itself: both bars are pinned, so the page below them is only clear of
+         * them because it is padded by the height of whatever is up there.
+         */
+        hasSubNav() {
+            return !this.isBare && !!sectionFor(this.$route);
+        }
+    },
     methods: {
+        /**
+         * Sends a site that has never been set up into the wizard, once.
+         *
+         * On the flag the server sends rather than on anything stored in the browser, so
+         * finishing setup in one tab does not leave another one still redirecting. The
+         * wizard clears the flag itself when it is finished or left, which is what stops
+         * this from being a loop.
+         */
+        redirectToOnboarding() {
+            if (!this.appVars.is_onboarding) {
+                return;
+            }
+
+            if (this.$route.name === 'onboarding') {
+                return;
+            }
+
+            this.$router.replace({name: 'onboarding'});
+        },
         isActive(item) {
             const active = this.$route.meta ? this.$route.meta.active : '';
 
@@ -56,6 +97,7 @@ export default {
     },
     created() {
         jQuery('.update-nag,.notice, #wpbody-content > .updated, #wpbody-content > .error').remove();
+        this.redirectToOnboarding();
     },
     mounted() {
         window.addEventListener('scroll', this.onScroll);
@@ -89,8 +131,8 @@ export default {
 </script>
 
 <template>
-    <div class="fframe_app">
-        <div class="fls_app_bar" :class="{'is-scrolled': scrolled}">
+    <div class="fframe_app" :class="{'is-bare': isBare, 'has-subnav': hasSubNav}">
+        <div v-if="!isBare" class="fls_app_bar" :class="{'is-scrolled': scrolled}">
             <div class="fls_app_logo">
                 <router-link :to="{name: 'dashboard'}">
                     <img :src="appVars.asset_url + '/images/logo.png'" alt="FluentAuth"/>
@@ -113,9 +155,12 @@ export default {
 
             <div class="fls_app_bar_actions">
                 <slot name="actions"/>
+                <global-search/>
                 <theme-switch/>
             </div>
         </div>
+
+        <sub-nav v-if="!isBare"/>
 
         <div class="ff_app_body">
             <router-view></router-view>

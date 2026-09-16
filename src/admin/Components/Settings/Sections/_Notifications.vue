@@ -37,9 +37,9 @@ export default {
 <template>
     <div>
         <SettingRow :label="$t('Tell me when these roles sign in')"
-                    :description="$t('A sign-in by a high privilege account is worth knowing about. Leave empty for none.')">
+                    :description="$t('A sign-in by a high privilege account is worth knowing about.')">
             <el-select clearable :multiple="true" v-model="settings.notification_user_roles"
-                       :placeholder="$t('No sign-in notifications')" style="width: 100%;">
+                       :placeholder="$t('No sign-in notifications')">
                 <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
                            :key="role.id"></el-option>
             </el-select>
@@ -51,7 +51,7 @@ export default {
 
         <SettingRow :label="$t('Summary report')"
                     :description="$t('A digest of login activity on a schedule.')">
-            <el-select v-model="settings.digest_summary" style="max-width: 320px;">
+            <el-select v-model="settings.digest_summary">
                 <el-option value="" :label="$t('Do not send a summary')"></el-option>
                 <el-option v-for="(day, dayName) in digest_items" :key="dayName"
                            :value="dayName" :label="day"></el-option>
@@ -59,7 +59,7 @@ export default {
         </SettingRow>
 
         <SettingRow v-if="wantsEmail" :label="$t('Send them to')"
-                    :description="$t('Comma separate for more than one. {admin_email} is the site administration address.')">
+                    :description="$t('Comma separate for more than one. {admin_email} is the site address.')">
             <el-input type="text" v-model="settings.notification_email"/>
         </SettingRow>
     </div>

@@ -95,7 +95,7 @@ export default {
                         :description="$t('Let other sites sign their users in against this one.')"
                         :show-save="false">
             <template #actions>
-                <el-button v-if="!addinNew" size="small" type="primary" @click="addinNew = true">
+                <el-button v-if="!addinNew" size="large" type="primary" @click="addinNew = true">
                     {{ $t('Connect a site') }}
                 </el-button>
             </template>

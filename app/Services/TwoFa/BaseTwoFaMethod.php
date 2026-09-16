@@ -41,6 +41,24 @@ abstract class BaseTwoFaMethod
     abstract public function isAvailableForUser($user);
 
     /**
+     * Whether this user has registered this method, whether or not it can be asked of
+     * them right now.
+     *
+     * The same answer as isAvailableForUser() for every method but one, and that one is
+     * why this exists: a lone passkey is enrolled and not available, because there is
+     * nothing behind it to fall back on. A screen offering the user that fallback has to
+     * be able to see the credential that needs it - measuring enrollment with
+     * availability is what left such an account with no way out of the state it was in.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public function isEnrolledForUser($user)
+    {
+        return $this->isAvailableForUser($user);
+    }
+
+    /**
      * The use_type recorded when the challenge was raised because the account is under
      * attack rather than because the method is switched on. Methods that need no
      * separate marker just reuse their own key.
@@ -123,6 +141,25 @@ abstract class BaseTwoFaMethod
     abstract public function verifyProof($user, $logHash, $request);
 
     /**
+     * The JSON a completed sign in answers with.
+     *
+     * Almost every method wants exactly one thing here - where to go next - and takes
+     * this as it stands. It exists for the one that has something to say before the
+     * browser leaves the page: enrollment finishes by handing over recovery codes, and
+     * those are shown once or never, so redirecting straight past them would lose the
+     * only copy the user will ever be offered.
+     *
+     * @param $response array
+     * @param $user \WP_User
+     * @param $logHash object
+     * @return array
+     */
+    public function getSuccessResponse($response, $user, $logHash)
+    {
+        return $response;
+    }
+
+    /**
      * Recorded on the auth log so an admin can see which factor was actually used.
      *
      * @return string
@@ -130,5 +167,17 @@ abstract class BaseTwoFaMethod
     public function getLoginMedia()
     {
         return 'two_factor_' . $this->getKey();
+    }
+
+    /**
+     * One sentence telling a user, from inside somebody else's login form, what has just
+     * happened and what they hold that answers it. The link to the form is added by the
+     * caller.
+     *
+     * @return string
+     */
+    public function getHandoffText()
+    {
+        return __('One more step is needed to finish signing in.', 'fluent-security');
     }
 }

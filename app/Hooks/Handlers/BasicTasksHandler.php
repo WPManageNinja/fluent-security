@@ -14,10 +14,21 @@ class BasicTasksHandler
 
         // Disable xmlrpc
         add_filter('xmlrpc_enabled', [$this, 'maybeDisableXmlRpc']);
+        add_filter('xmlrpc_methods', [$this, 'maybeRemovePingbackMethods']);
+        add_filter('wp_headers', [$this, 'maybeRemovePingbackHeader']);
 
         // Maybe disable List Users REST
         add_filter('rest_user_query', [$this, 'maybeInterceptRestUserQuery']);
         add_filter('rest_prepare_user', [$this, 'maybeInterceptRestUserResponse'], 10, 3);
+
+        /*
+         * The same switch, applied to the other places core hands out usernames. Hiding
+         * the REST list while /?author=1 still redirects to /author/admin/ hides nothing.
+         * Before redirect_canonical (10), which is what performs that redirect.
+         */
+        add_action('template_redirect', [$this, 'maybeBlockAuthorIdLookup'], 0);
+        add_filter('wp_sitemaps_add_provider', [$this, 'maybeHideUserSitemap'], 10, 2);
+        add_action('template_redirect', [$this, 'maybeNotFoundUserSitemap'], 0);
 
         add_action('admin_notices', [$this, 'maybeAddAdminNotice']);
 
@@ -27,6 +38,23 @@ class BasicTasksHandler
         add_action('fluent_auth_daily_tasks', function () {
             $this->maybeSendDigestEMail();
             \FluentAuth\App\Helpers\Helper::cleanUpLogs();
+
+            /*
+             * Ask the web server whether the uploads folder runs PHP, out here where nobody is
+             * waiting. The check caches its answer, so warming it on the schedule means the
+             * security screen almost always reads a stored result rather than paying for an
+             * HTTP request while somebody watches the page load.
+             */
+            (new \FluentAuth\App\Services\Checks\Files\UploadsExecutionCheck())->refresh();
+        });
+
+        /*
+         * The rest of a password reset run. A site with thousands of users cannot be mailed
+         * inside the request that started it, so the queue reschedules itself until it is
+         * empty - see RecoveryService::processQueue().
+         */
+        add_action('fluent_auth_recovery_resets', function () {
+            \FluentAuth\App\Services\Recovery\RecoveryService::processQueue();
         });
 
         /*
@@ -112,9 +140,45 @@ class BasicTasksHandler
         return $status;
     }
 
+    /**
+     * Core's `xmlrpc_enabled` only refuses the methods that log in. Pingbacks never log
+     * in, so with the switch off xmlrpc.php still answered `pingback.ping` for anyone -
+     * the method behind most of the reflected traffic that makes people want XML-RPC
+     * off in the first place. Only the pingback methods go: anything else registered
+     * here, Jetpack's included, authenticates its own way and is left alone.
+     *
+     * @param $methods array
+     * @return array
+     */
+    public function maybeRemovePingbackMethods($methods)
+    {
+        if (Helper::getSetting('disable_xmlrpc') !== 'yes') {
+            return $methods;
+        }
+
+        unset($methods['pingback.ping'], $methods['pingback.extensions.getPingbacks']);
+
+        return $methods;
+    }
+
+    /**
+     * Stops advertising an endpoint that no longer answers.
+     *
+     * @param $headers array
+     * @return array
+     */
+    public function maybeRemovePingbackHeader($headers)
+    {
+        if (Helper::getSetting('disable_xmlrpc') === 'yes') {
+            unset($headers['X-Pingback']);
+        }
+
+        return $headers;
+    }
+
     public function maybeInterceptRestUserQuery($query)
     {
-        if (Helper::getSetting('disable_users_rest') === 'yes' && !current_user_can('edit_others_posts')) {
+        if ($this->hidesUsers()) {
             $query['login'] = 'someRandomStringForThis_' . time();
         }
 
@@ -123,10 +187,113 @@ class BasicTasksHandler
 
     public function maybeInterceptRestUserResponse($response, $user, $request)
     {
-        if (!empty($request['id']) && Helper::getSetting('disable_users_rest') === 'yes' && !current_user_can('edit_others_posts')) {
-            return new \WP_Error('permission_error', __('You do not have access to list users. Restriction added from fluent auth plugin', 'fluent-security'));
+        // Everyone may read their own record; the block editor asks for it on every load.
+        if (!empty($request['id']) && (int)$request['id'] === get_current_user_id()) {
+            return $response;
+        }
+
+        if (!empty($request['id']) && $this->hidesUsers()) {
+            return new \WP_Error(
+                'permission_error',
+                __('You do not have access to list users. Restriction added from fluent auth plugin', 'fluent-security'),
+                // Without a status the REST server reports a refusal as a 500.
+                ['status' => rest_authorization_required_code()]
+            );
         }
         return $response;
+    }
+
+    /**
+     * Whether usernames are to be kept from whoever is asking.
+     *
+     * One answer for every place the switch applies. Anyone who may manage users, or who
+     * edits other people's posts and so needs to see who wrote them - the block editor's
+     * author picker is the usual reason - is shown the list; everybody else is not.
+     *
+     * @return bool
+     */
+    private function hidesUsers()
+    {
+        if (Helper::getSetting('disable_users_rest') !== 'yes') {
+            return false;
+        }
+
+        return !current_user_can('list_users') && !current_user_can('edit_others_posts');
+    }
+
+    /**
+     * Refuses to turn a numeric author id into an author archive.
+     *
+     * Walking /?author=1, 2, 3 and reading the slug each one redirects to is the oldest
+     * username harvest there is. With pretty permalinks on, nothing legitimate links that
+     * way - core itself writes /author/name/ - so the query form can only be a probe. With
+     * plain permalinks it is the real link to every author archive and has to be left alone.
+     *
+     * @return void
+     */
+    public function maybeBlockAuthorIdLookup()
+    {
+        if (!isset($_GET['author']) || is_array($_GET['author'])) {
+            return;
+        }
+
+        /*
+         * Normalised the way WP_Query normalises it - everything but digits stripped -
+         * rather than tested for being all digits. Core accepts "1%0A" as author 1 and
+         * redirect_canonical() follows it to the slug, so a stricter test here than
+         * core's own is a hole, not a safeguard.
+         */
+        $authorId = preg_replace('/[^0-9]/', '', (string)wp_unslash($_GET['author']));
+
+        if ($authorId === '') {
+            return;
+        }
+
+        if (!get_option('permalink_structure') || !$this->hidesUsers()) {
+            return;
+        }
+
+        wp_safe_redirect(home_url('/'));
+        exit();
+    }
+
+    /**
+     * Drops the users sitemap, which lists every author archive by slug.
+     *
+     * @param $provider \WP_Sitemaps_Provider
+     * @param $name string
+     * @return \WP_Sitemaps_Provider|false
+     */
+    public function maybeHideUserSitemap($provider, $name)
+    {
+        if ($name === 'users' && $this->hidesUsers()) {
+            return false;
+        }
+
+        return $provider;
+    }
+
+    /**
+     * Answers the users sitemap URL with a 404 once its provider is gone.
+     *
+     * Core leaves the rewrite in place and, finding no provider behind it, simply carries
+     * on - which renders the home page at /wp-sitemap-users-1.xml. Nothing leaks, but a
+     * URL that used to be a sitemap should say it is gone rather than serve a copy of the
+     * front page.
+     *
+     * @return void
+     */
+    public function maybeNotFoundUserSitemap()
+    {
+        if (get_query_var('sitemap') !== 'users' || !$this->hidesUsers()) {
+            return;
+        }
+
+        global $wp_query;
+
+        $wp_query->set_404();
+        status_header(404);
+        nocache_headers();
     }
 
     public function maybeAddAdminNotice()
@@ -135,7 +302,7 @@ class BasicTasksHandler
             return '';
         }
 
-        $url = admin_url('options-general.php?page=fluent-auth#/settings');
+        $url = admin_url('admin.php?page=fluent-auth#/settings');
 
         ?>
         <div style="padding-bottom: 10px;" class="notice notice-warning">
@@ -144,6 +311,23 @@ class BasicTasksHandler
             <a href="<?php echo esc_url($url); ?>"><?php esc_html_e('Configure Fluent Auth', 'fluent-security'); ?></a>
         </div>
         <?php
+    }
+
+    /**
+     * Today, in the site's timezone. wp_date() is the only primitive that honours it
+     * regardless of what PHP's default zone has been set to; date() on a shifted
+     * timestamp is right only while that default is still UTC.
+     *
+     * @param $format string
+     * @return string
+     */
+    private function siteDate($format)
+    {
+        if (function_exists('wp_date')) {
+            return (string)wp_date($format);
+        }
+
+        return date($format, current_time('timestamp'));
     }
 
     public function maybeSendDigestEMail()
@@ -160,23 +344,37 @@ class BasicTasksHandler
             return false;
         }
 
-        if ($frequency == 'monthly' && date('d') != '01') {
-            return false;
-        }
-
-        if ($frequency == 'weekly' && date('D') != 'Mon') {
-            return false;
-        }
-
-        $cutOuts = [
-            'daily'   => 23 * HOUR_IN_SECONDS,
-            'weekly'  => 6 * DAY_IN_SECONDS,
-            'monthly' => 27 * DAY_IN_SECONDS
+        /*
+         * The screen offers a day of the week, stored as 'sun' .. 'sat'. 'weekly' is
+         * what it stored before those existed and has always meant Monday. Everything
+         * is judged in the site's timezone: whether it is the first of the month or a
+         * Monday is a question about the site's day, not the server's.
+         */
+        $weekdays = [
+            'sun' => 'Sun', 'mon' => 'Mon', 'tue' => 'Tue', 'wed' => 'Wed',
+            'thu' => 'Thu', 'fri' => 'Fri', 'sat' => 'Sat'
         ];
 
-        $cutOut = (isset($cutOuts[$frequency])) ? $cutOuts[$frequency] : 0;
+        if ($frequency === 'weekly') {
+            $frequency = 'mon';
+        }
 
-        if (!$cutOut) {
+        if ($frequency === 'daily') {
+            $cutOut = 23 * HOUR_IN_SECONDS;
+            $period = 'daily';
+        } elseif ($frequency === 'monthly') {
+            if ($this->siteDate('d') !== '01') {
+                return false;
+            }
+            $cutOut = 27 * DAY_IN_SECONDS;
+            $period = 'monthly';
+        } elseif (isset($weekdays[$frequency])) {
+            if ($this->siteDate('D') !== $weekdays[$frequency]) {
+                return false;
+            }
+            $cutOut = 6 * DAY_IN_SECONDS;
+            $period = 'weekly';
+        } else {
             return false;
         }
 
@@ -237,12 +435,6 @@ class BasicTasksHandler
 
         if (!$validItems) {
             return false;
-        }
-
-        $period = $frequency;
-
-        if (!in_array($frequency, ['monthly', 'weekly'])) {
-            $period = 'daily';
         }
 
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';

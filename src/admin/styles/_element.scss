@@ -1,0 +1,164 @@
+/*
+ * Element Plus: the stylesheets it needs, and the shape this app gives it.
+ *
+ * Its colours are deliberately not here. Those are set in _theme.scss, through Element
+ * Plus's own CSS variables, so a shade has one place to change rather than two. What is
+ * here is structure - and mostly it is undoing wp-admin, which styles every input on the
+ * page from underneath and does not know these are components.
+ *
+ * ElementPlusResolver auto-imports the CSS for anything written as a tag in a template.
+ * The four below are not covered by that: three are created from JS (`$notify`,
+ * `ElMessageBox`, the `v-loading` directive), and the slider only appears inside a dialog
+ * TinyMCE opens. Their CSS is asked for by hand.
+ */
+@import "~element-plus/theme-chalk/el-notification.css";
+@import "~element-plus/theme-chalk/el-loading.css";
+@import "~element-plus/theme-chalk/el-message-box.css";
+@import "~element-plus/theme-chalk/el-slider.css";
+
+/* ------------------------------------------------------------------- inputs */
+
+/*
+ * wp-admin gives every `input` in its content area a border, a box shadow and a focus
+ * ring of its own. Element Plus draws all three on the wrapper around the input, so left
+ * alone you get two borders and two focus rings, one inside the other.
+ *
+ * The fix is the same in both places: the inner element is stripped back to nothing and
+ * the wrapper is left to do the drawing.
+ */
+/*
+ * `.el-select__input` is the same element on a `multiple` select and was missing from this
+ * list, so those alone kept wp-admin's border, its 40px min-height and its padding - a
+ * visible box drawn inside the wrapper's own box, sized to something Element Plus never
+ * asked for. On the IP rules screen's "Restricted roles" field it also sat over the
+ * placeholder, which in the dark theme left an empty rectangle with nothing to say it was
+ * a dropdown at all.
+ */
+.el-input__inner,
+.el-select__input {
+    border: 0 !important;
+    min-height: inherit;
+    padding: inherit;
+    margin: 0;
+    background: transparent;
+
+    &:focus {
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+}
+
+.el-form-item {
+    .el-input__inner {
+        width: 100%;
+        flex-grow: 1;
+        height: var(--el-input-inner-height);
+        line-height: var(--el-input-inner-height);
+        min-height: auto;
+        padding: 0;
+        border: none;
+        outline: 0;
+        background: 0 0;
+        -webkit-appearance: none;
+        color: var(--el-input-text-color, var(--el-text-color-regular));
+        font-size: inherit;
+
+        --el-input-inner-height: calc(var(--el-input-height, 32px) - 2px);
+
+        &:focus {
+            border-color: inherit;
+            box-shadow: none;
+            outline: inherit;
+        }
+    }
+
+    label.el-form-item__label,
+    &--label-top .el-form-item__label {
+        font-weight: 500;
+        color: var(--fls-text);
+    }
+}
+
+/* A select fills the space it is given; the input inside it is a display, not a field. */
+.el-select {
+    width: 100%;
+
+    .el-input__inner {
+        cursor: pointer;
+    }
+
+    input {
+        background: transparent;
+        box-shadow: none;
+    }
+}
+
+/* ---------------------------------------------------------------- teleported */
+
+/*
+ * Popovers and notifications are teleported to <body>, outside the app root, where
+ * wp-admin's own stacked panels can end up on top of them.
+ */
+.el-popper.is-light.el-popover {
+    z-index: 99999999999 !important;
+}
+
+.el-notification__content {
+    text-align: left !important;
+}
+
+/* Notifications stack up from the bottom rather than down from under the admin bar. */
+.el-notification.right {
+    top: auto !important;
+    bottom: 10px;
+}
+
+/* --------------------------------------------------------------- pagination */
+
+/*
+ * The page you are on.
+ *
+ * Element Plus fills this one with --el-color-primary and writes on it in a hardcoded
+ * white. That holds while the primary colour is dark, which it is in light mode - but the
+ * dark theme inverts the accent to a pale grey (see the note on --fls-accent), and white
+ * on #D9DADC is 1.4:1. The number naming the current page was the least readable thing on
+ * the screen in the theme that is meant to be easier on the eyes.
+ *
+ * --fls-accent-contrast is the colour that is already defined as "what goes on top of the
+ * accent" in both themes, so this is the same rule in light as it ever was.
+ */
+.el-pagination .el-pager li.is-active,
+.el-pagination .el-pager li.is-active.number {
+    color: var(--fls-accent-contrast);
+}
+
+/* ------------------------------------------------------------ danger button */
+
+/*
+ * The button that does something you cannot take back.
+ *
+ * Element Plus fills this with #F56C6C and writes on it in white, which is 2.9:1 - and
+ * this is the button on "Sign everyone out" and on every delete confirmation in the
+ * plugin. The one control that most needs reading was the hardest to read.
+ *
+ * One fill for both themes rather than a token per theme: it has to carry a white label
+ * (4.7:1) and still stand away from the card it sits on, and the cards are white in one
+ * theme and near-black in the other. #D0412B clears both - 4.7:1 against white and 3.2:1
+ * against the dark card, against the 3:1 a control's own edge has to meet.
+ *
+ * Scoped to the button rather than done by moving --el-color-danger, which also colours
+ * error text, where a fill this dark would be going the wrong way in the dark theme.
+ */
+.el-button--danger {
+    --el-button-bg-color: #D0412B;
+    --el-button-border-color: #D0412B;
+    --el-button-text-color: #FFFFFF;
+
+    --el-button-hover-bg-color: #BC3A26;
+    --el-button-hover-border-color: #BC3A26;
+    --el-button-hover-text-color: #FFFFFF;
+
+    --el-button-active-bg-color: #A83320;
+    --el-button-active-border-color: #A83320;
+    --el-button-active-text-color: #FFFFFF;
+}

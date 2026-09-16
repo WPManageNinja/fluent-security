@@ -22,6 +22,8 @@ class Helper
         self::$tokenVerifiedLogin = false;
         self::$satisfiedFactors = null;
         \FluentAuth\App\Services\TwoFa\TwoFaService::resetMethods();
+        \FluentAuth\App\Hooks\Handlers\TwoFaHandler::resetRequestState();
+        \FluentAuth\App\Services\LoginBridge::reset();
     }
 
     /**
@@ -110,6 +112,24 @@ class Helper
             'totp_2fa_roles'          => [],
             // Roles that must have one before they can use the admin area.
             'totp_required_roles'     => [],
+            'passkey_2fa'             => 'no',
+            // Roles that may register a passkey. Empty means none of them can.
+            'passkey_2fa_roles'       => [],
+            /*
+             * Whether a passkey is offered as a way *into* the site rather than only as
+             * the second step of a password login. Switching it on opens passkey
+             * registration to every role, which is why the role list above is disabled
+             * on the settings screen while it is set - see
+             * PasskeyTwoFaMethod::isAllowedForUser().
+             */
+            'passkey_primary_login'   => 'no',
+            /*
+             * How strong a factor satisfies `totp_required_roles`: `device` (a passkey or
+             * an authenticator app) or `any` (those, or an emailed code). See
+             * DeviceRequirement::getLevel(). Defaults to the strong reading, so a site
+             * that never touches it keeps the meaning the required list already had.
+             */
+            'two_fa_required_level'   => 'device',
             'disable_admin_bar'       => 'no',
             'disable_bar_roles'       => [
                 'subscriber'
@@ -121,7 +141,6 @@ class Helper
         $settings = get_option('__fls_auth_settings');
 
         if (!$settings || !is_array($settings)) {
-            $defaults['require_configuration'] = 'yes';
             $defaults['digest_summary'] = 'monthly';
             $settings = $defaults;
             return $settings;
@@ -146,6 +165,10 @@ class Helper
      *   where something does; the same goes for anything else a site may legitimately
      *   depend on. Being absent here means "apply recommended" leaves it alone rather than
      *   undoing a deliberate choice, and the checklist does not score it.
+     *
+     * The reverse does not follow: being present here means "apply recommended" will write
+     * it, not that the score counts it. Login alerts are written and not scored - worth
+     * offering to every site, not worth marking one down for having decided against.
      * - Ones that describe the server rather than a preference - trusted proxies, the
      *   forwarded-IP header - and ones that lock people out if imposed, like the roles
      *   required to have an authenticator app.
@@ -161,7 +184,14 @@ class Helper
             'login_try_limit'         => 5,
             'login_try_timing'        => 30,
             'auto_delete_logs_day'    => 30,
-            'notification_user_roles' => ['administrator', 'editor', 'author'],
+            /*
+             * Administrators only. The alert is worth having on the accounts that can install
+             * code and make other administrators; on the roles that sign in every day it is a
+             * mailbox filling with sign-ins nobody reads, which is how the one that mattered
+             * ends up in a folder somebody wrote a filter for. Anyone who wants the wider net
+             * can widen it - "apply recommended" should not be what floods their inbox.
+             */
+            'notification_user_roles' => ['administrator'],
             'notification_email'      => '{admin_email}',
             'notify_on_blocked'       => 'no',
             'magic_login'             => 'no',
@@ -195,6 +225,83 @@ class Helper
      * @param string $media
      * @return string
      */
+    /**
+     * The views on the log, in the order the bar shows them.
+     *
+     * Kept here rather than inline in the admin screen because it has to stay level with
+     * what is actually inserted: a status written but not declared gets no view of its
+     * own and shows the admin a raw slug where the status word should be.
+     *
+     * A view can cover more than one status, which is what carries the rows written
+     * before site activity had a name. `group` is what the bar draws its rule on: the
+     * login outcomes are how one sign-in attempt ended, the rest are other things the
+     * same table keeps.
+     *
+     * @return array<string, array{label: string, statuses: array<int, string>, group: string, events?: bool}>
+     */
+    public static function getLogViews()
+    {
+        return [
+            'success'        => [
+                'label'    => __('Successful', 'fluent-security'),
+                'statuses' => ['success'],
+                'group'    => 'login'
+            ],
+            'failed'         => [
+                'label'    => __('Failed', 'fluent-security'),
+                'statuses' => ['failed'],
+                'group'    => 'login'
+            ],
+            'blocked'        => [
+                'label'    => __('Blocked', 'fluent-security'),
+                'statuses' => ['blocked'],
+                'group'    => 'login'
+            ],
+            'site_activity'  => [
+                'label' => __('Site activity', 'fluent-security'),
+                /*
+                 * One view for everything that is not the outcome of a login attempt.
+                 *
+                 * `recovery` is what site activity was called before it covered anything
+                 * but the recovery screen. Rows carrying it are still on sites that have
+                 * been running a while, and nothing rewrites them, so the view reads both.
+                 *
+                 * `password_reset` is a request for a reset link, which the rate limiter
+                 * counts alongside failed and blocked logins - see
+                 * LoginSecurityHandler::maybeBlockPasswordReset(). It reads under this
+                 * view by choice rather than because it is an administrator's doing.
+                 */
+                'statuses' => ['site_activity', 'recovery', 'password_reset'],
+                'group'    => 'site',
+                /*
+                 * The only view holding several kinds of event, so the only one worth a
+                 * second control. Everywhere else the view name already says what the
+                 * rows are, and a dropdown would repeat it.
+                 */
+                'events'   => true
+            ]
+        ];
+    }
+
+    /**
+     * Every status the log can hold, against the word the screen shows for it. Derived
+     * from the views so the two cannot drift apart.
+     *
+     * @return array<string, string>
+     */
+    public static function getLogStatuses()
+    {
+        $statuses = [];
+
+        foreach (self::getLogViews() as $view) {
+            foreach ($view['statuses'] as $status) {
+                $statuses[$status] = $view['label'];
+            }
+        }
+
+        return $statuses;
+    }
+
     public static function getLoginMediaLabel($media)
     {
         $media = $media ?: 'web';
@@ -204,10 +311,38 @@ class Helper
             'magic_login' => __('Magic link', 'fluent-security'),
             'email_2fa'   => __('Email code', 'fluent-security'),
             'totp'        => __('Authenticator app', 'fluent-security'),
+            // What the methods actually record - see BaseTwoFaMethod::getLoginMedia().
+            'two_factor_email' => __('Email code', 'fluent-security'),
+            'two_factor_totp'  => __('Authenticator app', 'fluent-security'),
+            'two_factor_passkey' => __('Passkey', 'fluent-security'),
+            // A passkey used to sign in outright, rather than to confirm a password.
+            'passkey_login' => __('Passkey (no password)', 'fluent-security'),
+            'two_factor_enroll_device' => __('Two-factor setup', 'fluent-security'),
+            'two_fa_bypassed' => __('Two-factor skipped (wp-config)', 'fluent-security'),
             'app_password' => __('Application password', 'fluent-security'),
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),
-            'facebook'    => __('Facebook', 'fluent-security')
+            'facebook'    => __('Facebook', 'fluent-security'),
+
+            /*
+             * The log keeps more than logins, and the same column has to name those rows.
+             * RecoveryService::log() puts the action in `media`, so it arrives here too -
+             * unnamed it fell through to the slug, which is how the log came to say
+             * "Reinstall Plugin" where every other row says what happened.
+             */
+            'secure_now'           => __('Sessions cleared', 'fluent-security'),
+            'password_resets'      => __('Bulk password reset started', 'fluent-security'),
+            'password_resets_done' => __('Bulk password reset finished', 'fluent-security'),
+            'delete_file'          => __('File deleted', 'fluent-security'),
+            'remove_file'          => __('File quarantined', 'fluent-security'),
+            'restore_file'         => __('File restored', 'fluent-security'),
+            'reinstall_core'       => __('WordPress reinstalled', 'fluent-security'),
+            'reinstall_plugin'     => __('Plugin reinstalled', 'fluent-security'),
+            'reinstall_theme'      => __('Theme reinstalled', 'fluent-security'),
+            'plugin_activated'     => __('Plugin activated', 'fluent-security'),
+            'plugin_deactivated'   => __('Plugin deactivated', 'fluent-security'),
+            'plugin_updated'       => __('Plugin updated', 'fluent-security'),
+            'password_reset_request' => __('Password reset requested', 'fluent-security')
         ]);
 
         if (isset($labels[$media])) {
@@ -528,21 +663,41 @@ class Helper
 
     public static function cleanUpLogs()
     {
-        $oldDays = self::getSetting('auto_delete_logs_day');
+        $oldDays = (int)self::getSetting('auto_delete_logs_day');
 
-        if (!$oldDays) {
-            return;
+        if ($oldDays) {
+            $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $oldDays * 86400);
+
+            flsDb()->table('fls_auth_logs')
+                ->where('created_at', '<', $dateTime)
+                ->delete();
         }
 
-        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $oldDays * 86400);
+        self::cleanUpLoginHashes($oldDays);
+    }
 
-        flsDb()->table('fls_auth_logs')
-            ->where('created_at', '<', $dateTime)
-            ->delete();
+    /**
+     * Housekeeping for the table that holds magic links, two-factor challenges and signup
+     * codes: expire what has run out, then delete what is long spent.
+     *
+     * Unconditional, which it was not. All of this used to sit behind the audit log's
+     * retention setting and returned early when that was empty - so a site that chose to
+     * keep its logs for ever also, without being told, kept every spent token row for ever,
+     * and stopped marking expired links as expired. The two are not the same decision: one
+     * is how long somebody wants to be able to read their history, the other is a working
+     * table tidying up after itself.
+     *
+     * Thirty days is the floor regardless, because the daily digest counts yesterday's
+     * sign-ins out of these rows and the rate limits read the recent ones.
+     *
+     * @param int $oldDays the audit log retention, when one is set
+     * @return void
+     */
+    public static function cleanUpLoginHashes($oldDays = 0)
+    {
+        $keepDays = (int)apply_filters('fluent_auth/login_hash_retention_days', max(30, (int)$oldDays));
 
-        if ($oldDays < 30) {
-            $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - 30 * 86400);
-        }
+        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $keepDays * 86400);
 
         flsDb()->table('fls_login_hashes')
             ->where('valid_till', '<', current_time('mysql'))
@@ -555,7 +710,6 @@ class Helper
             ->where('status', '!=', 'issued')
             ->where('created_at', '<', $dateTime)
             ->delete();
-
     }
 
     public static function getSocialAuthSettings($context = 'view')
@@ -844,6 +998,52 @@ class Helper
     }
 
 
+    /**
+     * The customizer fields whose value is written into CSS.
+     *
+     * @return array<int, string>
+     */
+    public static function colorFields()
+    {
+        return ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color'];
+    }
+
+    /**
+     * A colour, or nothing.
+     *
+     * Hex, rgb/rgba, hsl/hsla and the CSS named colours - which is every form the colour
+     * picker on that screen can produce. Anything else is dropped rather than escaped,
+     * because there is no such thing as a safely escaped arbitrary CSS value here: the
+     * output position is a declaration, and a value that is not a colour has no business
+     * being one.
+     *
+     * @param string $value
+     * @return string
+     */
+    public static function sanitizeCssColor($value)
+    {
+        $value = trim((string)$value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i', $value)) {
+            return $value;
+        }
+
+        if (preg_match('/^(?:rgb|rgba|hsl|hsla)\(\s*[0-9a-z.,%\/\s-]+\)$/i', $value)) {
+            return $value;
+        }
+
+        /* A bare keyword: `transparent`, `inherit`, `rebeccapurple`. Letters only. */
+        if (preg_match('/^[a-z]{3,24}$/i', $value)) {
+            return $value;
+        }
+
+        return '';
+    }
+
     public static function formatAuthCustomizerSettings($settingFields)
     {
         $textFields = ['type', 'title', 'button_label', 'position', 'title_color', 'text_color', 'button_color', 'button_label_color', 'background_color'];
@@ -858,6 +1058,24 @@ class Helper
 
             foreach ($settings as $key => $setting) {
                 $textValues = array_map('sanitize_text_field', Arr::only($setting, $textFields));
+
+                /*
+                 * The colours are interpolated into a `:root { ... }` block on wp-login.php,
+                 * and sanitize_text_field() leaves `{`, `}`, `;` and `(` alone - so a value
+                 * of `red } body { background: url(...) } x {` is not a colour, it is a
+                 * stylesheet, written onto the sign-in page of the site.
+                 *
+                 * Only an administrator can save these today, which is why this is a guard
+                 * rather than a hole. But the capability these screens require is itself
+                 * filterable, and a site that lowers it should not be handing out the login
+                 * page along with the settings page.
+                 */
+                foreach (self::colorFields() as $colorField) {
+                    if (isset($textValues[$colorField])) {
+                        $textValues[$colorField] = self::sanitizeCssColor($textValues[$colorField]);
+                    }
+                }
+
                 $mediaUrls = array_map('sanitize_url', Arr::only($setting, $mediaFields));
                 $formattedField = array_merge($textValues, $mediaUrls);
                 $formattedField['description'] = wp_kses_post(Arr::get($setting, 'description'));

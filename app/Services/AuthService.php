@@ -21,6 +21,15 @@ class AuthService
 
         Helper::setLoginMedia($provider);
 
+        /*
+         * Said here as well as in getSocialTwoFaRedirect(), because a brand new account
+         * never passes through that - and the cookie it is about to be issued is judged
+         * on what this login proved. See TwoFaHandler::maybeWithholdAuthCookies().
+         */
+        if ($provider) {
+            Helper::setSatisfiedFactors([AuthFactor::IDP, AuthFactor::EMAIL]);
+        }
+
         $email = $userData['email'];
 
         $userExist = get_user_by('email', $email);

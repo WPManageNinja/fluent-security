@@ -5,3 +5,6 @@ define('FLUENT_AUTH_VERSION', '2.0.2');
 define('WPINC', 'wp-includes');
 define('COOKIEPATH', '/');
 define('COOKIE_DOMAIN', '/');
+if (!defined('LOGGED_IN_COOKIE')) {
+    define('LOGGED_IN_COOKIE', 'wordpress_logged_in_phpstan');
+}

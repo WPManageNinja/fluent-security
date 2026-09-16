@@ -4,8 +4,8 @@ defined('ABSPATH') or die;
 /*
 Plugin Name:  FluentAuth - Auth Security Plugin
 Plugin URI:   https://fluentauth.com
-Description:  Super Simple Login / Signup Security and Social Login Plugin for WordPress
-Version:      2.1.2
+Description:  Login security for WordPress: two-factor authentication, passkeys, social login, magic login, login attempt limits, file change scanning and audit logs.
+Version:      3.0.0
 Author:       Fluent Auth Team
 Author URI:   https://fluentauth.com
 License:      GPLv2 or later
@@ -22,7 +22,7 @@ if (defined('FLUENT_AUTH_VERSION')) {
 
 define('FLUENT_AUTH_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('FLUENT_AUTH_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('FLUENT_AUTH_VERSION', '2.1.2');
+define('FLUENT_AUTH_VERSION', '3.0.0');
 
 class FluentAuthPlugin
 {
@@ -63,7 +63,17 @@ class FluentAuthPlugin
                 $class
             );
 
-            require FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
+            $path = FLUENT_AUTH_PLUGIN_PATH . $file . '.php';
+
+            /*
+             * Checked rather than required blind. An autoloader that fatals on a name it
+             * does not have turns every class_exists() on a FluentAuth\ class - ours or
+             * another plugin's guess at one - into a white screen, and a half-copied
+             * update into an unrecoverable site rather than one broken feature.
+             */
+            if (file_exists($path)) {
+                require $path;
+            }
         });
 
         require_once FLUENT_AUTH_PLUGIN_PATH . 'app/Services/DB/wpfluent.php';

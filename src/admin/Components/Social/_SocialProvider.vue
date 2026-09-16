@@ -2,6 +2,7 @@
 import SettingsCard from '../Settings/_SettingsCard.vue';
 import SettingRow from '../Settings/_SettingRow.vue';
 import SettingToggle from '../Settings/_SettingToggle.vue';
+import ProviderMark from './_ProviderMark.vue';
 
 /**
  * One social provider's settings.
@@ -16,7 +17,7 @@ import SettingToggle from '../Settings/_SettingToggle.vue';
  */
 export default {
     name: 'SocialProvider',
-    components: {SettingsCard, SettingRow, SettingToggle},
+    components: {SettingsCard, SettingRow, SettingToggle, ProviderMark},
     props: {
         settings: {type: Object, required: true},
         provider: {type: String, required: true},
@@ -37,6 +38,22 @@ export default {
             return this.settings[this.provider + '_key_method'] === 'wp_config';
         },
         /**
+         * Whether this provider has both halves of a credential to sign anyone in with.
+         *
+         * Each half is checked where it can be seen: the fields are in the form, so the
+         * browser reads those itself and the badge answers as they are typed, while the
+         * wp-config.php constants are only visible to PHP and arrive as a flag with the
+         * settings.
+         */
+        hasCredentials() {
+            if (this.storesInWpConfig) {
+                return !!this.info.has_wp_config_keys;
+            }
+
+            return !!this.settings[this.provider + '_client_id']
+                && !!this.settings[this.provider + '_client_secret'];
+        },
+        /**
          * The wp-config.php lines to paste, named after the provider the same way the
          * plugin reads them back.
          */
@@ -52,6 +69,22 @@ export default {
 
 <template>
     <SettingsCard :title="title" :description="description">
+        <template #icon>
+            <ProviderMark :provider="provider"/>
+        </template>
+
+        <!--
+            Said on the head rather than left to be found out at a sign-in: a provider
+            switched on without a client ID and secret is switched on and broken, and
+            nothing else on the screen says so.
+        -->
+        <template #badge>
+            <span v-if="enabled && available" class="fls_tag is_round"
+                  :class="hasCredentials ? 'is_success' : 'is_warning'">
+                {{ hasCredentials ? $t('Ready') : $t('Credentials needed') }}
+            </span>
+        </template>
+
         <template #actions>
             <el-switch v-model="settings['enable_' + provider]" :disabled="!available"
                        active-value="yes" inactive-value="no"/>

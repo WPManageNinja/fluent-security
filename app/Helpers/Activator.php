@@ -27,11 +27,90 @@ class Activator
         }
     }
 
+    /**
+     * Brings an existing site's settings forward, once.
+     *
+     * Separate from migrate(), which activation alone reaches - so anything put there
+     * lands on new installs and on nobody who updated. This runs on `plugins_loaded`
+     * behind its own flag - not `admin_init`, which never runs on wp-login.php; see the
+     * comment on the add_action in hooks.php. It deliberately touches nothing but the
+     * options row: no tables, no schedules, nothing that would be expensive to run on a
+     * site that has just updated and is being browsed.
+     *
+     * @return void
+     */
+    public static function maybeMigrateSettings()
+    {
+        if (get_option('__fls_required_roles_migrated')) {
+            return;
+        }
+
+        self::migrateRequiredRoles();
+
+        // Autoloaded: this is read on every request, and a non-autoloaded flag would be
+        // a query on each one for the entire life of the install.
+        update_option('__fls_required_roles_migrated', 'yes', true);
+    }
+
+    /**
+     * Keeps a required-roles list meaning exactly what it meant before.
+     *
+     * The requirement used to be inert unless the same role also appeared in
+     * `totp_2fa_roles` with `totp_2fa` switched on - a role named in one list and not the
+     * other was a policy that silently did nothing. That is now fixed: requiring a factor
+     * grants the methods that satisfy it, so those roles would start being enforced.
+     *
+     * Which is what the site owner asked for, but not today and without warning: the
+     * first they would know is being held at the login screen on a morning they did not
+     * plan for it. So the list is narrowed once, to what was actually in force, and the
+     * new meaning applies to anything they save from here on.
+     *
+     * @return void
+     */
+    private static function migrateRequiredRoles()
+    {
+        $settings = get_option('__fls_auth_settings');
+
+        if (!is_array($settings) || empty($settings['totp_required_roles'])) {
+            return;
+        }
+
+        $required = array_values((array)$settings['totp_required_roles']);
+
+        $enforceable = [];
+
+        if (isset($settings['totp_2fa']) && $settings['totp_2fa'] === 'yes') {
+            $allowed = isset($settings['totp_2fa_roles']) ? (array)$settings['totp_2fa_roles'] : [];
+            $enforceable = array_values(array_intersect($required, $allowed));
+        }
+
+        if ($enforceable === $required) {
+            return;
+        }
+
+        $settings['totp_required_roles'] = $enforceable;
+
+        update_option('__fls_auth_settings', $settings);
+    }
+
+    /**
+     * Runs on activation only, which is all it has to do.
+     *
+     * Activation does not fire when a site updates the plugin, so anything here reaches
+     * new installs and no one else. That is not a gap to work around - it is why no table
+     * this plugin has added since creates itself here. A table that has to appear on a
+     * site that already has the plugin makes itself on first use instead, where being
+     * missing is the only state it has to handle: see FactorStore::ensureTable().
+     *
+     * So this is for the two tables that predate that pattern, on a site that has just
+     * switched the plugin on for the first time.
+     *
+     * @return void
+     */
     private static function migrate()
     {
         self::migrateLogsTable();
         self::migrateHashesTable();
-        self::migrateTotpAllowedRoles();
 
         if (!wp_next_scheduled('fluent_auth_daily_tasks')) {
             wp_schedule_event(time(), 'daily', 'fluent_auth_daily_tasks');
@@ -40,36 +119,6 @@ class Activator
         if (!wp_next_scheduled('fluent_auth_hourly_tasks')) {
             wp_schedule_event(time(), 'hourly', 'fluent_auth_hourly_tasks');
         }
-
-    }
-
-    /**
-     * An empty list of roles allowed an authenticator app used to mean every role. It
-     * now means none of them, which is the safer default to leave a field on - but read
-     * against a site that already had the method switched on with the field untouched,
-     * it silently stops asking enrolled users for the app they set up. Their secret is
-     * still there; nothing would ask for it again.
-     *
-     * So the old reading is written out as what it meant, once, and the setting says
-     * afterwards exactly what it did before.
-     *
-     * @return void
-     */
-    private static function migrateTotpAllowedRoles()
-    {
-        $settings = get_option('__fls_auth_settings');
-
-        if (!$settings || !is_array($settings)) {
-            return;
-        }
-
-        if (Arr::get($settings, 'totp_2fa') !== 'yes' || !empty($settings['totp_2fa_roles'])) {
-            return;
-        }
-
-        $settings['totp_2fa_roles'] = array_keys(wp_roles()->get_names());
-
-        update_option('__fls_auth_settings', $settings, false);
     }
 
     private static function migrateLogsTable()

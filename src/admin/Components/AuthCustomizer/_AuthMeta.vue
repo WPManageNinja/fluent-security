@@ -15,29 +15,53 @@
                 <ul class="fcom_meta_block">
                     <template v-for="field in sortedFields">
                         <li :class="['fcom_block_list', { block_hidden: field.hidden }]">
-                            <div @click="updateField(field)" class="fcom_block_label">
+                            <div @click="updateField(field)" class="fcom_block_label"
+                                 role="button" tabindex="0"
+                                 :aria-label="$t('Edit') + ' ' + getLabel(field.type)"
+                                 @keydown.enter.prevent="updateField(field)"
+                                 @keydown.space.prevent="updateField(field)">
                                 <el-icon class="fcom_el_icon">
                                     <component :is="getFieldIcon(field)"/>
                                 </el-icon>
                                 <p>{{ getLabel(field.type) }}</p>
                             </div>
                             <div class="fcom_meta_sorting">
-                                <el-icon @click="togglePosition">
+                                <el-icon role="button" tabindex="0"
+                                         :aria-label="$t('Move up')"
+                                         @keydown.enter.prevent="togglePosition"
+                                         @keydown.space.prevent="togglePosition"
+                                         @click="togglePosition">
                                     <Top/>
                                 </el-icon>
-                                <el-icon @click="togglePosition">
+                                <el-icon role="button" tabindex="0"
+                                         :aria-label="$t('Move down')"
+                                         @keydown.enter.prevent="togglePosition"
+                                         @keydown.space.prevent="togglePosition"
+                                         @click="togglePosition">
                                     <Bottom/>
                                 </el-icon>
                             </div>
                             <div class="fcom_block_action">
-                                <el-icon @click="updateField(field)">
+                                <el-icon role="button" tabindex="0"
+                                         :aria-label="$t('Edit') + ' ' + getLabel(field.type)"
+                                         @keydown.enter.prevent="updateField(field)"
+                                         @keydown.space.prevent="updateField(field)"
+                                         @click="updateField(field)">
                                     <EditPen/>
                                 </el-icon>
                                 <template v-if="field.type == 'banner'">
-                                    <el-icon v-if="field.hidden" @click="toggleHidden(field)">
+                                    <el-icon v-if="field.hidden" role="button" tabindex="0"
+                                             :aria-label="$t('Show this block')"
+                                             @keydown.enter.prevent="toggleHidden(field)"
+                                             @keydown.space.prevent="toggleHidden(field)"
+                                             @click="toggleHidden(field)">
                                         <Hide/>
                                     </el-icon>
-                                    <el-icon v-else @click="toggleHidden(field)">
+                                    <el-icon v-else role="button" tabindex="0"
+                                             :aria-label="$t('Hide this block')"
+                                             @keydown.enter.prevent="toggleHidden(field)"
+                                             @keydown.space.prevent="toggleHidden(field)"
+                                             @click="toggleHidden(field)">
                                         <View/>
                                     </el-icon>
                                 </template>
@@ -50,7 +74,11 @@
     </div>
     <div v-else class="fcom_lockscreen_meta">
         <div class="fcom_edit_title">
-            <el-icon @click="backToFields">
+            <el-icon role="button" tabindex="0"
+                     :aria-label="$t('Back')"
+                     @keydown.enter.prevent="backToFields"
+                     @keydown.space.prevent="backToFields"
+                     @click="backToFields">
                 <Back/>
             </el-icon>
             <p>{{ currentEditingField }}</p>

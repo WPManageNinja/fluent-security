@@ -1,0 +1,1013 @@
+/*
+ * The settings screen: the pinned pane, and the parts a settings form is built from.
+ *
+ * Every settings page is the same four things - a card, a header on it, a row per setting,
+ * and a toggle for the ones that are only on or off. Anything more specific than that
+ * (the two-factor cards, the proxy panel) sits at the bottom of this file, because it only
+ * ever appears inside one of those rows. A screen with enough of its own parts to need a
+ * layout - the redirect rules - has its own partial instead.
+ */
+
+/* ------------------------------------------------------------------ the pane */
+
+/*
+ * The screen is a pinned pane rather than part of the page, so the sidebar and the header
+ * stay where they are and only the settings themselves move. The page is deliberately still
+ * scrollable: wp-admin's own menu is often taller than the viewport, and locking the body
+ * would put the bottom of it out of reach. Taking this pane out of flow means the page
+ * scrolls over exactly that much and no more.
+ */
+.fls_settings {
+    @apply flex items-stretch;
+
+    position: fixed;
+    top: 88px;
+    left: var(--fls-shell-left, 160px);
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    z-index: 20;
+}
+
+/* The one part of the screen that scrolls. */
+.fls_settings_body {
+    @apply flex-1;
+
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* ------------------------------------------------------------------ the nav */
+
+.fls_settings_nav {
+    @apply bg-surface flex-shrink-0 flex flex-col border-0 border-r border-solid border-hairline;
+
+    width: 260px;
+    height: 100%;
+
+    .fls_settings_nav_title {
+        @apply flex items-center gap-2 flex-shrink-0 text-base font-medium text-ink px-5 border-0 border-b border-solid border-hairline;
+
+        /* Matches the content header beside it, so the two bottom borders read as one rule. */
+        min-height: 64px;
+        margin: 0;
+    }
+
+    > ul {
+        @apply list-none m-0 p-4 flex-1;
+
+        overflow-y: auto;
+        overscroll-behavior: contain;
+
+        /* Out of the way until the pointer is over the list, so it reads as one panel. */
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            @apply bg-transparent rounded;
+        }
+
+        &:hover::-webkit-scrollbar-thumb {
+            @apply bg-hairline-strong;
+        }
+    }
+
+    li {
+        @apply mb-1.5 last:mb-0;
+    }
+
+    a {
+        @apply relative flex items-center gap-2.5 rounded px-2.5 py-2 text-sm font-medium no-underline text-ink-mid;
+
+        min-height: 36px;
+        white-space: nowrap;
+        transition: background-color .15s ease, color .15s ease;
+
+        &:hover {
+            @apply bg-accent-wash text-ink;
+        }
+
+        .fls_nav_icon {
+            @apply flex-shrink-0 opacity-70;
+
+            width: 18px;
+            height: 18px;
+        }
+
+        .fls_nav_chevron {
+            @apply absolute opacity-0;
+
+            right: 16px;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translateY(-50%);
+            transition: opacity .2s ease, right .2s ease;
+        }
+    }
+
+    .is-active > a {
+        @apply bg-accent-wash text-ink;
+
+        .fls_nav_chevron {
+            @apply opacity-100;
+
+            right: 12px;
+        }
+    }
+
+    /* Children hang off a hairline, the way a tree reads. */
+    .fls_settings_subnav {
+        @apply relative m-0 p-0 list-none;
+
+        padding-left: 26px;
+        margin: 4px 0;
+
+        &::before {
+            content: '';
+            @apply absolute bg-surface-raised rounded;
+
+            left: 18px;
+            top: 50%;
+            width: 2px;
+            height: calc(100% - 16px);
+            transform: translateY(-50%);
+        }
+
+        a {
+            @apply bg-transparent text-ink-mid;
+
+            &::before {
+                content: '';
+                @apply absolute bg-accent rounded;
+
+                left: -8px;
+                top: 8px;
+                width: 0;
+                height: calc(100% - 16px);
+                transition: width .1s ease;
+            }
+
+            &.router-link-exact-active,
+            &.is-current {
+                @apply bg-transparent font-medium text-ink;
+
+                &::before {
+                    width: 2px;
+                }
+            }
+        }
+    }
+}
+
+/* ---------------------------------------------------------------- the header */
+
+.fls_settings_header {
+    @apply flex items-center bg-surface px-7 border-0 border-b border-solid border-hairline;
+
+    /* Room for a 40px Save with a margin either side of it. */
+    min-height: 64px;
+
+    /* Sticky against the pane that scrolls, which starts at its own top edge. */
+    position: sticky;
+    top: 0;
+    z-index: 9;
+
+    h1 {
+        @apply text-base font-medium text-ink m-0;
+
+        line-height: 24px;
+    }
+
+    .fls_settings_header_desc {
+        @apply text-xs text-ink-light m-0;
+
+        margin-top: 2px;
+    }
+
+    .fls_settings_header_actions {
+        @apply flex items-center gap-3 flex-shrink-0;
+
+        /*
+         * Element Plus's large button is sized for a dialog footer: 40px tall, which on a
+         * bar this shallow reads as a slab. The size prop is still what sets the type scale
+         * and the 19px side padding - only the height is taken back, to a button that is
+         * wide and legible without being the tallest thing on the screen.
+         *
+         * Borderless actions are left alone: they are `height: auto` text, not a box.
+         */
+        .el-button--large:not(.is-link) {
+            height: 36px;
+            padding-block: 0;
+        }
+    }
+
+    /*
+     * The heading goes to one end of the bar and the actions to the other, out at the bar's
+     * own gutters.
+     *
+     * This was capped to the column of cards below for a while, so that the heading sat
+     * exactly over the first card's left edge and Save over its right. That reads well on a
+     * narrow window and hollow on a wide one: past about 1100px the cap leaves 80px of empty
+     * white outside each end of the contents, and the bar stops looking like it belongs to
+     * the screen it is at the top of. The bar spans the pane, so its ends are where its
+     * contents go; the column below is centred on its own and no longer has to agree.
+     */
+    .fls_settings_header_inner {
+        @apply flex items-center justify-between gap-4 w-full;
+    }
+}
+
+/*
+ * A settings form does not get better for being wider - the text inside it is capped well
+ * before this, so past a point the cards only add empty space to the right of their own
+ * content. FluentCart leaves this uncapped and grows to the viewport; this does not.
+ *
+ * The leftover width is split either side rather than all dumped to the right, so the
+ * column sits in the middle of the pane.
+ */
+.fls_settings_content {
+    @apply p-7 mx-auto;
+
+    max-width: var(--fls-content-width);
+}
+
+/*
+ * Keeps a scrolled-to section clear of the sticky header above it. Measured from the top of
+ * the scrolling pane, so it is the header's own height plus a gap - not the distance from
+ * the top of the window.
+ */
+.fls_section {
+    scroll-margin-top: 76px;
+}
+
+/* ---------------------------------------------------------------- the card */
+
+/*
+ * Framed the same way as a dashboard card (`.fls_dcard`), because it is the same object -
+ * a titled block on the page background - and the two had drifted into two different
+ * treatments inside one plugin. The dashboard's is the one that matches FluentCart: a soft
+ * shadow rather than a drawn border, 20px of padding, and a title a clear step above the
+ * text inside it. A settings card had a hairline border, no shadow, an 11px head and a body
+ * padded by 2px, which is what made a screen of them read as a stack of boxes rather than
+ * as a document.
+ *
+ * `--fls-card-line` is transparent in the light theme, where the shadow does the separating,
+ * and a real border in the dark one, where it cannot.
+ */
+.fls_card {
+    @apply bg-surface rounded border border-solid;
+
+    border-color: var(--fls-card-line);
+    box-shadow: var(--fls-shadow-card);
+    margin-bottom: 20px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    .fls_card_head {
+        @apply flex items-center justify-between gap-4 px-5 border-0 border-b border-solid border-hairline;
+
+        padding-top: 16px;
+        padding-bottom: 16px;
+
+        /*
+         * A step above a row label in both size and weight. The dashboard says this with
+         * size alone (16px/500), which is enough over a chart; over a column of 14px/500
+         * setting names it is not - the heading and the first setting under it read as the
+         * same kind of thing, and a card with six rows had seven titles in it.
+         */
+        h2 {
+            @apply font-semibold m-0;
+
+            font-size: 15px;
+            line-height: 20px;
+            color: var(--fls-heading);
+        }
+
+        p {
+            @apply text-xs text-ink-light m-0;
+
+            margin-top: 2px;
+        }
+
+        /*
+         * A mark left of the title - a provider's logo on the social login screen. It
+         * is sized by whatever goes in it, so a card can head itself with a 20px glyph
+         * or a 36px plate without this having an opinion.
+         */
+        .fls_card_head_icon {
+            @apply flex flex-none items-center justify-center;
+        }
+
+        /* Takes the leftover width, so the actions stay on the right edge with an icon
+           beside the title as well as without one. */
+        .fls_card_head_text {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .fls_card_head_actions {
+            @apply flex items-center gap-2 flex-shrink-0;
+        }
+    }
+
+    /*
+     * The rows carry most of their own spacing, so this only tops it up to the same 20px
+     * the card is padded by on the sides. It used to be 2px, which left the last line of
+     * the last setting 12px off the bottom edge against 20px either side - the card looked
+     * like its contents were falling out of it.
+     */
+    .fls_card_body {
+        @apply px-5;
+
+        padding-top: 8px;
+        padding-bottom: 8px;
+    }
+}
+
+/* Alerts inside a settings card sit in the flow of the card, not against its edge. */
+.fls_row_alert.el-alert {
+    margin: 4px 0 10px;
+
+    a {
+        @apply font-medium;
+
+        color: inherit;
+    }
+}
+
+/* ----------------------------------------------------------- the setting row */
+
+/*
+ * Label and explanation on the left, the control pinned to the right. Every setting is
+ * this shape, switches included, so each card has one column of names down the left and
+ * one column of controls down the right rather than a different arrangement per row.
+ *
+ * The two columns used to be the other way round: the text was pinned at 300px and the
+ * control took everything left over. A switch is 44px wide, so most of a row was empty while
+ * the sentence explaining it wrapped over four lines - the widest thing on the page was
+ * given to the narrowest thing on it. Now the text takes the width and the control is only
+ * as wide as it needs to be, which halves the height of a typical row.
+ */
+.fls_row {
+    @apply border-0 border-b border-solid border-hairline;
+
+    /* With the card body's 8px, this puts ~18px above and below the block and 20px between
+       one setting and the next - near enough the 20px the card is padded by on the sides
+       that the spacing inside a card reads as one measurement rather than three. */
+    padding-top: 10px;
+    padding-bottom: 10px;
+
+    &:last-child {
+        @apply border-b-0;
+    }
+
+    .fls_row_main {
+        @apply flex items-center gap-5;
+    }
+
+    .fls_row_label {
+        flex: 1 1 auto;
+
+        /* Stops a description running to a line too long to read comfortably. */
+        max-width: 680px;
+
+        /* Lets it wrap rather than force the row wider than the card. */
+        min-width: 0;
+
+        label,
+        .fls_row_title {
+            @apply block text-sm font-medium text-ink m-0;
+        }
+
+        p {
+            @apply text-xs text-ink-light m-0;
+
+            margin-top: 2px;
+            line-height: 1.45;
+        }
+
+        /* Wins on specificity over the paragraph rule above, which it sits inside. */
+        .fls_row_hint {
+            margin-top: 4px;
+            font-style: italic;
+        }
+    }
+
+    /* Only shown when a setting is not what it ought to be, so it reads as a flag. */
+    .fls_row_flag {
+        @apply text-xs font-normal text-caution-fg bg-caution-bg rounded;
+
+        margin-left: 8px;
+        padding: 1px 7px;
+        white-space: nowrap;
+    }
+
+    .fls_row_control {
+        flex: 0 0 auto;
+
+        /* Holds every control against the same right edge, so they read as one column. */
+        margin-left: auto;
+
+        /* A row that is all sentence - the inline-field kind - has no control to hold. */
+        &:empty {
+            @apply hidden;
+        }
+
+        /*
+         * Control widths belong here, not on the element. This column is shrink-to-fit,
+         * so a `width: 100%` written in a template - the habit from a form laid out in
+         * rows - has nothing to be a percentage of and collapses the control to its
+         * chevron. Use `fls_row_stacked` for something that wants the whole width.
+         */
+        .el-input,
+        .el-select,
+        .el-textarea {
+            width: 280px;
+        }
+
+        .el-form-item {
+            margin-bottom: 0;
+        }
+
+        > p {
+            @apply text-xs text-ink-light;
+
+            margin: 6px 0 0;
+        }
+    }
+
+    /*
+     * What a setting opens up rather than what it is: the fields a toggle reveals once
+     * it is on. Indented under the row that governs them, so it is clear they belong to
+     * it and they are not mistaken for settings of their own.
+     */
+    .fls_row_below {
+        padding-left: 16px;
+        margin-top: 8px;
+        border-left: 2px solid var(--fls-border);
+
+        .fls_row {
+            padding-top: 7px;
+            padding-bottom: 7px;
+
+            &:first-child {
+                padding-top: 0;
+            }
+        }
+    }
+
+    /* For controls that need the whole width: a table, an editor, a group of cards. */
+    &.fls_row_stacked {
+        .fls_row_main {
+            @apply block;
+        }
+
+        .fls_row_label {
+            max-width: none;
+            margin-bottom: 8px;
+        }
+
+        .fls_row_control {
+            margin-left: 0;
+
+            .el-input,
+            .el-select,
+            .el-textarea {
+                width: 100%;
+            }
+        }
+    }
+
+    &.is-disabled .fls_row_title {
+        @apply text-ink-light;
+    }
+}
+
+/* ------------------------------------------------------ two settings abreast */
+
+/*
+ * A card of nothing but switches does not need a full-width line each. Four on/off
+ * settings with a short line under them read as well in a 2x2 as in a column and take
+ * half the height, which is the difference between a card you take in at a glance and
+ * one you scroll.
+ *
+ * Only for rows that are genuinely small. Anything with a select, a textarea or a
+ * sentence in it wants the width and stays in a single column.
+ */
+.fls_grid_2 {
+    @apply grid;
+
+    grid-template-columns: 1fr 1fr;
+    column-gap: 36px;
+
+    /* The last row of the grid, not just the last cell, is the one without a rule. */
+    > .fls_row:nth-last-child(-n + 2):nth-child(odd),
+    > .fls_row:nth-last-child(-n + 2):nth-child(odd) + .fls_row {
+        @apply border-b-0;
+    }
+
+    > .fls_row .fls_row_label {
+        max-width: none;
+    }
+
+    /* Too narrow to sit two abreast: the descriptions start wrapping to three lines. */
+    @media (max-width: 1180px) {
+        grid-template-columns: 1fr;
+
+        > .fls_row:nth-last-child(2) {
+            @apply border-b border-solid border-hairline;
+        }
+    }
+}
+
+/* ------------------------------------------------------- settings as a sentence */
+
+/*
+ * Two numbers that only mean anything together - an attempt limit and the window it is
+ * counted over - said as the sentence they make rather than as two labelled fields and
+ * a note underneath restating them as a sentence anyway. The value is the sentence
+ * stays true as you type: it is the setting, not a description of it.
+ */
+.fls_sentence {
+    @apply flex flex-wrap items-center text-sm font-medium text-ink;
+
+    gap: 8px;
+    line-height: 2;
+
+    .el-input {
+        width: 88px;
+    }
+
+    .el-input__inner {
+        @apply text-center;
+
+        /*
+         * The spinner is noise in a sentence, and it is not free: Chrome reserves its
+         * width inside the field whether or not it is showing one, which clipped "30"
+         * in a box that measured wide enough for it.
+         */
+        appearance: textfield;
+
+        &::-webkit-outer-spin-button,
+        &::-webkit-inner-spin-button {
+            appearance: none;
+            margin: 0;
+        }
+    }
+
+    /* Wide enough for a day name or an address, still inside the sentence. */
+    &.is_wide .el-input,
+    .el-select {
+        width: 180px;
+    }
+}
+
+/* ------------------------------------------------------------- rules table */
+
+/*
+ * The IP allow and block lists: a text box each, one address to a line.
+ *
+ * Monospaced, because what is being read down the column is an address - proportional
+ * digits make 45.148.10.72 and 45.148.101.72 the same shape, and these are lists people
+ * scan for the line that should not be there.
+ */
+.fls_rules_box {
+    margin: 4px 0 8px;
+
+    .el-textarea__inner {
+        @apply text-sm;
+
+        font-family: Menlo, Consolas, monospace;
+        line-height: 1.7;
+    }
+}
+
+/* --------------------------------------------------------- two-factor methods */
+
+/*
+ * One panel per method, inside a settings card.
+ *
+ * Sunk rather than framed. These used to be white boxes with a hairline border sitting on a
+ * white card, which is four frames deep by the time you count the pane and the card - and
+ * three of them drawn in the same colour at the same weight, so nothing said which box
+ * contained which. Dropping to the sunk surface says "inside" with tone instead of with
+ * another line, and it leaves the border free to mean only one thing: this method is on.
+ */
+.fls_2fa_methods {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.fls_2fa_method {
+    @apply bg-surface-sunk border border-solid;
+
+    border-radius: 6px;
+    border-color: transparent;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: border-color .3s ease;
+
+    &:last-of-type {
+        margin-bottom: 0;
+    }
+
+    /* In force, said with the frame rather than with another badge. */
+    &.fls_2fa_method_on {
+        border-color: var(--fls-success-fg);
+    }
+
+    .fls_2fa_method_head {
+        @apply flex items-start justify-between;
+
+        gap: 20px;
+
+        p {
+            @apply text-xs text-ink-light;
+
+            margin: 2px 0 0;
+            max-width: 680px;
+            line-height: 1.45;
+        }
+
+        .fls_tag {
+            margin-left: 8px;
+        }
+    }
+
+    .fls_2fa_method_body {
+        margin-top: 10px;
+        padding-top: 8px;
+
+        /* The panel is the sunk surface now, so a rule drawn in it is a rule drawn in
+           nothing. */
+        border-top: 1px solid var(--fls-border);
+
+        /*
+         * These fields are laid out with el-form-item rather than as setting rows, because
+         * they sit two abreast inside a method rather than one per line. Element Plus
+         * labels its own items a size larger and darker than a row label, which made the
+         * inside of a method read as more important than the card containing it - so they
+         * are brought back to the same scale as everything else on the page.
+         */
+        .el-form-item {
+            margin-bottom: 8px;
+        }
+
+        .el-form-item__label {
+            @apply text-sm font-medium text-ink;
+
+            line-height: 1.4;
+            padding-bottom: 3px;
+        }
+
+        .el-form-item p {
+            @apply text-xs text-ink-light m-0;
+
+            margin-top: 3px;
+            line-height: 1.45;
+        }
+
+        /* Specific enough to beat the browser's own margin on a `p`. */
+        > .fls_action_note {
+            margin-top: 10px;
+            margin-bottom: 0;
+        }
+    }
+}
+
+/*
+ * Where the authenticator secret is kept, inside the authenticator method's own card.
+ *
+ * Drawn as a band across the foot of the method rather than as a fourth card, because it is
+ * not a method - it is a property of the one above it. The rule at the top is the whole of
+ * that distinction, so it is a border rather than a box.
+ */
+.fls_secret_encryption {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--fls-border);
+
+    .fls_secret_encryption_head {
+        @apply flex items-start justify-between;
+
+        gap: 20px;
+
+        strong {
+            @apply text-sm text-ink;
+        }
+
+        p {
+            @apply text-xs text-ink-light;
+
+            margin: 2px 0 0;
+            max-width: 680px;
+            line-height: 1.45;
+        }
+    }
+
+    .el-alert {
+        margin-top: 10px;
+    }
+
+    /* Every one-line answer under the switch reads at the same size, on or off. */
+    .fls_secret_encryption_on,
+    .fls_secret_encryption_ready,
+    .fls_secret_encryption_note {
+        @apply text-xs text-ink-light;
+
+        margin: 8px 0 0;
+        line-height: 1.5;
+    }
+
+    .fls_secret_encryption_on .fls_tag {
+        margin-right: 6px;
+    }
+
+    .fls_secret_encryption_note a {
+        @apply text-ink-link;
+    }
+
+    .fls_secret_encryption_setup {
+        margin-top: 10px;
+
+        > p {
+            @apply text-xs text-ink-light;
+
+            margin: 0 0 8px;
+            line-height: 1.5;
+        }
+    }
+
+    /*
+     * The line to paste. Monospaced and selectable, with the copy button inside the same
+     * frame - it belongs to this line rather than to the panel, and a button sitting
+     * outside would read as acting on the whole step.
+     */
+    .fls_config_line {
+        /* Raised off the sunk panel it sits in, rather than sunk into it - the panel got
+           there first. */
+        @apply flex items-center justify-between bg-surface rounded-xs border border-solid border-hairline;
+
+        gap: 12px;
+        padding: 8px 8px 8px 12px;
+
+        code {
+            @apply text-xs text-ink;
+
+            background: none;
+            padding: 0;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+    }
+
+    /* Pasting the old key back. Narrow, because the value is long but not read. */
+    .fls_rekey {
+        @apply flex items-center;
+
+        gap: 8px;
+        margin-top: 10px;
+        max-width: 460px;
+    }
+
+    .fls_secret_encryption_actions {
+        @apply flex items-center;
+
+        gap: 4px;
+        margin-top: 10px;
+    }
+
+    /*
+     * The weaker alternative, offered after the two buttons that finish the strong path -
+     * so it needs the gap that says it is a different thought rather than a caption on them.
+     */
+    .fls_secret_encryption_actions + .fls_secret_encryption_note {
+        margin-top: 14px;
+    }
+}
+
+/*
+ * Neither method is on, which is the one state worth saying outright.
+ *
+ * Given the frame it was asking for. A bare red sentence under the last panel read as a
+ * validation error on the panel above it rather than as a verdict on the card - and it was
+ * the only coloured text on the screen with nothing holding it.
+ */
+.fls_2fa_none {
+    @apply text-danger-fg text-xs border border-solid;
+
+    background: var(--fls-danger-wash);
+    border-color: var(--fls-danger-line);
+    border-radius: 6px;
+    padding: 9px 12px;
+    margin: 12px 0 0;
+    line-height: 1.5;
+}
+
+/*
+ * The enrollment table has nothing to list until a method is switched on, so the empty
+ * state stands in for the whole table and is given the room one would have taken.
+ */
+.fls_2fa_prompt {
+    min-height: 260px;
+
+    h3 {
+        @apply text-sm font-medium text-ink m-0;
+
+        margin-top: 4px;
+    }
+
+    p {
+        @apply text-xs text-ink-light;
+
+        max-width: 420px;
+        margin: 6px 0 16px;
+        line-height: 1.6;
+    }
+
+    /* wp-admin puts a focus shadow on the link wrapping the button. */
+    a {
+        box-shadow: none;
+    }
+}
+
+/* ---------------------------------------------------------------- proxy panel */
+
+.fls_proxy {
+    padding-top: 12px;
+    padding-bottom: 12px;
+
+    /* One row is the whole panel; it needs no padding of its own and no rule under it. */
+    &.is_quiet {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    .fls_proxy_headline {
+        margin: 0 0 6px;
+    }
+
+    /*
+     * What the panel worked out about this request. It is prose rather than a setting,
+     * which is why it is a paragraph - but it was the only paragraph on the page still
+     * at body size and body colour, which made the one block that changes nothing look
+     * like the most important thing on the screen.
+     */
+    > p {
+        @apply text-xs text-ink-light;
+
+        line-height: 1.45;
+        max-width: 680px;
+    }
+
+    /* What the server sees, what the plugin made of it, and who it looks like. */
+    .fls_proxy_facts {
+        @apply flex flex-wrap;
+
+        gap: 10px 30px;
+        margin-bottom: 12px;
+
+        code {
+            @apply bg-surface border border-solid border-hairline;
+
+            border-radius: 3px;
+            padding: 1px 6px;
+        }
+    }
+
+    .fls_proxy_headers {
+        margin-bottom: 12px;
+
+        ul {
+            @apply list-none text-ink-mid;
+
+            margin: 4px 0 0;
+            padding: 0;
+            font-size: 12px;
+            word-break: break-all;
+        }
+    }
+
+    /* Specific enough to beat the browser's own margin on a `p`. */
+    > .fls_action_note {
+        margin: 10px 0;
+    }
+}
+
+/* ------------------------------------------------------------------ shortcodes */
+
+/*
+ * A shortcode and the button that copies it.
+ *
+ * Capped, because the control column of a settings row is shrink-to-fit and one of these is
+ * three times the length of the others: uncapped, the magic login shortcode took the width it
+ * wanted and left its own label wrapping down four lines beside it. The cap is on the pair
+ * rather than on the code alone so the Copy button stays on the first line with it.
+ *
+ * The long one then wraps instead of being truncated or scrolled. A shortcode is something
+ * people read to check before they trust it, not only something they press Copy on.
+ */
+.fls_shortcode {
+    @apply flex items-center;
+
+    gap: 10px;
+    max-width: 520px;
+
+    code {
+        /*
+         * Grows from its own content rather than from zero, so the four short shortcodes
+         * still hug their text instead of stretching to the cap - and shrinks past it, so
+         * the long one gives way to the button beside it rather than pushing it onto a
+         * line of its own.
+         */
+        flex: 1 1 auto;
+        min-width: 0;
+
+        /*
+         * Ordinary wrapping first, so the sentence inside the tags breaks at its spaces;
+         * break-all only takes over for a run with nowhere else to go.
+         */
+        word-break: normal;
+        overflow-wrap: break-word;
+        line-height: 1.6;
+    }
+}
+
+/* ------------------------------------------------------------- narrow screens */
+
+/*
+ * A pane pinned to the viewport needs room either side of it to be worth the trade, and
+ * wp-admin moves its own menu off-canvas down here anyway - so the whole screen goes back
+ * to being an ordinary page.
+ */
+@media (max-width: 960px) {
+    .fls_settings {
+        @apply block;
+
+        position: static;
+        overflow: visible;
+    }
+
+    .fls_settings_nav {
+        @apply border-r-0 border-b;
+
+        width: 100%;
+        height: auto;
+
+        > ul {
+            overflow-y: visible;
+        }
+    }
+
+    .fls_settings_body {
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Back to sticking against the page, below the admin bar and the app bar. */
+    .fls_settings_header {
+        top: 88px;
+    }
+
+    .fls_section {
+        scroll-margin-top: 164px;
+    }
+
+    /*
+     * The row is a single flex line rather than a wrapping one, so narrow screens need it
+     * stacked outright - left as it was, the control has nowhere to wrap to and pushes
+     * itself off the right edge of the page.
+     */
+    .fls_row {
+        display: block;
+
+        /*
+         * The flex is on the inner element, so stacking the row itself changed nothing -
+         * the label stayed pinned beside a control squeezed to a couple of characters.
+         */
+        .fls_row_main {
+            display: block;
+        }
+
+        .fls_row_label {
+            max-width: none;
+            margin-bottom: 8px;
+        }
+
+        .fls_row_control {
+            margin-left: 0;
+
+            .el-input,
+            .el-select,
+            .el-textarea {
+                width: 100%;
+            }
+        }
+    }
+}

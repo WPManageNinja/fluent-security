@@ -44,6 +44,7 @@ Entry point: `fluent-security.php` — defines constants, registers a custom PSR
 - `FluentAuth\App\Helpers\` — Helper (settings/utilities), Arr (array ops), Activator (DB migrations), BrowserDetection
 - `FluentAuth\App\Views\` — PHP templates (magic login views, email templates)
 - `src/admin/` — Vue 3 admin SPA (components: Dashboard, Settings, Logs, SocialAuthSettings, AuthCustomizer, ServerMode, SecurityScan, CustomWpEmails)
+- `src/admin/styles/` — all admin CSS. Vue SFCs carry **no** `<style>` blocks; every rule lives in a partial here, listed in load order in `src/admin/app.scss` (which documents the layering). A rule belongs with the screen that renders it, and moves up to `_ui.scss` only once a second screen needs it.
 - `src/public/` — Public-facing JS (magic_url.js, one_tap.js, login_helper.js, login_customizer.scss)
 
 ### Key Patterns

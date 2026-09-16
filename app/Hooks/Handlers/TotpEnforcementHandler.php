@@ -2,21 +2,38 @@
 
 namespace FluentAuth\App\Hooks\Handlers;
 
-use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 
 /**
- * Holds users whose role requires an authenticator app at the door until they have one.
+ * The backstop behind the enrollment step in the login flow.
  *
- * The gate is placed after login rather than during it, and that is the important
- * decision here. Enrolling mid-login would mean pairing a new second factor for
- * whoever just typed the password - so an attacker who had only that could register
- * their own authenticator and lock the real owner out. By the time this runs the user
- * has satisfied every factor the account already had, so the secret is being handed to
- * someone who has already proven they are the account holder.
+ * This class used to be the whole of the rule, and it gated `admin_init` deliberately:
+ * enrolling mid-login means pairing a factor for whoever just typed the password, so an
+ * attacker holding only that could register their own authenticator. Waiting until
+ * after login avoided it.
  *
- * It gates the admin area only. Requiring a second factor to read the front end of a
- * site would be a strange thing to do to a subscriber, and the admin area is what the
- * policy is actually protecting.
+ * That trade has been reversed, knowingly. What it bought was small - an attacker who
+ * has the password is already inside for every purpose except this one - and what it
+ * cost was the enforcement being decorative. A gate on `admin_init` runs after the auth
+ * cookie has been issued, so the user it was holding back already had a working
+ * session: it hid the dashboard from them while REST, XML-RPC and admin-ajax stayed
+ * open, to this plugin and to every other plugin installed. A policy that stops
+ * somebody reading wp-admin while leaving them the whole REST API is not a policy.
+ *
+ * So the rule now lives in EnrollmentTwoFaMethod, before the cookie, where there is no
+ * session to leave open. What remains here is the population that step cannot reach:
+ * users who were already signed in when the requirement was switched on. They hold a
+ * cookie that predates the policy, and until they next sign in this is the only thing
+ * standing in front of them - which is why it refuses the two API surfaces that cookie
+ * still opens, REST and admin-ajax, rather than only the one a person looks at.
+ *
+ * XML-RPC is not among them, and deliberately: it authenticates with a username and
+ * password on every call and carries no cookie, so there is no pre-existing session to
+ * catch. That route is refused during the login itself, by
+ * TwoFaHandler::maybeDenyHeadlessLogin(), which is where it belongs.
+ *
+ * The requirement is read as a factor, not a product: a user who registered a passkey
+ * has met it, and used to be marched off to set up an authenticator app anyway.
  */
 class TotpEnforcementHandler
 {
@@ -24,6 +41,123 @@ class TotpEnforcementHandler
     {
         add_action('admin_init', [$this, 'maybeForceEnrollment'], 1);
         add_action('admin_notices', [$this, 'renderNotice']);
+
+        /*
+         * The surfaces the redirect above can never cover. A cookie issued before the
+         * policy existed authenticates these exactly as it always did, and answering
+         * them with a redirect breaks the caller instead of reaching anybody - so they
+         * are refused outright and told why.
+         *
+         * admin-ajax.php fires `admin_init` of its own (wp-admin/admin-ajax.php) before
+         * dispatching, which is why this can ride the same hook at a lower priority
+         * rather than needing one of its own.
+         */
+        add_action('admin_init', [$this, 'maybeDenyAjax'], 0);
+        add_filter('rest_authentication_errors', [$this, 'maybeDenyRest'], 101);
+    }
+
+    /**
+     * Refuses an admin-ajax call made with a session that owes a device factor.
+     *
+     * Blunt on purpose. There is no way to ask an arbitrary `wp_ajax_` handler how much
+     * authority it exercises, and the population this applies to is both small and
+     * temporary - it empties as those users sign in again - so the safe reading is that
+     * a session which may not use wp-admin may not drive wp-admin's ajax endpoints
+     * either. `fluent_auth/enrollment_permitted_ajax_actions` is the way out for a site
+     * whose front end needs a particular action kept open.
+     *
+     * @return void
+     */
+    public function maybeDenyAjax()
+    {
+        if (!wp_doing_ajax() || !is_user_logged_in()) {
+            return;
+        }
+
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
+
+        if (in_array($action, $this->getPermittedAjaxActions(), true)) {
+            return;
+        }
+
+        if (!$this->owesDeviceFactor(wp_get_current_user())) {
+            return;
+        }
+
+        wp_send_json([
+            'message' => __('Two-factor authentication must be set up on this account before it can be used.', 'fluent-security')
+        ], 403);
+    }
+
+    /**
+     * The ajax actions that stay open to somebody who still owes a factor.
+     *
+     * Registering a passkey is on the list because it is one of the two ways to satisfy
+     * the very requirement being enforced, and it is driven entirely over ajax from the
+     * profile screen - closing it would leave a user told to set up a second factor and
+     * refused the means to do it. The heartbeat is on it because refusing that produces
+     * console noise on every page and protects nothing.
+     *
+     * @return array
+     */
+    private function getPermittedAjaxActions()
+    {
+        return (array)apply_filters('fluent_auth/enrollment_permitted_ajax_actions', [
+            'fluent_auth_passkey_options',
+            'fluent_auth_passkey_register',
+            'heartbeat'
+        ]);
+    }
+
+    /**
+     * Refuses a REST request made with a session that owes a device factor.
+     *
+     * Runs at 101, *after* core's rest_cookie_check_errors() at 100, and the ordering is
+     * the whole correctness of this function. Core treats a REST request that carries a
+     * login cookie but no `_wpnonce` / `X-WP-Nonce` as anonymous: it calls
+     * wp_set_current_user(0) and returns true. Ahead of that, is_user_logged_in() still
+     * answers yes, so an ordinary nonce-less fetch against a *public* endpoint - the kind
+     * a theme makes on the front end - would come back 403 for this user and nobody else.
+     * Behind it, the current user is already zero for exactly those requests, so asking
+     * the question here asks it of a session core has agreed is really being used.
+     *
+     * An error raised by something else is handed back untouched rather than replaced,
+     * and an application password is left alone to stay consistent with
+     * TwoFaHandler::maybeDenyHeadlessLogin(), which exempts them and defers to the
+     * plugin's own `disable_app_login` switch instead.
+     *
+     * @param $result \WP_Error|null|true
+     * @return \WP_Error|null|true
+     */
+    public function maybeDenyRest($result)
+    {
+        // Somebody else's refusal, and theirs to explain.
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        if (function_exists('rest_get_authenticated_app_password') && rest_get_authenticated_app_password()) {
+            return $result;
+        }
+
+        if (!is_user_logged_in() || !$this->owesDeviceFactor(wp_get_current_user())) {
+            return $result;
+        }
+
+        return new \WP_Error(
+            'fls_2fa_enrollment_required',
+            __('Two-factor authentication must be set up on this account before it can be used. Please sign in again to finish.', 'fluent-security'),
+            ['status' => 403]
+        );
+    }
+
+    /**
+     * @param $user \WP_User|false
+     * @return bool
+     */
+    private function owesDeviceFactor($user)
+    {
+        return $user instanceof \WP_User && DeviceRequirement::isOwedBy($user);
     }
 
     /**
@@ -66,7 +200,7 @@ class TotpEnforcementHandler
         <div class="notice notice-warning">
             <p>
                 <strong><?php esc_html_e('Two-factor authentication is required for your account.', 'fluent-security'); ?></strong>
-                <?php esc_html_e('Set up an authenticator app below to continue using the admin area.', 'fluent-security'); ?>
+                <?php esc_html_e('Set up an authenticator app below to continue. Until you do, this account cannot use the admin area or the site APIs.', 'fluent-security'); ?>
             </p>
         </div>
         <?php
@@ -104,13 +238,7 @@ class TotpEnforcementHandler
             return false;
         }
 
-        $user = wp_get_current_user();
-
-        if (TotpTwoFaMethod::isEnrolled($user)) {
-            return false;
-        }
-
-        return TotpTwoFaMethod::isRequiredForUser($user);
+        return $this->owesDeviceFactor(wp_get_current_user());
     }
 
     /**

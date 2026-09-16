@@ -5,6 +5,7 @@ namespace FluentAuth\Tests\Unit;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 /**
  * The emailed 2FA code is only ~800k possible values, so the number of guesses
@@ -16,9 +17,17 @@ class TwoFaHandlerTest extends BaseTestCase
 
     private $user;
 
+    private $serverBackup = [];
+
     public function setUp(): void
     {
         parent::setUp();
+
+        foreach (['REQUEST_METHOD', 'HTTP_HOST', 'REQUEST_URI'] as $key) {
+            if (array_key_exists($key, $_SERVER)) {
+                $this->serverBackup[$key] = $_SERVER[$key];
+            }
+        }
 
         global $wpdb;
         $wpdb->query("DELETE FROM {$wpdb->prefix}fls_auth_logs");
@@ -41,7 +50,51 @@ class TwoFaHandlerTest extends BaseTestCase
     public function tearDown(): void
     {
         unset($_REQUEST['login_passcode'], $_REQUEST['login_hash']);
+        unset($_REQUEST['redirect_to'], $_REQUEST['redirect'], $_REQUEST['_is_fls_form']);
+        unset($_COOKIE[TwoFaHandler::PENDING_COOKIE], $_COOKIE[LOGGED_IN_COOKIE]);
+        unset($_SERVER['HTTP_REFERER']);
+        foreach (['REQUEST_METHOD', 'HTTP_HOST', 'REQUEST_URI'] as $key) {
+            if (array_key_exists($key, $this->serverBackup)) {
+                $_SERVER[$key] = $this->serverBackup[$key];
+            } else {
+                unset($_SERVER[$key]);
+            }
+        }
         parent::tearDown();
+    }
+
+    private function pendingRowFor($user)
+    {
+        return flsDb()->table('fls_login_hashes')
+            ->where('user_id', $user->ID)
+            ->where('status', 'issued')
+            ->orderBy('id', 'DESC')
+            ->first();
+    }
+
+    /**
+     * @return string|null where it tried to send the user, or null if it did not
+     */
+    private function captureRedirect($callback)
+    {
+        $captured = null;
+
+        $catch = function ($location) use (&$captured) {
+            $captured = $location;
+            throw new \RuntimeException('redirected');
+        };
+
+        add_filter('wp_redirect', $catch);
+
+        try {
+            $callback();
+        } catch (\RuntimeException $e) {
+            // Expected: this is how the exit() below the redirect is escaped.
+        } finally {
+            remove_filter('wp_redirect', $catch);
+        }
+
+        return $captured;
     }
 
     public function throwingDieHandler()
@@ -52,7 +105,7 @@ class TwoFaHandlerTest extends BaseTestCase
     }
 
     /**
-     * verify2FaEmailCode() terminates through wp_send_json(); capture what it emitted.
+     * verifyChallenge() terminates through wp_send_json(); capture what it emitted.
      */
     private function verify($code, $hash)
     {
@@ -64,7 +117,7 @@ class TwoFaHandlerTest extends BaseTestCase
 
         ob_start();
         try {
-            $this->handler->verify2FaEmailCode();
+            $this->handler->verifyChallenge();
         } catch (\WPDieException $e) {
             // expected: wp_send_json() ends the request
         }
@@ -102,6 +155,478 @@ class TwoFaHandlerTest extends BaseTestCase
         return flsDb()->table('fls_login_hashes')->where('login_hash', $hash)->first();
     }
 
+    /*
+     * Logins with nowhere to show the challenge.
+     *
+     * A theme's popup form posts to admin-ajax.php and expects JSON of its own shape;
+     * REST and XML-RPC callers cannot follow a redirect to a form. Those used to be let
+     * straight through, which made every one of them a way around the second factor.
+     */
+
+    private function withHeadlessAjax(callable $fn)
+    {
+        unset($_REQUEST['_is_fls_form']);
+        add_filter('wp_doing_ajax', '__return_true');
+
+        try {
+            return $fn();
+        } finally {
+            remove_filter('wp_doing_ajax', '__return_true');
+        }
+    }
+
+    public function testAnotherPluginsAjaxLoginIsRefusedWhileASecondFactorIsOwed()
+    {
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+    }
+
+    public function testAnAjaxLoginThroughTheWholeChainDoesNotSetTheCookie()
+    {
+        $user = $this->factory->user->create_and_get([
+            'role'      => 'administrator',
+            'user_pass' => 'correct horse battery staple',
+        ]);
+
+        $result = $this->withHeadlessAjax(function () use ($user) {
+            return wp_signon([
+                'user_login'    => $user->user_login,
+                'user_password' => 'correct horse battery staple',
+            ]);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+
+        global $wpdb;
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}fls_auth_logs WHERE user_id = %d",
+            $user->ID
+        ));
+
+        // Neither a success (it was not) nor a failure (the password was right).
+        $this->assertSame([], $rows);
+    }
+
+    public function testThePluginsOwnAjaxFormIsNotRefused()
+    {
+        $_REQUEST['_is_fls_form'] = 'yes';
+        add_filter('wp_doing_ajax', '__return_true');
+
+        try {
+            $result = $this->handler->maybeDenyHeadlessLogin($this->user);
+        } finally {
+            remove_filter('wp_doing_ajax', '__return_true');
+            unset($_REQUEST['_is_fls_form']);
+        }
+
+        $this->assertSame($this->user, $result);
+    }
+
+    public function testAHeadlessRefusalRaisesTheChallengeAndHandsOverTheLink()
+    {
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+
+        $row = $this->pendingRowFor($this->user);
+        $this->assertNotNull($row, 'The code should have been issued, not just refused');
+        $this->assertSame('email_2_fa', $row->use_type);
+
+        $url = $result->get_error_data()['challenge_url'];
+        $this->assertStringContainsString('action=' . TwoFaService::LOGIN_ACTION, $url);
+        $this->assertStringContainsString('login_hash=' . $row->login_hash, $url);
+
+        // A browser gets a link it can click...
+        $this->assertStringContainsString('<a href="', $result->get_error_message());
+        $this->assertStringContainsString('emailed you a login code', $result->get_error_message());
+
+        // ...and a page reload is caught by the cookie.
+        $this->assertSame($row->login_hash, $_COOKIE[TwoFaHandler::PENDING_COOKIE]);
+    }
+
+    /**
+     * The screen and its endpoint are reachable only under the current names - the ones
+     * that shipped in 2.1.0 were replaced rather than joined. A hook name is a string
+     * nothing else checks, so a typo in one would leave a challenge with no way to be
+     * answered and nothing failing until somebody tried to log in.
+     */
+    public function testTheChallengeRouteIsRegisteredUnderItsOwnNameOnly()
+    {
+        $this->assertNotFalse(has_action('login_form_' . TwoFaService::LOGIN_ACTION));
+        $this->assertNotFalse(has_action('wp_ajax_nopriv_' . TwoFaService::AJAX_ACTION));
+        $this->assertNotFalse(has_action('wp_ajax_' . TwoFaService::AJAX_ACTION));
+
+        $this->assertFalse(has_action('login_form_fls_2fa_email'));
+        $this->assertFalse(has_action('wp_ajax_nopriv_fluent_auth_2fa_email'));
+        $this->assertFalse(has_action('wp_ajax_fluent_auth_2fa_email'));
+
+        $this->assertFalse(method_exists($this->handler, 'verify2FaEmailCode'));
+        $this->assertTrue(method_exists($this->handler, 'verifyChallenge'));
+    }
+
+    /**
+     * One shape, used by the redirect and by the emailed auto-login link alike.
+     */
+    public function testTheChallengeUrlIsShapedInOnePlace()
+    {
+        $url = TwoFaService::getChallengeUrl('abc');
+
+        $this->assertStringContainsString('action=' . TwoFaService::LOGIN_ACTION, $url);
+        $this->assertStringContainsString('fls_2fa=' . TwoFaService::CHALLENGE_MARKER, $url);
+        $this->assertStringContainsString('login_hash=abc', $url);
+
+        $withCode = TwoFaService::getChallengeUrl('abc', ['auto_code' => '123456']);
+
+        $this->assertStringContainsString('auto_code=123456', $withCode);
+        $this->assertStringContainsString('action=' . TwoFaService::LOGIN_ACTION, $withCode);
+    }
+
+    public function testAPlainTextHandoffCarriesAUsableUrl()
+    {
+        // Not ajax and not a page: what a REST client would be shown.
+        $result = $this->handler->maybeDenyHeadlessLogin($this->user);
+        $this->assertSame($this->user, $result, 'A page login is left to the redirect');
+
+        $method = new \ReflectionMethod($this->handler, 'getHandoffMessage');
+        $method->setAccessible(true);
+        $url = \FluentAuth\App\Services\TwoFa\TwoFaService::getChallengeUrl('abc');
+
+        add_filter('wp_doing_ajax', '__return_true');
+        try {
+            $html = $method->invoke($this->handler, new \FluentAuth\App\Services\TwoFa\EmailTwoFaMethod(), $url);
+        } finally {
+            remove_filter('wp_doing_ajax', '__return_true');
+        }
+        $this->assertStringContainsString('href="' . esc_url($url) . '"', $html);
+
+        $plain = $method->invoke($this->handler, new \FluentAuth\App\Services\TwoFa\EmailTwoFaMethod(), $url);
+        $this->assertStringContainsString('login_hash=abc&action=fls_2fa_verify', $plain);
+        $this->assertStringNotContainsString('&#038;', $plain);
+        $this->assertStringNotContainsString('<a ', $plain);
+    }
+
+    public function testTheChallengeRemembersWhereTheLoginCameFrom()
+    {
+        // WooCommerce sends `redirect`.
+        $_REQUEST['redirect'] = home_url('/my-account/');
+        $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+        $this->assertSame(home_url('/my-account/'), $this->pendingRowFor($this->user)->redirect_intend);
+
+        // An off-site target is ignored and the page the form was on is used instead.
+        unset($_REQUEST['redirect']);
+        $_REQUEST['redirect_to'] = 'https://evil.example/steal';
+        $_SERVER['HTTP_REFERER'] = home_url('/community/');
+        $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+        $this->assertSame(home_url('/community/'), $this->pendingRowFor($this->user)->redirect_intend);
+
+        // Coming from the login screen itself is no destination at all.
+        unset($_REQUEST['redirect_to']);
+        $_SERVER['HTTP_REFERER'] = wp_login_url();
+        $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+        $this->assertSame('', $this->pendingRowFor($this->user)->redirect_intend);
+    }
+
+    /*
+     * The auth cookie itself.
+     */
+
+    public function testADirectlySetAuthCookieIsWithheldWhileASecondFactorIsOwed()
+    {
+        $send = $this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID);
+
+        $this->assertFalse($send);
+        $this->assertTrue(TwoFaHandler::hasWithheldCookiesFor($this->user->ID));
+
+        $row = $this->pendingRowFor($this->user);
+        $this->assertNotNull($row, 'The challenge is raised so the next page can show it');
+        $this->assertSame($row->login_hash, $_COOKIE[TwoFaHandler::PENDING_COOKIE]);
+
+        // The plugin that set the cookie goes on to announce a login that did not happen.
+        do_action('wp_login', $this->user->user_login, $this->user);
+
+        $success = flsDb()->table('fls_auth_logs')
+            ->where('user_id', $this->user->ID)
+            ->where('status', 'success')
+            ->count();
+        $this->assertSame(0, $success);
+    }
+
+    public function testTheCookieGoesThroughTheWholeStackForADirectSetter()
+    {
+        // The test library refuses every cookie up front; step out of its way so ours
+        // is the filter that decides. Headers are long gone, so nothing is actually sent.
+        remove_filter('send_auth_cookies', '__return_false');
+
+        try {
+            // What FluentCommunity, FluentCart and WooCommerce do after their own checks.
+            wp_set_auth_cookie($this->user->ID);
+        } finally {
+            add_filter('send_auth_cookies', '__return_false');
+        }
+
+        $this->assertTrue(TwoFaHandler::hasWithheldCookiesFor($this->user->ID));
+        $this->assertNotNull($this->pendingRowFor($this->user));
+    }
+
+    public function testAnAuthCookieForAnAccountOwingNothingIsSent()
+    {
+        $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $subscriber->ID));
+        $this->assertFalse(TwoFaHandler::hasWithheldCookiesFor($subscriber->ID));
+    }
+
+    public function testAnAuthCookieReissuedToWhoeverIsAlreadySignedInIsSent()
+    {
+        // What core does on the way in when the request carries a valid cookie.
+        do_action('auth_cookie_valid', [], $this->user);
+
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    public function testACookieMintedInThisRequestCannotVouchForItself()
+    {
+        // A plugin signs the user in, writes the new cookie into $_COOKIE, and something
+        // validates it - all inside the same request. That is not an arrival.
+        $this->handler->rememberCookieUser('minted', 0, 0, $this->user->ID);
+        do_action('auth_cookie_valid', [], $this->user);
+        $_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($this->user->ID, time() + 3600, 'logged_in');
+
+        $this->assertFalse($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNotNull($this->pendingRowFor($this->user));
+    }
+
+    public function testAnAdministratorMaySwitchIntoAnotherAccountWithoutItsSecondFactor()
+    {
+        $admin = $this->factory->user->create_and_get(['role' => 'administrator']);
+        do_action('auth_cookie_valid', [], $admin);
+
+        // User Switching, "login as customer": a cookie for somebody else.
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNull($this->pendingRowFor($this->user), 'No code is mailed to the account being entered');
+    }
+
+    public function testSomeoneWhoCannotEditTheAccountGetsNoSuchPass()
+    {
+        $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        do_action('auth_cookie_valid', [], $subscriber);
+
+        $this->assertFalse($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+    }
+
+    public function testReCheckingThePasswordOfWhoeverIsAlreadySignedInIsNotRefused()
+    {
+        do_action('auth_cookie_valid', [], $this->user);
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertSame($this->user, $result);
+        $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    public function testAnApplicationPasswordLoginIsNotRefused()
+    {
+        // XML-RPC with an application password reaches the authenticate chain too.
+        $this->handler->rememberAppPasswordAuth();
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertSame($this->user, $result);
+    }
+
+    public function testACookieRenewedAfterThisRequestsOwnCookieDiedIsStillSent()
+    {
+        // The request arrived signed in: core validated the cookie and said so.
+        do_action('auth_cookie_valid', [], $this->user);
+
+        // Then the password changed / the recovery sweep ran - the old cookie is dead.
+        \WP_Session_Tokens::destroy_all_for_all_users();
+        unset($_COOKIE[LOGGED_IN_COOKIE]);
+
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    public function testClearingCookiesIsNeverInterferedWith()
+    {
+        // wp_clear_auth_cookie() runs the same filter with no user.
+        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, 0));
+    }
+
+    public function testTheCookieCheckCanBeSwitchedOffByFilter()
+    {
+        add_filter('fluent_auth/enforce_2fa_on_auth_cookie', '__return_false');
+
+        try {
+            $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
+        } finally {
+            remove_filter('fluent_auth/enforce_2fa_on_auth_cookie', '__return_false');
+        }
+    }
+
+    /*
+     * Picking the challenge up on the next page.
+     */
+
+    private function raisePendingChallenge()
+    {
+        $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        return $this->pendingRowFor($this->user);
+    }
+
+    private function arriveAt($path, $method = 'GET')
+    {
+        wp_set_current_user(0);
+        $_SERVER['REQUEST_METHOD'] = $method;
+        $_SERVER['HTTP_HOST'] = parse_url(home_url(), PHP_URL_HOST);
+        $_SERVER['REQUEST_URI'] = $path;
+    }
+
+    public function testAPendingChallengeIsShownOnTheNextPageAndReturnsThere()
+    {
+        $row = $this->raisePendingChallenge();
+        $this->assertSame('', $row->redirect_intend);
+
+        $this->arriveAt('/community/');
+
+        $sentTo = $this->captureRedirect(function () {
+            $this->handler->maybeResumePendingChallenge();
+        });
+
+        $this->assertNotNull($sentTo);
+        $this->assertStringContainsString('login_hash=' . $row->login_hash, $sentTo);
+
+        // Where they were going becomes where they come back to.
+        $this->assertSame(home_url('/community/'), $this->pendingRowFor($this->user)->redirect_intend);
+
+        // One shot.
+        $this->assertArrayNotHasKey(TwoFaHandler::PENDING_COOKIE, $_COOKIE);
+    }
+
+    public function testResumingFromTheLoginScreenKeepsTheAdminPageAskedFor()
+    {
+        $row = $this->raisePendingChallenge();
+        $this->assertSame('', $row->redirect_intend);
+
+        // auth_redirect() sent them to wp-login.php?redirect_to=... first.
+        $this->arriveAt('/wp-login.php');
+        $GLOBALS['pagenow'] = 'wp-login.php';
+        $_REQUEST['redirect_to'] = admin_url('edit.php');
+
+        try {
+            $sentTo = $this->captureRedirect(function () {
+                $this->handler->maybeResumePendingChallenge();
+            });
+        } finally {
+            $GLOBALS['pagenow'] = 'index.php';
+            unset($_REQUEST['redirect_to']);
+        }
+
+        $this->assertNotNull($sentTo);
+        $this->assertSame(admin_url('edit.php'), $this->pendingRowFor($this->user)->redirect_intend);
+    }
+
+    public function testAKnownDestinationIsNotOverwrittenOnResume()
+    {
+        $_REQUEST['redirect'] = home_url('/my-account/');
+        $row = $this->raisePendingChallenge();
+        unset($_REQUEST['redirect']);
+
+        $this->arriveAt('/checkout/');
+        $this->captureRedirect(function () {
+            $this->handler->maybeResumePendingChallenge();
+        });
+
+        $this->assertSame(home_url('/my-account/'), $this->pendingRowFor($this->user)->redirect_intend);
+    }
+
+    public function testAPendingChallengeIsNotResumedForSomeoneAlreadySignedIn()
+    {
+        $this->raisePendingChallenge();
+
+        $this->arriveAt('/community/');
+        wp_set_current_user($this->user->ID);
+
+        $sentTo = $this->captureRedirect(function () {
+            $this->handler->maybeResumePendingChallenge();
+        });
+
+        $this->assertNull($sentTo);
+        $this->assertArrayNotHasKey(TwoFaHandler::PENDING_COOKIE, $_COOKIE, 'Nothing left to resume');
+    }
+
+    public function testAPendingChallengeIsNotResumedOnAFormPost()
+    {
+        $this->raisePendingChallenge();
+
+        $this->arriveAt('/community/', 'POST');
+
+        $this->assertNull($this->captureRedirect(function () {
+            $this->handler->maybeResumePendingChallenge();
+        }));
+        $this->assertArrayHasKey(TwoFaHandler::PENDING_COOKIE, $_COOKIE, 'Still waiting for a page load');
+    }
+
+    public function testAStaleCookieIsDroppedQuietly()
+    {
+        $_COOKIE[TwoFaHandler::PENDING_COOKIE] = 'no-such-hash';
+
+        $this->arriveAt('/community/');
+
+        $this->assertNull($this->captureRedirect(function () {
+            $this->handler->maybeResumePendingChallenge();
+        }));
+        $this->assertArrayNotHasKey(TwoFaHandler::PENDING_COOKIE, $_COOKIE);
+    }
+
+    public function testAnOrdinaryPageLoginIsLeftToTheRedirect()
+    {
+        unset($_REQUEST['_is_fls_form']);
+
+        $this->assertSame($this->user, $this->handler->maybeDenyHeadlessLogin($this->user));
+    }
+
+    public function testAnAccountThatOwesNoSecondFactorIsNotRefused()
+    {
+        $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        $result = $this->withHeadlessAjax(function () use ($subscriber) {
+            return $this->handler->maybeDenyHeadlessLogin($subscriber);
+        });
+
+        $this->assertSame($subscriber, $result);
+    }
+
+    public function testAnErrorFromEarlierInTheChainPassesThrough()
+    {
+        $error = new \WP_Error('incorrect_password', 'nope');
+
+        $result = $this->withHeadlessAjax(function () use ($error) {
+            return $this->handler->maybeDenyHeadlessLogin($error);
+        });
+
+        $this->assertSame($error, $result);
+    }
+
     public function testACorrectCodeIsAccepted()
     {
         $issued = $this->issueCode();
@@ -110,6 +635,15 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $this->assertArrayHasKey('redirect', $response);
         $this->assertSame('used', $this->hashRow($issued['hash'])->status);
+
+        // The log should say how they got in, not "web" as if the code never happened.
+        $row = flsDb()->table('fls_auth_logs')
+            ->where('user_id', $this->user->ID)
+            ->where('status', 'success')
+            ->first();
+        $this->assertNotNull($row);
+        $this->assertSame('two_factor_email', $row->media);
+        $this->assertSame('Email code', Helper::getLoginMediaLabel($row->media));
     }
 
     public function testAWrongCodeIsRejectedAndCounted()

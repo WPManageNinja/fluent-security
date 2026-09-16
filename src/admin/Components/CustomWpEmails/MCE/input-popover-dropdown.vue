@@ -16,6 +16,11 @@
                             :data-item_index="item_index"
                             :key="item_index"
                             :class="(activeIndex == item_index) ? 'active_item_selected' : ''"
+                            role="tab"
+                            tabindex="0"
+                            :aria-selected="activeIndex == item_index ? 'true' : 'false'"
+                            @keydown.enter.prevent="activeIndex = item_index"
+                            @keydown.space.prevent="activeIndex = item_index"
                             @click="activeIndex = item_index">
                             {{ item.title }}
                         </li>
@@ -29,7 +34,12 @@
                     <div v-for="(item,current_index) in data" :key="current_index">
                         <ul v-show="activeIndex == current_index"
                             :class="'el_pop_body_item_'+current_index">
-                            <li @click="insertShortcode(code)" v-for="(label,code) in item.shortcodes" :key="code">
+                            <li v-for="(label,code) in item.shortcodes" :key="code"
+                                        role="button"
+                                        tabindex="0"
+                                        @keydown.enter.prevent="insertShortcode(code)"
+                                        @keydown.space.prevent="insertShortcode(code)"
+                                        @click="insertShortcode(code)">
                                 {{ label }}<span>{{ code }}</span>
                             </li>
                         </ul>
@@ -104,106 +114,3 @@ export default {
     }
 }
 </script>
-
-<style lang="scss">
-.fcrm-smartcodes-popover {
-    padding: 0;
-    border-radius: 8px;
-    .el_pop_data_group {
-        overflow: hidden;
-        display: flex;
-        * {
-            box-sizing: border-box;
-        }
-        .pop_doc {
-            left: 0;
-            bottom: 0;
-            width: 100%;
-            padding: 0;
-            a {
-                background: var(--fls-surface-raised);
-                color: var(--fls-text);
-                text-align: center;
-                display: block;
-                padding: 4px 5px;
-                border-radius: 4px;
-                transition: .2s;
-                &:hover {
-                    background: var(--fls-text);
-                    color: #ffffff;
-                }
-            }
-        }
-
-        .el_pop_data_headings {
-            width: 190px;
-            background: var(--fls-surface-sunk);
-            border-radius: 8px;
-            padding: 10px;
-            position: relative;
-
-            ul {
-                padding: 0;
-                margin: 10px 0 0 0;
-
-                li {
-                    cursor: pointer;
-                    color: var(--fls-text);
-                    font-size: 13px;
-                    padding: 6px 8px;
-                    border-radius: 4px;
-                    margin-bottom: 4px;
-                    position: relative;
-                    transition: .2s;
-
-                    &.active_item_selected {
-                        background: var(--fls-text);
-                        color: #ffffff;
-                    }
-                }
-            }
-        }
-
-        .el_pop_data_body {
-            background: var(--fls-surface);
-            padding: 14px 20px 0 20px;
-            width: 370px;
-            height: 400px;
-            overflow: auto;
-            border-radius: 0 10px 10px 0;
-
-            ul {
-                padding: 0;
-                margin: 0;
-
-                li {
-                    color: black;
-                    padding: 12px 10px 12px 10px;
-                    display: block;
-                    margin-bottom: 0;
-                    cursor: pointer;
-                    text-align: left;
-                    border-bottom: 1px solid var(--fls-border);
-                    &:first-child {
-                        padding-top: 0;
-                    }
-                    &:last-child {
-                        border-bottom: none;
-                    }
-
-                    &:hover {
-                        background: var(--fls-surface);
-                    }
-
-                    span {
-                        font-size: 11px;
-                        color: #8e8f90;
-                        margin: 2px 0 0 0;
-                        display: block;
-                    }
-                }
-            }
-        }
-    }
-}
-</style>

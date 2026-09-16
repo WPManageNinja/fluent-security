@@ -2,6 +2,7 @@
 
 namespace FluentAuth\App\Hooks\Handlers;
 
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
 /**
@@ -132,16 +133,31 @@ class TotpNudgeHandler
             return false;
         }
 
-        if (!TotpTwoFaMethod::isAllowedForUser($user) || TotpTwoFaMethod::isEnrolled($user)) {
+        if (!TotpTwoFaMethod::isAllowedForUser($user)) {
             return false;
         }
 
         /*
-         * Left to the enforcement gate. It sends the same people to the same screen with
-         * no way past it, and offering "not now" first would only teach them that there
-         * is one.
+         * Asked as a factor rather than as this one method, so somebody who registered a
+         * passkey is left alone. They hold the thing an authenticator app would prove;
+         * being offered one after every login reads as the site not noticing.
+         *
+         * hasDeviceFactor() rather than isSatisfiedBy(), because this is not one of the
+         * people the requirement is about. isSatisfiedBy() answers against the configured
+         * floor, so at `any` it would count an emailed code - and relaxing a setting that
+         * is labelled as being about required roles would silently stop every ordinary
+         * user with email codes ever being offered an app.
          */
-        if (TotpTwoFaMethod::isRequiredForUser($user)) {
+        if (DeviceRequirement::hasDeviceFactor($user)) {
+            return false;
+        }
+
+        /*
+         * Left to the rule that has no way past it - which is now the enrollment step in
+         * the login flow, and the enforcement handler behind it for sessions that predate
+         * the policy. Offering "not now" first would only teach them there is one.
+         */
+        if (DeviceRequirement::isRequiredForUser($user)) {
             return false;
         }
 

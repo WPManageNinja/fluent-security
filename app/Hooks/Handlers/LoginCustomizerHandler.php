@@ -5,6 +5,8 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
+use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 class LoginCustomizerHandler
 {
@@ -317,6 +319,9 @@ class LoginCustomizerHandler
             return false;
         }
 
+        // The mailbox has just been proven; the sign in that follows may rely on it.
+        Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
+
         $validationErrors = $this->validateRegistrationData($_POST);
         if ($validationErrors->has_errors()) {
             foreach ($validationErrors->get_error_codes() as $code) {
@@ -459,8 +464,8 @@ class LoginCustomizerHandler
              * login form is, so a site that has dressed its login page should not drop
              * somebody onto bare WordPress grey halfway through the process.
              */
-            'fls_2fa_email',
-            TotpSetupPageHandler::LOGIN_ACTION
+            TotpSetupPageHandler::LOGIN_ACTION,
+            TwoFaService::LOGIN_ACTION
         );
 
         if (!in_array($action, $default_actions, true)) {

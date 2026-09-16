@@ -92,6 +92,7 @@ export default {
                 <div class="fls_scan_file_actions">
                     <el-dropdown trigger="click" @command="toggleIgnore">
                         <button type="button" class="fls_icon_btn" :title="$t('More')"
+                                :aria-label="$t('More actions for this folder')" aria-haspopup="menu"
                                 v-html="icons.more"></button>
                         <template #dropdown>
                             <el-dropdown-menu>

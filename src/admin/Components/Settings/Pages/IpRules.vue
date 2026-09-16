@@ -11,6 +11,11 @@ import SettingsCard from '../_SettingsCard.vue';
  * saved thing inside that form is how you end up with a Save button that saves some of
  * what is on screen.
  *
+ * A text box per list, one address to a line. The question each list answers is "which
+ * addresses?", and a row of fields per entry turns answering it into a form to fill in -
+ * you cannot paste six addresses in from a log, and you have to decide what to call each
+ * one before you can add it.
+ *
  * The two lists are shown as one screen but they are not the same kind of thing, and the
  * copy says so: an allow list entry skips the attempt limit and nothing else.
  */
@@ -21,21 +26,15 @@ export default {
         return {
             loading: true,
             saving: false,
-            rules: {allow: [], block: []},
+            allow: '',
+            block: '',
             restricted_roles: [],
             roles: [],
             current_ip: '',
+            current_ip_listed: false,
             allow_paused: false,
+            restrictions_off: false,
             max_entries: 200
-        }
-    },
-    computed: {
-        /*
-         * The restriction is refused unless the address you are reading this from is on the
-         * list, so the screen says whether it is before you turn it on rather than after.
-         */
-        currentIpIsAllowed() {
-            return this.rules.allow.some(row => row.is_current && !row.is_expired);
         }
     },
     methods: {
@@ -54,33 +53,31 @@ export default {
                 });
         },
         applyState(state) {
-            this.rules = state.rules;
+            /*
+             * Redrawn from what the server stored rather than left as typed, so a range
+             * that was normalised or a line that was a duplicate shows as what it became.
+             */
+            this.allow = state.rules.allow.join('\n');
+            this.block = state.rules.block.join('\n');
             this.restricted_roles = state.restricted_roles;
             this.roles = state.roles;
             this.current_ip = state.current_ip;
+            this.current_ip_listed = state.current_ip_listed;
             this.allow_paused = state.allow_paused;
+            this.restrictions_off = state.restrictions_off;
             this.max_entries = state.max_entries;
         },
-        addRow(type) {
-            this.rules[type].push({ip: '', label: '', expires_at: '', is_expired: false, is_current: false});
-        },
-        removeRow(type, index) {
-            this.rules[type].splice(index, 1);
-        },
-        /* The current address, prefilled - it is the one people came here to add. */
+        /* The current address, appended - it is the one people came here to add. */
         addCurrentIp() {
-            this.rules.allow.push({
-                ip: this.current_ip,
-                label: this.$t('This computer'),
-                expires_at: '',
-                is_expired: false,
-                is_current: true
-            });
+            this.allow = (this.allow.trim() + '\n' + this.current_ip).trim();
         },
         saveRules() {
             this.saving = true;
 
-            this.$post('ip-rules', {rules: this.rules, restricted_roles: this.restricted_roles})
+            this.$post('ip-rules', {
+                rules: {allow: this.allow, block: this.block},
+                restricted_roles: this.restricted_roles
+            })
                 .then(response => {
                     this.$notify.success(response.message);
                     this.applyState(response);
@@ -106,12 +103,23 @@ export default {
                         :saving="saving" :disabled="loading" @save="saveRules()"/>
 
         <div class="fls_settings_content" v-loading="loading">
+            <!--
+                First thing on the screen, because a list that is not being applied looks
+                exactly like one that is. Whoever added the constant to get back in is the
+                same person who will later wonder why their block list does nothing.
+            -->
+            <el-alert v-if="restrictions_off" type="warning" :closable="false" show-icon
+                      class="fls_row_alert"
+                      :title="$t('Address rules are switched off in wp-config.php')">
+                {{ $t('%s is set, so nothing is being refused by address: the block list is not applied and neither is the role restriction below. Remove the constant once the lists are right again.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+            </el-alert>
+
             <SettingsCard :title="$t('Allow list')"
                           :description="$t('These addresses are never locked out by the failed attempt limit.')">
                 <!--
-                    Said before the list rather than after it: somebody reading this to decide
-                    whether an allow list is safe should not have to scroll past the box that
-                    adds one to find out what it does not do.
+                    Said before the box rather than after it: somebody reading this to decide
+                    whether an allow list is safe should not have to scroll past the field
+                    that adds one to find out what it does not do.
                 -->
                 <p class="fls_note">
                     {{ $t('Being on this list skips the failed attempt limit and nothing else. It is not a trusted network: two-factor authentication still applies, and every attempt is still written to the log.') }}
@@ -126,51 +134,19 @@ export default {
                     </router-link>
                 </el-alert>
 
-                <table v-if="rules.allow.length" class="fls_rules_table">
-                    <thead>
-                    <tr>
-                        <th>{{ $t('Address or range') }}</th>
-                        <th>{{ $t('What is it for?') }}</th>
-                        <th>{{ $t('Expires') }}</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="(row, index) in rules.allow" :key="'allow' + index"
-                        :class="{is_expired: row.is_expired}">
-                        <td>
-                            <el-input v-model="row.ip" placeholder="203.0.113.4"/>
-                            <span v-if="row.is_current" class="fls_rules_flag">{{ $t('Your address') }}</span>
-                        </td>
-                        <td><el-input v-model="row.label" :placeholder="$t('Office VPN')"/></td>
-                        <td>
-                            <el-date-picker v-model="row.expires_at" type="date" value-format="YYYY-MM-DD"
-                                            :placeholder="$t('Never')" style="width: 100%;"/>
-                            <span v-if="row.is_expired" class="fls_rules_flag is_warning">{{ $t('Expired') }}</span>
-                        </td>
-                        <td class="fls_rules_remove">
-                            <el-button text @click="removeRow('allow', index)">
-                                <span class="dashicons dashicons-trash"></span>
-                            </el-button>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
+                <el-input v-model="allow" type="textarea" :rows="6" spellcheck="false"
+                          class="fls_rules_box" placeholder="203.0.113.4&#10;198.51.100.0/24"/>
 
-                <p v-else class="fls_note">
-                    {{ $t('Nothing is exempt. Your address right now is %s.', current_ip) }}
-                    <a href="#" @click.prevent="addCurrentIp()">{{ $t('Add it to the allow list') }}</a>
+                <p class="fls_note">
+                    {{ $t('One address or range per line, at most %s.', max_entries) }}
+                    <template v-if="current_ip_listed">
+                        {{ $t('Your address right now is %s, which this list covers.', current_ip) }}
+                    </template>
+                    <template v-else>
+                        {{ $t('Your address right now is %s.', current_ip) }}
+                        <a href="#" @click.prevent="addCurrentIp()">{{ $t('Add it') }}</a>
+                    </template>
                 </p>
-
-                <!--
-                    Under the list rather than in the card header: a new row is appended to
-                    the bottom, so this is where it appears and where the cursor already is.
-                -->
-                <div class="fls_rules_add">
-                    <el-button :disabled="rules.allow.length >= max_entries" @click="addRow('allow')">
-                        {{ $t('Add address') }}
-                    </el-button>
-                </div>
             </SettingsCard>
 
             <SettingsCard :title="$t('Restrict sign-in to the allow list')"
@@ -196,61 +172,34 @@ export default {
                     on from an address that is not on the list locks you out of the screen
                     that would let you undo it.
                 -->
-                <el-alert v-if="restricted_roles.length && !currentIpIsAllowed" type="error"
+                <el-alert v-if="restricted_roles.length && !current_ip_listed" type="error"
                           :closable="false" show-icon class="fls_row_alert"
                           :title="$t('Your own address is not on the allow list')">
                     {{ $t('Saving this would lock you out immediately, so it will be refused. Add %s to the allow list first.', current_ip) }}
                 </el-alert>
 
                 <p class="fls_note">
-                    {{ $t('If the allow list is ever emptied or every entry expires, the restriction stops applying rather than locking everyone out. A %s constant in wp-config.php turns it off outright.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                    {{ $t('If the allow list is ever emptied, the restriction stops applying rather than locking everyone out. A %s constant in wp-config.php turns it off outright, along with the block list below.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
                 </p>
             </SettingsCard>
 
             <SettingsCard :title="$t('Block list')"
                           :description="$t('These addresses are refused before a password is even checked.')">
-                <table v-if="rules.block.length" class="fls_rules_table">
-                    <thead>
-                    <tr>
-                        <th>{{ $t('Address or range') }}</th>
-                        <th>{{ $t('What is it for?') }}</th>
-                        <th>{{ $t('Expires') }}</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr v-for="(row, index) in rules.block" :key="'block' + index"
-                        :class="{is_expired: row.is_expired}">
-                        <td>
-                            <el-input v-model="row.ip" placeholder="203.0.113.4"/>
-                            <span v-if="row.is_current" class="fls_rules_flag is_danger">
-                                {{ $t('This is your own address') }}
-                            </span>
-                        </td>
-                        <td><el-input v-model="row.label" :placeholder="$t('Brute force source')"/></td>
-                        <td>
-                            <el-date-picker v-model="row.expires_at" type="date" value-format="YYYY-MM-DD"
-                                            :placeholder="$t('Never')" style="width: 100%;"/>
-                            <span v-if="row.is_expired" class="fls_rules_flag is_warning">{{ $t('Expired') }}</span>
-                        </td>
-                        <td class="fls_rules_remove">
-                            <el-button text @click="removeRow('block', index)">
-                                <span class="dashicons dashicons-trash"></span>
-                            </el-button>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
+                <el-input v-model="block" type="textarea" :rows="6" spellcheck="false"
+                          class="fls_rules_box" placeholder="45.148.10.72&#10;45.148.10.0/24"/>
 
-                <p v-else class="fls_note">
-                    {{ $t('Nothing is blocked. The dashboard lists the addresses trying hardest to get in, with a button to block each one.') }}
+                <!--
+                    The one rule on this screen that can be aimed at the person writing it,
+                    so the way back in is written down next to it rather than left to be
+                    found in the documentation of a site they can no longer open.
+                -->
+                <p class="fls_note">
+                    {{ $t('One address or range per line, at most %s. The dashboard lists the addresses trying hardest to get in, with a button to block each one.', max_entries) }}
                 </p>
 
-                <div class="fls_rules_add">
-                    <el-button :disabled="rules.block.length >= max_entries" @click="addRow('block')">
-                        {{ $t('Add address') }}
-                    </el-button>
-                </div>
+                <p class="fls_note">
+                    {{ $t('Your own address cannot be added here - saving refuses it. If you are ever locked out by a rule anyway, because your address changed or somebody else added it, %s in wp-config.php switches every address rule off.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                </p>
             </SettingsCard>
         </div>
     </div>

@@ -15,6 +15,7 @@ export default {
     components: {
         ExtensionRow
     },
+    emits: ['recheck'],
     props: {
         title: {
             type: String,
@@ -173,7 +174,8 @@ export default {
                                :item="item"
                                :ignored-files="ignoredFiles"
                                :ignored-folders="ignoredFolders"
-                               :checking="checkingKeys.includes(item.type + ':' + item.key)"/>
+                               :checking="checkingKeys.includes(item.type + ':' + item.key)"
+                               @recheck="$emit('recheck', $event)"/>
             </ul>
 
             <div v-if="hiddenCount || showAll" class="fls_scan_exts_more">

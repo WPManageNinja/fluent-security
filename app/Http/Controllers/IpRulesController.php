@@ -43,7 +43,7 @@ class IpRulesController
         $ip = sanitize_text_field((string)$request->get_param('ip'));
         $type = sanitize_text_field((string)$request->get_param('type'));
 
-        $result = IpRules::add($type, $ip, sanitize_text_field((string)$request->get_param('label')));
+        $result = IpRules::add($type, $ip);
 
         if (is_wp_error($result)) {
             return $result;

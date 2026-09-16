@@ -72,6 +72,16 @@ class ServerModeHandler
     {
         $token = wp_generate_password(32, false) . '___' . $userId;
         update_user_meta($userId, '__flsc_temp_token', $token);
+        /*
+         * When it was minted, kept beside it rather than inside it: the child site sends the
+         * token back exactly as it received it, so its shape is a protocol both ends agree
+         * on and not somewhere to add a field.
+         *
+         * Without this the token had no expiry at all. It is spent on redemption, so one
+         * that is never redeemed - a redirect somebody closed, a callback that failed - sat
+         * in user meta indefinitely, still good. See SettingsController::validateChildSiteToken.
+         */
+        update_user_meta($userId, '__flsc_temp_token_at', time());
         $tokenData = [
             'fluent_auth_token' => $token
         ];

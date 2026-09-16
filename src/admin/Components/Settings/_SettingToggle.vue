@@ -2,17 +2,22 @@
 /**
  * A setting that is on or off.
  *
- * The switch sits with the label rather than across the row from it, because "on or off"
- * is the whole setting - putting a 40px control at the far end of an 800px row made the
- * eye travel the width of the page to connect a name to its state, and left the row's
- * height to whatever the description happened to wrap to.
+ * Laid out as a `SettingRow` and not as a shape of its own: name and explanation on the
+ * left, the control against the right edge. The switch used to sit beside its label
+ * instead, which read well in a card of nothing but switches and badly in a card that
+ * mixed them with anything else - Notifications alternated sides down its four rows, and
+ * the page had two grammars for "here is a setting". One column of controls down the
+ * right is worth more than each row being individually ideal.
  *
  * `recommend` is the value this ought to have. Nothing is shown while it holds; the note
  * only appears once the setting differs, so it reads as an exception rather than a
  * standing instruction on every row.
  */
+import SettingRow from './_SettingRow.vue';
+
 export default {
     name: 'SettingToggle',
+    components: {SettingRow},
     props: {
         modelValue: {default: ''},
         label: {type: String, default: ''},
@@ -25,9 +30,6 @@ export default {
     },
     emits: ['update:modelValue', 'change'],
     computed: {
-        isOn() {
-            return this.modelValue === this.activeValue;
-        },
         offRecommendation() {
             return this.recommend !== null && this.modelValue !== this.recommend;
         },
@@ -36,40 +38,30 @@ export default {
                 ? this.$t('Recommended: on')
                 : this.$t('Recommended: off');
         }
-    },
-    methods: {
-        /** The label is a hit target too - a 40px switch is a small thing to aim at. */
-        toggle() {
-            if (this.disabled) {
-                return;
-            }
-
-            const next = this.isOn ? this.inactiveValue : this.activeValue;
-
-            this.$emit('update:modelValue', next);
-            this.$emit('change', next);
-        }
     }
 };
 </script>
 
 <template>
-    <div class="fls_toggle" :class="{'is-disabled': disabled}">
-        <div class="fls_toggle_main">
-            <el-switch :model-value="modelValue" :active-value="activeValue"
-                       :inactive-value="inactiveValue" :disabled="disabled"
-                       @update:model-value="v => { $emit('update:modelValue', v); $emit('change', v); }"/>
-
-            <span class="fls_toggle_title" @click="toggle()">
+    <SettingRow :description="description" :hint="hint"
+                class="fls_row_toggle" :class="{'is-disabled': disabled}">
+        <template #label>
+            <span class="fls_row_title">
                 {{ label }}
-                <span v-if="offRecommendation" class="fls_toggle_tag">{{ recommendationText }}</span>
+                <span v-if="offRecommendation" class="fls_row_flag">{{ recommendationText }}</span>
             </span>
-        </div>
+        </template>
 
-        <div v-if="description || hint || $slots.default" class="fls_toggle_body">
-            <p v-if="description">{{ description }}</p>
-            <p v-if="hint" class="fls_toggle_hint">{{ hint }}</p>
+        <el-switch :model-value="modelValue" :active-value="activeValue"
+                   :inactive-value="inactiveValue" :disabled="disabled" :aria-label="label"
+                   @update:model-value="v => { $emit('update:modelValue', v); $emit('change', v); }"/>
+
+        <!--
+            Anything a toggle reveals when it is on, under the row it belongs to. Passed
+            unconditionally - the row itself works out whether it rendered anything.
+        -->
+        <template #below>
             <slot/>
-        </div>
-    </div>
+        </template>
+    </SettingRow>
 </template>

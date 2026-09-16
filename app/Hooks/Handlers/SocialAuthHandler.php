@@ -53,7 +53,20 @@ class SocialAuthHandler
             $redirect = sanitize_url($_GET['intent_redirect_to']);
             // check if the url is valid
             if (filter_var($redirect, FILTER_VALIDATE_URL)) {
-                \setcookie('fs_intent_redirect', $redirect, time() + 3600, COOKIEPATH, COOKIE_DOMAIN, is_ssl());  /* expire in 1 hour */
+                /*
+                 * Options array rather than the positional form, which cannot express
+                 * httponly without also naming every argument before it - and so left this
+                 * cookie readable from JavaScript while the state token beside it was not.
+                 * Nothing needs to read it in the browser.
+                 */
+                \setcookie('fs_intent_redirect', $redirect, [
+                    'expires'  => time() + 3600,
+                    'path'     => COOKIEPATH,
+                    'domain'   => COOKIE_DOMAIN,
+                    'secure'   => is_ssl(),
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
             }
         }
 

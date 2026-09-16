@@ -63,7 +63,8 @@ export default {
             return max;
         },
         gridLines() {
-            return [1, 0.75, 0.5, 0.25, 0].map(fraction => ({
+            const steps = this.niceMax % 5 === 0 ? 5 : 4;
+            return Array.from({length: steps + 1}, (_, index) => 1 - index / steps).map(fraction => ({
                 fraction: fraction,
                 offset: (1 - fraction) * 100,
                 label: this.formatCount(Math.round(this.niceMax * fraction))
@@ -87,7 +88,7 @@ export default {
                     .filter(key => counts[key] > 0)
                     .map(key => ({
                         key: key,
-                        height: (counts[key] / this.niceMax) * 100,
+                        height: (counts[key] / total) * 100,
                         color: this.colors[key]
                     }));
 
@@ -131,6 +132,14 @@ export default {
         }
     },
     methods: {
+        columnLabel(column) {
+            return column.tooltip + '. ' + this.chart.series.map(series => series.label + ': ' + column.counts[series.key]).join(', ');
+        },
+        moveFocus(event, index) {
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? this.columns.length - 1
+                : Math.max(0, Math.min(this.columns.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)));
+            this.$refs.columns[next].focus();
+        },
         formatCount(value) {
             if (value >= 1000) {
                 return (value / 1000).toFixed(value % 1000 === 0 ? 0 : 1) + 'k';
@@ -174,7 +183,11 @@ export default {
                 </div>
 
                 <div class="fls_chart_cols" @mouseleave="active = -1">
-                    <div v-for="(column, index) in columns" :key="index" class="fls_chart_col"
+                    <div v-for="(column, index) in columns" :key="index" class="fls_chart_col" ref="columns" role="img"
+                         :tabindex="index === Math.max(active, 0) ? 0 : -1" :aria-label="columnLabel(column)"
+                         @focus="active = index" @blur="active = -1"
+                         @keydown.left.prevent="moveFocus($event, index)" @keydown.right.prevent="moveFocus($event, index)"
+                         @keydown.home.prevent="moveFocus($event, index)" @keydown.end.prevent="moveFocus($event, index)"
                          :class="{is_active: active === index}" @mouseenter="active = index">
                         <div class="fls_chart_stack" :style="{height: column.height + '%'}">
                             <span v-for="(segment, segmentIndex) in column.segments" :key="segment.key"
@@ -197,7 +210,7 @@ export default {
             </div>
         </div>
 
-        <div v-else class="fls_dash_empty">
+        <div v-else class="fls_empty">
             <span v-html="icons.empty"></span>
             {{ $t('No login activity in this period yet') }}
         </div>

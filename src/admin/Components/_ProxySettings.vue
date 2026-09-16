@@ -28,12 +28,28 @@ export default {
             return this.detection.status || 'none';
         },
         /*
-         * Cloudflare needs nothing configured, and a site with no sign of a proxy
-         * needs nothing either - but "no evidence" is not proof, and a proxy that
-         * strips its own headers would look exactly like this. So the fields are
-         * folded away rather than taken off the page.
+         * A proxy that is there and declared is good news; one that is there and not is a
+         * problem. Everything else - no sign of one, or a hint that is not evidence - is
+         * neither, and is coloured as neither.
          */
-        collapsed() {
+        stateTone() {
+            const tones = {
+                cloudflare: 'is_success',
+                detected: 'is_warning'
+            };
+
+            return tones[this.status] || 'is_neutral';
+        },
+        /*
+         * Nothing is relaying this site's requests, or Cloudflare is and handles itself.
+         * Almost every WordPress site is in one of those two states, and in neither is
+         * there anything to read, decide or type - so the panel is one line saying which
+         * one it is, and the diagnostic that argues the case is not drawn at all.
+         *
+         * Not removed, though: "no evidence" is not proof, and somebody who knows a proxy
+         * is there needs a way in. The line carries it.
+         */
+        quiet() {
             if (this.revealed || this.config_locked) {
                 return false;
             }
@@ -43,6 +59,29 @@ export default {
             }
 
             return this.status === 'none' || this.status === 'cloudflare';
+        },
+        quietTitle() {
+            return this.status === 'cloudflare'
+                ? this.$t('Read from Cloudflare')
+                : this.$t('Read directly from the visitor');
+        },
+        /*
+         * Carries the address, which is the one fact the diagnostic this replaces was
+         * worth reading for. Everything else it said was an argument for a conclusion
+         * that now fits in the title.
+         */
+        quietNote() {
+            if (this.status === 'cloudflare') {
+                return this.$t('Checked against Cloudflare\'s own ranges, so addresses are already accurate.');
+            }
+
+            return this.$t('Nothing is relaying requests to this site. Yours arrived from %s.', this.detection.remote_addr || '—');
+        },
+        /* Cloudflare is a proxy already, so there is nothing to set up - only to add to. */
+        quietAction() {
+            return this.status === 'cloudflare'
+                ? this.$t('Add another proxy')
+                : this.$t('Set up a proxy');
         },
         headline() {
             const map = {
@@ -101,54 +140,60 @@ export default {
 </script>
 
 <template>
-    <div class="fls_proxy">
-        <p class="fls_proxy_headline">
-            <span class="fls_proxy_state" :class="'fls_proxy_state_' + status">{{ headline }}</span>
-        </p>
-
-        <p style="margin-bottom: 15px;">{{ summary }}</p>
-
-        <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon style="margin-bottom: 15px;">
-            {{
-                $t('The login attempt limit works per IP address. While every visitor looks like %s, one person failing to log in counts against everybody.', detection.remote_addr)
-            }}
-        </el-alert>
-
-        <div class="fls_proxy_facts">
-            <span>
-                <em>{{ $t('Connection from') }}</em>
-                <code>{{ detection.remote_addr || '—' }}</code>
-            </span>
-            <span>
-                <em>{{ $t('Recorded as your IP') }}</em>
-                <code>{{ detection.resolved_ip || '—' }}</code>
-            </span>
-            <span v-if="detection.vendor">
-                <em>{{ $t('Looks like') }}</em>
-                <code>{{ detection.vendor }}</code>
-            </span>
-        </div>
-
-        <div v-if="detection.headers && detection.headers.length" class="fls_proxy_headers">
-            <em>{{ $t('Forwarding headers on this request') }}</em>
-            <ul>
-                <li v-for="header in detection.headers" :key="header.header">
-                    <code>{{ header.header }}</code>: {{ header.value }}
-                </li>
-            </ul>
-        </div>
-
-        <p v-if="collapsed" class="fls_proxy_reveal">
-            <a href="#" @click.prevent="revealed = true">{{ $t('Configure a reverse proxy anyway') }}</a>
-            <span>{{ $t('Only needed if you know one is there and it is not being detected.') }}</span>
-        </p>
+    <div class="fls_proxy" :class="{'is_quiet': quiet}">
+        <!--
+            The 99% case, in one row: what is being read, and the way in if that is wrong.
+        -->
+        <SettingRow v-if="quiet" :label="quietTitle" :description="quietNote">
+            <el-button size="small" @click="revealed = true">
+                {{ quietAction }}
+            </el-button>
+        </SettingRow>
 
         <template v-else>
-            <el-alert v-if="config_locked" type="info" :closable="false" show-icon style="margin: 15px 0;">
+            <p class="fls_proxy_headline">
+                <span class="fls_tag is_round" :class="stateTone">{{ headline }}</span>
+            </p>
+
+            <p>{{ summary }}</p>
+
+            <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon
+                      style="margin-bottom: 10px;">
+                {{
+                    $t('The login attempt limit works per IP address. While every visitor looks like %s, one person failing to log in counts against everybody.', detection.remote_addr)
+                }}
+            </el-alert>
+
+            <div class="fls_proxy_facts">
+                <span>
+                    <em class="fls_eyebrow">{{ $t('Connection from') }}</em>
+                    <code>{{ detection.remote_addr || '—' }}</code>
+                </span>
+                <span>
+                    <em class="fls_eyebrow">{{ $t('Recorded as your IP') }}</em>
+                    <code>{{ detection.resolved_ip || '—' }}</code>
+                </span>
+                <span v-if="detection.vendor">
+                    <em class="fls_eyebrow">{{ $t('Looks like') }}</em>
+                    <code>{{ detection.vendor }}</code>
+                </span>
+            </div>
+
+            <div v-if="detection.headers && detection.headers.length" class="fls_proxy_headers">
+                <em class="fls_eyebrow">{{ $t('Forwarding headers on this request') }}</em>
+                <ul>
+                    <li v-for="header in detection.headers" :key="header.header">
+                        <code>{{ header.header }}</code>: {{ header.value }}
+                    </li>
+                </ul>
+            </div>
+
+            <el-alert v-if="config_locked" type="info" :closable="false" show-icon
+                      style="margin: 10px 0;">
                 {{ $t('These values are defined in wp-config.php and take precedence over the fields below.') }}
             </el-alert>
 
-            <p v-if="canSuggest" class="fls_proxy_suggest">
+            <p v-if="canSuggest" class="fls_action_note">
                 <el-button size="small" type="primary" plain @click="applySuggestion()">
                     {{ $t('Use %s', detection.suggested_proxy) }}
                 </el-button>
@@ -156,106 +201,15 @@ export default {
             </p>
 
             <SettingRow :label="$t('Trusted proxies')"
-                        :description="$t('One per line or comma separated. CIDR ranges and IPv6 are supported. Leave empty to always use the direct connection address, which cannot be spoofed.')">
+                        :description="$t('One per line. CIDR and IPv6 welcome. Empty means trust only the direct connection.')">
                 <el-input type="textarea" :rows="3" v-model="settings.trusted_proxies"
                           placeholder="127.0.0.1, 10.0.0.0/8"/>
             </SettingRow>
 
             <SettingRow :label="$t('Header carrying the visitor IP')"
-                        :description="$t('Defaults to X-Forwarded-For. This header is only read for requests arriving from one of the trusted proxies above.')">
+                        :description="$t('Only read for requests arriving from a trusted proxy above.')">
                 <el-input v-model="settings.proxy_ip_header" placeholder="X-Forwarded-For"/>
             </SettingRow>
         </template>
     </div>
 </template>
-
-<style lang="scss">
-.fls_proxy_state {
-    display: inline-block;
-    margin-left: 10px;
-    padding: 2px 10px;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: normal;
-    vertical-align: middle;
-    background: var(--fls-surface-sunk);
-    color: var(--fls-text-mid);
-
-    &.fls_proxy_state_detected {
-        background: var(--fls-warning-bg);
-        color: var(--fls-warning-fg);
-    }
-
-    &.fls_proxy_state_cloudflare {
-        background: var(--fls-success-bg);
-        color: var(--fls-success-fg);
-    }
-}
-
-.fls_proxy_facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 30px;
-    margin-bottom: 12px;
-
-    em {
-        display: block;
-        font-style: normal;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--fls-text-light);
-    }
-
-    code {
-        background: var(--fls-surface);
-        border: 1px solid var(--fls-border);
-        border-radius: 3px;
-        padding: 1px 6px;
-    }
-}
-
-.fls_proxy_headers {
-    margin-bottom: 12px;
-
-    em {
-        font-style: normal;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--fls-text-light);
-    }
-
-    ul {
-        margin: 4px 0 0;
-        padding: 0;
-        list-style: none;
-        font-size: 12px;
-        color: var(--fls-text-mid);
-        word-break: break-all;
-    }
-}
-
-.fls_proxy_reveal {
-    a {
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    span {
-        margin-left: 10px;
-        color: var(--fls-text-light);
-        font-size: 12px;
-    }
-}
-
-.fls_proxy_suggest {
-    margin: 15px 0 !important;
-
-    span {
-        margin-left: 10px;
-        color: var(--fls-text-light);
-        font-size: 12px;
-    }
-}
-</style>

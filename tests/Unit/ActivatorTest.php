@@ -30,6 +30,37 @@ class ActivatorTest extends BaseTestCase
         $this->assertEquals($wpdb->prefix . 'fls_login_hashes', $hashesTable);
     }
 
+    /**
+     * There is no upgrade routine, and there is nothing for one to do.
+     *
+     * Activation only ever runs on a site switching the plugin on, so a table that has to
+     * reach a site that already has the plugin is made on first use instead - see
+     * FactorStore::ensureTable(). Nothing here records a version to compare against on
+     * later requests, and nothing here rewrites settings.
+     */
+    public function testActivationLeavesNoUpgradeStateBehind()
+    {
+        delete_option('__fluent_security_version');
+        update_option('__fls_auth_settings', ['totp_2fa' => 'yes', 'totp_2fa_roles' => []], false);
+
+        Activator::activate(false);
+
+        $this->assertFalse(get_option('__fluent_security_version'));
+        $this->assertFalse(get_option('__fls_auth_onboarded'));
+        $this->assertSame(
+            ['totp_2fa' => 'yes', 'totp_2fa_roles' => []],
+            get_option('__fls_auth_settings')
+        );
+
+        delete_option('__fls_auth_settings');
+    }
+
+    /** Nothing of this plugin's runs on admin_init to catch a site up on an update. */
+    public function testNoUpgradeRunnerIsHooked()
+    {
+        $this->assertFalse(has_action('admin_init', ['\\FluentAuth\\App\\Helpers\\Activator', 'maybeUpgrade']));
+    }
+
     public function testMigrateLogsTable()
     {
         global $wpdb;
@@ -116,67 +147,5 @@ class ActivatorTest extends BaseTestCase
         } catch (\Exception $e) {
             $this->fail('Activation hook failed: ' . $e->getMessage());
         }
-    }
-
-    private function migrateTotpRoles()
-    {
-        $reflection = new \ReflectionClass(Activator::class);
-        $method = $reflection->getMethod('migrateTotpAllowedRoles');
-        $method->setAccessible(true);
-        $method->invoke(null);
-
-        Helper::resetStatics();
-    }
-
-    /**
-     * An empty allow list used to mean every role and now means none. On a site that had
-     * the method switched on with the field untouched, reading it the new way stops
-     * asking enrolled users for the app they already set up - so the old meaning is
-     * written out as roles before the new reading applies to it.
-     */
-    public function testItWritesOutWhatAnEmptyAllowListUsedToMean()
-    {
-        update_option('__fls_auth_settings', array_merge(Helper::getAuthSettings(), [
-            'totp_2fa'       => 'yes',
-            'totp_2fa_roles' => []
-        ]));
-        Helper::resetStatics();
-
-        $this->migrateTotpRoles();
-
-        $roles = Helper::getSetting('totp_2fa_roles');
-
-        $this->assertContains('administrator', $roles);
-        $this->assertContains('subscriber', $roles, 'It meant every role, so every role is what it becomes.');
-    }
-
-    public function testItLeavesAChosenListAlone()
-    {
-        update_option('__fls_auth_settings', array_merge(Helper::getAuthSettings(), [
-            'totp_2fa'       => 'yes',
-            'totp_2fa_roles' => ['editor']
-        ]));
-        Helper::resetStatics();
-
-        $this->migrateTotpRoles();
-
-        $this->assertSame(['editor'], Helper::getSetting('totp_2fa_roles'));
-    }
-
-    /**
-     * With the method switched off the empty list never meant anything, so filling it in
-     * would invent a policy the site never had.
-     */
-    public function testItLeavesTheListEmptyWhileTheMethodIsOff()
-    {
-        update_option('__fls_auth_settings', array_merge(Helper::getAuthSettings(), [
-            'totp_2fa'       => 'no',
-            'totp_2fa_roles' => []
-        ]));
-        Helper::resetStatics();
-
-        $this->migrateTotpRoles();
-
-        $this->assertSame([], Helper::getSetting('totp_2fa_roles'));
     }
 }

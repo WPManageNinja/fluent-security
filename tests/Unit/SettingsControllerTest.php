@@ -109,6 +109,75 @@ class SettingsControllerTest extends BaseTestCase
         $this->assertArrayHasKey('message', $result);
     }
 
+    public function testGetAuthFormSettingsOffersDestinations()
+    {
+        $request = new \WP_REST_Request();
+
+        $result = SettingsController::getAuthFormSettings($request);
+
+        $this->assertArrayHasKey('destinations', $result);
+        $this->assertNotEmpty($result['destinations']['login']);
+        $this->assertNotEmpty($result['destinations']['logout']);
+
+        foreach ($result['destinations'] as $group) {
+            foreach ($group as $destination) {
+                $this->assertArrayHasKey('label', $destination);
+                $this->assertArrayHasKey('url', $destination);
+            }
+        }
+    }
+
+    /*
+     * Clearing a destination used to be impossible: an empty value was skipped rather than
+     * written, so the screen saved successfully and came back with the old address in it.
+     */
+    public function testSaveAuthFormSettingsClearsAnEmptiedDefault()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                 => 'yes',
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => 'https://example.com/members/',
+            'default_logout_redirect' => 'https://example.com/bye/',
+            'redirect_rules'          => []
+        ]);
+
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', [
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => '',
+            'default_logout_redirect' => 'https://example.com/bye/'
+        ]);
+
+        SettingsController::saveAuthFormSettings($request);
+
+        $saved = get_option('__fls_auth_forms_settings');
+
+        $this->assertSame('', $saved['default_login_redirect']);
+        $this->assertSame('https://example.com/bye/', $saved['default_logout_redirect']);
+    }
+
+    public function testSaveAuthFormSettingsKeepsRulesWithoutConditions()
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', [
+            'login_redirects' => 'yes',
+            'redirect_rules'  => [
+                [
+                    'login'  => '/members/',
+                    'logout' => ''
+                ]
+            ]
+        ]);
+
+        SettingsController::saveAuthFormSettings($request);
+
+        $saved = get_option('__fls_auth_forms_settings');
+
+        $this->assertCount(1, $saved['redirect_rules']);
+        $this->assertSame('/members/', $saved['redirect_rules'][0]['login']);
+        $this->assertSame([], $saved['redirect_rules'][0]['conditions']);
+    }
+
     public function testGetAuthCustomizerSetting()
     {
         $request = new \WP_REST_Request();
@@ -206,6 +275,36 @@ class SettingsControllerTest extends BaseTestCase
         $request->set_param('settings', $payload);
 
         return SettingsController::updateSettings($request);
+    }
+
+    private function saveWithDigest($frequency)
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('settings', [
+            'login_try_limit'  => 5,
+            'login_try_timing' => 30,
+            'email2fa'         => 'no',
+            'email2fa_roles'   => [],
+            'digest_summary'   => $frequency,
+        ]);
+
+        return SettingsController::updateSettings($request);
+    }
+
+    public function testChangingTheDigestFrequencyStartsAFreshWindow()
+    {
+        $this->saveWithDigest('daily');
+        update_option('_fls_last_digest_sent', '2026-09-09 08:00:00', false);
+
+        // Saving again with the same frequency keeps the window.
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->saveWithDigest('daily');
+        $this->assertSame('2026-09-09 08:00:00', get_option('_fls_last_digest_sent'));
+
+        // A different one would otherwise be gated by a daily send a few days ago.
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->saveWithDigest('mon');
+        $this->assertFalse(get_option('_fls_last_digest_sent'));
     }
 
     public function testChoosingRolesTurnsTheRestrictionOn()
