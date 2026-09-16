@@ -9,6 +9,7 @@ use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore;
 
 /**
  * Who has a second factor, and the way back in when a device is lost.
@@ -307,6 +308,18 @@ class TwoFaController
     {
         $enrolled = TotpTwoFaMethod::isEnrolled($user);
 
+        $passkeys = PasskeyTwoFaMethod::isEnrolled($user) ? PasskeyStore::countForUser($user) : 0;
+
+        /*
+         * Recovery codes belong to the account, not to the authenticator app: a passkey
+         * holder has a set too, and reporting them only for app holders is what had this
+         * table print a dash for somebody whose codes are the only way back in.
+         */
+        $holdsDevice = $enrolled || $passkeys > 0;
+
+        /* Empty when this administrator may not edit them - see profile_url below. */
+        $profileUrl = get_edit_user_link($user->ID);
+
         $emailRoles = Helper::getSetting('email2fa_roles');
 
         $emailApplies = Helper::getSetting('email2fa') === 'yes'
@@ -320,7 +333,8 @@ class TwoFaController
             'user_email'      => $user->user_email,
             'roles'           => array_values($user->roles),
             'totp_enrolled'   => $enrolled,
-            'passkey_count'   => PasskeyTwoFaMethod::isEnrolled($user) ? \FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore::countForUser($user) : 0,
+            'passkey_count'   => $passkeys,
+            'passkey_allowed' => PasskeyTwoFaMethod::isAllowedForUser($user),
             'totp_allowed'    => TotpTwoFaMethod::isAllowedForUser($user),
             /*
              * Whether anything is still owed, not whether the role is named. A user who
@@ -330,10 +344,21 @@ class TwoFaController
              */
             'totp_required'   => DeviceRequirement::isOwedBy($user),
             'activated_at'    => $enrolled ? TotpTwoFaMethod::getActivatedAt($user) : '',
-            'recovery_codes'  => $enrolled ? TotpTwoFaMethod::getRemainingRecoveryCount($user) : 0,
+            'recovery_codes'  => $holdsDevice ? TotpTwoFaMethod::getRemainingRecoveryCount($user) : 0,
             'recovery_total'  => TotpTwoFaMethod::RECOVERY_CODE_COUNT,
             'email_2fa'       => $emailApplies,
-            'can_edit'        => current_user_can('edit_user', $user->ID)
+            'can_edit'        => current_user_can('edit_user', $user->ID),
+            /*
+             * Where the whole of this user's second factor lives, and the only place an
+             * administrator can take a passkey off an account - the profile card renders
+             * on edit_user_profile as well as show_user_profile, with its removal controls
+             * intact for whoever holds edit_user. Empty when this administrator may not
+             * edit them, which is what the row menu tests before offering the link.
+             *
+             * Built by core so it lands on profile.php for your own row and user-edit.php
+             * for everybody else's; the fragment is the card's own heading.
+             */
+            'profile_url'     => $profileUrl ? $profileUrl . '#fls-two-factor' : ''
         ];
     }
 

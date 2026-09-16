@@ -42,7 +42,9 @@ export const settingsNav = (vm) => [
     {
         route: 'settings_two_fa_enrollment',
         title: vm.$t('2FA Enrollment'),
-        icon: icons.users
+        icon: icons.users,
+        /* A list of users, so it asks for the capability for listing users. */
+        when: (appVars) => !!appVars.can_list_users
     },
     {
         route: 'settings_ip_rules',

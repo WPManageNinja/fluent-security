@@ -7,6 +7,8 @@ use FluentAuth\App\Http\Controllers\SettingsController;
 use FluentAuth\App\Http\Controllers\TwoFaController;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore;
+use FluentAuth\App\Services\TwoFa\WebAuthn\Registration;
 
 /**
  * The administration side of two factor: saving a policy, and the panel that answers
@@ -308,6 +310,69 @@ class TwoFaAdminTest extends BaseTestCase
         $this->assertNotContains($this->admin->ID, array_column($result['users']['data'], 'id'));
     }
 
+    /* ---------------------------------------------------------------------
+     * Passkeys are a second factor too
+     * ------------------------------------------------------------------ */
+
+    /**
+     * The row used to report on the authenticator app alone, so somebody holding a passkey
+     * read as "Not set up" with a dash where their recovery codes are - on the one screen
+     * an administrator goes to when that person cannot get in.
+     */
+    public function testAPasskeyHolderIsReportedAsHoldingSomething()
+    {
+        PasskeyStore::ensureTable();
+
+        $this->setPasskeySettings();
+
+        $target = $this->factory->user->create_and_get(['role' => 'administrator']);
+        $this->enrolPasskey($target);
+        TotpTwoFaMethod::generateRecoveryCodes($target);
+
+        $row = $this->rowFor($target->ID);
+
+        $this->assertNotNull($row);
+        $this->assertFalse($row['totp_enrolled']);
+        $this->assertSame(1, $row['passkey_count']);
+        $this->assertTrue($row['passkey_allowed']);
+        $this->assertSame(
+            TotpTwoFaMethod::RECOVERY_CODE_COUNT,
+            $row['recovery_codes'],
+            'a passkey holder\'s recovery codes are the way back in, so the column has to carry them'
+        );
+    }
+
+    /**
+     * Where the whole of somebody's second factor can be read and - for a passkey, which
+     * this endpoint cannot touch - removed.
+     */
+    public function testEachRowCarriesALinkToThatUsersProfile()
+    {
+        $row = $this->rowFor($this->admin->ID);
+
+        $this->assertNotEmpty($row['profile_url']);
+        $this->assertStringContainsString('#fls-two-factor', $row['profile_url']);
+    }
+
+    /**
+     * The app's own permission is filterable, so it is not necessarily one that carries any
+     * right over other people's accounts - and this endpoint answers with their names and
+     * email addresses.
+     */
+    public function testTheListIsRefusedToSomeoneWhoCannotListUsers()
+    {
+        $callback = $this->permissionCallbackFor('/fluent-auth/two-fa/users');
+
+        $this->assertNotNull($callback);
+
+        wp_set_current_user($this->factory->user->create(['role' => 'editor']));
+        $this->assertFalse(current_user_can('list_users'));
+        $this->assertFalse(call_user_func($callback, new \WP_REST_Request()));
+
+        wp_set_current_user($this->admin->ID);
+        $this->assertTrue(call_user_func($callback, new \WP_REST_Request()));
+    }
+
     public function testAnAdminCanTurnOffALostDevice()
     {
         $target = $this->factory->user->create_and_get(['role' => 'subscriber']);
@@ -360,5 +425,65 @@ class TwoFaAdminTest extends BaseTestCase
         $request->set_param('id', 99999999);
 
         $this->assertWPError(TwoFaController::resetUser($request));
+    }
+
+    /* ---------------------------------------------------------------------
+     * Helpers
+     * ------------------------------------------------------------------ */
+
+    private function setPasskeySettings()
+    {
+        /* The fixture's ceremonies are signed for this origin - see WebAuthnFixture. */
+        update_option('home', 'https://example.org');
+        update_option('siteurl', 'https://example.org');
+
+        $settings = Helper::getAuthSettings();
+        $settings['passkey_2fa'] = 'yes';
+        $settings['passkey_2fa_roles'] = ['administrator'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+    }
+
+    private function enrolPasskey($user)
+    {
+        $authenticator = new WebAuthnFixture();
+        $challenge = random_bytes(32);
+        $response = $authenticator->createRegistrationResponse(['challenge' => $challenge]);
+
+        PasskeyStore::add($user, Registration::verify($response, $challenge), 'Test key');
+    }
+
+    private function rowFor($userId)
+    {
+        $result = TwoFaController::getUsers(new \WP_REST_Request());
+
+        foreach ($result['users']['data'] as $row) {
+            if ($row['id'] === $userId) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The permission_callback the route was actually registered with, rather than a copy of
+     * the rule written out here - a test of its own copy passes whatever the routes file says.
+     */
+    private function permissionCallbackFor($route)
+    {
+        foreach (rest_get_server()->get_routes() as $path => $handlers) {
+            if ($path !== $route) {
+                continue;
+            }
+
+            foreach ($handlers as $handler) {
+                if (!empty($handler['permission_callback'])) {
+                    return $handler['permission_callback'];
+                }
+            }
+        }
+
+        return null;
     }
 }

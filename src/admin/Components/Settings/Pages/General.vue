@@ -61,7 +61,7 @@ export default {
                         :description="$t('Everything saved together, in one place.')"
                         :saving="saving" :disabled="!settings" @save="saveSettings()">
             <template #actions>
-                <el-button size="small" @click="applyRecommended()">
+                <el-button link size="large" @click="applyRecommended()">
                     {{ $t('Apply recommended') }}
                 </el-button>
             </template>

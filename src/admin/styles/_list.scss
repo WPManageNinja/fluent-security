@@ -328,6 +328,37 @@
     }
 }
 
+/*
+ * What a row holds, one chip per factor, drawn with the glyph the profile card uses for it.
+ *
+ * Chips rather than the status word every other column uses, because this cell answers
+ * "which" and not "whether": a green "Active" is the same mark for an authenticator app, a
+ * passkey and both at once, and those are three different accounts to whoever is reading
+ * the list. The icon carries the distinction and the word confirms it, so it survives being
+ * read quickly and does not depend on the icon being recognised.
+ */
+.fls_factors {
+    @apply flex items-center flex-wrap;
+
+    gap: 6px;
+}
+
+.fls_factor {
+    @apply inline-flex items-center flex-none rounded-xs text-xs font-medium bg-surface-raised text-ink-mid;
+
+    gap: 5px;
+    padding: 2px 8px 2px 6px;
+    line-height: 18px;
+    white-space: nowrap;
+
+    svg {
+        @apply flex-none;
+
+        /* Quieter than the word beside it: the glyph is the label's mark, not a second one. */
+        opacity: .75;
+    }
+}
+
 /* A fact worth showing but not worth reading - an em dash, a "none", a list of roles. */
 .fls_cell_muted {
     @apply text-ink-light;

@@ -1,6 +1,3 @@
-require('./login_helper.scss');
-require('./magic_url.scss');
-
 /*
  * Everything the login screens run in the browser.
  *

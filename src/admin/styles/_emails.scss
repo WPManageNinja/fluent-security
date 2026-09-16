@@ -18,10 +18,15 @@
         padding: 0;
     }
 
+    /*
+     * The same size as a setting's label, because that is what it is: one line in a card,
+     * not a heading. At 16px it outranked the card title above it, so a list of seven
+     * emails read as seven headings with the card's own name lost among them.
+     */
     .fls_email_title {
-        @apply text-base font-medium;
+        @apply text-sm font-medium text-ink;
 
-        margin-bottom: 5px;
+        margin-bottom: 3px;
     }
 }
 

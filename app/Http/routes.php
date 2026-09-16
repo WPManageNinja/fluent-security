@@ -16,6 +16,9 @@ if(!$appPermission) {
 
 $permissions = [$appPermission];
 
+/* For the endpoints that read or change other people's accounts - see two-fa/users below. */
+$userPermissions = ['list_users'];
+
 $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getSettings'], $permissions)
     ->post('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'updateSettings'], $permissions)
     /*
@@ -33,8 +36,17 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
      */
     ->post('optin/subscribe', ['\FluentAuth\App\Http\Controllers\OptinController', 'subscribe'], $permissions)
     ->post('optin/dismiss', ['\FluentAuth\App\Http\Controllers\OptinController', 'dismiss'], $permissions)
-    ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $permissions)
-    ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $permissions)
+    /*
+     * The enrollment list is the one part of this API that reports on people rather than on
+     * the site - names, email addresses and what guards each account - so it asks for the
+     * capability WordPress gates the user list itself with, not the app's own. They are
+     * usually the same administrator; they are not the same permission, and
+     * fluent_auth/app_permission exists precisely so a site can hand these screens to
+     * somebody who is not one. Turning a factor off re-checks edit_user on that user on top
+     * of this, in the controller.
+     */
+    ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $userPermissions)
+    ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $userPermissions)
     /*
      * Encryption of the authenticator secrets. Two calls to switch on rather than one,
      * because the key lives in wp-config.php and this request cannot see a line added to

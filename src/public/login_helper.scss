@@ -1,3 +1,16 @@
+/*
+ * Every rule the login screens need, in one stylesheet.
+ *
+ * These used to ride inside login_helper.js and be injected by style-loader. That put
+ * them in <head> at the moment the script ran, which is before wp-login.php prints
+ * login.css - and core's `.login * { margin: 0; padding: 0 }` ties on specificity with
+ * a single class, so it won on document order and flattened every button and gap the
+ * magic form declares. A real stylesheet is enqueued after core's, which settles the
+ * order by construction rather than by which script happened to execute first.
+ */
+
+@import './magic_url';
+
 .fls_login_wrapper{
     max-width: 500px;
     * {

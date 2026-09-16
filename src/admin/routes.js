@@ -35,7 +35,18 @@ const settingsChildren = [
         path: 'two-factor-enrollment',
         name: 'settings_two_fa_enrollment',
         component: EnrolledUsers,
-        meta: {title: 'Two-Factor Enrollment'}
+        meta: {title: 'Two-Factor Enrollment'},
+        /*
+         * Hidden from the sidebar for anybody who cannot list users, and refused here too -
+         * the sidebar is a menu, not a lock, and this address is one somebody can type. The
+         * endpoints behind it ask for the same capability, so this only saves the screen
+         * from rendering a page of failed requests.
+         */
+        beforeEnter: (to, from, next) => {
+            const vars = window.fluentAuthAdmin || {};
+
+            next(vars.can_list_users ? undefined : {name: 'settings_general'});
+        }
     },
     {
         path: 'ip-rules',

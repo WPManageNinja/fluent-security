@@ -42,6 +42,20 @@ class LoginAssets
 
         self::$enqueued = true;
 
+        /*
+         * Enqueued rather than injected from the bundle, and enqueued before the script so
+         * it is in the queue behind core's own login.css. That order is the whole point:
+         * `.login * { margin: 0; padding: 0 }` ties with any single-class rule of ours, so
+         * whichever of the two the browser reads last wins, and a stylesheet style-loader
+         * appends while the script runs is read first.
+         */
+        wp_enqueue_style(
+            'fluent_auth_login_helper',
+            FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_helper.css',
+            [],
+            FLUENT_AUTH_VERSION
+        );
+
         wp_enqueue_script(
             'fluent_auth_login_helper',
             FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_helper.js',

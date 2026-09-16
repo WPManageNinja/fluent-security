@@ -23,14 +23,20 @@ export default {
             users: [],
             search: '',
             searchOpen: false,
-            filter: 'all',
+            /*
+             * Opens on who actually holds a factor, not on everybody in scope. The reason
+             * anyone comes to this screen in a hurry is that one of these people is on the
+             * phone locked out, and that is the list they are on; "All" is one click away
+             * for the other reading of the page.
+             */
+            filter: 'enrolled',
             summary: {enrolled: 0, eligible: 0},
             /*
              * What the site actually has in force, reported with the rows rather than
              * read from the settings this screen was booted with - people arrive here
              * straight after changing a policy.
              */
-            methods: {totp: false, email: false},
+            methods: {totp: false, email: false, passkey: false},
             loaded: false,
             pagination: {
                 total: 0,
@@ -40,8 +46,27 @@ export default {
         }
     },
     computed: {
+        /*
+         * Passkeys count. Left out, this screen greeted a site running passkeys alone with
+         * "No second factor is switched on" - an empty state covering a table that had rows
+         * to show, because the only two methods it asked about were off.
+         */
         anythingEnabled() {
-            return this.methods.totp || this.methods.email;
+            return this.methods.totp || this.methods.email || this.methods.passkey;
+        },
+        /* The device factors, named, for the sentence that reports on them. */
+        deviceMethods() {
+            const methods = [];
+
+            if (this.methods.totp) {
+                methods.push(this.$t('an authenticator app'));
+            }
+
+            if (this.methods.passkey) {
+                methods.push(this.$t('a passkey'));
+            }
+
+            return methods;
         },
         /*
          * Counted against the people who could have an app, not against everybody with
@@ -49,16 +74,24 @@ export default {
          * 0" is not a fact about anything.
          */
         headerNote() {
-            if (!this.methods.totp) {
+            if (!this.deviceMethods.length) {
                 return this.methods.email
-                    ? this.$t('Emailed codes only. Nobody on this site can set up an authenticator app.')
+                    ? this.$t('Emailed codes only. Nobody on this site can set up an authenticator app or a passkey.')
                     : '';
             }
 
+            /*
+             * Both halves of the fraction come from the server counting apps and passkeys
+             * together, so the sentence has to name both. Written as "an authenticator app"
+             * alone, it described a number that was not being measured - a site with
+             * passkeys rolled out read "5 of 5 have set one up" over a column of "Not set
+             * up", because the five were holding the method the sentence left out.
+             */
             return this.$t(
-                '%1s of %2s users who can have an authenticator app have set one up',
+                '%1s of %2s users who can set up %3s have one',
                 this.summary.enrolled,
-                this.summary.eligible
+                this.summary.eligible,
+                this.deviceMethods.join(this.$t(' or '))
             );
         },
         /* Named so the notice can say which one is missing rather than "some of them". */
@@ -67,6 +100,10 @@ export default {
 
             if (!this.methods.totp) {
                 missing.push(this.$t('an authenticator app'));
+            }
+
+            if (!this.methods.passkey) {
+                missing.push(this.$t('passkeys'));
             }
 
             if (!this.methods.email) {
@@ -81,6 +118,27 @@ export default {
                 {key: 'enrolled', label: this.$t('Enrolled')},
                 {key: 'not_enrolled', label: this.$t('Not enrolled')}
             ];
+        },
+        /*
+         * Named for the view being looked at. "No users match this filter" is true of all
+         * three and useful in none: on the Enrolled view the thing worth saying is that
+         * nobody has set anything up yet, which is a fact about the site, not about a
+         * filter.
+         */
+        emptyText() {
+            if (this.search) {
+                return this.$t('Nothing matches that search');
+            }
+
+            if (this.filter === 'enrolled') {
+                return this.$t('Nobody has set up a second factor yet');
+            }
+
+            if (this.filter === 'not_enrolled') {
+                return this.$t('Everybody who is offered one has set it up');
+            }
+
+            return this.$t('No users match this filter');
         },
         countLabel() {
             const total = this.pagination.total;
@@ -156,15 +214,18 @@ export default {
             this.fetchUsers();
         },
         /**
-         * Turning someone's authenticator app off lowers what guards their account, so
-         * it is spelled out rather than confirmed with a bare "are you sure".
+         * Removing someone's authenticator app lowers what guards their account, so it is
+         * spelled out rather than confirmed with a bare "are you sure" - and it opens by
+         * saying what the action is *for*. Named "turn off", it read as a policy switch to
+         * use when you had changed your mind about authenticator apps; it is the lost
+         * device path, and the only reason to press it is that somebody cannot get in.
          */
         confirmReset(user) {
             this.$confirm(
-                this.$t('%s will be signed in by password alone until they set up a new one. Their recovery codes stop working straight away.', user.user_login),
-                this.$t('Turn off the authenticator app?'),
+                this.$t('Use this when %s has lost the device it was set up on. They will be signed in by password alone until they set up a new one, and their recovery codes stop working straight away.', user.user_login),
+                this.$t('Remove the authenticator app?'),
                 {
-                    confirmButtonText: this.$t('Turn it off'),
+                    confirmButtonText: this.$t('Remove it'),
                     cancelButtonText: this.$t('Cancel'),
                     type: 'warning'
                 }
@@ -197,6 +258,67 @@ export default {
         },
         roleNames(user) {
             return user.roles.length ? user.roles.join(', ') : '—';
+        },
+        /**
+         * What this user actually holds, as chips. Both when they hold both: an account
+         * with an app and a passkey is a different thing from one with either, and the
+         * column that reported only the app called half of them "Not set up".
+         */
+        factorsOf(user) {
+            const factors = [];
+
+            if (user.totp_enrolled) {
+                factors.push({key: 'totp', icon: 'authApp', label: this.$t('App')});
+            }
+
+            if (user.passkey_count) {
+                factors.push({
+                    key: 'passkey',
+                    icon: 'passkey',
+                    label: user.passkey_count > 1
+                        ? this.$t('%s passkeys', user.passkey_count)
+                        : this.$t('Passkey')
+                });
+            }
+
+            return factors;
+        },
+        /**
+         * What the row menu offers. Opening the profile is the one that is always there -
+         * it is where the whole of this user's second factor lives, including the passkeys
+         * this table can show but not remove.
+         */
+        rowActions(user) {
+            const actions = [];
+
+            if (user.profile_url) {
+                actions.push({command: 'profile', label: this.$t('Open their 2FA setup')});
+            }
+
+            if (user.totp_enrolled && user.can_edit) {
+                actions.push({
+                    command: 'reset',
+                    label: this.$t('Remove their authenticator app'),
+                    divided: actions.length > 0
+                });
+            }
+
+            return actions;
+        },
+        /*
+         * Dispatched on the command. It used to call confirmReset() for whatever came back,
+         * which was harmless with one item on the menu and would have been a second item
+         * that turned somebody's app off.
+         */
+        runCommand(command, user) {
+            if (command === 'profile') {
+                window.location.href = user.profile_url;
+                return;
+            }
+
+            if (command === 'reset') {
+                this.confirmReset(user);
+            }
         }
     },
     mounted() {
@@ -299,18 +421,28 @@ export default {
                             </template>
                         </el-table-column>
 
-                        <el-table-column :label="$t('Roles')" min-width="150">
+                        <el-table-column :label="$t('Roles')" min-width="120">
                             <template #default="scope">
                                 <span class="fls_cell_muted">{{ roleNames(scope.row) }}</span>
                             </template>
                         </el-table-column>
 
-                        <el-table-column :label="$t('Authenticator app')" width="200">
+                        <!--
+                            One column for both device factors rather than one each. They
+                            are alternatives to each other and most people hold neither, so
+                            two columns spent most of their width saying "Not set up" twice
+                            about the same account. Held factors are drawn as chips, so a
+                            row with both reads as both at a glance.
+                        -->
+                        <el-table-column :label="$t('Second factor')" min-width="190">
                             <template #default="scope">
                                 <div class="fls_cell_stack">
-                                    <template v-if="scope.row.totp_enrolled">
-                                        <div class="fls_cell_main">
-                                            <span class="fls_tag is_success">{{ $t('Active') }}</span>
+                                    <template v-if="factorsOf(scope.row).length">
+                                        <div class="fls_factors">
+                                            <span v-for="factor in factorsOf(scope.row)" :key="factor.key"
+                                                  class="fls_factor">
+                                                <span v-html="icons[factor.icon]"></span>{{ factor.label }}
+                                            </span>
                                         </div>
                                         <div v-if="scope.row.activated_at" class="fls_cell_sub">
                                             {{ scope.row.activated_at }}
@@ -319,7 +451,8 @@ export default {
                                     <div v-else-if="scope.row.totp_required" class="fls_cell_main">
                                         <span class="fls_tag is_warning">{{ $t('Required, not set up') }}</span>
                                     </div>
-                                    <div v-else-if="scope.row.totp_allowed" class="fls_cell_main">
+                                    <div v-else-if="scope.row.totp_allowed || scope.row.passkey_allowed"
+                                         class="fls_cell_main">
                                         <span class="fls_tag is_neutral">{{ $t('Not set up') }}</span>
                                     </div>
                                     <span v-else class="fls_cell_muted">{{ $t('Not available') }}</span>
@@ -327,16 +460,22 @@ export default {
                             </template>
                         </el-table-column>
 
-                        <el-table-column :label="$t('Recovery codes')" width="140">
+                        <!--
+                            Shown for a passkey holder too. The codes belong to the account
+                            rather than to the app, and for somebody whose only device is a
+                            passkey they are the way back in - the one row where a dash here
+                            was worth reading and the column printed one anyway.
+                        -->
+                        <el-table-column :label="$t('Recovery codes')" width="130">
                             <template #default="scope">
-                                <span v-if="!scope.row.totp_enrolled" class="fls_cell_muted">—</span>
+                                <span v-if="!factorsOf(scope.row).length" class="fls_cell_muted">—</span>
                                 <span v-else :class="{fls_cell_alert: scope.row.recovery_codes < 3}">
                                     {{ scope.row.recovery_codes }} / {{ scope.row.recovery_total }}
                                 </span>
                             </template>
                         </el-table-column>
 
-                        <el-table-column :label="$t('Email code')" width="120">
+                        <el-table-column :label="$t('Email code')" width="110">
                             <template #default="scope">
                                 <span v-if="scope.row.email_2fa" class="fls_tag is_success">{{ $t('On') }}</span>
                                 <span v-else class="fls_cell_muted">—</span>
@@ -347,19 +486,22 @@ export default {
                             <template #default="scope">
                                 <!--
                                     The same row menu the logs table carries, rather than a
-                                    red button in every row: turning an app off is the lost
-                                    phone path, not something to be doing down the list.
+                                    red button in every row: removing an app is the lost
+                                    device path, not something to be doing down the list.
                                 -->
-                                <el-dropdown v-if="scope.row.totp_enrolled && scope.row.can_edit"
-                                             trigger="click" @command="confirmReset(scope.row)">
+                                <el-dropdown v-if="rowActions(scope.row).length" trigger="click"
+                                             @command="command => runCommand(command, scope.row)">
                                     <el-button text :title="$t('Actions')"
                                                :loading="resetting === scope.row.id">
                                         <span class="dashicons dashicons-ellipsis"></span>
                                     </el-button>
                                     <template #dropdown>
                                         <el-dropdown-menu>
-                                            <el-dropdown-item command="reset">
-                                                {{ $t('Turn off the authenticator app') }}
+                                            <el-dropdown-item v-for="action in rowActions(scope.row)"
+                                                              :key="action.command"
+                                                              :command="action.command"
+                                                              :divided="action.divided">
+                                                {{ action.label }}
                                             </el-dropdown-item>
                                         </el-dropdown-menu>
                                     </template>
@@ -370,7 +512,7 @@ export default {
                         <template #empty>
                             <div class="fls_empty">
                                 <span v-html="icons.empty"></span>
-                                {{ search ? $t('Nothing matches that search') : $t('No users match this filter') }}
+                                {{ emptyText }}
                             </div>
                         </template>
                     </el-table>

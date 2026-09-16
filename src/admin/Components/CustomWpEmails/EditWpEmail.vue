@@ -116,7 +116,7 @@ export default {
                         :description="email ? email.description : ''"
                         :saving="saving" :disabled="!settings" @save="saveEmail()">
             <template #actions>
-                <el-button size="small" @click="$router.push({name: 'settings_emails'})">
+                <el-button link size="large" @click="$router.push({name: 'settings_emails'})">
                     {{ $t('Back to emails') }}
                 </el-button>
             </template>

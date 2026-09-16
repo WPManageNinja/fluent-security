@@ -202,6 +202,17 @@ class AdminMenuHandler
             'passkey_supported' => RelyingParty::isSupported(),
             // Used as the example in the redirect URL fields, so the example is real.
             'site_url'        => site_url('/'),
+            /*
+             * Whether this administrator may see the enrollment list at all.
+             *
+             * The app's own permission is filterable (fluent_auth/app_permission), so the
+             * capability that opens these screens is not necessarily one that carries any
+             * right over other people's accounts. Every other screen here is about the
+             * site; that one is a list of users, their email addresses and what guards
+             * their accounts, so it asks for the capability WordPress uses for exactly
+             * that question rather than riding on the app's.
+             */
+            'can_list_users'  => current_user_can('list_users'),
             'me'              => [
                 'id'        => $currentUser->ID,
                 'full_name' => $fullName,

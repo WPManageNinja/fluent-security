@@ -164,7 +164,7 @@ export default {
                         :description="$t('How every system email looks, and who it comes from.')"
                         :saving="saving" :disabled="!settings" @save="saveSettings()">
             <template #actions>
-                <el-button size="small" @click="$router.push({name: 'settings_emails'})">
+                <el-button link size="large" @click="$router.push({name: 'settings_emails'})">
                     {{ $t('Back to emails') }}
                 </el-button>
             </template>

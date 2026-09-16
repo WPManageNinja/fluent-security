@@ -29,6 +29,8 @@ class LoginAssetsTest extends BaseTestCase
         LoginAssets::reset();
         wp_dequeue_script('fluent_auth_login_helper');
         wp_deregister_script('fluent_auth_login_helper');
+        wp_dequeue_style('fluent_auth_login_helper');
+        wp_deregister_style('fluent_auth_login_helper');
     }
 
     public function tearDown(): void
@@ -45,6 +47,19 @@ class LoginAssetsTest extends BaseTestCase
         LoginAssets::enqueue();
 
         $this->assertTrue(wp_script_is('fluent_auth_login_helper', 'enqueued'));
+    }
+
+    /**
+     * The rules used to be injected by style-loader from inside the bundle, which put them
+     * in <head> before wp-login.php had printed login.css. Core's `.login *` reset ties on
+     * specificity with any single-class rule, so it won on order and flattened the magic
+     * form's padding and gaps. A stylesheet in the queue is read after core's.
+     */
+    public function test_it_enqueues_the_login_stylesheet()
+    {
+        LoginAssets::enqueue();
+
+        $this->assertTrue(wp_style_is('fluent_auth_login_helper', 'enqueued'));
     }
 
     /**
