@@ -44,7 +44,21 @@ export default {
          * Text, never v-html - this arrives over the network.
          */
         disconnectedReason() {
-            if (!this.settings || this.settings.relay_rejection !== 'revoked') {
+            if (!this.settings) {
+                return null;
+            }
+
+            /*
+             * Not a disconnection anybody performed - the service this site was connected to
+             * was replaced, and the credential went with it. Said in its own words because
+             * the paragraph below would send this owner looking for a deletion on a
+             * dashboard they have never opened.
+             */
+            if (this.settings.relay_rejection === 'legacy') {
+                return this.$t('__relay_legacy_desc__');
+            }
+
+            if (this.settings.relay_rejection !== 'revoked') {
                 return null;
             }
 
@@ -60,6 +74,30 @@ export default {
             }
 
             return this.settings.relay_rejection_note || this.$t('__relay_revoked_desc__');
+        },
+        /*
+         * The heading over that paragraph. "This site was disconnected" is right for a site
+         * somebody disowned and wrong for one that was simply left behind by a move - the
+         * second reads as an accusation of something the owner did not do.
+         */
+        disconnectedTitle() {
+            if (this.settings && this.settings.relay_rejection === 'legacy') {
+                return this.$t('__relay_legacy_title__');
+            }
+
+            return this.$t('This site was disconnected from the alerts service');
+        },
+        /*
+         * Only offered for a connection the alerts service can still be asked about. A
+         * retired one names a service that no longer exists, so quoting it would send
+         * somebody into a support conversation with a reference nobody can resolve.
+         */
+        supportReference() {
+            if (!this.settings || this.settings.relay_rejection === 'legacy') {
+                return null;
+            }
+
+            return this.settings.relay_retired_api_id || null;
         },
         /*
          * Both halves of this screen - the disclosure and the way out of it - belong to the
@@ -218,7 +256,7 @@ export default {
                         is a first visit. Only ever drawn for a site the relay disowned.
                     -->
                     <div v-if="disconnectedReason" class="fls_scan_disconnected" role="status">
-                        <h4>{{ $t('This site was disconnected from the alerts service') }}</h4>
+                        <h4>{{ disconnectedTitle }}</h4>
                         <p>{{ disconnectedReason }}</p>
                         <!--
                             The reference a support conversation can actually be resolved by.
@@ -226,9 +264,9 @@ export default {
                             by the site address - which is the search anybody with a superseded
                             connection tries first, and the one that comes back empty.
                         -->
-                        <p v-if="settings.relay_retired_api_id" class="fls_scan_disconnected_ref">
+                        <p v-if="supportReference" class="fls_scan_disconnected_ref">
                             {{ $t('If you contact support, quote this connection ID:') }}
-                            <code class="fls_code_inline">{{ settings.relay_retired_api_id }}</code>
+                            <code class="fls_code_inline">{{ supportReference }}</code>
                         </p>
                     </div>
 

@@ -63,5 +63,7 @@
   "__optin_share_details__": "What is sent: your PHP version, your MySQL version and your WordPress version. Nothing else - not your plugins, nothing from your database, and nothing about your visitors.",
   "__relay_reason_removed__": "This site was removed from your alerts dashboard, so it has been disconnected here.",
   "__relay_reason_superseded__": "The alerts service has this site connected from somewhere else. The usual cause is a copy — a staging or backup clone made from the database, which keeps the original site address and so looks like the same site connecting again. Give the copy its own address before reconnecting it, or the two will keep taking the connection from each other.",
-  "__relay_revoked_next__": "Scanning still works here. Connect again to get scheduled scans and emails back."
+  "__relay_revoked_next__": "Scanning still works here. Connect again to get scheduled scans and emails back.",
+  "__relay_legacy_desc__": "The alerts service moved to a new home, and connections made before the move could not be carried over. Nothing is wrong with this site — scanning here has been working all along, and still is. Connect again to start getting scheduled scans and alert emails.",
+  "__relay_legacy_title__": "The alerts service has moved"
 }

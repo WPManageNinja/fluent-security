@@ -81,6 +81,15 @@ export default {
             return this.settings.relay_rejection === 'revoked';
         },
         /*
+         * A third state, and not a disowning at all: the connection was made against the
+         * service this one replaced, and nothing on either side can honour it. The way back
+         * is the same as a revoked site's - register again - but the sentence is not, because
+         * there is nothing here for the owner to have done wrong.
+         */
+        relayLegacy() {
+            return this.settings.relay_rejection === 'legacy';
+        },
+        /*
          * Why the relay refused, in the most specific words available.
          *
          * Three sources, in order. A reason we have a sentence for wins, because ours is
@@ -357,7 +366,10 @@ export default {
 
             <!-- Scanning without the service: no key, so no alerts to send. -->
             <template v-else>
-                <template v-if="relayRevoked">
+                <template v-if="relayLegacy">
+                    <p class="fls_relay_notice">{{ $t('__relay_legacy_desc__') }}</p>
+                </template>
+                <template v-else-if="relayRevoked">
                     <template v-if="relayReason">
                         <p class="fls_relay_notice">{{ relayReason }}</p>
                         <p class="fls_relay_notice">{{ $t('__relay_revoked_next__') }}</p>

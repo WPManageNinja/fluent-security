@@ -115,6 +115,13 @@ class BasicTasksHandler
 
         // Maybe send scan report
         add_action('fluent_auth_hourly_tasks', function () {
+            /*
+             * A connection made against the previous alerts service is retired here rather
+             * than left to be refused, so a site nobody has opened the admin of stops posting
+             * a pair that cannot be accepted. The guard below then sees it as unregistered.
+             */
+            IntegrityHelper::maybeRetireLegacyConnection();
+
             $settings = IntegrityHelper::getSettings();
             if ($settings['auto_scan'] != 'yes' || $settings['status'] != 'active') {
                 return;

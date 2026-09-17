@@ -7,6 +7,17 @@ use FluentAuth\App\Helpers\Arr;
 class Api
 {
     /**
+     * Where the relay lives when nobody has said otherwise.
+     *
+     * Named rather than written inline because two questions are asked of it: where to post,
+     * and whether this install is talking to our service at all. The second one matters to
+     * anything that reasons about the shape of a credential - see
+     * IntegrityHelper::maybeRetireLegacyConnection(), which must not draw conclusions about
+     * tokens minted by somebody else's relay.
+     */
+    const DEFAULT_URL = 'https://dash.fluentauth.com/api/v1/';
+
+    /**
      * The alert relay.
      *
      * Only four things go here: registering a site, confirming or disconnecting it, and
@@ -20,7 +31,21 @@ class Api
      */
     public static function getApiUrl()
     {
-        return apply_filters('fluent_auth/alerts_api_url', 'https://dash.fluentauth.com/api/v1/');
+        return apply_filters('fluent_auth/alerts_api_url', self::DEFAULT_URL);
+    }
+
+    /**
+     * Whether the relay being talked to is ours.
+     *
+     * Only ever used to decide whether something we know about our own credentials may be
+     * relied on. A site pointed at its own relay mints its own tokens in whatever shape it
+     * likes, and inferring anything from them would be inventing a fact.
+     *
+     * @return bool
+     */
+    public static function isDefaultRelay()
+    {
+        return self::getApiUrl() === self::DEFAULT_URL;
     }
 
     public static function registerSite($infoData)

@@ -20,6 +20,29 @@ class IntegrityHelper
     const RELAY_REVOKED = 'revoked';
 
     /**
+     * Not disowned - superseded. The credential was issued by the service this one replaced.
+     *
+     * Its own reason rather than folded into RELAY_REVOKED, because the two need different
+     * words on the screen and only one of them is anybody's doing. A revoked site was deleted
+     * from a dashboard by somebody; this one did nothing at all and its connection stopped
+     * meaning anything under it. Telling that owner their dashboard "no longer recognises this
+     * site, usually because it was deleted there" would send them looking for a deletion that
+     * never happened, on a dashboard they have never seen.
+     */
+    const RELAY_LEGACY = 'legacy';
+
+    /**
+     * What a credential minted by the current relay looks like.
+     *
+     * Both prefixes are from `mintApiId()` and `mintSiteKey()` in the relay's src/lib/keys.ts,
+     * and that file has had one commit in its life - so every pair the service has ever issued
+     * carries them, and a pair that does not cannot be one of ours.
+     */
+    const CREDENTIAL_ID_PREFIX = 'site_';
+
+    const CREDENTIAL_KEY_PREFIX = 'fask_';
+
+    /**
      * How far apart the two refusals that destroy a credential have to be.
      *
      * See handleReportResponse: consecutive is not enough on its own, because a bad deploy
@@ -990,6 +1013,80 @@ class IntegrityHelper
         return (string)Arr::get($body, 'error_code', '');
     }
 
+    /**
+     * Whether the stored pair could have come from the relay this install talks to.
+     *
+     * A shape test, and only a shape test - it says nothing about whether the relay still has
+     * a row for this site, which is the report round trip's job. What it catches is the pair
+     * that cannot possibly work: one issued by the service that `dash.fluentauth.com`
+     * replaced, carried forward untouched by an update because both services kept their
+     * credentials in the same option under the same two keys.
+     *
+     * Wrong in one direction only. A credential the relay minted always matches, so a working
+     * connection is never retired by this; an old one whose shape happened to collide would
+     * simply not be caught here and would fall to handleReportResponse() as it does today.
+     *
+     * @param array $settings
+     * @return bool
+     */
+    public static function credentialIsCurrent($settings)
+    {
+        $apiId = (string)Arr::get($settings, 'api_id', '');
+
+        /* Nothing stored. A site that has never connected is not this question's business. */
+        if (!$apiId) {
+            return true;
+        }
+
+        if (strpos($apiId, self::CREDENTIAL_ID_PREFIX) !== 0) {
+            return false;
+        }
+
+        $apiKey = (string)Arr::get($settings, 'api_key', '');
+
+        /*
+         * Registered, not yet confirmed. There is no key to look at until the emailed one is
+         * redeemed, so the id is the whole of the answer - which is the point: a site left at
+         * `pending` by the old service never posts a report, so nothing else would ever find
+         * out that the key it is waiting for can no longer be redeemed anywhere.
+         */
+        if (!$apiKey) {
+            return true;
+        }
+
+        return strpos($apiKey, self::CREDENTIAL_KEY_PREFIX) === 0;
+    }
+
+    /**
+     * Retire a connection that belongs to the previous alerts service.
+     *
+     * Called where the credential is about to matter rather than once behind a migration
+     * flag, because a flag only answers for the moment it was set. A site restored from a
+     * backup taken before the move comes up with the flag already set and the old pair back in
+     * the option, and a one-time migration has no more to say about it.
+     *
+     * Skipped entirely when a filter has pointed this install somewhere else: another relay
+     * mints its own tokens in its own shape, and the prefixes below are a fact about ours.
+     *
+     * @return bool whether a connection was retired
+     */
+    public static function maybeRetireLegacyConnection()
+    {
+        if (!Api::isDefaultRelay()) {
+            return false;
+        }
+
+        $settings = self::getSettings();
+
+        if (self::credentialIsCurrent($settings)) {
+            return false;
+        }
+
+        self::markRelayRejected(self::RELAY_LEGACY);
+
+        return true;
+    }
+
     /*
      * Stop reporting, and leave the screen able to say why.
      *
@@ -1007,7 +1104,7 @@ class IntegrityHelper
         $settings['relay_rejection_note'] = (string)Arr::get((array)$said, 'note', '');
         $settings['relay_rejection_reason'] = (string)Arr::get((array)$said, 'reason', '');
 
-        if ($reason === self::RELAY_REVOKED) {
+        if ($reason === self::RELAY_REVOKED || $reason === self::RELAY_LEGACY) {
             /*
              * The credential does not survive: the relay has no row for it, so keeping it
              * would only let the screen offer a reconnect that cannot work. Back to the state
@@ -1024,6 +1121,12 @@ class IntegrityHelper
              * Separate from `api_id` rather than left in it, so nothing that reads a live
              * credential can pick this one up by accident. And the id only: the key is a
              * secret and is gone.
+             *
+             * Written for RELAY_LEGACY too, but the screen does not offer it to support there.
+             * There is no console that can look one of those up - the service that issued it
+             * is the one that went away - so quoting it would send somebody into a ticket with
+             * a reference nobody on the other side can resolve. It is kept because it is the
+             * only surviving record of what this site was connected as.
              */
             $settings['relay_retired_api_id'] = (string)Arr::get($settings, 'api_id', '');
             $settings['status'] = 'unregistered';

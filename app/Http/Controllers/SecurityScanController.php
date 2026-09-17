@@ -17,6 +17,19 @@ class SecurityScanController
 {
     public static function getSettings(\WP_REST_Request $request)
     {
+        /*
+         * Before the settings are read, because this can change them. An install that connected
+         * to the service `dash.fluentauth.com` replaced still holds that pair, and until it is
+         * retired this screen draws a connected site whose alerts stopped arriving at the move.
+         *
+         * Here rather than only in the cron, because the cron will not reach most of them: it
+         * refuses to run unless `auto_scan` is on, and on the old service that was a separate
+         * switch, off by default, that an owner had to go and find. A site that connected and
+         * never turned scheduling on posts nothing, is refused nothing, and would have gone on
+         * claiming a working connection for as long as it was installed.
+         */
+        IntegrityHelper::maybeRetireLegacyConnection();
+
         $settings = IntegrityHelper::getSettings();
 
         if ($settings['last_checked']) {
