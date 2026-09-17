@@ -84,6 +84,16 @@ function setText(el, text) {
 }
 
 /**
+ * Announced on the challenge form when the server refuses what was submitted.
+ *
+ * The WebAuthn ceremonies disable themselves for the length of the platform prompt and
+ * re-enable in their own catch, which only covers a failure on this side of the network.
+ * A proof the server then rejects leaves them switched off with nothing listening, so
+ * this is what tells them the attempt is over and they may be used again.
+ */
+const VERIFY_FAILED = 'fls:verify-failed';
+
+/**
  * requestSubmit() so the form's own submit handler still runs; click() is the fallback
  * for browsers without it.
  *
@@ -444,9 +454,25 @@ function initPasskeyChallenge() {
     startButton.addEventListener('click', run);
 
     /*
-     * Offered rather than forced. Calling this on load would raise the operating
-     * system's prompt before the user has looked at the page, and on a shared machine
-     * that is a fingerprint request nobody asked for.
+     * A refusal from the server ends the attempt with the ceremony already finished: the
+     * catch above never fires, so without this `busy` stays true and the button stays
+     * disabled. The only way back would be a reload, which raises the platform prompt
+     * again unasked - a passkey that the server will not accept then looks to the user
+     * like a login that asks for a fingerprint over and over and never completes.
+     */
+    form.addEventListener(VERIFY_FAILED, () => {
+        busy = false;
+        startButton.disabled = false;
+        responseField.value = '';
+        // The error itself is already on the form; this only clears "Checking your passkey…".
+        setText(status, '');
+    });
+
+    /*
+     * Raised on arrival rather than waiting for the button. The user asked for this form
+     * by signing in, the platform prompt is the whole content of the screen, and the
+     * button stays as the way back after a cancel. The short delay is so the page has
+     * painted behind the prompt.
      */
     setTimeout(run, 150);
 }
@@ -604,6 +630,14 @@ function initEnrollment() {
                 clearCredential();
                 setText(status, messages.cancelled);
             });
+    });
+
+    /* The same refusal the challenge form handles - see initPasskeyChallenge(). */
+    form.addEventListener(VERIFY_FAILED, () => {
+        busy = false;
+        startButton.disabled = false;
+        clearCredential();
+        setText(status, '');
     });
 }
 
@@ -946,7 +980,16 @@ function initChallenge() {
     if (form && claim(form)) {
         form.addEventListener('submit', (event) => {
             event.preventDefault();
-            submitForm(form, 'fls_2fa_confirm', 'fluent_auth_2fa_verify');
+            submitForm(form, 'fls_2fa_confirm', 'fluent_auth_2fa_verify', null, () => {
+                /*
+                 * The server refused what was submitted. Whatever collected the proof - a
+                 * passkey ceremony, an enrollment ceremony - disabled itself while the
+                 * authenticator was busy and has no other way of hearing that the attempt
+                 * is over. Announced on the form rather than called directly because the
+                 * two ceremonies claim their own elements and may not both be present.
+                 */
+                form.dispatchEvent(new CustomEvent(VERIFY_FAILED));
+            });
         });
     }
 
