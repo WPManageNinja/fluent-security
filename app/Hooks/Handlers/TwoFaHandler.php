@@ -270,13 +270,17 @@ class TwoFaHandler
             exit();
         }
 
-        $this->invalidate2FaCode($logHash);
+        if (!$this->claimPendingChallenge($logHash, 'failed')) {
+            wp_safe_redirect(wp_login_url());
+            exit();
+        }
 
         $redirectTo = $this->sendAndGet2FaConfirmFormUrl(
             $user,
             'url',
             $logHash->redirect_intend,
-            $alternative
+            $alternative,
+            $logHash
         );
 
         wp_safe_redirect($redirectTo ? $redirectTo : wp_login_url());
@@ -336,9 +340,11 @@ class TwoFaHandler
      * @param $return string 'url' or 'both'
      * @param $redirectIntend string|null explicit intent for callers that do not carry
      *                                    it in $_REQUEST, such as social login
+     * @param $method BaseTwoFaMethod|null an already selected method
+     * @param $previousChallenge object|null the challenge atomically retired by a switch
      * @return array|string|false
      */
-    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null)
+    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null, $previousChallenge = null)
     {
         /*
          * Passed unresolved: whether the account is under attack costs two queries over
@@ -387,6 +393,13 @@ class TwoFaHandler
         );
 
         $data = array_merge($data, (array)Arr::get($challenge, 'columns', []));
+
+        // A method switch changes the proof, not the original login's lifetime or budget.
+        if ($previousChallenge) {
+            $data['created_at'] = $previousChallenge->created_at;
+            $data['valid_till'] = $previousChallenge->valid_till;
+            $data['used_count'] = $previousChallenge->used_count;
+        }
 
         flsDb()->table('fls_login_hashes')
             ->insert($data);
@@ -439,7 +452,7 @@ class TwoFaHandler
          * them afterwards (as this used to) means the attempt cap only ever applies to
          * a code that already matched, so a wrong code could be retried indefinitely.
          */
-        if (!$user || !$method || $logHash->status != 'issued' || strtotime($logHash->created_at) < current_time('timestamp') - self::PENDING_TIMEOUT) {
+        if (!$user || !$method || $logHash->status != 'issued' || strtotime($logHash->created_at) < current_time('timestamp') - self::PENDING_TIMEOUT || strtotime($logHash->valid_till) < current_time('timestamp')) {
             wp_send_json([
                 'message' => __('Sorry, your login code has been expired. Please try to login again', 'fluent-security')
             ], 422);
@@ -477,6 +490,14 @@ class TwoFaHandler
 
             wp_send_json([
                 'message' => __('Your provided code is not valid. Please try again', 'fluent-security')
+            ], 422);
+        }
+
+        // Only one request may exchange this proof for a session. Recheck eligibility
+        // in the write so a stale read cannot race a redemption, expiry or method switch.
+        if (!$this->claimPendingChallenge($logHash, 'used')) {
+            wp_send_json([
+                'message' => __('Sorry, your login code has been expired. Please try to login again', 'fluent-security')
             ], 422);
         }
 
@@ -520,7 +541,6 @@ class TwoFaHandler
                 flsDb()->table('fls_login_hashes')
                     ->where('id', $logHash->id)
                     ->update([
-                        'status'             => 'used',
                         'success_ip_address' => Helper::getIp()
                     ]);
 
@@ -1376,21 +1396,19 @@ class TwoFaHandler
      */
     private function recordFailedAttempt($logHash, $user, $method)
     {
-        $usedCount = $logHash->used_count + 1;
+        global $wpdb;
 
-        $update = [
-            'used_count' => $usedCount,
-            'updated_at' => current_time('mysql')
-        ];
-
-        // Burn the challenge once the cap is reached, it must not stay guessable.
-        if ($usedCount >= self::MAX_VERIFY_ATTEMPTS) {
-            $update['status'] = 'failed';
-        }
-
-        flsDb()->table('fls_login_hashes')
-            ->where('id', $logHash->id)
-            ->update($update);
+        // Increment the stored count, not a stale read, and never overwrite spent state.
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET status = CASE WHEN used_count + 1 >= %d THEN 'failed' ELSE status END,
+                 used_count = used_count + 1, updated_at = %s
+             WHERE id = %d AND status = 'issued' AND used_count < %d",
+            self::MAX_VERIFY_ATTEMPTS,
+            current_time('mysql'),
+            $logHash->id,
+            self::MAX_VERIFY_ATTEMPTS
+        ));
 
         /*
          * The first factor already succeeded to get here, so nothing has been recorded
@@ -1422,8 +1440,41 @@ class TwoFaHandler
             ->where('login_hash', $hash)
             ->whereIn('use_type', TwoFaService::getAllUseTypes())
             ->where('status', 'issued')
+            ->where('created_at', '>=', date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT))
+            ->where('valid_till', '>=', current_time('mysql'))
+            ->where('used_count', '<', self::MAX_VERIFY_ATTEMPTS)
             ->orderBy('id', 'DESC')
             ->first();
+    }
+
+    /**
+     * Atomically retires an eligible challenge before login or replacement issuance.
+     *
+     * @param $logHash object
+     * @param $status string
+     * @return bool
+     */
+    private function claimPendingChallenge($logHash, $status)
+    {
+        global $wpdb;
+
+        // A replacement must inherit the current budget. A valid proof may still
+        // finish if another request recorded a wrong guess without exhausting it.
+        $countCondition = $status === 'failed'
+            ? $wpdb->prepare(' AND used_count = %d', $logHash->used_count)
+            : '';
+
+        return 1 === $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes SET status = %s, updated_at = %s
+             WHERE id = %d AND status = 'issued' AND used_count < %d
+             AND created_at >= %s AND valid_till >= %s{$countCondition}",
+            $status,
+            current_time('mysql'),
+            $logHash->id,
+            self::MAX_VERIFY_ATTEMPTS,
+            date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT),
+            current_time('mysql')
+        ));
     }
 
     /**
@@ -1440,6 +1491,7 @@ class TwoFaHandler
 
         flsDb()->table('fls_login_hashes')
             ->where('id', $logHash->id)
+            ->where('status', 'issued')
             ->update([
                 'status'     => 'failed',
                 'updated_at' => current_time('mysql')
