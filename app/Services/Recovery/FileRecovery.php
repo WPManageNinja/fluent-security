@@ -351,7 +351,9 @@ class FileRecovery
              */
             return new \WP_Error('checksums_unavailable', $exception->getMessage(), [
                 'status' => 422,
-                'reason' => $exception->getReason()
+                'reason' => $exception->getReason(),
+                /* Same shape as SecurityScanController::scanSite - one exception, one payload. */
+                'data'   => $exception->getDetail()
             ]);
         } catch (\Exception $exception) {
             return new \WP_Error(
@@ -400,28 +402,49 @@ class FileRecovery
 
         RecoveryService::log(
             'reinstall_core',
-            sprintf(
-                /* translators: 1: WordPress version, 2: number of files moved to quarantine, 3: number of files still differing */
-                __('Reinstalled WordPress %1$s. %2$s unexpected files moved to quarantine, %3$s files still differ.', 'fluent-security'),
-                $wp_version,
-                number_format_i18n(count($quarantine['moved'])),
-                number_format_i18n($remaining)
-            )
-        );
-
-        return [
-            'message'     => $remaining
+            $remaining === null
                 ? sprintf(
-                    /* translators: 1: WordPress version, 2: number of files */
-                    __('WordPress %1$s has been reinstalled. %2$s files still differ - see Monitoring.', 'fluent-security'),
+                    /* translators: 1: WordPress version, 2: number of files moved to quarantine */
+                    __('Reinstalled WordPress %1$s. %2$s unexpected files moved to quarantine. The result could not be re-checked.', 'fluent-security'),
                     $wp_version,
-                    number_format_i18n($remaining)
+                    number_format_i18n(count($quarantine['moved']))
                 )
                 : sprintf(
-                    /* translators: %s: WordPress version */
-                    __('WordPress %s has been reinstalled and every core file now matches the official release.', 'fluent-security'),
-                    $wp_version
-                ),
+                    /* translators: 1: WordPress version, 2: number of files moved to quarantine, 3: number of files still differing */
+                    __('Reinstalled WordPress %1$s. %2$s unexpected files moved to quarantine, %3$s files still differ.', 'fluent-security'),
+                    $wp_version,
+                    number_format_i18n(count($quarantine['moved'])),
+                    number_format_i18n($remaining)
+                )
+        );
+
+        /*
+         * Three outcomes, not two. Saying every file now matches is a claim about a check,
+         * so it is only made where one happened - see rescanCore().
+         */
+        if ($remaining === null) {
+            $message = sprintf(
+                /* translators: %s: WordPress version */
+                __('WordPress %s has been reinstalled. The result could not be re-checked - run a scan when you can.', 'fluent-security'),
+                $wp_version
+            );
+        } else if ($remaining) {
+            $message = sprintf(
+                /* translators: 1: WordPress version, 2: number of files */
+                __('WordPress %1$s has been reinstalled. %2$s files still differ - see Monitoring.', 'fluent-security'),
+                $wp_version,
+                number_format_i18n($remaining)
+            );
+        } else {
+            $message = sprintf(
+                /* translators: %s: WordPress version */
+                __('WordPress %s has been reinstalled and every core file now matches the official release.', 'fluent-security'),
+                $wp_version
+            );
+        }
+
+        return [
+            'message'     => $message,
             'quarantined' => $quarantine['moved'],
             'failed'      => $quarantine['failed'],
             'remaining'   => $remaining,
@@ -796,14 +819,24 @@ class FileRecovery
     }
 
     /**
-     * @return int files still differing after the reinstall
+     * @return int|null files still differing after the reinstall, or null if it could not
+     *                  be checked - see the catch below, and reinstallCore() for the third
+     *                  sentence that answer needs.
      */
     protected static function rescanCore()
     {
         try {
             $checker = static::coreChecker();
         } catch (\Exception $exception) {
-            return 0;
+            /*
+             * null, not 0. The checksums can go away between the pre-flight fetch and this
+             * second look - the transient expires, an object cache evicts it, the network
+             * drops - and 0 here is indistinguishable from "checked, nothing differs". That
+             * had the caller tell the owner every core file now matched the official release
+             * on the strength of a check that never ran, right after moving files out of
+             * wp-includes. See the caller for what it says instead.
+             */
+            return null;
         }
 
         IntegrityHelper::storeCoreResult($checker);

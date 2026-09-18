@@ -104,6 +104,13 @@ class IntegrityHelper
              * Why the relay stopped accepting this site's reports, if it has. Empty on a site
              * in good standing. See handleReportResponse().
              */
+            /*
+             * Why the last scheduled scan did not run, if it did not. Empty when the last one
+             * completed. The scan screen prints it: a site whose host blocks outgoing requests
+             * to wordpress.org otherwise gets no scan, no report and no word of either, which
+             * is the one failure this plugin must not keep to itself.
+             */
+            'last_scan_error'     => '',
             'relay_rejection'     => '',
             'relay_rejected_at'   => '',
             'relay_auth_failures' => 0,
@@ -560,6 +567,24 @@ class IntegrityHelper
         return update_option('__fls_integrity_ignore_lists', $ignoreLists, false);
     }
 
+    /**
+     * Remember why a scheduled scan did not run, without flapping the option on every cron.
+     *
+     * @param array $settings
+     * @param string $message
+     * @return void
+     */
+    protected static function recordScanError($settings, $message)
+    {
+        if (Arr::get($settings, 'last_scan_error') === $message) {
+            return;
+        }
+
+        $settings['last_scan_error'] = $message;
+
+        self::saveSettings($settings);
+    }
+
     public static function maybeSendScanReport()
     {
         $settings = self::getSettings();
@@ -581,9 +606,25 @@ class IntegrityHelper
 
         try {
             $checkerService = new CheckerService();
-        } catch (\Exception $exception) {
-            // error happended
+        } catch (ChecksumException $exception) {
+            /*
+             * Recorded rather than swallowed. Its message is already written for the site
+             * owner and names which of the two things went wrong, and this is the path most
+             * sites only ever take unattended - so dropping it meant a site that had silently
+             * stopped scanning looked exactly like one with nothing to report.
+             */
+            self::recordScanError($settings, $exception->getMessage());
+
             return false;
+        } catch (\Exception $exception) {
+            self::recordScanError($settings, __('The last scheduled scan could not be completed.', 'fluent-security'));
+
+            return false;
+        }
+
+        if (!empty($settings['last_scan_error'])) {
+            $settings['last_scan_error'] = '';
+            self::saveSettings($settings);
         }
 
         self::storeCoreResult($checkerService);

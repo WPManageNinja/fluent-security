@@ -70,24 +70,16 @@ export default {
             return this.settings.status === 'active' && this.settings.auto_scan === 'yes';
         },
         /*
-         * Disowned from the alerts dashboard. Two states, because the way back differs: a
-         * disabled site keeps a working key and needs one click, a deleted one has to be set
-         * up from scratch.
+         * Disowned from the alerts dashboard, and still holding a working key - one click puts
+         * it back. The only rejection this component ever draws.
+         *
+         * The other two, `revoked` and `legacy`, both set status to `unregistered` (see
+         * IntegrityHelper::markRelayRejected), and this component is rendered only for
+         * active/self/disabled. They are RegisterPromt.vue's to say, and it says them. Branches
+         * for them lived here too and could never run.
          */
         relayDisabled() {
             return this.settings.relay_rejection === 'disabled';
-        },
-        relayRevoked() {
-            return this.settings.relay_rejection === 'revoked';
-        },
-        /*
-         * A third state, and not a disowning at all: the connection was made against the
-         * service this one replaced, and nothing on either side can honour it. The way back
-         * is the same as a revoked site's - register again - but the sentence is not, because
-         * there is nothing here for the owner to have done wrong.
-         */
-        relayLegacy() {
-            return this.settings.relay_rejection === 'legacy';
         },
         /*
          * Why the relay refused, in the most specific words available.
@@ -366,17 +358,7 @@ export default {
 
             <!-- Scanning without the service: no key, so no alerts to send. -->
             <template v-else>
-                <template v-if="relayLegacy">
-                    <p class="fls_relay_notice">{{ $t('__relay_legacy_desc__') }}</p>
-                </template>
-                <template v-else-if="relayRevoked">
-                    <template v-if="relayReason">
-                        <p class="fls_relay_notice">{{ relayReason }}</p>
-                        <p class="fls_relay_notice">{{ $t('__relay_revoked_next__') }}</p>
-                    </template>
-                    <p v-else class="fls_relay_notice">{{ $t('__relay_revoked_desc__') }}</p>
-                </template>
-                <p v-else>
+                <p>
                     {{ $t('Connect this site with a free key to scan on a schedule and get an email when a file changes.') }}
                 </p>
 
@@ -406,6 +388,16 @@ export default {
                     </span>
                 </li>
             </ul>
+
+            <!--
+                Said here because the scheduled scan has nowhere else to say it. It runs
+                unattended, so a site whose host blocks outgoing requests to wordpress.org
+                stops being scanned and looks exactly like a site with nothing to report.
+                Text, never v-html: the sentence is written by ChecksumException.
+            -->
+            <p v-if="settings.last_scan_error" class="fls_note is_warning">
+                {{ settings.last_scan_error }}
+            </p>
 
             <p v-if="settings.status === 'active'" class="fls_note">
                 {{ $t('__disconnect_note__') }}

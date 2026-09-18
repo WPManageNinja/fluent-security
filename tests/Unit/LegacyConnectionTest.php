@@ -2,6 +2,7 @@
 
 namespace FluentAuth\Tests\Unit;
 
+use FluentAuth\App\Http\Controllers\SecurityScanController;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 
 /**
@@ -221,5 +222,37 @@ class LegacyConnectionTest extends BaseTestCase
 
         $this->assertArrayNotHasKey('api_key', $public);
         $this->assertFalse($public['has_api_key']);
+    }
+
+    /**
+     * The retirement is actually wired to something a site reaches.
+     *
+     * Every test above calls maybeRetireLegacyConnection() by hand, so all of them would still
+     * pass with both call sites deleted and the feature shipping as dead code. This is the one
+     * that fails if that happens: opening the scan screen is the path that reaches most of
+     * these sites, because the cron will not run without `auto_scan`.
+     */
+    public function testOpeningTheScanScreenRetiresALegacyConnection()
+    {
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
+
+        $response = SecurityScanController::getSettings(new \WP_REST_Request());
+
+        $this->assertSame('legacy', $response['settings']['relay_rejection']);
+        $this->assertSame('unregistered', $response['settings']['status']);
+        $this->assertArrayNotHasKey('api_key', $response['settings']);
+    }
+
+    /**
+     * And does not touch a current one on the way past.
+     */
+    public function testOpeningTheScanScreenLeavesACurrentConnectionAlone()
+    {
+        $this->connectedWith(self::CURRENT_ID, self::CURRENT_KEY);
+
+        $response = SecurityScanController::getSettings(new \WP_REST_Request());
+
+        $this->assertSame('', $response['settings']['relay_rejection']);
+        $this->assertTrue($response['settings']['has_api_key']);
     }
 }

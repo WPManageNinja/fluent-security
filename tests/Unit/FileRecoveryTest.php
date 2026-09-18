@@ -3,6 +3,7 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Services\IntegrityChecker\CheckerService;
+use FluentAuth\App\Services\IntegrityChecker\ChecksumException;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 use FluentAuth\App\Services\Recovery\FileRecovery;
 use FluentAuth\App\Services\Recovery\RecoveryService;
@@ -72,7 +73,18 @@ class TestableFileRecovery extends FileRecovery
             throw new \Exception('No checker');
         }
 
-        return array_shift(self::$checkers);
+        $next = array_shift(self::$checkers);
+
+        /*
+         * A queued exception is thrown instead of returned, so a test can put the failure on
+         * whichever of the two calls it means: the pre-flight fetch, or the re-check after the
+         * files have already been moved.
+         */
+        if ($next instanceof \Exception) {
+            throw $next;
+        }
+
+        return $next;
     }
 
     protected static function runCoreUpgrade($offer)
@@ -342,6 +354,55 @@ class FileRecoveryTest extends BaseTestCase
 
         $history = RecoveryService::history();
         $this->assertSame('reinstall_core', $history[0]['action']);
+    }
+
+    /**
+     * Checksums unavailable before anything is touched: refused, and nothing moved.
+     *
+     * The one path in this class that moves real files out of wp-includes, so the branch that
+     * decides nothing has been changed is worth asserting rather than assuming. The exception's
+     * own sentence is handed on, because it already names which of the two things went wrong.
+     */
+    public function test_core_reinstall_refuses_when_the_checksums_cannot_be_fetched()
+    {
+        TestableFileRecovery::$offer = (object)['response' => 'latest', 'current' => '6.9.4'];
+        TestableFileRecovery::$checkers = [
+            new ChecksumException(ChecksumException::UNREACHABLE, 'wordpress.org could not be reached.', 'Connection timed out')
+        ];
+
+        $result = TestableFileRecovery::reinstallCore();
+
+        $this->assertWpErrorWithCode($result, 'checksums_unavailable');
+        $this->assertSame('unreachable', $result->get_error_data()['reason']);
+
+        // Nothing ran, so nothing was recorded and nothing was quarantined.
+        $this->assertSame([], RecoveryService::history());
+    }
+
+    /**
+     * Checksums that go away between the pre-flight and the re-check afterwards.
+     *
+     * The reinstall itself succeeded, so this is not a failure - but the verification did not
+     * run, and the message must not say every core file now matches on the strength of a check
+     * that never happened. See FileRecovery::rescanCore(), which returns null rather than 0
+     * for exactly this.
+     */
+    public function test_core_reinstall_does_not_claim_a_verification_it_could_not_run()
+    {
+        TestableFileRecovery::$offer = (object)['response' => 'latest', 'current' => '6.9.4'];
+        TestableFileRecovery::$checkers = [
+            new StubCoreChecker([]),
+            new ChecksumException(ChecksumException::UNREACHABLE, 'wordpress.org could not be reached.', 'Connection timed out')
+        ];
+
+        $result = TestableFileRecovery::reinstallCore();
+
+        $this->assertNotWPError($result);
+        $this->assertStringContainsString('could not be re-checked', $result['message']);
+        $this->assertStringNotContainsString('every core file now matches', $result['message']);
+
+        $history = RecoveryService::history();
+        $this->assertStringContainsString('could not be re-checked', $history[0]['description']);
     }
 
     public function test_core_reinstall_says_so_when_wordpress_cannot_write_its_own_files()
