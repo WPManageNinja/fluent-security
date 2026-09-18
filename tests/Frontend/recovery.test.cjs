@@ -6,10 +6,41 @@ const path = require('node:path');
 const vm = require('node:vm');
 const {parse} = require('@vue/compiler-sfc');
 
+/*
+ * Every identifier the SFC imports, stubbed.
+ *
+ * The imports are stripped before the script is evaluated, so anything the component names -
+ * a child component in `components`, a shared helper - is an undefined reference in here.
+ * Listing them by hand meant the harness broke every time a screen gained an import, and the
+ * failure looked like the screen was broken rather than the test: adding RivalNotice to the
+ * dashboard took four unrelated tests down with a ReferenceError.
+ */
+function importedNames(source) {
+    const names = {};
+
+    for (const line of source.match(/^import .*;$/gm) || []) {
+        const named = line.match(/^import\s+\{([^}]+)\}/);
+        const plain = line.match(/^import\s+([A-Za-z_$][\w$]*)/);
+
+        if (named) {
+            named[1].split(',').forEach((part) => {
+                const name = part.split(/\s+as\s+/).pop().trim();
+                if (name) names[name] = {};
+            });
+        } else if (plain) {
+            names[plain[1]] = {};
+        }
+    }
+
+    return names;
+}
+
+
 const root = path.resolve(__dirname, '../..');
 const {descriptor} = parse(fs.readFileSync(path.join(root, 'src/admin/Components/Security/Recovery.vue'), 'utf8'));
-const script = descriptor.script.content.replace(/^import .*;\n/gm, '').replace('export default', 'module.exports =');
-const context = {module: {exports: {}}, icons: {}, SecurityTabs: {}};
+const source = descriptor.script.content;
+const script = source.replace(/^import .*;\n/gm, '').replace('export default', 'module.exports =');
+const context = Object.assign({module: {exports: {}}}, importedNames(source));
 vm.runInNewContext(script, context);
 const component = context.module.exports;
 
@@ -44,31 +75,37 @@ const files = {
     quarantine: {files: 2, path: '/wp-content/uploads/fluent-auth-quarantine'}
 };
 
-test('puts the files first, because a backdoor undoes everything after it', () => {
+/*
+ * Signing out is step one because it is instant and the rest of the page refers to it - the
+ * password step's own body says "do step 1 first". Files come before the two account steps
+ * for the original reason: a backdoor left in a file undoes everything done after it.
+ */
+test('orders the steps so nothing later is undone by something earlier', () => {
     const instance = screen();
-    assert.deepEqual(Array.from(instance.steps, step => step.key), ['files', 'admins', 'passwords']);
+    assert.deepEqual(Array.from(instance.steps, step => step.key), ['sessions', 'files', 'admins', 'passwords']);
 });
 
 test('the file step says what is known: nothing yet, all clean, or what differs', () => {
     const instance = screen();
-    assert.match(instance.filesStepBody, /Nothing has been compared/);
+    assert.match(instance.filesStepBody, /No scan has run yet/);
     assert.equal(instance.hasFileFindings, false);
 
     instance.files = {...files, core: {...files.core, files: 0}, extensions: []};
-    assert.match(instance.filesStepBody, /Checked 2 hours ago: every core file/);
+    assert.match(instance.filesStepBody, /Checked 2 hours ago\. Every WordPress file/);
     assert.equal(instance.hasFileFindings, false);
 
     instance.files = files;
     assert.match(instance.filesStepBody, /Checked 2 hours ago\. Each reinstall/);
     assert.equal(instance.hasFileFindings, true);
-    assert.equal(instance.steps[0].warning, true);
+    // steps[1] is the file step - steps[0] signs everyone out.
+    assert.equal(instance.steps[1].warning, true);
 });
 
 test('summarises counts by status and leaves out the zeros', () => {
     const instance = screen();
     instance.files = files;
-    assert.equal(instance.coreStatusLine, '1 file changed · 2 files not in the release · 1 file missing');
-    assert.equal(instance.rowStatusLine(files.extensions[1]), '2 files changed · 1 file not in the release');
+    assert.equal(instance.coreStatusLine, '1 file changed · 2 unexpected files · 1 file missing');
+    assert.equal(instance.rowStatusLine(files.extensions[1]), '2 files changed · 1 unexpected file');
     assert.equal(instance.rowStatusLine(files.extensions[0]), 'Version not on WordPress.org');
     assert.equal(instance.rowActionLabel(files.extensions[0]), 'Replace with the WordPress.org release');
     assert.equal(instance.rowActionLabel(files.extensions[1]), 'Reinstall');
@@ -84,9 +121,9 @@ test('says where quarantined files went, and that they are harmless there', () =
     const instance = screen();
     assert.equal(instance.quarantineNote, '');
     instance.files = files;
-    assert.equal(instance.quarantineNote, '2 files are in quarantine at /wp-content/uploads/fluent-auth-quarantine. They cannot run from there. Delete the folder once you are sure you do not need them.');
+    assert.equal(instance.quarantineNote, '2 files were moved to /wp-content/uploads/fluent-auth-quarantine, where they cannot run. Delete the folder once you are sure you do not need them.');
     instance.files = {...files, quarantine: {files: 1, path: '/q'}};
-    assert.match(instance.quarantineNote, /^1 file is in quarantine at \/q\./);
+    assert.match(instance.quarantineNote, /^1 file was moved to \/q,/);
 });
 
 test('takes the server\'s picture after a reinstall and warns about what could not be moved', () => {
