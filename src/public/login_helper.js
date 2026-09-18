@@ -500,6 +500,8 @@ function initEnrollment() {
     const codeField = byId('fls_enroll_code');
     const messages = settings.messages || {};
     let busy = false;
+    /* Set once the reader picks a pane themselves - see the platform-authenticator probe. */
+    let chosen = false;
 
     /*
      * Whether there is anything to fall back to. The server leaves the app pane out
@@ -552,6 +554,7 @@ function initEnrollment() {
 
     if (showApp) {
         showApp.addEventListener('click', (event) => {
+            chosen = true;
             event.preventDefault();
             clearCredential();
             show('app');
@@ -567,6 +570,7 @@ function initEnrollment() {
     if (showPasskey) {
         showPasskey.addEventListener('click', (event) => {
             event.preventDefault();
+            chosen = true;
             show('passkey');
         });
     }
@@ -589,7 +593,14 @@ function initEnrollment() {
     if (!passkeyOnly) {
         PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
             .then((available) => {
-                if (available) {
+                /*
+                 * Only if they have not already picked a pane themselves. This promise can
+                 * take a few hundred milliseconds to settle - Windows Hello is the slow one -
+                 * which is long enough for somebody to read the app pane, click through to it
+                 * and start scanning the QR code. Switching panes under them at that point
+                 * takes the code off the screen mid-scan with no explanation.
+                 */
+                if (available && !chosen) {
                     show('passkey');
                 }
             })
@@ -677,6 +688,8 @@ function initSetupPasskey() {
     const codeField = byId('fls_totp_confirm_code');
     const messages = settings.messages || {};
     let busy = false;
+    /* Set once the reader picks a pane themselves - see the platform-authenticator probe. */
+    let chosen = false;
 
     /*
      * The server leaves the app pane out entirely where authenticator apps are off - or
@@ -727,6 +740,7 @@ function initSetupPasskey() {
 
     if (showApp) {
         showApp.addEventListener('click', (event) => {
+            chosen = true;
             event.preventDefault();
             clearCredential();
             show('app');
@@ -742,6 +756,7 @@ function initSetupPasskey() {
     if (showPasskey) {
         showPasskey.addEventListener('click', (event) => {
             event.preventDefault();
+            chosen = true;
             show('passkey');
         });
     }
@@ -759,7 +774,14 @@ function initSetupPasskey() {
     if (!passkeyOnly) {
         PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
             .then((available) => {
-                if (available) {
+                /*
+                 * Only if they have not already picked a pane themselves. This promise can
+                 * take a few hundred milliseconds to settle - Windows Hello is the slow one -
+                 * which is long enough for somebody to read the app pane, click through to it
+                 * and start scanning the QR code. Switching panes under them at that point
+                 * takes the code off the screen mid-scan with no explanation.
+                 */
+                if (available && !chosen) {
                     show('passkey');
                 }
             })
