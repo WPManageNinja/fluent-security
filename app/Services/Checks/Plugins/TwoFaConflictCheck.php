@@ -334,7 +334,13 @@ class TwoFaConflictCheck extends Check
                 'plugin'    => 'wordfence-login-security/wordfence-login-security.php',
                 'name'      => __('Wordfence Login Security', 'fluent-security'),
                 'constants' => ['WORDFENCE_LS_VERSION'],
-                'classes'   => ['WordfenceLS\\Controller_TOTP'],
+                /*
+                 * Verified on a real install: the full Wordfence plugin defines
+                 * WORDFENCE_LS_VERSION as well, because it ships the same login-security
+                 * code. Without this the one plugin is reported as two, naming a product the
+                 * site has not got - and the row below already covers that case properly.
+                 */
+                'unless'    => ['WORDFENCE_VERSION'],
                 /*
                  * Counted, not assumed. `active_count()` is the number of rows in their
                  * secrets table - which is to say the number of people who have actually
@@ -643,6 +649,7 @@ class TwoFaConflictCheck extends Check
                 'name'      => '',
                 'constants' => [],
                 'classes'   => [],
+                'unless'    => [],
                 'where'     => '',
                 'url'       => '',
                 'certain'   => true
@@ -691,6 +698,18 @@ class TwoFaConflictCheck extends Check
      */
     protected static function isPresent($rival, $active)
     {
+        /*
+         * Another entry owns this install. Two products can define the same constant when one
+         * bundles the other, and the bundled one must not be named in its own right - the
+         * site has not got it, and the entry for what it actually has says the same thing
+         * with the right name on it.
+         */
+        foreach ((array)$rival['unless'] as $constant) {
+            if (defined($constant)) {
+                return false;
+            }
+        }
+
         foreach ((array)$rival['constants'] as $constant) {
             if (defined($constant)) {
                 return true;

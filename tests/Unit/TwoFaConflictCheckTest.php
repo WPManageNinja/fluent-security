@@ -433,6 +433,40 @@ class TwoFaConflictCheckTest extends BaseTestCase
         delete_option('fls_stub_flag');
     }
 
+    /**
+     * One install must not be reported as two products.
+     *
+     * Found on a real site: the full Wordfence plugin defines WORDFENCE_LS_VERSION, the
+     * standalone Login Security plugin's own constant, because it ships the same code. Both
+     * entries matched, so a site with one plugin was told two were competing - one of them
+     * by a name it has never had installed. `unless` is how the bundled entry stands aside.
+     */
+    public function test_a_bundled_entry_stands_aside_for_the_product_that_ships_it()
+    {
+        define('FLS_TEST_SUITE_PRODUCT', '1.0');
+
+        $this->ourTwoFaOn();
+
+        add_filter('fluent_auth/2fa_conflict_plugins', function () {
+            return [
+                [
+                    'name'      => 'The Bundled Part',
+                    'constants' => ['FLS_TEST_SUITE_PRODUCT'],
+                    'unless'    => ['FLS_TEST_SUITE_PRODUCT']
+                ],
+                [
+                    'name'      => 'The Whole Suite',
+                    'constants' => ['FLS_TEST_SUITE_PRODUCT']
+                ]
+            ];
+        });
+
+        $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
+
+        $this->assertStringContainsString('The Whole Suite', $finding['title']);
+        $this->assertStringNotContainsString('Bundled', implode(' ', $finding['details']));
+    }
+
     /* ------------------------------------------------------------------ dismissal */
 
     /**
