@@ -155,12 +155,12 @@ class TwoFaConflictCheckTest extends BaseTestCase
     public function test_a_two_factor_only_plugin_needs_no_option_to_count()
     {
         $this->ourTwoFaOn();
-        $this->activate(['two-factor/two-factor.php']);
+        $this->activate(['wp-2fa/wp-2fa.php']);
 
         $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
 
         $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
-        $this->assertStringContainsString('Two Factor', $finding['title']);
+        $this->assertStringContainsString('WP 2FA', $finding['title']);
     }
 
     /**
@@ -170,7 +170,7 @@ class TwoFaConflictCheckTest extends BaseTestCase
     public function test_several_rivals_are_one_finding_pointing_at_the_plugins_screen()
     {
         $this->ourTwoFaOn();
-        $this->activate(['two-factor/two-factor.php', 'wp-2fa/wp-2fa.php']);
+        $this->activate(['wp-2fa/wp-2fa.php', 'rublon/rublon.php']);
 
         $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
 
@@ -209,6 +209,143 @@ class TwoFaConflictCheckTest extends BaseTestCase
         $this->assertArrayNotHasKey(TwoFaConflictCheck::FINDING_POSSIBLE, $this->findings());
     }
 
+    /* --------------------------------------------- how a plugin is found and asked */
+
+    /**
+     * Declare one rival, so a test says what it means without depending on which real
+     * plugins happen to carry an `enabled` answer.
+     */
+    private function rival($extra = [])
+    {
+        add_filter('fluent_auth/2fa_conflict_plugins', function () use ($extra) {
+            return [array_merge([
+                'plugin' => 'made-up/made-up.php',
+                'name'   => 'Made Up Security',
+                'where'  => 'Somewhere',
+                'url'    => 'admin.php?page=made-up'
+            ], $extra)];
+        });
+    }
+
+    /**
+     * A constant is better evidence than a path. The entry in `active_plugins` names a
+     * folder, so renaming it - or installing the same plugin as an mu-plugin - hides a
+     * plugin that is still there and still hooking `wp_login`.
+     */
+    public function test_a_plugin_is_found_by_its_constant_with_no_entry_in_active_plugins()
+    {
+        define('FLS_TEST_RIVAL_CONSTANT', '1.0');
+
+        $this->ourTwoFaOn();
+        $this->rival(['constants' => ['FLS_TEST_RIVAL_CONSTANT']]);
+
+        $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
+
+        $this->assertEquals(Finding::STATE_OPEN, $finding['state']);
+        $this->assertStringContainsString('Made Up Security', $finding['title']);
+    }
+
+    public function test_a_plugin_is_found_by_a_loaded_class()
+    {
+        $this->ourTwoFaOn();
+        $this->rival(['classes' => [self::class]]);
+
+        $this->assertArrayHasKey(TwoFaConflictCheck::FINDING_ACTIVE, $this->findings());
+    }
+
+    /**
+     * The path is still consulted, so a constant we have guessed wrong costs the accuracy of
+     * one entry rather than losing the plugin entirely.
+     */
+    public function test_a_wrong_constant_falls_back_to_the_plugin_path()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['made-up/made-up.php']);
+        $this->rival(['constants' => ['FLS_A_CONSTANT_NOBODY_DEFINES']]);
+
+        $this->assertArrayHasKey(TwoFaConflictCheck::FINDING_ACTIVE, $this->findings());
+    }
+
+    public function test_a_plugin_that_says_its_second_factor_is_off_is_dropped()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['made-up/made-up.php']);
+        $this->rival(['enabled' => function () { return false; }]);
+
+        $findings = $this->findings();
+
+        $this->assertCount(1, $findings);
+        $this->assertEquals(Finding::STATE_PASSED, $findings[TwoFaConflictCheck::FINDING_ACTIVE]['state']);
+    }
+
+    public function test_a_plugin_that_says_its_second_factor_is_on_is_a_conflict_to_fix()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['made-up/made-up.php']);
+        $this->rival(['enabled' => function () { return true; }]);
+
+        $this->assertEquals(
+            Finding::SEVERITY_FIX,
+            $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE]['severity']
+        );
+    }
+
+    /**
+     * "It will not say" is a third answer and has to stay one. Reading it as off drops a
+     * real conflict silently; reading it as on accuses a site of something unproven.
+     */
+    public function test_a_plugin_that_will_not_say_is_only_worth_a_look()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['made-up/made-up.php']);
+        $this->rival(['enabled' => function () { return null; }]);
+
+        $findings = $this->findings();
+
+        $this->assertArrayNotHasKey(TwoFaConflictCheck::FINDING_ACTIVE, $findings);
+        $this->assertEquals(Finding::SEVERITY_LOOK, $findings[TwoFaConflictCheck::FINDING_POSSIBLE]['severity']);
+    }
+
+    /**
+     * Their code runs inside our request. A getter that fatals on a version whose signature
+     * we guessed wrong would otherwise take the whole security screen with it, over a
+     * question that was only deciding how loudly to word one row.
+     */
+    public function test_a_plugin_whose_own_code_blows_up_is_only_worth_a_look()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['made-up/made-up.php']);
+        $this->rival(['enabled' => function () {
+            /* An Error, not an Exception - which is what a bad call actually raises. */
+            return \NoSuchClassAnywhere::answer();
+        }]);
+
+        $findings = $this->findings();
+
+        $this->assertArrayNotHasKey(TwoFaConflictCheck::FINDING_ACTIVE, $findings);
+        $this->assertEquals(Finding::SEVERITY_LOOK, $findings[TwoFaConflictCheck::FINDING_POSSIBLE]['severity']);
+    }
+
+    /**
+     * An option that is not there is the shape a wrong option name takes. Reading it as
+     * "switched off" is the one failure that loses a real conflict instead of softening it,
+     * so absent has to answer "look" rather than "nothing here".
+     */
+    public function test_a_missing_option_is_a_look_rather_than_an_all_clear()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['sg-security/sg-security.php']);
+        delete_option('sg_security_sg2fa');
+
+        $findings = $this->findings();
+
+        $this->assertArrayNotHasKey(TwoFaConflictCheck::FINDING_ACTIVE, $findings);
+        $this->assertStringContainsString(
+            'SiteGround',
+            $findings[TwoFaConflictCheck::FINDING_POSSIBLE]['title']
+        );
+    }
+
     /* ------------------------------------------------------------------ dismissal */
 
     /**
@@ -218,7 +355,7 @@ class TwoFaConflictCheckTest extends BaseTestCase
     public function test_each_finding_can_be_accepted_on_its_own()
     {
         $this->ourTwoFaOn();
-        $this->activate(['two-factor/two-factor.php', 'wordfence/wordfence.php']);
+        $this->activate(['wp-2fa/wp-2fa.php', 'wordfence/wordfence.php']);
 
         $check = new TwoFaConflictCheck();
         $check->accept(TwoFaConflictCheck::FINDING_ACTIVE);

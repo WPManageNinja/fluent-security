@@ -257,16 +257,35 @@ class TwoFaConflictCheck extends Check
     }
 
     /**
-     * The known plugins, and where each one keeps the switch.
+     * The known plugins: how to tell each one is here, and how to ask whether it is armed.
      *
-     * `certain` is the claim being made. True means we can see that a second factor is
-     * running: either the plugin exists only to provide one, or we can read its own toggle
-     * and it says yes. False means the plugin has a second factor among its features and the
-     * setting is somewhere we cannot read - its own database table, a serialised blob - so
-     * the honest thing is to name it and let the reader look.
+     * Three things per entry, because they are three different questions.
      *
-     * `option` is that toggle where there is one to read. Absent means the plugin is a
-     * second factor and nothing else, so being active is the whole answer.
+     * `constants` and `classes` are how presence is established. Preferred over the entry in
+     * `active_plugins` because that names a *folder*: rename it, install the plugin as an
+     * mu-plugin, or load it through a Composer autoloader, and the path stops matching while
+     * the plugin carries on hooking `wp_login` exactly as before. A constant its main file
+     * defines survives all three. `plugin` is kept as a fallback so a constant we have
+     * guessed wrong costs detection rather than losing it entirely.
+     *
+     * `enabled` is the plugin's own answer to whether its second factor is switched on, and
+     * it may say it does not know. Three outcomes, not two:
+     *
+     *   true  - it is on, and this is a conflict to fix today
+     *   false - it is off, and there is nothing here to report at all
+     *   null  - it will not say, so the reader is told to go and look
+     *
+     * Absent entirely means the plugin exists only to be a second factor, so being here is
+     * the whole answer. Anything thrown is caught and read as null: a fatal inside somebody
+     * else's settings getter must not take the security screen down with it.
+     *
+     * Note on the identifiers below. The constants, classes and getters are the published
+     * shapes of plugins this build has no copy of, so they cannot be verified here - and an
+     * identifier that is simply wrong is the most likely defect in this file. That is why
+     * everything fails towards saying less: a wrong constant falls back to the plugin path,
+     * a missing option reads as null rather than false, and a getter that errors reads as
+     * null too. The failure is a check that goes quiet, never one that accuses a site of a
+     * conflict it does not have.
      *
      * @return array
      */
@@ -274,100 +293,144 @@ class TwoFaConflictCheck extends Check
     {
         $rivals = [
             [
-                'plugin'  => 'sg-security/sg-security.php',
-                'name'    => __('Security Optimizer by SiteGround', 'fluent-security'),
-                'option'  => 'sg_security_sg2fa',
-                'where'   => __('Login Security → Two-Factor Authentication', 'fluent-security'),
-                'url'     => 'admin.php?page=login-settings',
-                'certain' => true
+                'plugin'    => 'sg-security/sg-security.php',
+                'name'      => __('Security Optimizer by SiteGround', 'fluent-security'),
+                'constants' => ['SG_SECURITY_VERSION'],
+                'classes'   => ['SG_Security\\Loader'],
+                'enabled'   => function () {
+                    return self::optionSays('sg_security_sg2fa');
+                },
+                'where'     => __('Login Security → Two-Factor Authentication', 'fluent-security'),
+                'url'       => 'admin.php?page=login-settings'
             ],
             [
-                'plugin'  => 'two-factor/two-factor.php',
-                'name'    => __('Two Factor', 'fluent-security'),
-                'where'   => __('Users → Profile → Two-Factor Options', 'fluent-security'),
-                'url'     => 'profile.php',
-                'certain' => true
+                'plugin'    => 'two-factor/two-factor.php',
+                'name'      => __('Two Factor', 'fluent-security'),
+                'classes'   => ['Two_Factor_Core'],
+                /*
+                 * Enrolment is per user here, so there is no site-wide switch to read. The
+                 * person on this screen is the one user we can ask about without walking the
+                 * whole user table, and a yes from them is a conflict they are living with
+                 * right now. A no only means they have not enrolled, which says nothing about
+                 * anybody else - hence null rather than false.
+                 */
+                'enabled'   => function () {
+                    return self::pluginSays('Two_Factor_Core', 'is_user_using_two_factor', [get_current_user_id()])
+                        ? true
+                        : null;
+                },
+                'where'     => __('Users → Profile → Two-Factor Options', 'fluent-security'),
+                'url'       => 'profile.php'
             ],
             [
-                'plugin'  => 'wp-2fa/wp-2fa.php',
-                'name'    => __('WP 2FA by Melapress', 'fluent-security'),
-                'where'   => __('WP 2FA → Settings', 'fluent-security'),
-                'url'     => 'admin.php?page=wp-2fa-policies',
-                'certain' => true
+                'plugin'    => 'wp-2fa/wp-2fa.php',
+                'name'      => __('WP 2FA by Melapress', 'fluent-security'),
+                'constants' => ['WP_2FA_VERSION'],
+                'where'     => __('WP 2FA → Settings', 'fluent-security'),
+                'url'       => 'admin.php?page=wp-2fa-policies'
             ],
             [
-                'plugin'  => 'wordfence-login-security/wordfence-login-security.php',
-                'name'    => __('Wordfence Login Security', 'fluent-security'),
-                'where'   => __('Login Security → Two-Factor Authentication', 'fluent-security'),
-                'url'     => 'admin.php?page=WFLS',
-                'certain' => true
+                'plugin'    => 'wordfence-login-security/wordfence-login-security.php',
+                'name'      => __('Wordfence Login Security', 'fluent-security'),
+                'constants' => ['WORDFENCE_LS_VERSION'],
+                'classes'   => ['WordfenceLS\\Controller_TOTP'],
+                'where'     => __('Login Security → Two-Factor Authentication', 'fluent-security'),
+                'url'       => 'admin.php?page=WFLS'
             ],
             [
-                'plugin'  => 'miniorange-2-factor-authentication/miniorange_2_factor_settings.php',
-                'name'    => __('miniOrange 2-Factor Authentication', 'fluent-security'),
-                'where'   => __('miniOrange 2-Factor → Two Factor', 'fluent-security'),
-                'url'     => 'admin.php?page=miniOrange_2_factor_settings',
-                'certain' => true
+                'plugin'    => 'miniorange-2-factor-authentication/miniorange_2_factor_settings.php',
+                'name'      => __('miniOrange 2-Factor Authentication', 'fluent-security'),
+                'constants' => ['MO2F_VERSION'],
+                'where'     => __('miniOrange 2-Factor → Two Factor', 'fluent-security'),
+                'url'       => 'admin.php?page=miniOrange_2_factor_settings'
             ],
             [
-                'plugin'  => 'two-factor-authentication/two-factor-authentication.php',
-                'name'    => __('Two Factor Authentication', 'fluent-security'),
-                'where'   => __('Users → Two Factor Authentication', 'fluent-security'),
-                'url'     => 'profile.php',
-                'certain' => true
+                'plugin'    => 'two-factor-authentication/two-factor-authentication.php',
+                'name'      => __('Two Factor Authentication', 'fluent-security'),
+                'classes'   => ['Simba_Two_Factor_Authentication'],
+                'where'     => __('Users → Two Factor Authentication', 'fluent-security'),
+                'url'       => 'profile.php'
             ],
             [
-                'plugin'  => 'google-authenticator/google-authenticator.php',
-                'name'    => __('Google Authenticator', 'fluent-security'),
-                'where'   => __('Users → Profile → Google Authenticator Settings', 'fluent-security'),
-                'url'     => 'profile.php',
-                'certain' => true
+                'plugin'    => 'google-authenticator/google-authenticator.php',
+                'name'      => __('Google Authenticator', 'fluent-security'),
+                'classes'   => ['GoogleAuthenticator'],
+                'where'     => __('Users → Profile → Google Authenticator Settings', 'fluent-security'),
+                'url'       => 'profile.php'
             ],
             [
-                'plugin'  => 'rublon/rublon.php',
-                'name'    => __('Rublon Multi-Factor Authentication', 'fluent-security'),
-                'where'   => __('Rublon → Settings', 'fluent-security'),
-                'url'     => 'admin.php?page=rublon',
-                'certain' => true
+                'plugin'    => 'rublon/rublon.php',
+                'name'      => __('Rublon Multi-Factor Authentication', 'fluent-security'),
+                'constants' => ['RUBLON_VERSION'],
+                'where'     => __('Rublon → Settings', 'fluent-security'),
+                'url'       => 'admin.php?page=rublon'
             ],
             /*
-             * Below here the second factor is one feature among many and its setting is not
-             * in an option we can read. Named rather than guessed at.
+             * Below here the second factor is one feature among many, so being installed is
+             * not on its own a conflict - these have to be asked, and the ones that will not
+             * answer stay a maybe.
              */
             [
-                'plugin'  => 'wordfence/wordfence.php',
-                'name'    => __('Wordfence Security', 'fluent-security'),
-                'where'   => __('Wordfence → Login Security → Two-Factor Authentication', 'fluent-security'),
-                'url'     => 'admin.php?page=WFLS',
-                'certain' => false
+                'plugin'    => 'wordfence/wordfence.php',
+                'name'      => __('Wordfence Security', 'fluent-security'),
+                'constants' => ['WORDFENCE_VERSION'],
+                /*
+                 * No answer attempted. The obvious one - look for the login-security classes
+                 * the standalone plugin uses - reads their absence as "the feature is off",
+                 * and that is a guess about somebody else's load order dressed up as a fact.
+                 * Guessing wrong there drops a real conflict silently, which is the one
+                 * failure this check must not have. Its settings live in Wordfence's own
+                 * tables either way, so a maybe is the honest answer.
+                 */
+                'where'     => __('Wordfence → Login Security → Two-Factor Authentication', 'fluent-security'),
+                'url'       => 'admin.php?page=WFLS',
+                'certain'   => false
             ],
             [
-                'plugin'  => 'better-wp-security/better-wp-security.php',
-                'name'    => __('Solid Security (formerly iThemes Security)', 'fluent-security'),
-                'where'   => __('Security → Settings → Two-Factor', 'fluent-security'),
-                'url'     => 'admin.php?page=itsec',
-                'certain' => false
+                'plugin'    => 'better-wp-security/better-wp-security.php',
+                'name'      => __('Solid Security (formerly iThemes Security)', 'fluent-security'),
+                'classes'   => ['ITSEC_Core'],
+                /*
+                 * This one publishes a module registry, so it can be asked properly rather
+                 * than guessed at - the two-factor module being active is exactly the state
+                 * that makes it a rival.
+                 */
+                'enabled'   => function () {
+                    $active = self::pluginSays('ITSEC_Modules', 'is_active', ['two-factor']);
+
+                    return $active === null ? null : (bool)$active;
+                },
+                'where'     => __('Security → Settings → Two-Factor', 'fluent-security'),
+                'url'       => 'admin.php?page=itsec',
+                'certain'   => false
             ],
             [
-                'plugin'  => 'all-in-one-wp-security-and-firewall/wp-security.php',
-                'name'    => __('All-In-One Security (AIOS)', 'fluent-security'),
-                'where'   => __('WP Security → Two Factor Authentication', 'fluent-security'),
-                'url'     => 'admin.php?page=aiowpsec',
-                'certain' => false
+                'plugin'    => 'all-in-one-wp-security-and-firewall/wp-security.php',
+                'name'      => __('All-In-One Security (AIOS)', 'fluent-security'),
+                'classes'   => ['AIO_WP_Security'],
+                'enabled'   => function () {
+                    return self::optionSays('aiowps_enable_totp');
+                },
+                'where'     => __('WP Security → Two Factor Authentication', 'fluent-security'),
+                'url'       => 'admin.php?page=aiowpsec',
+                'certain'   => false
             ],
             [
-                'plugin'  => 'wp-simple-firewall/icwp-wpsf.php',
-                'name'    => __('Shield Security', 'fluent-security'),
-                'where'   => __('Shield → Login Protection → Multi-Factor Authentication', 'fluent-security'),
-                'url'     => 'admin.php?page=icwp-wpsf-plugin',
-                'certain' => false
+                'plugin'    => 'wp-simple-firewall/icwp-wpsf.php',
+                'name'      => __('Shield Security', 'fluent-security'),
+                'constants' => ['ICWP_WPSF_VERSION'],
+                'where'     => __('Shield → Login Protection → Multi-Factor Authentication', 'fluent-security'),
+                'url'       => 'admin.php?page=icwp-wpsf-plugin',
+                'certain'   => false
             ],
             [
-                'plugin'  => 'defender-security/wp-defender.php',
-                'name'    => __('Defender Security', 'fluent-security'),
-                'where'   => __('Defender → 2FA', 'fluent-security'),
-                'url'     => 'admin.php?page=wdf-advanced-tools',
-                'certain' => false
+                'plugin'    => 'defender-security/wp-defender.php',
+                'name'      => __('Defender Security', 'fluent-security'),
+                'constants' => ['DEFENDER_VERSION'],
+                'classes'   => ['WP_Defender\\Controller\\Two_Factor'],
+                'where'     => __('Defender → 2FA', 'fluent-security'),
+                'url'       => 'admin.php?page=wdf-advanced-tools',
+                'certain'   => false
             ]
         ];
 
@@ -380,7 +443,54 @@ class TwoFaConflictCheck extends Check
     }
 
     /**
-     * @return array the entries that are active, each with `certain` resolved
+     * Call a method on a class this build does not ship, if it is there.
+     *
+     * The class name stays a string the whole way through. These are other people's symbols,
+     * resolved at run time on sites that happen to have them, and writing them as literals
+     * would have static analysis here reporting every one as a class that does not exist -
+     * which is true of this repository and beside the point.
+     *
+     * Null for "not there", so a plugin that has renamed the method between versions reads as
+     * one that will not answer rather than one that answered no.
+     *
+     * @param string $class
+     * @param string $method
+     * @param array $args
+     * @return mixed|null
+     */
+    protected static function pluginSays($class, $method, $args = [])
+    {
+        if (!method_exists($class, $method)) {
+            return null;
+        }
+
+        return call_user_func_array([$class, $method], $args);
+    }
+
+    /**
+     * What a stored flag says, distinguishing "off" from "not there".
+     *
+     * A missing option is the shape a wrong option name takes, and reading that as `false`
+     * would drop the rival silently - the one failure that loses a real conflict rather than
+     * softening it. Absent answers null instead, which lands the plugin in the list the
+     * reader is asked to go and check.
+     *
+     * @param string $name
+     * @return bool|null
+     */
+    protected static function optionSays($name)
+    {
+        $value = get_option($name, null);
+
+        if ($value === null) {
+            return null;
+        }
+
+        return (bool)$value;
+    }
+
+    /**
+     * @return array the entries that are here, each with `certain` resolved
      */
     public static function activeRivals()
     {
@@ -398,33 +508,102 @@ class TwoFaConflictCheck extends Check
             }
 
             $rival = array_merge([
-                'plugin'  => '',
-                'name'    => '',
-                'where'   => '',
-                'url'     => '',
-                'certain' => false
+                'plugin'    => '',
+                'name'      => '',
+                'constants' => [],
+                'classes'   => [],
+                'where'     => '',
+                'url'       => '',
+                'certain'   => true
             ], $rival);
 
-            if (!$rival['plugin'] || !$rival['name'] || !in_array($rival['plugin'], $active, true)) {
+            if (!$rival['name'] || !self::isPresent($rival, $active)) {
                 continue;
             }
 
             /*
-             * A toggle we can read decides both questions at once: off means there is no
-             * conflict to report, on means the claim is certain rather than a maybe.
+             * No answer declared means the plugin is a second factor and nothing else, so
+             * being here is the whole of it and `certain` stands as declared.
              */
-            if (!empty($rival['option'])) {
-                if (!get_option($rival['option'])) {
+            if (isset($rival['enabled'])) {
+                $enabled = self::askPlugin($rival['enabled']);
+
+                /* It says its second factor is off. There is no conflict to report. */
+                if ($enabled === false) {
                     continue;
                 }
 
-                $rival['certain'] = true;
+                $rival['certain'] = $enabled === true;
             }
 
             $found[] = $rival;
         }
 
         return $found;
+    }
+
+    /**
+     * Whether the plugin is running, by any of the three signals.
+     *
+     * A defined constant or a loaded class is the better evidence and is tried first: both
+     * are facts about what this request has loaded, where the path in `active_plugins` is a
+     * fact about a folder name. The path is still consulted, because a constant guessed wrong
+     * should cost the accuracy of one entry rather than the whole detection.
+     *
+     * `class_exists` is asked not to autoload. Triggering somebody's autoloader to answer a
+     * question about whether they are here is a side effect this has no business causing, and
+     * on a Composer-backed plugin it would pull files in to prove they were not needed.
+     *
+     * @param array $rival
+     * @param array $active plugin paths
+     * @return bool
+     */
+    protected static function isPresent($rival, $active)
+    {
+        foreach ((array)$rival['constants'] as $constant) {
+            if (defined($constant)) {
+                return true;
+            }
+        }
+
+        foreach ((array)$rival['classes'] as $class) {
+            if (class_exists($class, false)) {
+                return true;
+            }
+        }
+
+        return $rival['plugin'] && in_array($rival['plugin'], $active, true);
+    }
+
+    /**
+     * Ask a plugin about its own settings, and survive whatever it does.
+     *
+     * This runs somebody else's code inside a request of ours. Their getter can throw, can
+     * reach for a table that is mid-migration, or can fatal on a version whose signature we
+     * guessed wrong - and the cost of that landing uncaught is the whole security screen, for
+     * a question that was only ever asking how loudly to word one row.
+     *
+     * So everything that is not a definite answer becomes "it will not say", which the caller
+     * reads as a maybe. \Throwable rather than \Exception because the interesting failures
+     * here - a call to an undefined method, a wrong argument type - are Errors and would sail
+     * straight past a catch on Exception.
+     *
+     * @param callable $ask
+     * @return bool|null
+     */
+    protected static function askPlugin($ask)
+    {
+        if (!is_callable($ask)) {
+            return null;
+        }
+
+        try {
+            $answer = $ask();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $answer === null ? null : (bool)$answer;
     }
 
     /**
