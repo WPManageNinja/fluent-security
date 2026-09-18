@@ -189,10 +189,12 @@ class CoreChecksumsTest extends BaseTestCase
     }
 
     /**
-     * The site's own locale is still preferred, and keeps version.php.
+     * The site's own locale is still preferred. version.php is exempt either way.
      *
-     * The fallback is a repair, not the normal path: a site whose package exists is compared
-     * against its own package, version.php included, so a tampered one is still caught.
+     * The fallback is a repair, not the normal path, and that part is unchanged - a site whose
+     * package exists is compared against its own package. What is no longer confined to the
+     * fallback is the version.php exemption: see
+     * test_an_en_us_core_under_a_localized_locale_reports_clean for the case that forced it.
      */
     public function test_published_locale_is_used_as_is()
     {
@@ -204,8 +206,8 @@ class CoreChecksumsTest extends BaseTestCase
         $result = CheckerService::getCoreChecksums('7.1.1', 'fr_FR');
 
         $this->assertSame(['fr_FR'], wp_list_pluck($this->requests, 'locale'));
-        $this->assertSame('localized-hash', $result['files']['wp-includes/version.php']);
-        $this->assertSame([], $result['exempt']);
+        $this->assertArrayNotHasKey('wp-includes/version.php', $result['files']);
+        $this->assertSame(['wp-includes/version.php' => true], $result['exempt']);
     }
 
     /* ------------------------------------------------------------------ the pruning */
@@ -268,24 +270,49 @@ class CoreChecksumsTest extends BaseTestCase
     }
 
     /**
-     * But a tampered version.php is still caught when the site's own package exists.
+     * An en_US core under a localized locale reports clean. This is why the exemption is no
+     * longer confined to the fallback.
      *
-     * The exemption is the price of the fallback and is confined to it. If it leaked to the
-     * normal path, the one core file that names the version - a natural thing for someone to
-     * edit after planting an older, exploitable copy of core - would stop being checked on
-     * every site.
+     * WordPress downloads language packs, not a new build, when the site language changes. So
+     * a site installed from the en_US zip keeps en_US core files while get_locale() starts
+     * saying fr_FR. wp.org publishes fr_FR checksums, so no fallback fires, and the fr_FR hash
+     * for version.php does not match the en_US file on disk. Every scan reported a modified
+     * core file, and the nightly email told the owner so, until the next core update - a
+     * security product crying wolf at a small business once a night.
      */
-    public function test_a_modified_version_file_is_still_reported_on_the_normal_path()
+    public function test_an_en_us_core_under_a_localized_locale_reports_clean()
+    {
+        $this->asLocale('fr_FR');
+        $this->serve(['fr_FR' => $this->package('fr_FR')]);
+
+        // en_US files on disk: version.php carries no $wp_local_package, so its hash is the
+        // en_US one while the served fr_FR package expects 'localized-hash'.
+        LocalStubChecker::$files = $this->localFiles('en-us-hash');
+
+        $checker = new LocalStubChecker();
+
+        $this->assertSame([], $checker->getModifiedFiles());
+    }
+
+    /**
+     * The cost of the decision above, stated out loud so nobody has to rediscover it.
+     *
+     * version.php is not hash-checked on any path, so code planted in that one file is not
+     * reported. Accepted deliberately (2026-09-18): every other core file is still compared,
+     * so the file buys an attacker one hiding place rather than a way past the scan, and the
+     * alternative was a nightly false alarm on every mixed-locale site. If this is ever
+     * revisited, the fix is to accept either the locale hash or the en_US hash for this file
+     * rather than to re-confine the exemption.
+     */
+    public function test_a_modified_version_file_is_deliberately_not_reported()
     {
         $this->asLocale('fr_FR');
         $this->serve(['fr_FR' => $this->package('fr_FR')]);
         LocalStubChecker::$files = $this->localFiles('tampered');
 
         $checker = new LocalStubChecker();
-        $modified = $checker->getModifiedFiles();
 
-        $this->assertArrayHasKey('wp-includes/version.php', $modified);
-        $this->assertSame('modified', $modified['wp-includes/version.php']['status']);
+        $this->assertArrayNotHasKey('wp-includes/version.php', $checker->getModifiedFiles());
     }
 
     /* ------------------------------------------------------------------ the failures */

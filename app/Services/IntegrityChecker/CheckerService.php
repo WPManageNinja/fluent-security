@@ -25,11 +25,11 @@ class CheckerService
     /*
      * Files this scan is not in a position to judge, as file => true.
      *
-     * Only ever populated on the en_US fallback path in getRemoteHashes(), and only with
-     * wp-includes/version.php. Dropping a file from the remote hashes is not enough to stop it
-     * being reported: a local file with no remote hash is an unexpected file, which is how
-     * removing it turned a false "modified" into a false "new". It has to be skipped on both
-     * sides of the comparison, which is what this is for.
+     * Populated in getRemoteHashes(), and only ever with wp-includes/version.php - see
+     * getCoreChecksums() for why that one file is never compared. Dropping a file from the
+     * remote hashes is not enough to stop it being reported: a local file with no remote hash
+     * is an unexpected file, which is how removing it turned a false "modified" into a false
+     * "new". It has to be skipped on both sides of the comparison, which is what this is for.
      */
     protected $exemptFiles = [];
 
@@ -196,8 +196,8 @@ class CheckerService
      * Hence the en_US fallback. It is exact rather than approximate: once the wp-content
      * entries and wp-config-sample.php are dropped - which this method does anyway, because
      * neither belongs to a core integrity check - a localized package differs from en_US in
-     * exactly one file, wp-includes/version.php, which carries $wp_local_package. That file
-     * goes with them on the fallback path, and only there.
+     * exactly one file, wp-includes/version.php, which carries $wp_local_package. That file is
+     * exempt on every path, not just the fallback - see the note at the unset() below.
      *
      * @param string $version
      * @param string $locale
@@ -216,11 +216,8 @@ class CheckerService
 
         $checksums = self::requestChecksums($version, $locale);
 
-        $isFallback = false;
-
         if (is_wp_error($checksums) && $checksums->get_error_code() === ChecksumException::UNPUBLISHED && $locale !== 'en_US') {
             $checksums = self::requestChecksums($version, 'en_US');
-            $isFallback = !is_wp_error($checksums);
         }
 
         if (is_wp_error($checksums)) {
@@ -229,17 +226,33 @@ class CheckerService
 
         $result = [
             'files'  => self::pruneChecksums($checksums),
-            'exempt' => $isFallback ? [self::LOCAL_PACKAGE_FILE => true] : []
+            'exempt' => [self::LOCAL_PACKAGE_FILE => true]
         ];
 
         /*
-         * The one file a translated build does not share with en_US - it declares
-         * $wp_local_package, so its hash differs by design. Exempt rather than simply absent:
-         * see $exemptFiles.
+         * The one file whose hash legitimately varies, exempt whichever manifest was used.
+         *
+         * A translated build declares $wp_local_package in it, so it differs from en_US by
+         * design - that is the case the fallback above creates, and it was the only one
+         * exempted at first. The commoner divergence is the other way round and was still
+         * being reported: a site installed from the en_US zip whose owner sets the site
+         * language to French keeps its en_US core files, because WordPress downloads language
+         * packs and not a new build. get_locale() then says fr_FR, wp.org publishes fr_FR
+         * checksums, no fallback fires, and every scan reported wp-includes/version.php as
+         * modified - a security product telling a small business its core had been altered,
+         * once a night, until the next core update. Checked against 12 locales on WP 6.8.2:
+         * after pruning, a localized package differs from en_US in this file and no other.
+         *
+         * Exempt rather than simply absent from the map: a file missing from the remote set
+         * reads as "new" (see getModifiedFiles), so dropping it alone would swap one false
+         * report for another. $exemptFiles skips it on the local side too.
+         *
+         * The cost is that this one file is not hash-checked. Accepted: an attacker who can
+         * write it can write any other core file, and those are all still compared - so
+         * choosing this one buys nothing, while the false report cost every localized site a
+         * nightly alarm.
          */
-        if ($isFallback) {
-            unset($result['files'][self::LOCAL_PACKAGE_FILE]);
-        }
+        unset($result['files'][self::LOCAL_PACKAGE_FILE]);
 
         /*
          * Cached because the checksums for a released version never change, and three separate
@@ -303,7 +316,7 @@ class CheckerService
     {
         foreach ($checksums as $file => $hash) {
             // if file has wp-content at the start, remove it
-            if (strpos($file, 'wp-content') === 0) {
+            if (strpos($file, 'wp-content/') === 0) {
                 unset($checksums[$file]);
             }
         }
