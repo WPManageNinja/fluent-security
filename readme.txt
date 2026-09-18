@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.1
+Stable tag: 3.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,9 +34,7 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 - Restrict /wp-admin by user role
 - Recovery tools for a site that has been hacked
 
-[youtube https://www.youtube.com/watch?v=P_vREW7s2B4]
-
-[youtube https://www.youtube.com/watch?v=5t_8rvtrkk4]
+[youtube https://www.youtube.com/watch?v=Tt9LHwHySmA]
 
 = Two-Factor Authentication (2FA) =
 
@@ -167,11 +165,11 @@ Another plugin can put its own login screen on FluentAuth's flows. It registers 
 
 == External Services ==
 
-FluentAuth talks to an outside service only where a feature needs it, and nothing below leaves your site unless you turn that feature on.
+Nothing below leaves your site unless you turn that feature on.
 
-* **File scanning** compares your files against the official copies, so it fetches them from `api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org` and `raw.githubusercontent.com` (the official WordPress mirror on GitHub). All that is sent is the name, version and file path of the item being checked - nothing about your site or your users. WordPress.org [Privacy Policy](https://wordpress.org/about/privacy/). GitHub [Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
-* **FluentAuth Alerts Service** at `dash.fluentauth.com`, run by WPManageNinja LLC, handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide: your name and email, your site address, title and admin link, the paths of files that differ from the official release, and your installed plugins and themes with their versions. It never sends the contents of a file, anything from your database, or anything about your visitors. Scanning runs on your own server either way, so you can scan by hand and never connect at all, and you can disconnect at any time. [Privacy policy](https://fluentauth.com/privacy) and [terms](https://fluentauth.com/terms).
-* **Social login providers** are contacted only if you set one up, and only when a user clicks the button: the standard OAuth handshake, plus the user's name and email address so the account can be matched or created. Google at `accounts.google.com` and `oauth2.googleapis.com` ([Terms](https://policies.google.com/terms), [Privacy Policy](https://policies.google.com/privacy)); GitHub at `github.com` and `api.github.com` ([Terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [Privacy Policy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)); Facebook at `facebook.com` and `graph.facebook.com` ([Terms](https://www.facebook.com/terms.php), [Privacy Policy](https://www.facebook.com/privacy/policy/)).
+* **File scanning** compares your files against the official copies, so it fetches them from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org`) and the official WordPress mirror on GitHub (`raw.githubusercontent.com`). Only the name, version and file path of the item being checked is sent. [WordPress.org privacy](https://wordpress.org/about/privacy/) · GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
+* **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, and your plugin and theme versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
+* **Social login** contacts Google, GitHub or Facebook only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)).
 
 == Why FluentAuth? ==
 
@@ -312,6 +310,14 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.0.2 - Date: Sep 18, 2026 =
+* Fix: Requiring two-factor no longer locks anybody out of wp-admin, or breaks front-end forms and add-to-cart for logged-in members.
+* Fix: Sites in other languages no longer report a WordPress core file as changed on every scan.
+* Fix: Recovery codes are shown only to the person they belong to, and setting up an authenticator app no longer replaces codes you have already saved.
+* Fix: Passkey setup on sites that use passkeys without authenticator apps, including retrying a prompt the server refused.
+* New: Tells you when another plugin is also enforcing two-factor login, since two of them cannot both finish a sign-in.
+* Improvement: Says when a scan could not reach WordPress.org, instead of going quiet.
 
 = 3.0.1 - Date: Sep 17, 2026 =
 * Fix: Setup wizard switches could not be turned off.
