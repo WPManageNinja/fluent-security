@@ -2,6 +2,7 @@
 
 namespace FluentAuth\App\Http\Controllers;
 
+use FluentAuth\App\Services\TwoFa\RivalTwoFa;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
@@ -44,6 +45,13 @@ class DashboardController
                 'successes' => self::getRecentLogs(['success'], $range)
             ],
             'top_ips'    => self::getTopIps($range),
+            /*
+             * Another plugin finishing this site's logins. Null on almost every site; when it
+             * is not, sign-ins are failing and this is the screen people land on. The settings
+             * page says the same thing beside the switches it concerns - see
+             * RivalTwoFa::notice().
+             */
+            'two_fa_conflict' => RivalTwoFa::notice(),
             'methods'    => self::getLoginMethods($range),
             /*
              * The checklist used to be assembled here. The aside now fetches it from the same

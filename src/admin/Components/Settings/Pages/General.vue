@@ -11,6 +11,7 @@ import AdvancedSection from '../Sections/_Advanced.vue';
 import PasskeySettings from '../../TwoFa/_PasskeySettings.vue';
 import TwoFaSettings from '../../TwoFa/_TwoFaSettings.vue';
 import ProxySettings from '../../_ProxySettings.vue';
+import RivalNotice from '../../TwoFa/_RivalNotice.vue';
 
 /**
  * Every setting that lives in the one saved option, on one page.
@@ -32,31 +33,8 @@ export default {
         AdvancedSection,
         PasskeySettings,
         TwoFaSettings,
-        ProxySettings
-    },
-    computed: {
-        /*
-         * Names the plugin when there is one. "Wordfence is also asking for a code" is the
-         * whole of the news; making a reader open a details list to find out which plugin
-         * hands them a fact they cannot act on.
-         */
-        conflictTitle() {
-            if (!this.two_fa_conflict) {
-                return '';
-            }
-
-            const names = this.two_fa_conflict.names;
-
-            if (names.length === 1) {
-                return this.two_fa_conflict.blocking
-                    ? this.$t('%s is also enforcing two-factor login', names[0])
-                    : this.$t('%s is also set up for two-factor login', names[0]);
-            }
-
-            return this.two_fa_conflict.blocking
-                ? this.$t('Other plugins are also enforcing two-factor login')
-                : this.$t('Other plugins are also set up for two-factor login');
-        }
+        ProxySettings,
+        RivalNotice
     },
     methods: {
         applyRecommended() {
@@ -108,27 +86,11 @@ export default {
                 </SettingsCard>
 
                 <!--
-                    Above both cards, because it is about both: a rival takes the session over
+                    Above both cards, because it concerns both: a rival takes the session over
                     after the password, which breaks a passkey challenge and an emailed code
-                    alike. A plain box in the flow of the page - not pinned, not a modal, not a
-                    findings row. It is the switches below not working, so it sits with them.
-                    Text, never v-html: the plugin names come from a filterable list.
+                    alike. Same component the dashboard draws - see _RivalNotice.vue.
                 -->
-                <div v-if="two_fa_conflict" class="fls_2fa_conflict"
-                     :class="two_fa_conflict.blocking ? 'is_blocking' : 'is_handled'" role="alert">
-                    <h4>{{ conflictTitle }}</h4>
-
-                    <p v-if="two_fa_conflict.blocking">{{ $t('__2fa_conflict_blocking_desc__') }}</p>
-                    <p v-else>{{ $t('__2fa_conflict_handled_desc__') }}</p>
-
-                    <p v-if="two_fa_conflict.where.length" class="fls_2fa_conflict__where">
-                        {{ $t('Turn it off in:') }} {{ two_fa_conflict.where.join(' · ') }}
-                    </p>
-
-                    <a :href="two_fa_conflict.url" class="fls_2fa_conflict__action">
-                        {{ two_fa_conflict.names.length === 1 ? $t('Open its settings') : $t('Open plugins') }}
-                    </a>
-                </div>
+                <RivalNotice :notice="two_fa_conflict"/>
 
                 <!--
                     Above Two-Factor Authentication, and not inside it. A passkey is a way

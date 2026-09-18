@@ -183,3 +183,64 @@
     margin-top: 4px;
     margin-bottom: 4px;
 }
+
+/*
+ * Another plugin finishing this site's logins.
+ *
+ * Drawn on the dashboard and on the settings page, so it lives here rather than with either
+ * - see _RivalNotice.vue. An alert rather than a findings row: this is not something the
+ * site could do better, it is a switch not working.
+ *
+ * Two states with the same shape and different colour. `is_blocking` means logins really do
+ * fail and the reader has to act; `is_handled` means this plugin asks the other to stand
+ * aside and nothing is broken, so it reads as a note rather than an alarm - warning colours
+ * would be claiming a breakage that is not happening.
+ */
+.fls_2fa_conflict {
+    margin: 0 0 20px;
+    padding: 16px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--fls-danger-line);
+    background: var(--fls-danger-wash);
+
+    h4 {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--fls-danger-fg);
+    }
+
+    p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.65;
+        color: var(--fls-text-mid);
+    }
+
+    /* Where to go and switch it off, in that plugin's own words for its own screens. */
+    &__where {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--fls-text-light);
+    }
+
+    &__action {
+        display: inline-block;
+        margin-top: 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--fls-danger-fg);
+        text-decoration: underline;
+    }
+
+    /* Nothing is broken here, so nothing should look broken. */
+    &.is_handled {
+        border-color: var(--fls-border);
+        background: var(--fls-surface-sunk);
+
+        h4,
+        .fls_2fa_conflict__action {
+            color: var(--fls-text);
+        }
+    }
+}

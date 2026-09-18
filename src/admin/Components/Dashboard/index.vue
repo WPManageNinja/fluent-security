@@ -1,5 +1,6 @@
 <script type="text/babel">
 import icons from './icons';
+import RivalNotice from '../TwoFa/_RivalNotice.vue';
 import ActivityChart from './_ActivityChart.vue';
 import LogList from './_LogList.vue';
 import SecurityAside from './_SecurityAside.vue';
@@ -7,6 +8,7 @@ import SecurityAside from './_SecurityAside.vue';
 export default {
     name: 'Dashboard',
     components: {
+        RivalNotice,
         ActivityChart,
         LogList,
         SecurityAside
@@ -134,6 +136,13 @@ export default {
             <span>{{ dashboard ? $t('Could not refresh activity. Your last loaded results are still shown.') : $t('Could not load your dashboard. Please try again.') }}</span>
             <el-button size="small" :loading="loading" @click="fetchDashboard">{{ $t('Try again') }}</el-button>
         </div>
+        <!--
+            Above the whole dashboard, not in the aside. Sign-ins are failing; that outranks
+            the week's login counts, and the aside is where standing arrangements live. Same
+            component the settings page draws - see _RivalNotice.vue.
+        -->
+        <RivalNotice v-if="dashboard" :notice="dashboard.two_fa_conflict"/>
+
         <el-skeleton v-if="!dashboard && loading" :animated="true" :rows="12"/>
         <div v-if="dashboard" class="fls_page_inner">
             <div class="fls_page_main" :aria-busy="loading">
