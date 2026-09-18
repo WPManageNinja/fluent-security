@@ -170,7 +170,7 @@ class TwoFaConflictCheckTest extends BaseTestCase
     public function test_several_rivals_are_one_finding_pointing_at_the_plugins_screen()
     {
         $this->ourTwoFaOn();
-        $this->activate(['wp-2fa/wp-2fa.php', 'rublon/rublon.php']);
+        $this->activate(['wp-2fa/wp-2fa.php', 'rublon/rublon2factor.php']);
 
         $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
 
@@ -344,6 +344,31 @@ class TwoFaConflictCheckTest extends BaseTestCase
             'SiteGround',
             $findings[TwoFaConflictCheck::FINDING_POSSIBLE]['title']
         );
+    }
+
+    /**
+     * All-In-One Security bundles the same Simba two-factor library that the standalone
+     * "Two Factor Authentication" plugin is built from, and defines
+     * Simba_Two_Factor_Authentication_1 exactly as that plugin does. Matching the standalone
+     * on that class would report a plugin the site has not got, by name, in red - so the
+     * entry matches `..._Plugin`, which only the standalone defines.
+     *
+     * Verified against both plugins' source: AIOS declares `_1` and
+     * `AIO_WP_Security_Simba_Two_Factor_Authentication_Plugin`, never plain `..._Plugin`.
+     */
+    public function test_the_shared_simba_library_is_not_mistaken_for_the_standalone_plugin()
+    {
+        $this->ourTwoFaOn();
+
+        /* What AIOS loading its bundled copy looks like from here. */
+        if (!class_exists('Simba_Two_Factor_Authentication_1', false)) {
+            class_alias(self::class, 'Simba_Two_Factor_Authentication_1');
+        }
+
+        $findings = $this->findings();
+
+        $this->assertCount(1, $findings);
+        $this->assertEquals(Finding::STATE_PASSED, $findings[TwoFaConflictCheck::FINDING_ACTIVE]['state']);
     }
 
     /* ------------------------------------------------------------------ dismissal */

@@ -295,8 +295,8 @@ class TwoFaConflictCheck extends Check
             [
                 'plugin'    => 'sg-security/sg-security.php',
                 'name'      => __('Security Optimizer by SiteGround', 'fluent-security'),
-                'constants' => ['SG_SECURITY_VERSION'],
-                'classes'   => ['SG_Security\\Loader'],
+                /* No constant: this plugin defines none. Its 2FA module class is the signal. */
+                'classes'   => ['SG_Security\\Sg_2fa\\Sg_2fa'],
                 'enabled'   => function () {
                     return self::optionSays('sg_security_sg2fa');
                 },
@@ -306,6 +306,7 @@ class TwoFaConflictCheck extends Check
             [
                 'plugin'    => 'two-factor/two-factor.php',
                 'name'      => __('Two Factor', 'fluent-security'),
+                'constants' => ['TWO_FACTOR_VERSION'],
                 'classes'   => ['Two_Factor_Core'],
                 /*
                  * Enrolment is per user here, so there is no site-wide switch to read. The
@@ -345,9 +346,14 @@ class TwoFaConflictCheck extends Check
                 'url'       => 'admin.php?page=miniOrange_2_factor_settings'
             ],
             [
-                'plugin'    => 'two-factor-authentication/two-factor-authentication.php',
+                'plugin'    => 'two-factor-authentication/two-factor-login.php',
                 'name'      => __('Two Factor Authentication', 'fluent-security'),
-                'classes'   => ['Simba_Two_Factor_Authentication'],
+                /*
+                 * `_Plugin`, never `Simba_Two_Factor_Authentication_1`. All-In-One Security
+                 * bundles the same Simba library and defines that one too, so matching on it
+                 * would report every AIOS site as running this plugin as well.
+                 */
+                'classes'   => ['Simba_Two_Factor_Authentication_Plugin'],
                 'where'     => __('Users → Two Factor Authentication', 'fluent-security'),
                 'url'       => 'profile.php'
             ],
@@ -359,9 +365,11 @@ class TwoFaConflictCheck extends Check
                 'url'       => 'profile.php'
             ],
             [
-                'plugin'    => 'rublon/rublon.php',
+                'plugin'    => 'rublon/rublon2factor.php',
                 'name'      => __('Rublon Multi-Factor Authentication', 'fluent-security'),
-                'constants' => ['RUBLON_VERSION'],
+                'constants' => ['RUBLON2FACTOR_PLUGIN_PATH'],
+                /* Not `Rublon`, which is the vendored SDK and says nothing about WordPress. */
+                'classes'   => ['Rublon2FactorGUIWordPress'],
                 'where'     => __('Rublon → Settings', 'fluent-security'),
                 'url'       => 'admin.php?page=rublon'
             ],
@@ -407,10 +415,12 @@ class TwoFaConflictCheck extends Check
             [
                 'plugin'    => 'all-in-one-wp-security-and-firewall/wp-security.php',
                 'name'      => __('All-In-One Security (AIOS)', 'fluent-security'),
-                'classes'   => ['AIO_WP_Security'],
-                'enabled'   => function () {
-                    return self::optionSays('aiowps_enable_totp');
-                },
+                'classes'   => ['AIO_WP_Security_Simba_Two_Factor_Authentication_Plugin'],
+                /*
+                 * No answer attempted. There is no `aiowps_` flag for this - the feature is
+                 * the bundled Simba library and its state lives in that library's own
+                 * storage, not in a setting of theirs we could read.
+                 */
                 'where'     => __('WP Security → Two Factor Authentication', 'fluent-security'),
                 'url'       => 'admin.php?page=aiowpsec',
                 'certain'   => false
@@ -418,7 +428,12 @@ class TwoFaConflictCheck extends Check
             [
                 'plugin'    => 'wp-simple-firewall/icwp-wpsf.php',
                 'name'      => __('Shield Security', 'fluent-security'),
-                'constants' => ['ICWP_WPSF_VERSION'],
+                /*
+                 * No constant and no class worth naming: this one boots through its own
+                 * Composer autoloader and defines nothing global that is stable to match on.
+                 * The plugin path is all there is, which is exactly why the path fallback
+                 * stays in isPresent().
+                 */
                 'where'     => __('Shield → Login Protection → Multi-Factor Authentication', 'fluent-security'),
                 'url'       => 'admin.php?page=icwp-wpsf-plugin',
                 'certain'   => false
@@ -428,6 +443,7 @@ class TwoFaConflictCheck extends Check
                 'name'      => __('Defender Security', 'fluent-security'),
                 'constants' => ['DEFENDER_VERSION'],
                 'classes'   => ['WP_Defender\\Controller\\Two_Factor'],
+                /* Present means the 2FA controller loaded; whether it is armed is in its own tables. */
                 'where'     => __('Defender → 2FA', 'fluent-security'),
                 'url'       => 'admin.php?page=wdf-advanced-tools',
                 'certain'   => false
