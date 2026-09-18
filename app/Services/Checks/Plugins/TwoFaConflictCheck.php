@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\Checks\Check;
 use FluentAuth\App\Services\Checks\Dismissals;
 use FluentAuth\App\Services\Checks\Finding;
+use FluentAuth\App\Services\TwoFa\RivalStandDown;
 
 /**
  * Another plugin that also wants to be the one that finishes a login.
@@ -128,20 +129,40 @@ class TwoFaConflictCheck extends Check
             ])];
         }
 
+        /*
+         * Whether the loop actually happens here, or is headed off.
+         *
+         * Some of these publish a filter that lets this plugin ask them to stand down for the
+         * one request that completes a verified challenge - see RivalStandDown. Where every
+         * rival on the site is one of those, logins work, and a red row telling somebody to
+         * fix a broken login would be describing a site other than theirs. It is still worth
+         * saying: two second factors are still configured, and only one of them is being
+         * applied.
+         */
+        $unhandled = array_values(array_filter($rivals, function ($rival) {
+            return !in_array($rival['plugin'], RivalStandDown::handledRivals(), true);
+        }));
+
         return [new Finding([
             'id'       => self::FINDING_ACTIVE,
             'check'    => $this->id(),
             'group'    => $this->group(),
             'state'    => Finding::STATE_OPEN,
-            'severity' => Finding::SEVERITY_FIX,
+            'severity' => $unhandled ? Finding::SEVERITY_FIX : Finding::SEVERITY_LOOK,
             'title'    => $this->confirmedTitle($names),
-            'why'      => __('Two plugins cannot both finish the same login. The other one throws away the session this plugin has just created, so passkeys, authenticator codes and recovery codes all end up back at the login screen - and a recovery code is spent each time it happens.', 'fluent-security'),
+            'why'      => $unhandled
+                ? __('Two plugins cannot both finish the same login. The other one throws away the session this plugin has just created, so passkeys, authenticator codes and recovery codes all end up back at the login screen - and a recovery code is spent each time it happens.', 'fluent-security')
+                : __('Two plugins are set up to finish the same login. This one asks the other to stand aside for the moment it would otherwise take the session over, so your logins work - but two second factors are configured and only one of them is being asked for.', 'fluent-security'),
             'details'  => array_merge(
                 self::describe($rivals),
-                [
-                    __('Turn off the second factor in one plugin or the other. Both protect the same logins, so whichever you keep loses you nothing.', 'fluent-security'),
-                    __('Until then the audit log and the login notification emails will report each attempt as a success, because the other plugin does not step in until after the sign in has been recorded.', 'fluent-security')
-                ]
+                $unhandled
+                    ? [
+                        __('Turn off the second factor in one plugin or the other. Both protect the same logins, so whichever you keep loses you nothing.', 'fluent-security'),
+                        __('Until then the audit log and the login notification emails will report each attempt as a success, because the other plugin does not step in until after the sign in has been recorded.', 'fluent-security')
+                    ]
+                    : [
+                        __('Nothing is broken, so there is no hurry. Turning one of them off is still tidier than leaving both configured, and it is the only way to be sure which one is protecting your logins.', 'fluent-security')
+                    ]
             ),
             'action'   => 'navigate',
             'label'    => count($rivals) === 1 && !empty($rivals[0]['url'])

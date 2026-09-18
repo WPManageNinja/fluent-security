@@ -2,6 +2,7 @@
 
 namespace FluentAuth\App\Hooks\Handlers;
 
+use FluentAuth\App\Services\TwoFa\RivalStandDown;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
@@ -482,12 +483,36 @@ class TwoFaHandler
         Helper::setLoginMedia($method->getLoginMedia());
 
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
-        $user = wp_signon(array(
-                'user_login'    => $user->user_login,
-                'user_password' => '',
-                'remember'      => (bool)strpos($logHash->login_hash, '-auth')
-            )
-        );
+
+        /*
+         * The one moment another plugin's second factor has to stand down.
+         *
+         * wp_signon() fires `wp_login`, and a rival listening there throws this session away
+         * and renders its own challenge into the middle of this request - which is the loop
+         * described in TwoFaConflictCheck. Several of them publish a filter for exactly this,
+         * so where one exists the loop simply does not happen.
+         *
+         * Safe here and nowhere else: the user has just produced a second factor, so what is
+         * being stood down is a duplicate rather than a factor. Every login that did not come
+         * through this method - including one where our own second factor did not apply - is
+         * untouched, so a site whose policy is really being enforced by the other plugin goes
+         * on being enforced by it.
+         *
+         * finally, because a stand-down left attached would be this plugin quietly switching
+         * somebody else's second factor off for the rest of the request.
+         */
+        RivalStandDown::standDown();
+
+        try {
+            $user = wp_signon(array(
+                    'user_login'    => $user->user_login,
+                    'user_password' => '',
+                    'remember'      => (bool)strpos($logHash->login_hash, '-auth')
+                )
+            );
+        } finally {
+            RivalStandDown::resume();
+        }
 
         remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
 

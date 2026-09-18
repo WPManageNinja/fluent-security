@@ -7,6 +7,7 @@ use FluentAuth\App\Services\Checks\Dismissals;
 use FluentAuth\App\Services\Checks\Finding;
 use FluentAuth\App\Services\Checks\Plugins\TwoFaConflictCheck;
 use FluentAuth\App\Services\Checks\Registry;
+use FluentAuth\App\Services\TwoFa\RivalStandDown;
 
 /**
  * The check that spots another plugin finishing our logins for us.
@@ -36,6 +37,7 @@ class TwoFaConflictCheckTest extends BaseTestCase
         delete_option('sg_security_sg2fa');
         update_option('active_plugins', []);
         remove_all_filters('fluent_auth/2fa_conflict_plugins');
+        remove_all_filters('fluent_auth/stand_down_rival_2fa');
         Helper::resetStatics();
         Registry::reset();
 
@@ -465,6 +467,72 @@ class TwoFaConflictCheckTest extends BaseTestCase
 
         $this->assertStringContainsString('The Whole Suite', $finding['title']);
         $this->assertStringNotContainsString('Bundled', implode(' ', $finding['details']));
+    }
+
+    /* ------------------------------------------------- when the loop is headed off */
+
+    /**
+     * A rival this plugin can ask to stand aside does not break logins, so telling the owner
+     * to go and fix a broken login would be describing a site other than theirs. Still worth
+     * a row - two second factors are configured and only one is being asked for - but as
+     * something to tidy rather than something to repair.
+     */
+    public function test_a_rival_we_stand_down_is_a_tidy_up_rather_than_a_fix()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['two-factor/two-factor.php']);
+        $this->rival([
+            'plugin'  => 'two-factor/two-factor.php',
+            'name'    => 'Two Factor',
+            'enabled' => function () { return true; }
+        ]);
+
+        $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
+
+        $this->assertEquals(Finding::SEVERITY_LOOK, $finding['severity']);
+        $this->assertStringContainsString('stand aside', $finding['why']);
+    }
+
+    /**
+     * One rival with no hook is enough to make it a fix again: that plugin really will take
+     * the session over, whatever the others do.
+     */
+    public function test_one_rival_we_cannot_reach_keeps_it_a_fix()
+    {
+        $this->ourTwoFaOn();
+
+        add_filter('fluent_auth/2fa_conflict_plugins', function () {
+            return [
+                ['plugin' => 'two-factor/two-factor.php', 'name' => 'Two Factor', 'classes' => [self::class]],
+                ['plugin' => 'sg-security/sg-security.php', 'name' => 'SiteGround', 'classes' => [self::class]]
+            ];
+        });
+
+        $finding = $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE];
+
+        $this->assertEquals(Finding::SEVERITY_FIX, $finding['severity']);
+    }
+
+    /**
+     * With standing rivals down switched off, nothing is defused, so every conflict is a
+     * broken login again.
+     */
+    public function test_refusing_to_stand_rivals_down_makes_it_a_fix_again()
+    {
+        add_filter('fluent_auth/stand_down_rival_2fa', '__return_false');
+
+        $this->ourTwoFaOn();
+        $this->rival([
+            'plugin'  => 'two-factor/two-factor.php',
+            'name'    => 'Two Factor',
+            'classes' => [self::class],
+            'enabled' => function () { return true; }
+        ]);
+
+        $this->assertEquals(
+            Finding::SEVERITY_FIX,
+            $this->findings()[TwoFaConflictCheck::FINDING_ACTIVE]['severity']
+        );
     }
 
     /* ------------------------------------------------------------------ dismissal */
