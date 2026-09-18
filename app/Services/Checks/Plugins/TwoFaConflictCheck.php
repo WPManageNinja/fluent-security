@@ -71,10 +71,41 @@ class TwoFaConflictCheck extends Check
             return empty($rival['certain']);
         }));
 
+        /*
+         * The all-clear is about the site, not about half of this check.
+         *
+         * It used to be emitted whenever the confirmed list came back empty, which is a
+         * different question from whether anything was found - so a site running Wordfence
+         * drew "No other plugin is competing to finish your logins" in green directly above
+         * "Wordfence Security may be running two-factor authentication as well". Two rows
+         * from one check, contradicting each other, and the green one is the one that reads
+         * as the verdict.
+         */
+        if (!$confirmed && !$possible) {
+            return [$this->settledFinding()];
+        }
+
         return array_merge(
-            $this->confirmedFinding($confirmed),
+            $confirmed ? $this->confirmedFinding($confirmed) : [],
             $this->possibleFinding($possible)
         );
+    }
+
+    /**
+     * Nothing found, by either half. The only state that earns a green row.
+     *
+     * @return Finding
+     */
+    protected function settledFinding()
+    {
+        return new Finding([
+            'id'     => self::FINDING_ACTIVE,
+            'check'  => $this->id(),
+            'group'  => $this->group(),
+            'state'  => Finding::STATE_PASSED,
+            'title'  => __('No other plugin is competing to finish your logins', 'fluent-security'),
+            'scored' => false
+        ]);
     }
 
     /**
@@ -83,17 +114,6 @@ class TwoFaConflictCheck extends Check
      */
     protected function confirmedFinding($rivals)
     {
-        if (!$rivals) {
-            return [new Finding([
-                'id'     => self::FINDING_ACTIVE,
-                'check'  => $this->id(),
-                'group'  => $this->group(),
-                'state'  => Finding::STATE_PASSED,
-                'title'  => __('No other plugin is competing to finish your logins', 'fluent-security'),
-                'scored' => false
-            ])];
-        }
-
         $names = self::names($rivals);
 
         if (Dismissals::has(self::FINDING_ACTIVE)) {

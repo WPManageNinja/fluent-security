@@ -64,6 +64,28 @@ class TwoFaConflictCheckTest extends BaseTestCase
         return $found;
     }
 
+    /**
+     * The all-clear answers for the site, not for half of this check.
+     *
+     * A plugin we can only say "maybe" about leaves the confirmed list empty, and reading
+     * that as "nothing found" drew a green row saying no plugin was competing directly above
+     * the row naming the plugin that might be. The green one reads as the verdict, so it has
+     * to stay away unless both halves came back empty.
+     */
+    public function test_a_maybe_withholds_the_all_clear()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['wordfence/wordfence.php']);
+
+        $findings = $this->findings();
+
+        $this->assertArrayNotHasKey(TwoFaConflictCheck::FINDING_ACTIVE, $findings);
+        $this->assertSame(
+            Finding::STATE_OPEN,
+            $findings[TwoFaConflictCheck::FINDING_POSSIBLE]['state']
+        );
+    }
+
     /* ------------------------------------------------------------ nothing to say */
 
     /**
@@ -162,8 +184,7 @@ class TwoFaConflictCheckTest extends BaseTestCase
     /**
      * Wordfence keeps its settings in its own tables, so all we can honestly say is that
      * it has the feature. That is a different sentence from the one above and gets a
-     * different severity - and the confirmed finding still passes, because it is true that
-     * nothing confirmed was found.
+     * different severity.
      */
     public function test_a_plugin_whose_switch_we_cannot_read_is_only_worth_a_look()
     {
@@ -171,8 +192,6 @@ class TwoFaConflictCheckTest extends BaseTestCase
         $this->activate(['wordfence/wordfence.php']);
 
         $findings = $this->findings();
-
-        $this->assertEquals(Finding::STATE_PASSED, $findings[TwoFaConflictCheck::FINDING_ACTIVE]['state']);
 
         $possible = $findings[TwoFaConflictCheck::FINDING_POSSIBLE];
         $this->assertEquals(Finding::SEVERITY_LOOK, $possible['severity']);
