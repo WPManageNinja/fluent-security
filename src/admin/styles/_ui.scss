@@ -191,10 +191,9 @@
  * - see _RivalNotice.vue. An alert rather than a findings row: this is not something the
  * site could do better, it is a switch not working.
  *
- * Two states with the same shape and different colour. `is_blocking` means logins really do
- * fail and the reader has to act; `is_handled` means this plugin asks the other to stand
- * aside and nothing is broken, so it reads as a note rather than an alarm - warning colours
- * would be claiming a breakage that is not happening.
+ * One state. Two second factors on one site means logins fail and the reader has to act, so
+ * it is drawn as an alarm and there is nothing calmer to fall back to. A second `is_handled`
+ * variant existed while the plugin tried to ask rivals to stand aside; both went together.
  */
 .fls_2fa_conflict {
     margin: 0 0 20px;
@@ -231,16 +230,5 @@
         font-weight: 500;
         color: var(--fls-danger-fg);
         text-decoration: underline;
-    }
-
-    /* Nothing is broken here, so nothing should look broken. */
-    &.is_handled {
-        border-color: var(--fls-border);
-        background: var(--fls-surface-sunk);
-
-        h4,
-        .fls_2fa_conflict__action {
-            color: var(--fls-text);
-        }
     }
 }

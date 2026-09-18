@@ -28,7 +28,6 @@ class RivalTwoFaTest extends BaseTestCase
         delete_option('sg_security_sg2fa');
         update_option('active_plugins', []);
         remove_all_filters('fluent_auth/2fa_conflict_plugins');
-        remove_all_filters('fluent_auth/stand_down_rival_2fa');
         Helper::resetStatics();
 
         parent::tearDown();
@@ -118,7 +117,7 @@ class RivalTwoFaTest extends BaseTestCase
 
         $notice = RivalTwoFa::notice();
 
-        $this->assertTrue($notice['blocking']);
+        $this->assertNotNull($notice);
         $this->assertSame(['Security Optimizer by SiteGround'], $notice['names']);
         $this->assertStringContainsString('Login Security', implode(' ', $notice['where']));
         $this->assertStringContainsString('login-settings', $notice['url']);
@@ -135,7 +134,7 @@ class RivalTwoFaTest extends BaseTestCase
 
         $notice = RivalTwoFa::notice();
 
-        $this->assertTrue($notice['blocking']);
+        $this->assertNotNull($notice);
         $this->assertSame(['WP 2FA by Melapress'], $notice['names']);
     }
 
@@ -155,10 +154,12 @@ class RivalTwoFaTest extends BaseTestCase
     }
 
     /**
-     * One we can ask to stand aside is not breaking anything, so the box must not claim it
-     * is - the screen words that state as a tidy-up off the back of this flag.
+     * Every confirmed rival is a breakage, including the ones this plugin used to ask to
+     * stand aside. That stand-down is gone (see RivalTwoFa): it never worked on Two Factor,
+     * which forces its email provider back on rather than fail open, so a notice that called
+     * this one handled was telling the owner their logins worked when they did not.
      */
-    public function test_a_rival_we_stand_down_is_not_blocking()
+    public function test_a_rival_that_publishes_a_hook_is_still_a_conflict()
     {
         $this->ourTwoFaOn();
         $this->rival([
@@ -171,31 +172,15 @@ class RivalTwoFaTest extends BaseTestCase
         $notice = RivalTwoFa::notice();
 
         $this->assertNotNull($notice);
-        $this->assertFalse($notice['blocking']);
+        $this->assertSame(['Two Factor'], $notice['names']);
     }
 
     /**
-     * One rival with no hook is enough to make it blocking again: that plugin really will
-     * take the session over, whatever the others do.
+     * Nothing is left that could report a conflict as harmless. The screen draws one state,
+     * so a `blocking` flag coming back would be a half-removed feature rather than a choice.
      */
-    public function test_one_rival_we_cannot_reach_keeps_it_blocking()
+    public function test_the_notice_no_longer_grades_a_conflict()
     {
-        $this->ourTwoFaOn();
-
-        add_filter('fluent_auth/2fa_conflict_plugins', function () {
-            return [
-                ['plugin' => 'two-factor/two-factor.php', 'name' => 'Two Factor', 'classes' => [self::class]],
-                ['plugin' => 'sg-security/sg-security.php', 'name' => 'SiteGround', 'classes' => [self::class]]
-            ];
-        });
-
-        $this->assertTrue(RivalTwoFa::notice()['blocking']);
-    }
-
-    public function test_refusing_to_stand_rivals_down_makes_it_blocking_again()
-    {
-        add_filter('fluent_auth/stand_down_rival_2fa', '__return_false');
-
         $this->ourTwoFaOn();
         $this->rival([
             'plugin'  => 'two-factor/two-factor.php',
@@ -204,7 +189,7 @@ class RivalTwoFaTest extends BaseTestCase
             'enabled' => function () { return true; }
         ]);
 
-        $this->assertTrue(RivalTwoFa::notice()['blocking']);
+        $this->assertArrayNotHasKey('blocking', RivalTwoFa::notice());
     }
 
     /* --------------------------------------------- how a plugin is found and asked */

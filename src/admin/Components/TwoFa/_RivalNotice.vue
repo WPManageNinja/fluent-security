@@ -7,10 +7,11 @@
  * is about. Not a findings row - the findings list is for things a site could do better, and
  * this is a switch not working.
  *
- * Two states. `blocking` means no filter exists for that plugin, so it really does take the
- * session over and sign-ins fail. Otherwise RivalStandDown heads it off and nothing is
- * broken, which is worth saying without the alarm - warning colours there would be claiming
- * a breakage that is not happening.
+ * One state, because there is only one outcome. Two second factors on one site cannot both
+ * finish a login: whichever runs second throws the first one's session away mid-request and
+ * the user loops. An earlier version had a second, calmer state for the plugins this one could
+ * ask to stand aside - that was removed along with the stand-down itself, which never worked on
+ * the most widely installed rival. See RivalTwoFa.
  *
  * Text, never v-html: the plugin names come from a filterable list, so they are somebody
  * else's input by the time they get here.
@@ -35,15 +36,9 @@ export default {
 
             const names = this.notice.names || [];
 
-            if (names.length === 1) {
-                return this.notice.blocking
-                    ? this.$t('%s is also enforcing two-factor login', names[0])
-                    : this.$t('%s is also set up for two-factor login', names[0]);
-            }
-
-            return this.notice.blocking
-                ? this.$t('Other plugins are also enforcing two-factor login')
-                : this.$t('Other plugins are also set up for two-factor login');
+            return names.length === 1
+                ? this.$t('%s is also enforcing two-factor login', names[0])
+                : this.$t('Other plugins are also enforcing two-factor login');
         },
         where() {
             return (this.notice && this.notice.where || []).join(' · ');
@@ -53,12 +48,10 @@ export default {
 </script>
 
 <template>
-    <div v-if="notice" class="fls_2fa_conflict"
-         :class="notice.blocking ? 'is_blocking' : 'is_handled'" role="alert">
+    <div v-if="notice" class="fls_2fa_conflict is_blocking" role="alert">
         <h4>{{ title }}</h4>
 
-        <p v-if="notice.blocking">{{ $t('__2fa_conflict_blocking_desc__') }}</p>
-        <p v-else>{{ $t('__2fa_conflict_handled_desc__') }}</p>
+        <p>{{ $t('__2fa_conflict_blocking_desc__') }}</p>
 
         <p v-if="where" class="fls_2fa_conflict__where">
             {{ $t('Turn it off in:') }} {{ where }}

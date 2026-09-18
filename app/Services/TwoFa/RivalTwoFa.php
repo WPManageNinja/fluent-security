@@ -18,8 +18,13 @@ use FluentAuth\App\Helpers\Helper;
  * past. Meanwhile `wp_login` really did fire, so the audit log records a success and the login
  * email goes out every time - the one signal they have says the logins are working.
  *
- * Where a rival publishes a filter, RivalStandDown heads that off and nothing breaks. Where it
- * does not, the login is broken and the settings screen says so.
+ * There is no way to coexist, and this plugin does not try. An earlier attempt asked the rival
+ * to stand aside for the one request that completes a challenge; it was removed because it only
+ * worked on two of the three plugins that publish a hook - Two Factor 0.16.0 has an explicit
+ * anti-fail-open guard that forces its email provider back on - it also fired on the enrollment
+ * path, where nothing has been proved yet, and it covered one of this plugin's four ways of
+ * completing a login. What replaced it is this notice: say plainly that both cannot run, and let
+ * the owner turn one off.
  *
  * Deliberately not a check and not on the findings list. That list is for things a site could
  * do better; this is a switch on the settings screen not working, and it belongs beside that
@@ -51,23 +56,13 @@ class RivalTwoFa
             return null;
         }
 
-        $unhandled = array_values(array_filter($rivals, function ($rival) {
-            return !in_array($rival['plugin'], RivalStandDown::handledRivals(), true);
-        }));
-
         return [
             'names' => self::names($rivals),
             /* Where to go and switch it off, in that plugin's own words for its own screens. */
             'where' => array_values(array_filter(array_map(function ($rival) {
                 return (string)$rival['where'];
             }, $rivals))),
-            /*
-             * Whether logins are actually failing. False means every rival here is one this
-             * plugin can ask to stand aside, so the box says nothing is broken rather than
-             * warning about a breakage that is not happening - see RivalStandDown.
-             */
-            'blocking' => !empty($unhandled),
-            'url'      => count($rivals) === 1 && !empty($rivals[0]['url'])
+            'url'  => count($rivals) === 1 && !empty($rivals[0]['url'])
                 ? admin_url($rivals[0]['url'])
                 : admin_url('plugins.php')
         ];
@@ -385,7 +380,13 @@ class RivalTwoFa
      */
     public static function pluginSays($class, $method, $args = [])
     {
-        if (!method_exists($class, $method)) {
+        /*
+         * Without the class already being loaded this is a question about a plugin that is not
+         * there, and method_exists() would run the autoloader to answer it - pulling a rival's
+         * Composer tree into a request that only wanted to know whether it was needed.
+         * isPresent() passes false to class_exists() for the same reason.
+         */
+        if (!class_exists($class, false) || !method_exists($class, $method)) {
             return null;
         }
 
@@ -625,26 +626,6 @@ class RivalTwoFa
     {
         return array_map(function ($rival) {
             return (string)$rival['name'];
-        }, $rivals);
-    }
-
-    /**
-     * @param array $rivals
-     * @return array
-     */
-    protected static function describe($rivals)
-    {
-        return array_map(function ($rival) {
-            if (empty($rival['where'])) {
-                return (string)$rival['name'];
-            }
-
-            return sprintf(
-                /* translators: 1: plugin name, 2: where its two factor setting lives */
-                __('%1$s - its second factor is at %2$s', 'fluent-security'),
-                $rival['name'],
-                $rival['where']
-            );
         }, $rivals);
     }
 }

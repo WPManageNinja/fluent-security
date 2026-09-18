@@ -17,7 +17,7 @@ export default {
             low_level_roles: {},
             proxy_config_locked: false,
             proxy_detection: {status: 'none', headers: []},
-            /* Null on almost every site - see TwoFaConflictCheck::notice(). */
+            /* Null on almost every site - see RivalTwoFa::notice(). */
             two_fa_conflict: null,
             loading: false,
             saving: false,

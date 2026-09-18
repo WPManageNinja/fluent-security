@@ -2,7 +2,6 @@
 
 namespace FluentAuth\App\Hooks\Handlers;
 
-use FluentAuth\App\Services\TwoFa\RivalStandDown;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
@@ -492,26 +491,14 @@ class TwoFaHandler
          */
         Helper::setLoginMedia($method->getLoginMedia());
 
-        add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
-
         /*
-         * The one moment another plugin's second factor has to stand down.
-         *
-         * wp_signon() fires `wp_login`, and a rival listening there throws this session away
-         * and renders its own challenge into the middle of this request - which is the loop
-         * described in RivalTwoFa. Several of them publish a filter for exactly this,
-         * so where one exists the loop simply does not happen.
-         *
-         * Safe here and nowhere else: the user has just produced a second factor, so what is
-         * being stood down is a duplicate rather than a factor. Every login that did not come
-         * through this method - including one where our own second factor did not apply - is
-         * untouched, so a site whose policy is really being enforced by the other plugin goes
-         * on being enforced by it.
-         *
-         * finally, because a stand-down left attached would be this plugin quietly switching
-         * somebody else's second factor off for the rest of the request.
+         * finally, because every one of these is a suppression that must not outlive the call
+         * it was opened for. allowProgrammaticLogin() returns a user for any login name with no
+         * password checked, and $completingChallenge switches off every 2FA check there is -
+         * either one left attached is this plugin holding its own front door open for the rest
+         * of the request.
          */
-        RivalStandDown::standDown();
+        add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
 
         try {
             $user = wp_signon(array(
@@ -521,13 +508,11 @@ class TwoFaHandler
                 )
             );
         } finally {
-            RivalStandDown::resume();
+            remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
+
+            Helper::setTokenVerifiedLogin(false);
+            self::$completingChallenge = false;
         }
-
-        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
-
-        Helper::setTokenVerifiedLogin(false);
-        self::$completingChallenge = false;
 
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);
@@ -649,7 +634,15 @@ class TwoFaHandler
         if (!$this->canResumeInBrowser()) {
             return new \WP_Error(
                 'fls_2fa_required',
-                __('This account needs a second factor, which cannot be completed over the REST API. Sign in through the site\'s login page, or use an application password.', 'fluent-security')
+                __('This account needs a second factor, which cannot be completed over the REST API. Sign in through the site\'s login page, or use an application password.', 'fluent-security'),
+                /*
+                 * Refused, but told where to go. No challenge_url, because no challenge was
+                 * raised - that is the whole point of this branch - but the message names the
+                 * login page and a caller cannot act on a sentence. A decoupled front end or a
+                 * companion app reads this and has somewhere to send the person; without it the
+                 * only route was a filter no site owner will ever find.
+                 */
+                ['login_url' => wp_login_url()]
             );
         }
 
