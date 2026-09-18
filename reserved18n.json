@@ -65,5 +65,9 @@
   "__relay_reason_superseded__": "The alerts service has this site connected from somewhere else. The usual cause is a copy — a staging or backup clone made from the database, which keeps the original site address and so looks like the same site connecting again. Give the copy its own address before reconnecting it, or the two will keep taking the connection from each other.",
   "__relay_revoked_next__": "Scanning still works here. Connect again to get scheduled scans and emails back.",
   "__relay_legacy_desc__": "The alerts service moved to a new home, and connections made before the move could not be carried over. Nothing is wrong with this site — scanning here has been working all along, and still is. Connect again to start getting scheduled scans and alert emails.",
-  "__relay_legacy_title__": "The alerts service has moved"
+  "__relay_legacy_title__": "The alerts service has moved",
+  "__2fa_conflict_blocking_title__": "Another plugin is breaking these logins",
+  "__2fa_conflict_blocking_desc__": "Two plugins cannot both finish the same login. The other one throws the session away after the password, so the passkey prompt and the codes below all end up back at the login screen — and a recovery code is spent every time it happens. Turn the second factor off in one plugin or the other; both protect the same logins, so whichever you keep loses you nothing.",
+  "__2fa_conflict_handled_title__": "Another plugin is also set up for two-factor",
+  "__2fa_conflict_handled_desc__": "FluentAuth asks it to stand aside for the moment it would otherwise take the login over, so your sign-ins work. Nothing is broken and there is no hurry — but two second factors are configured and only one of them is being asked for, so it is worth turning one off."
 }

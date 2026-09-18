@@ -535,6 +535,84 @@ class TwoFaConflictCheckTest extends BaseTestCase
         );
     }
 
+    /* ------------------------------------------ the notice the settings screen draws */
+
+    /**
+     * Nothing to say on a site with no confirmed rival. The settings screen is not a
+     * checklist, so "we looked and found nothing" is not a thing to draw on it.
+     */
+    public function test_there_is_no_notice_without_a_confirmed_rival()
+    {
+        $this->ourTwoFaOn();
+        $this->assertNull(TwoFaConflictCheck::notice());
+
+        /* A maybe belongs on the checklist, not here. */
+        $this->activate(['wordfence/wordfence.php']);
+        $this->assertNull(TwoFaConflictCheck::notice());
+    }
+
+    public function test_there_is_no_notice_when_our_own_second_factor_is_off()
+    {
+        update_option('__fls_auth_settings', ['passkey_2fa' => 'no', 'totp_2fa' => 'no', 'email2fa' => 'no']);
+        Helper::resetStatics();
+
+        $this->activate(['wp-2fa/wp-2fa.php']);
+
+        $this->assertNull(TwoFaConflictCheck::notice());
+    }
+
+    /**
+     * A rival with no hook really does break the login, so the notice says so and carries
+     * the name and the way to its settings.
+     */
+    public function test_an_unreachable_rival_gives_a_blocking_notice()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['wp-2fa/wp-2fa.php']);
+
+        $notice = TwoFaConflictCheck::notice();
+
+        $this->assertTrue($notice['blocking']);
+        $this->assertSame(['WP 2FA by Melapress'], $notice['names']);
+        $this->assertStringContainsString('wp-2fa-policies', $notice['url']);
+    }
+
+    /**
+     * One we stand down is not breaking anything, so the notice must not claim it is - the
+     * screen words this as a tidy-up rather than an alarm off the back of this flag.
+     */
+    public function test_a_rival_we_stand_down_gives_a_non_blocking_notice()
+    {
+        $this->ourTwoFaOn();
+        $this->rival([
+            'plugin'  => 'two-factor/two-factor.php',
+            'name'    => 'Two Factor',
+            'classes' => [self::class],
+            'enabled' => function () { return true; }
+        ]);
+
+        $notice = TwoFaConflictCheck::notice();
+
+        $this->assertNotNull($notice);
+        $this->assertFalse($notice['blocking']);
+    }
+
+    /**
+     * One decision, honoured everywhere. Turning the row down on the checklist has to turn
+     * this off too, or an owner who declines it meets it again somewhere they cannot.
+     */
+    public function test_dismissing_the_finding_silences_the_notice()
+    {
+        $this->ourTwoFaOn();
+        $this->activate(['wp-2fa/wp-2fa.php']);
+
+        $this->assertNotNull(TwoFaConflictCheck::notice());
+
+        (new TwoFaConflictCheck())->accept(TwoFaConflictCheck::FINDING_ACTIVE);
+
+        $this->assertNull(TwoFaConflictCheck::notice());
+    }
+
     /* ------------------------------------------------------------------ dismissal */
 
     /**

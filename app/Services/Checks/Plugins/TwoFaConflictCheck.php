@@ -256,6 +256,59 @@ class TwoFaConflictCheck extends Check
     }
 
     /**
+     * The same conflict, for a screen that is not the checklist.
+     *
+     * The findings list is where a site goes looking for things it could do better. This is
+     * not one of those: a confirmed conflict means the second factor being configured on that
+     * screen does not work, right now, and the person switching it on is the person who needs
+     * to know. Waiting for them to visit a different tab and read a row about plugins is the
+     * wrong shape for that news.
+     *
+     * Confirmed rivals only. A maybe belongs on the checklist, where a reader has come to
+     * weigh things up - putting one here would mean the settings screen crying wolf at every
+     * site that happens to have Wordfence installed, whether or not anybody uses its second
+     * factor.
+     *
+     * Silent once dismissed, so turning the row down on the checklist turns this off too. One
+     * decision, made once, honoured everywhere - the alternative being an owner who declines
+     * it and then meets it again somewhere they cannot decline it.
+     *
+     * @return array|null
+     */
+    public static function notice()
+    {
+        if (!self::ownSecondFactorIsOn() || Dismissals::has(self::FINDING_ACTIVE)) {
+            return null;
+        }
+
+        $confirmed = array_values(array_filter(self::activeRivals(), function ($rival) {
+            return !empty($rival['certain']);
+        }));
+
+        if (!$confirmed) {
+            return null;
+        }
+
+        $unhandled = array_values(array_filter($confirmed, function ($rival) {
+            return !in_array($rival['plugin'], RivalStandDown::handledRivals(), true);
+        }));
+
+        return [
+            'names'    => self::names($confirmed),
+            'details'  => self::describe($confirmed),
+            /*
+             * Whether logins are actually failing. False means every rival here is one this
+             * plugin can ask to stand aside, so the screen should say so plainly rather than
+             * warn about a breakage that is not happening - see RivalStandDown.
+             */
+            'blocking' => !empty($unhandled),
+            'url'      => count($confirmed) === 1 && !empty($confirmed[0]['url'])
+                ? admin_url($confirmed[0]['url'])
+                : admin_url('plugins.php')
+        ];
+    }
+
+    /**
      * Whether this plugin is asking anybody for a second factor at all.
      *
      * The three settings are read directly rather than by asking the registered methods,

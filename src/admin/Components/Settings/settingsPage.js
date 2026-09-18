@@ -15,6 +15,8 @@ export default {
             low_level_roles: {},
             proxy_config_locked: false,
             proxy_detection: {status: 'none', headers: []},
+            /* Null on almost every site - see TwoFaConflictCheck::notice(). */
+            two_fa_conflict: null,
             loading: false,
             saving: false,
             errors: false
@@ -31,6 +33,7 @@ export default {
                     this.low_level_roles = response.low_level_roles;
                     this.proxy_config_locked = response.proxy_config_locked;
                     this.proxy_detection = response.proxy_detection || this.proxy_detection;
+                    this.two_fa_conflict = response.two_fa_conflict || null;
                 })
                 .catch(errors => {
                     this.$handleError(errors);
