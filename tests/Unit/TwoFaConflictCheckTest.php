@@ -371,6 +371,68 @@ class TwoFaConflictCheckTest extends BaseTestCase
         $this->assertEquals(Finding::STATE_PASSED, $findings[TwoFaConflictCheck::FINDING_ACTIVE]['state']);
     }
 
+    /* ------------------------------------------- reading another plugin's own answer */
+
+    /**
+     * The two-hop shape these are published in: a static accessor handing back the live
+     * controller, and the question asked of that. Wordfence counts enrolled users this way.
+     */
+    public function test_an_object_accessor_is_followed_and_asked()
+    {
+        $this->assertSame(
+            7,
+            TwoFaConflictCheck::pluginObjectSays(RivalStubController::class, 'shared', 'active_count')
+        );
+    }
+
+    public function test_an_object_accessor_that_is_not_there_says_nothing()
+    {
+        $this->assertNull(
+            TwoFaConflictCheck::pluginObjectSays(RivalStubController::class, 'no_such_accessor', 'active_count')
+        );
+    }
+
+    /**
+     * A renamed method between versions has to read as "will not say" rather than as an
+     * answer - reaching a real object and then guessing at a missing method is exactly how
+     * a plugin update would otherwise turn into a wrong verdict.
+     */
+    public function test_a_renamed_method_on_a_real_object_says_nothing()
+    {
+        $this->assertNull(
+            TwoFaConflictCheck::pluginObjectSays(RivalStubController::class, 'shared', 'renamed_away')
+        );
+    }
+
+    /**
+     * Defender publishes its switch as a public property on a model that hydrates itself,
+     * so the object is the answer and there is no accessor to call.
+     */
+    public function test_a_settings_model_property_is_read()
+    {
+        $this->assertTrue(TwoFaConflictCheck::pluginModelSays(RivalStubSettings::class, 'enabled'));
+        $this->assertNull(TwoFaConflictCheck::pluginModelSays(RivalStubSettings::class, 'no_such_property'));
+        $this->assertNull(TwoFaConflictCheck::pluginModelSays('No\\Such\\Model', 'enabled'));
+    }
+
+    /**
+     * An option that is there answers yes or no; one that is not there answers neither. The
+     * distinction is what keeps a wrong option name from reading as "switched off".
+     */
+    public function test_an_option_reports_absent_apart_from_false()
+    {
+        delete_option('fls_stub_flag');
+        $this->assertNull(TwoFaConflictCheck::optionSays('fls_stub_flag'));
+
+        update_option('fls_stub_flag', 0);
+        $this->assertFalse(TwoFaConflictCheck::optionSays('fls_stub_flag'));
+
+        update_option('fls_stub_flag', 1);
+        $this->assertTrue(TwoFaConflictCheck::optionSays('fls_stub_flag'));
+
+        delete_option('fls_stub_flag');
+    }
+
     /* ------------------------------------------------------------------ dismissal */
 
     /**
@@ -457,4 +519,27 @@ class TwoFaConflictCheckTest extends BaseTestCase
     {
         $this->assertArrayHasKey('two_fa_conflict', Registry::checks());
     }
+}
+
+/**
+ * Stand-ins for the two shapes these plugins publish their state in. Named for what they
+ * are rather than after any one plugin: what is being pinned is the reading, not the
+ * identifiers, which cannot be verified from here in any case.
+ */
+class RivalStubController
+{
+    public static function shared()
+    {
+        return new self();
+    }
+
+    public function active_count()
+    {
+        return 7;
+    }
+}
+
+class RivalStubSettings
+{
+    public $enabled = true;
 }

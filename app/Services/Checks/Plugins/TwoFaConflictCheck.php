@@ -335,6 +335,18 @@ class TwoFaConflictCheck extends Check
                 'name'      => __('Wordfence Login Security', 'fluent-security'),
                 'constants' => ['WORDFENCE_LS_VERSION'],
                 'classes'   => ['WordfenceLS\\Controller_TOTP'],
+                /*
+                 * Counted, not assumed. `active_count()` is the number of rows in their
+                 * secrets table - which is to say the number of people who have actually
+                 * finished setting a second factor up. One or more is a conflict happening
+                 * now; none means the plugin is installed and nobody is using it yet, which
+                 * is worth a look rather than a red row.
+                 */
+                'enabled'   => function () {
+                    $enrolled = self::pluginObjectSays('WordfenceLS\\Controller_Users', 'shared', 'active_count');
+
+                    return $enrolled === null ? null : ((int)$enrolled > 0 ? true : null);
+                },
                 'where'     => __('Login Security → Two-Factor Authentication', 'fluent-security'),
                 'url'       => 'admin.php?page=WFLS'
             ],
@@ -354,6 +366,10 @@ class TwoFaConflictCheck extends Check
                  * would report every AIOS site as running this plugin as well.
                  */
                 'classes'   => ['Simba_Two_Factor_Authentication_Plugin'],
+                /* The same per-role switch the library keeps wherever it is embedded. */
+                'enabled'   => function () {
+                    return self::optionSays('tfa_administrator');
+                },
                 'where'     => __('Users → Two Factor Authentication', 'fluent-security'),
                 'url'       => 'profile.php'
             ],
@@ -383,13 +399,16 @@ class TwoFaConflictCheck extends Check
                 'name'      => __('Wordfence Security', 'fluent-security'),
                 'constants' => ['WORDFENCE_VERSION'],
                 /*
-                 * No answer attempted. The obvious one - look for the login-security classes
-                 * the standalone plugin uses - reads their absence as "the feature is off",
-                 * and that is a guess about somebody else's load order dressed up as a fact.
-                 * Guessing wrong there drops a real conflict silently, which is the one
-                 * failure this check must not have. Its settings live in Wordfence's own
-                 * tables either way, so a maybe is the honest answer.
+                 * The full plugin ships the same login-security code, so the same count
+                 * answers for it. Absence of those classes stays a maybe rather than a no:
+                 * reading it as "switched off" would be a guess about their load order, and
+                 * guessing wrong drops a real conflict silently.
                  */
+                'enabled'   => function () {
+                    $enrolled = self::pluginObjectSays('WordfenceLS\\Controller_Users', 'shared', 'active_count');
+
+                    return $enrolled === null ? null : ((int)$enrolled > 0 ? true : null);
+                },
                 'where'     => __('Wordfence → Login Security → Two-Factor Authentication', 'fluent-security'),
                 'url'       => 'admin.php?page=WFLS',
                 'certain'   => false
@@ -417,10 +436,15 @@ class TwoFaConflictCheck extends Check
                 'name'      => __('All-In-One Security (AIOS)', 'fluent-security'),
                 'classes'   => ['AIO_WP_Security_Simba_Two_Factor_Authentication_Plugin'],
                 /*
-                 * No answer attempted. There is no `aiowps_` flag for this - the feature is
-                 * the bundled Simba library and its state lives in that library's own
-                 * storage, not in a setting of theirs we could read.
+                 * There is no `aiowps_` flag for this: the feature is the bundled Simba
+                 * library, and the library keeps its own per-role switches. `tfa_administrator`
+                 * is the one that matters, being the role this conflict is reported to.
+                 * Absent means the library has not written its defaults yet, which is a look
+                 * rather than a no - see optionSays().
                  */
+                'enabled'   => function () {
+                    return self::optionSays('tfa_administrator');
+                },
                 'where'     => __('WP Security → Two Factor Authentication', 'fluent-security'),
                 'url'       => 'admin.php?page=aiowpsec',
                 'certain'   => false
@@ -429,11 +453,35 @@ class TwoFaConflictCheck extends Check
                 'plugin'    => 'wp-simple-firewall/icwp-wpsf.php',
                 'name'      => __('Shield Security', 'fluent-security'),
                 /*
-                 * No constant and no class worth naming: this one boots through its own
-                 * Composer autoloader and defines nothing global that is stable to match on.
-                 * The plugin path is all there is, which is exactly why the path fallback
-                 * stays in isPresent().
+                 * No constant to match on: this one boots through its own Composer
+                 * autoloader and defines nothing global that is stable. The plugin path is
+                 * all there is, which is exactly why the path fallback stays in isPresent().
                  */
+                'classes'   => ['FernleafSystems\\Wordpress\\Plugin\\Shield\\Controller\\Controller'],
+                /*
+                 * Asked one provider at a time, because that is how they are switched on -
+                 * there is no single "2FA is enabled" flag. Any provider on is a conflict;
+                 * all of them off is genuinely nothing to report. The container is reached
+                 * the way their own provider classes reach it.
+                 */
+                'enabled'   => function () {
+                    $container = self::pluginSays(
+                        'FernleafSystems\\Wordpress\\Plugin\\Shield\\Controller\\Controller',
+                        'GetInstance'
+                    );
+
+                    if (!is_object($container) || !isset($container->opts) || !method_exists($container->opts, 'optIs')) {
+                        return null;
+                    }
+
+                    foreach (['enable_google_authenticator', 'enable_email_authentication', 'enable_yubikey'] as $provider) {
+                        if ($container->opts->optIs($provider, 'Y')) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                },
                 'where'     => __('Shield → Login Protection → Multi-Factor Authentication', 'fluent-security'),
                 'url'       => 'admin.php?page=icwp-wpsf-plugin',
                 'certain'   => false
@@ -443,7 +491,16 @@ class TwoFaConflictCheck extends Check
                 'name'      => __('Defender Security', 'fluent-security'),
                 'constants' => ['DEFENDER_VERSION'],
                 'classes'   => ['WP_Defender\\Controller\\Two_Factor'],
-                /* Present means the 2FA controller loaded; whether it is armed is in its own tables. */
+                /*
+                 * Their settings model hydrates itself and publishes the switch as a plain
+                 * public property, so this is their own answer rather than our reading of
+                 * their storage.
+                 */
+                'enabled'   => function () {
+                    $on = self::pluginModelSays('WP_Defender\\Model\\Setting\\Two_Fa', 'enabled');
+
+                    return $on === null ? null : (bool)$on;
+                },
                 'where'     => __('Defender → 2FA', 'fluent-security'),
                 'url'       => 'admin.php?page=wdf-advanced-tools',
                 'certain'   => false
@@ -457,6 +514,13 @@ class TwoFaConflictCheck extends Check
          */
         return (array)apply_filters('fluent_auth/2fa_conflict_plugins', $rivals);
     }
+
+    /*
+     * The four readers below are public rather than protected. Nothing is protected by
+     * hiding them - they hold no state and enforce no invariant - and they are the part of
+     * this file most likely to be wrong, since every symbol they name belongs to a plugin
+     * this build has no copy of. Reachable means testable.
+     */
 
     /**
      * Call a method on a class this build does not ship, if it is there.
@@ -474,13 +538,64 @@ class TwoFaConflictCheck extends Check
      * @param array $args
      * @return mixed|null
      */
-    protected static function pluginSays($class, $method, $args = [])
+    public static function pluginSays($class, $method, $args = [])
     {
         if (!method_exists($class, $method)) {
             return null;
         }
 
         return call_user_func_array([$class, $method], $args);
+    }
+
+    /**
+     * Reach an object through a plugin's own accessor and call a method on it.
+     *
+     * Two hops, both guarded, because that is how these are published: a static `shared()`
+     * or `GetInstance()` that hands back the live controller, and the question asked of that.
+     * Null the moment either hop is not what this expects, which the caller reads as "will
+     * not say".
+     *
+     * @param string $class
+     * @param string $accessor
+     * @param string $method
+     * @param array $args
+     * @return mixed|null
+     */
+    public static function pluginObjectSays($class, $accessor, $method, $args = [])
+    {
+        $object = self::pluginSays($class, $accessor);
+
+        if (!is_object($object) || !method_exists($object, $method)) {
+            return null;
+        }
+
+        return call_user_func_array([$object, $method], $args);
+    }
+
+    /**
+     * Read a public property off a settings model the plugin expects to be constructed.
+     *
+     * Defender's settings are a model that hydrates itself on construction, so there is no
+     * accessor to call - the object *is* the answer. Constructed inside the caller's
+     * try/catch, since building one runs their code.
+     *
+     * @param string $class
+     * @param string $property
+     * @return mixed|null
+     */
+    public static function pluginModelSays($class, $property)
+    {
+        if (!class_exists($class, false)) {
+            return null;
+        }
+
+        $model = new $class();
+
+        if (!property_exists($model, $property)) {
+            return null;
+        }
+
+        return $model->$property;
     }
 
     /**
@@ -494,7 +609,7 @@ class TwoFaConflictCheck extends Check
      * @param string $name
      * @return bool|null
      */
-    protected static function optionSays($name)
+    public static function optionSays($name)
     {
         $value = get_option($name, null);
 
