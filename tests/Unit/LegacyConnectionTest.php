@@ -27,6 +27,20 @@ class LegacyConnectionTest extends BaseTestCase
 
     const CURRENT_KEY = 'fask_7hJ2kL9mN4pQ8rS3tV6wX1yZ5aB0cD7eF4gH';
 
+    /**
+     * The shape the old service actually issued, which is a UUID for both halves.
+     *
+     * Not a guess. Checked against the whole of that service's `registrations` table (the
+     * `fluent_auth_api_tokens` D1, 2,917 rows): every `api_id` and every `api_token` in it is
+     * a 36-character UUID, and not one of them begins with either prefix the current relay
+     * mints. So the shape test below is confirmed against the entire real population rather
+     * than against a plausible-looking fixture - there is no old credential anywhere that it
+     * reads as current.
+     */
+    const OLD_ID = '7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37';
+
+    const OLD_KEY = 'c4d81f06-93ae-4b57-8e2a-1d7f60b9a534';
+
     private function connectedWith($apiId, $apiKey, $extra = [])
     {
         IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), array_merge([
@@ -54,7 +68,7 @@ class LegacyConnectionTest extends BaseTestCase
 
     public function testAPairFromTheOldServiceIsRetired()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', 'e91b7c4d5a2f8036b1ce4a7d9f2058e3');
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         $this->assertTrue(IntegrityHelper::maybeRetireLegacyConnection());
 
@@ -73,12 +87,12 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testTheRetiredIdIsKept()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', 'e91b7c4d5a2f8036b1ce4a7d9f2058e3');
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         IntegrityHelper::maybeRetireLegacyConnection();
 
         $this->assertSame(
-            '7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37',
+            self::OLD_ID,
             IntegrityHelper::getSettings()['relay_retired_api_id']
         );
     }
@@ -90,7 +104,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testASiteStillWaitingForItsOldKeyIsRetired()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', '', [
+        $this->connectedWith(self::OLD_ID, '', [
             'status'    => 'pending',
             'auto_scan' => 'no'
         ]);
@@ -143,7 +157,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testAnInstallPointedAtItsOwnRelayIsNeverRetired()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', 'e91b7c4d5a2f8036b1ce4a7d9f2058e3');
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         $filter = function () {
             return 'https://relay.example.com/api/v1/';
@@ -166,7 +180,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testRetiringIsIdempotent()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', 'e91b7c4d5a2f8036b1ce4a7d9f2058e3');
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         $this->assertTrue(IntegrityHelper::maybeRetireLegacyConnection());
 
@@ -183,7 +197,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testReconnectingClearsTheRetirement()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', 'e91b7c4d5a2f8036b1ce4a7d9f2058e3');
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         IntegrityHelper::maybeRetireLegacyConnection();
 
@@ -199,7 +213,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testTheRetiredKeyNeverReachesTheBrowser()
     {
-        $this->connectedWith('7f3a91c2-4b8e-4d1a-9c55-2e6b0f8a1d37', 'e91b7c4d5a2f8036b1ce4a7d9f2058e3');
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         IntegrityHelper::maybeRetireLegacyConnection();
 
