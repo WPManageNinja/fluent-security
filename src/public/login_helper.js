@@ -641,6 +641,168 @@ function initEnrollment() {
     });
 }
 
+/* ------------------------------------------ the standalone 2FA setup page */
+
+/**
+ * The passkey offer on wp-login.php?action=fls_2fa_setup.
+ *
+ * Near enough to initEnrollment() to look like a duplicate, and different in the one way
+ * that matters: this screen has a session, so it is an ordinary form POST back to the
+ * same page rather than a step inside a login. There is no `login_hash` to answer for,
+ * no attempt cap behind it, and no VERIFY_FAILED to listen for - a rejected credential
+ * comes back as a rendered notice on a fresh page, with a fresh challenge.
+ *
+ * Which is also why it does not simply reuse that function: sharing it would mean
+ * threading "is there a login attempt behind this" through every branch, and the branch
+ * that got it wrong would be the one that signs somebody in.
+ */
+function initSetupPasskey() {
+    const settings = readConfig('fls_setup_passkey_config');
+    const form = byId('fls_totp_setup');
+    const pane = byId('fls_setup_passkey');
+
+    if (!settings || !form || !pane || !claim(pane)) {
+        return;
+    }
+
+    const appPane = byId('fls_setup_app');
+    const startButton = byId('fls_setup_passkey_start');
+    const status = byId('fls_setup_passkey_status');
+    const credentialField = byId('fls_setup_credential');
+    const transportField = byId('fls_setup_transports');
+    const submit = byId('fls_totp_submit');
+    const showApp = byId('fls_setup_show_app');
+    const showPasskeyWrap = byId('fls_setup_show_passkey_wrap');
+    const showPasskey = byId('fls_setup_show_passkey');
+    const codeField = byId('fls_totp_confirm_code');
+    const messages = settings.messages || {};
+    let busy = false;
+
+    /*
+     * The server leaves the app pane out entirely where authenticator apps are off - or
+     * where the secret could not be generated - so its absence is the signal that the
+     * passkey offer carries this screen alone, and it is rendered visible in that case
+     * rather than waiting to be revealed.
+     */
+    const passkeyOnly = !appPane;
+
+    if (!webAuthnSupports('create')) {
+        /*
+         * With nothing else on the screen there is no route at all, and the one thing
+         * this must not do is leave a required user staring at a heading and a button
+         * that cannot work. So the offer stays put and says why.
+         */
+        if (passkeyOnly) {
+            setText(status, messages.unsupported);
+
+            if (startButton) {
+                startButton.disabled = true;
+            }
+        }
+
+        return;
+    }
+
+    const show = (which) => {
+        // Passkey-only: there is no second pane, and this one never goes away.
+        if (passkeyOnly) {
+            return;
+        }
+
+        pane.style.display = which === 'passkey' ? '' : 'none';
+        appPane.style.display = which === 'passkey' ? 'none' : '';
+    };
+
+    /*
+     * Keeps the app route usable after a passkey the *server* rejects. The field is only
+     * emptied by the create() catch, so a credential that fails verification stays in the
+     * form; the user switches to the app, types a correct code, and processSubmission()
+     * sees a credential still sitting there and takes the passkey branch again - failing
+     * the same way every time.
+     */
+    const clearCredential = () => {
+        credentialField.value = '';
+        transportField.value = '';
+    };
+
+    if (showApp) {
+        showApp.addEventListener('click', (event) => {
+            event.preventDefault();
+            clearCredential();
+            show('app');
+        });
+    }
+
+    // Belt and braces: typing a code is an unambiguous statement of which route is being
+    // taken, whichever pane happens to be on screen.
+    if (codeField) {
+        codeField.addEventListener('input', clearCredential);
+    }
+
+    if (showPasskey) {
+        showPasskey.addEventListener('click', (event) => {
+            event.preventDefault();
+            show('passkey');
+        });
+    }
+
+    if (showPasskeyWrap) {
+        showPasskeyWrap.style.display = '';
+    }
+
+    /*
+     * A platform authenticator - Touch ID, Windows Hello, an Android screen lock - is the
+     * case where a passkey is both possible and easier than anything else, so it leads.
+     * Without one a passkey may still work from a security key or a phone, so the offer
+     * stays reachable by the link rather than leading.
+     */
+    if (!passkeyOnly) {
+        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+            .then((available) => {
+                if (available) {
+                    show('passkey');
+                }
+            })
+            .catch(() => {
+                // Left on the authenticator app, which always works.
+            });
+    }
+
+    startButton.addEventListener('click', () => {
+        if (busy) {
+            return;
+        }
+
+        busy = true;
+        startButton.disabled = true;
+        setText(status, messages.prompting);
+
+        navigator.credentials.create({publicKey: decodeCreationOptions(settings.options)})
+            .then((credential) => {
+                setText(status, messages.saving);
+
+                const transports = credential.response.getTransports
+                    ? credential.response.getTransports()
+                    : [];
+
+                transportField.value = JSON.stringify(transports || []);
+                credentialField.value = JSON.stringify({
+                    rawId: toBase64Url(credential.rawId),
+                    clientDataJSON: toBase64Url(credential.response.clientDataJSON),
+                    attestationObject: toBase64Url(credential.response.attestationObject)
+                });
+
+                submitVia(form, submit);
+            })
+            .catch(() => {
+                busy = false;
+                startButton.disabled = false;
+                clearCredential();
+                setText(status, messages.cancelled);
+            });
+    });
+}
+
 /* -------------------------------------------- the passkey button on the login form */
 
 function initPasskeyLogin() {
@@ -1121,6 +1283,12 @@ function initShortcodeForms() {
 function start() {
     initShortcodeForms();
     initChallenge();
+
+    /*
+     * Not in initChallenge(), which is the set that has to run again when a form arrives
+     * over the wire. This screen is server rendered and never replaced in place.
+     */
+    initSetupPasskey();
 
     const passkeyButtonShowing = initPasskeyLogin();
 

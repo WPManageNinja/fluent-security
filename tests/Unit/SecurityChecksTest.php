@@ -83,6 +83,44 @@ class SecurityChecksTest extends BaseTestCase
         $this->assertContains('disable_xmlrpc', $scored);
     }
 
+    /**
+     * Passkeys are a second factor, and leaving them out of this tally was a plain bug: a
+     * site running the strongest method the plugin offers, and nothing else, was told it
+     * had no second factor at all and docked the points - while the plugin's own
+     * enforcement was accepting one as meeting a requirement.
+     */
+    public function testAPasskeyOnlySiteCountsAsHavingASecondFactor()
+    {
+        update_option('home', 'https://example.org');
+        update_option('siteurl', 'https://example.org');
+
+        $this->assertSame('todo', $this->item('two_fa')['state'], 'The premise: nothing is on yet.');
+
+        $this->settings(['passkey_2fa' => 'yes']);
+
+        $this->assertSame('done', $this->item('two_fa')['state']);
+    }
+
+    /**
+     * The switch is not enough on its own. Over plain http no passkey can be created
+     * whatever the setting says, so ticking this off would score the site as holding a
+     * factor nobody on it can register - see PasskeyTwoFaMethod::isSwitchedOn().
+     */
+    public function testAPasskeySwitchDoesNotCountOnASiteWithoutHttps()
+    {
+        update_option('home', 'http://example.org');
+        update_option('siteurl', 'http://example.org');
+
+        $this->settings(['passkey_2fa' => 'yes']);
+
+        $this->assertSame('todo', $this->item('two_fa')['state']);
+
+        // And the other methods still count there, since neither needs a secure context.
+        $this->settings(['email2fa' => 'yes']);
+
+        $this->assertSame('done', $this->item('two_fa')['state']);
+    }
+
     public function testScoreCountsOnlyScoredItemsThatAreDone()
     {
         $this->assertEquals(0, SecurityChecks::get()['done']);

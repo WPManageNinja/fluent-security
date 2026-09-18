@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\RecoveryCodes;
 use FluentAuth\App\Services\TwoFa\WebAuthn\Base64Url;
 use FluentAuth\App\Services\TwoFa\WebAuthn\Ceremony;
 use FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore;
@@ -121,9 +122,62 @@ class PasskeyProfileHandler
             wp_send_json_error(['message' => $added->get_error_message()], 400);
         }
 
+        do_action('fluent_auth/device_factor_enrolled', $user->ID, 'passkey');
+
+        $this->maybeMintFallback($user);
+
         wp_send_json_success([
             'message' => __('Passkey registered.', 'fluent-security')
         ]);
+    }
+
+    /**
+     * Gives a lone passkey the fallback that makes it usable.
+     *
+     * Without this, "set up a fingerprint and nothing else" does not work, and the way it
+     * fails is the worst shape a failure can take: it looks like it worked.
+     * PasskeyTwoFaMethod::hasFallback() refuses a single credential with nothing behind
+     * it - deliberately, because a user locked out of that one device is locked out of
+     * the account - so the passkey registers, the row appears, and the login flow never
+     * asks for it. For a user under a requirement that means they still owe a factor
+     * after setting one up, so they are asked again, and again.
+     *
+     * Worse, the one action that would have fixed it - generating recovery codes - was
+     * refused by TotpEnforcementHandler::maybeDenyAjax() for exactly the users who needed
+     * it, which turned "I only wanted a fingerprint" into an account that could not reach
+     * wp-admin and could not be repaired from inside it. That hole is closed in the
+     * allowlist as well; this closes the reason anybody had to walk into it.
+     *
+     * The codes ride back on the notice transient rather than in this response, because
+     * the profile screen reloads after a registration and they are shown exactly once -
+     * the render on the other side of that reload picks the notice up and opens the codes
+     * panel. Same handoff the standalone setup page uses.
+     *
+     * Only where the passkey would otherwise be dormant: somebody adding a second device,
+     * or one who already has an authenticator app or a printed set of codes, has a
+     * fallback already and must not have it silently replaced.
+     *
+     * @param $user \WP_User
+     * @return void
+     */
+    private function maybeMintFallback($user)
+    {
+        if (PasskeyTwoFaMethod::hasFallback($user)) {
+            return;
+        }
+
+        $codes = RecoveryCodes::generate($user->ID);
+
+        if (!$codes) {
+            return;
+        }
+
+        TotpProfileHandler::setNotice(
+            $user->ID,
+            'codes',
+            __('Your passkey is registered. Save these recovery codes - without them a lost device would lock you out, so the passkey is not asked for at sign-in until you have them. They are not shown again.', 'fluent-security'),
+            array_values($codes)
+        );
     }
 
     /**

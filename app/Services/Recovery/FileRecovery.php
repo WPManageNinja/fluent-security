@@ -5,6 +5,7 @@ namespace FluentAuth\App\Services\Recovery;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Services\Checks\Files\MuPluginsCheck;
 use FluentAuth\App\Services\IntegrityChecker\CheckerService;
+use FluentAuth\App\Services\IntegrityChecker\ChecksumException;
 use FluentAuth\App\Services\IntegrityChecker\ExtensionChecker;
 use FluentAuth\App\Services\IntegrityChecker\ExtensionInventory;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
@@ -342,6 +343,16 @@ class FileRecovery
 
         try {
             $checker = static::coreChecker();
+        } catch (ChecksumException $exception) {
+            /*
+             * Say which of the two things went wrong, rather than "try again in a moment" -
+             * which is sound advice for a network blip and useless for a build wordpress.org
+             * has never published. Nothing has been changed either way.
+             */
+            return new \WP_Error('checksums_unavailable', $exception->getMessage(), [
+                'status' => 422,
+                'reason' => $exception->getReason()
+            ]);
         } catch (\Exception $exception) {
             return new \WP_Error(
                 'checksums_unavailable',

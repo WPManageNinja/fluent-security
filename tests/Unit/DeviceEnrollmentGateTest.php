@@ -44,6 +44,7 @@ class DeviceEnrollmentGateTest extends BaseTestCase
     {
         remove_all_filters('fluent_auth/device_factor_required');
         remove_all_filters('fluent_auth/passkey_allow_without_fallback');
+        remove_all_filters('fluent_auth/enforce_enrollment_on_rest');
         wp_set_current_user(0);
         parent::tearDown();
     }
@@ -1316,6 +1317,44 @@ class DeviceEnrollmentGateTest extends BaseTestCase
      * endpoints for this user and nobody else, so the filter sits at 101 and this is the
      * shape it must have by then.
      */
+    /**
+     * The escape hatch, and the reason there has to be one: a membership site whose front
+     * end makes nonce-carrying calls for a member who owes a factor had no way to let
+     * them through, while the ajax side has had
+     * `fluent_auth/enrollment_permitted_ajax_actions` all along.
+     */
+    public function test_a_site_can_let_a_rest_request_through_by_filter()
+    {
+        $this->policy(['administrator'], ['administrator']);
+        wp_set_current_user($this->admin->ID);
+
+        $handler = new TotpEnforcementHandler();
+
+        // The premise: refused without the filter.
+        $this->assertWpErrorWithCode($handler->maybeDenyRest(null), 'fls_2fa_enrollment_required');
+
+        add_filter('fluent_auth/enforce_enrollment_on_rest', '__return_false');
+
+        $this->assertNull($handler->maybeDenyRest(null));
+    }
+
+    /**
+     * The cookie is not grounds for an exemption, however much it reads like one. With
+     * cookie REST open, a user who owes a factor can mint an application password - which
+     * maybeDenyRest() then exempts for good - and walk out of the requirement entirely.
+     */
+    public function test_a_valid_cookie_session_is_still_refused()
+    {
+        $this->policy(['administrator'], ['administrator']);
+        wp_set_current_user($this->admin->ID);
+
+        $this->assertTrue(is_user_logged_in(), 'The premise: a perfectly valid session.');
+        $this->assertWpErrorWithCode(
+            (new TotpEnforcementHandler())->maybeDenyRest(null),
+            'fls_2fa_enrollment_required'
+        );
+    }
+
     public function test_rest_is_left_alone_once_core_has_ruled_the_request_anonymous()
     {
         $this->policy(['administrator'], ['administrator']);
@@ -1364,6 +1403,55 @@ class DeviceEnrollmentGateTest extends BaseTestCase
         $_REQUEST['action'] = 'fluent_auth_passkey_register';
 
         $this->assertNull($this->captureAjaxDenial());
+    }
+
+    /**
+     * The hole that turned "I only wanted a fingerprint" into a locked account.
+     *
+     * A lone passkey does not satisfy the requirement - hasFallback() will not have it -
+     * and recovery codes are what make it count. So the user who had registered one and
+     * needed exactly one more step was the user refused that step, with no route left
+     * that did not involve wp-config.php. Reported from 3.0.1 on 2026-09-18.
+     */
+    public function test_generating_recovery_codes_stays_open_to_somebody_who_owes_a_factor()
+    {
+        $this->policy(['administrator'], ['administrator']);
+        $this->enablePasskeys();
+        $this->addPasskey($this->admin, 'lone-credential');
+
+        wp_set_current_user($this->admin->ID);
+
+        // The premise: a registered passkey, and the requirement still standing over it.
+        $this->assertTrue(DeviceRequirement::isOwedBy($this->admin));
+
+        $_REQUEST['action'] = 'fluent_auth_totp_recovery';
+
+        $this->assertNull($this->captureAjaxDenial());
+    }
+
+    /**
+     * What stays shut. A screen reachable by somebody who owes a factor must not be a way
+     * to reduce what the account already has.
+     *
+     * @dataProvider weakeningAjaxActions
+     */
+    public function test_weakening_an_account_stays_refused_to_somebody_who_owes_a_factor($action)
+    {
+        $this->policy(['administrator'], ['administrator']);
+        wp_set_current_user($this->admin->ID);
+
+        $_REQUEST['action'] = $action;
+
+        $this->assertSame(403, $this->captureAjaxDenial(), $action);
+    }
+
+    public function weakeningAjaxActions()
+    {
+        return [
+            'deleting a passkey'    => ['fluent_auth_passkey_delete'],
+            'renaming a passkey'    => ['fluent_auth_passkey_rename'],
+            'turning off the app'   => ['fluent_auth_totp_disable']
+        ];
     }
 
     public function test_admin_ajax_is_left_alone_for_a_session_that_owes_nothing()

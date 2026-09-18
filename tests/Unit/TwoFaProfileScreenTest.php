@@ -3,12 +3,16 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Hooks\Handlers\PasskeyProfileHandler;
 use FluentAuth\App\Hooks\Handlers\TotpProfileHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaProfileHandler;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
+use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\RecoveryCodes;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
+use FluentAuth\App\Services\TwoFa\WebAuthn\Base64Url;
 use FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore;
 use FluentAuth\App\Services\TwoFa\WebAuthn\Registration;
 
@@ -302,6 +306,155 @@ class TwoFaProfileScreenTest extends BaseTestCase
 
         $this->assertStringContainsString('data-fls2fa-recovery', $html);
         $this->assertStringContainsString('Recovery codes', $html);
+    }
+
+    // ------------------------------------------------- registering a passkey here
+
+    /**
+     * Drives handleRegister() the way the browser does, and returns the notice it leaves
+     * behind - which is how any minted codes reach the screen, since the page reloads
+     * after a registration and they are shown exactly once.
+     *
+     * @param $user \WP_User
+     * @param $label string
+     * @return array|false
+     */
+    private function registerPasskey($user, $label = 'Touch ID')
+    {
+        $challenge = random_bytes(32);
+
+        set_transient(
+            PasskeyProfileHandler::CHALLENGE_TRANSIENT . $user->ID,
+            Base64Url::encode($challenge),
+            PasskeyProfileHandler::CHALLENGE_TTL
+        );
+
+        /*
+         * A fresh authenticator per call, because each call is a different device - the
+         * laptop and then the phone. One WebAuthnFixture holds one credential id for its
+         * lifetime, so reusing the shared instance presents the same credential twice and
+         * PasskeyStore::add() rightly refuses the duplicate.
+         */
+        $device = new WebAuthnFixture();
+
+        $this->call([new PasskeyProfileHandler(), 'handleRegister'], [
+            '_fls_passkey_nonce' => wp_create_nonce(PasskeyProfileHandler::NONCE_ACTION),
+            'label'              => $label,
+            'transports'         => json_encode(['internal']),
+            'response'           => wp_slash(json_encode(
+                $device->createRegistrationResponse(['challenge' => $challenge])
+            ))
+        ], false);
+
+        return TotpProfileHandler::pullNotice($user->ID);
+    }
+
+    /**
+     * The user's report, in one test: set up a fingerprint and nothing else.
+     *
+     * The passkey registered and hasFallback() refused it, so the login flow never asked
+     * for it - and a required user still owed a factor after doing exactly what the screen
+     * told them to. Which is the worst shape a failure can take, because it looks like it
+     * worked. Reported from 3.0.1 on 2026-09-18.
+     */
+    public function test_a_lone_passkey_is_given_the_codes_that_make_it_count()
+    {
+        $user = $this->makeAdmin();
+        $this->actAs($user);
+
+        $notice = $this->registerPasskey($user);
+
+        $this->assertSame(1, PasskeyStore::countForUser($user));
+        $this->assertTrue(
+            PasskeyTwoFaMethod::hasFallback($user),
+            'A passkey the login flow will never ask for is not a second factor.'
+        );
+        $this->assertGreaterThan(0, RecoveryCodes::countRemaining($user));
+
+        // Shown once, so they have to arrive on the notice the reload picks up.
+        $this->assertSame('codes', $notice['type']);
+        $this->assertNotEmpty($notice['codes']);
+    }
+
+    /**
+     * The consequence the report was actually about.
+     */
+    public function test_registering_a_fingerprint_settles_a_requirement()
+    {
+        $user = $this->makeAdmin();
+        $this->setSettings(['totp_required_roles' => ['administrator'], 'two_fa_required_level' => 'device']);
+        $this->actAs($user);
+
+        $this->assertTrue(
+            DeviceRequirement::isOwedBy($user),
+            'The premise: a requirement they have not met.'
+        );
+
+        $this->registerPasskey($user);
+
+        $this->assertFalse(
+            DeviceRequirement::isOwedBy($user),
+            'Registering a fingerprint has to settle the requirement it was set up for.'
+        );
+    }
+
+    /**
+     * Somebody adding their phone alongside their laptop still holds the set printed last
+     * time, and replacing it silently would retire codes they have filed somewhere.
+     */
+    public function test_a_second_passkey_leaves_the_existing_codes_alone()
+    {
+        $user = $this->makeAdmin();
+        $this->actAs($user);
+
+        $this->registerPasskey($user, 'Laptop');
+        $before = RecoveryCodes::countRemaining($user);
+
+        $notice = $this->registerPasskey($user, 'Phone');
+
+        $this->assertSame(2, PasskeyStore::countForUser($user));
+        $this->assertSame($before, RecoveryCodes::countRemaining($user));
+        $this->assertFalse($notice, 'Nothing was minted, so there is nothing to announce.');
+    }
+
+    /**
+     * An authenticator app is a fallback of its own - it can be answered by typing - so a
+     * passkey registered behind one is usable at once and needs nothing minted.
+     */
+    public function test_a_passkey_behind_an_authenticator_app_mints_nothing()
+    {
+        $user = $this->makeAdmin();
+        $this->enrolApp($user);
+        RecoveryCodes::clear($user->ID);
+        $this->actAs($user);
+
+        $notice = $this->registerPasskey($user);
+
+        $this->assertTrue(PasskeyTwoFaMethod::hasFallback($user));
+        $this->assertSame(0, RecoveryCodes::countRemaining($user));
+        $this->assertFalse($notice);
+    }
+
+    public function test_a_registration_answering_the_wrong_challenge_mints_nothing()
+    {
+        $user = $this->makeAdmin();
+        $this->actAs($user);
+
+        set_transient(
+            PasskeyProfileHandler::CHALLENGE_TRANSIENT . $user->ID,
+            Base64Url::encode(random_bytes(32)),
+            PasskeyProfileHandler::CHALLENGE_TTL
+        );
+
+        $this->call([new PasskeyProfileHandler(), 'handleRegister'], [
+            '_fls_passkey_nonce' => wp_create_nonce(PasskeyProfileHandler::NONCE_ACTION),
+            'response'           => wp_slash(json_encode(
+                $this->authenticator->createRegistrationResponse(['challenge' => random_bytes(32)])
+            ))
+        ], false);
+
+        $this->assertSame(0, PasskeyStore::countForUser($user));
+        $this->assertSame(0, RecoveryCodes::countRemaining($user));
     }
 
     /**

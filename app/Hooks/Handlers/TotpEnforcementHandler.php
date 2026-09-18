@@ -54,7 +54,7 @@ class TotpEnforcementHandler
          * rather than needing one of its own.
          */
         add_action('admin_init', [$this, 'maybeDenyAjax'], 0);
-        add_filter('rest_authentication_errors', [$this, 'maybeDenyRest'], 101);
+        add_filter('rest_pre_dispatch', [$this, 'maybeDenyAppPasswordCreation'], 10, 3);
     }
 
     /**
@@ -86,7 +86,11 @@ class TotpEnforcementHandler
         }
 
         wp_send_json([
-            'message' => __('Two-factor authentication must be set up on this account before it can be used.', 'fluent-security')
+            'message' => sprintf(
+                /* translators: %s: the URL of the two-factor setup page */
+                __('Two-factor authentication must be set up on this account before it can be used. Set one up at %s.', 'fluent-security'),
+                TotpSetupPageHandler::getUrl()
+            )
         ], 403);
     }
 
@@ -99,6 +103,21 @@ class TotpEnforcementHandler
      * refused the means to do it. The heartbeat is on it because refusing that produces
      * console noise on every page and protects nothing.
      *
+     * Generating recovery codes is on it for the same reason as registering a passkey,
+     * and leaving it off was a complete lockout rather than an inconvenience. A lone
+     * passkey does not satisfy the requirement - PasskeyTwoFaMethod::hasFallback() will
+     * not have it, because losing that one device would lose the account - and recovery
+     * codes are what turn it into a factor that counts. So the user who had done exactly
+     * what the screen asked, and needed one more step to finish, was the one user refused
+     * that step: registered a passkey, still owed a factor, and the button that would
+     * have settled it answered 403. No route in was left that did not involve editing
+     * wp-config.php. Reported from 3.0.1 on 2026-09-18.
+     *
+     * What stays off the list is anything that *weakens* an account: deleting a passkey,
+     * renaming one, turning an authenticator app off. A screen reachable by somebody who
+     * owes a factor must not be a way to reduce what the account already has - see the
+     * same rule in TotpSetupPageHandler.
+     *
      * @return array
      */
     private function getPermittedAjaxActions()
@@ -106,38 +125,72 @@ class TotpEnforcementHandler
         return (array)apply_filters('fluent_auth/enrollment_permitted_ajax_actions', [
             'fluent_auth_passkey_options',
             'fluent_auth_passkey_register',
+            'fluent_auth_totp_recovery',
             'heartbeat'
         ]);
     }
 
     /**
-     * Refuses a REST request made with a session that owes a device factor.
+     * Refuses an attempt to mint an application password while a factor is still owed.
      *
-     * Runs at 101, *after* core's rest_cookie_check_errors() at 100, and the ordering is
-     * the whole correctness of this function. Core treats a REST request that carries a
-     * login cookie but no `_wpnonce` / `X-WP-Nonce` as anonymous: it calls
-     * wp_set_current_user(0) and returns true. Ahead of that, is_user_logged_in() still
-     * answers yes, so an ordinary nonce-less fetch against a *public* endpoint - the kind
-     * a theme makes on the front end - would come back 403 for this user and nobody else.
-     * Behind it, the current user is already zero for exactly those requests, so asking
-     * the question here asks it of a session core has agreed is really being used.
+     * This used to be a blanket refusal of every cookie-authenticated REST request, and
+     * that is now a deliberate, owner-level decision to reverse (2026-09-18). The
+     * argument for the blanket version was breadth - a cookie REST session can exercise
+     * very nearly everything the account can - and the argument against it is that the
+     * population it covers is *only* sessions issued before the policy existed, it
+     * empties as those users sign in again, and until it does it breaks ordinary
+     * authenticated requests all over the site in ways nobody can diagnose from the
+     * symptom. A membership front end making nonce-carrying calls, a plugin's admin
+     * screen, core's own `wp/v2/users/me` on the profile page: all 403, all silent.
      *
-     * An error raised by something else is handed back untouched rather than replaced,
-     * and an application password is left alone to stay consistent with
-     * TwoFaHandler::maybeDenyHeadlessLogin(), which exempts them and defers to the
-     * plugin's own `disable_app_login` switch instead.
+     * The real enforcement is not here and never was any more - it is
+     * EnrollmentTwoFaMethod, before the cookie is issued, where there is no session to
+     * contain. What remains here is the backstop for the pre-policy population: they are
+     * redirected out of wp-admin pages and refused admin-ajax, and their REST access is
+     * left alone.
      *
-     * @param $result \WP_Error|null|true
-     * @return \WP_Error|null|true
+     * Application passwords stay governed by their own switch rather than by this one,
+     * which is the whole of the owner's intent: a site that permits them permits the ones
+     * already issued, including any created before two-factor was turned on, and a site
+     * that blocks them accepts none at all. `disable_app_login` is that switch, and core
+     * honours it for both minting and authenticating - see
+     * BasicTasksHandler::maybeDisableAppPassword().
+     *
+     * What is still refused is *minting a new one* while a factor is owed, and only that.
+     * An application password is exempt from every second-factor rule by design, so a
+     * user under a requirement who creates one has written themselves a permanent
+     * exemption - not used a facility the owner granted, but stepped out of the policy
+     * while it was being applied to them. Blocking the one route closes that by
+     * construction rather than by relying on `disable_app_login`, which defaults to off
+     * and is deliberately left out of "apply recommended" because it breaks integrations.
+     *
+     * Hooked on `rest_pre_dispatch` rather than `rest_authentication_errors` because this
+     * decision needs the route, and that is the earliest filter handed the
+     * WP_REST_Request - reading it out of REQUEST_URI instead would mean a security gate
+     * resting on string parsing.
+     *
+     * @param $result mixed null to carry on, anything else short-circuits the dispatch
+     * @param $server \WP_REST_Server
+     * @param $request \WP_REST_Request
+     * @return mixed
      */
-    public function maybeDenyRest($result)
+    public function maybeDenyAppPasswordCreation($result, $server = null, $request = null)
     {
-        // Somebody else's refusal, and theirs to explain.
-        if (is_wp_error($result)) {
+        // Somebody else has already answered this request.
+        if ($result !== null || !$request instanceof \WP_REST_Request) {
             return $result;
         }
 
-        if (function_exists('rest_get_authenticated_app_password') && rest_get_authenticated_app_password()) {
+        if (!in_array(strtoupper($request->get_method()), ['POST', 'PUT', 'PATCH'], true)) {
+            return $result;
+        }
+
+        /*
+         * Matched on the route the server resolved, so `?rest_route=` and a pretty
+         * permalink are the same string by the time it gets here. Core registers these
+         * under /wp/v2/users/<id|me>/application-passwords plus /<uuid> beneath it.
+         */
+        if (!preg_match('#/application-passwords(/|$)#', (string)$request->get_route())) {
             return $result;
         }
 
@@ -145,9 +198,22 @@ class TotpEnforcementHandler
             return $result;
         }
 
+        if (!apply_filters('fluent_auth/enforce_enrollment_on_rest', true, wp_get_current_user())) {
+            return $result;
+        }
+
+        /*
+         * The code is the contract, not the sentence: the admin app keys on
+         * `fls_2fa_enrollment_required` to draw a dialog with a way out rather than the
+         * red toast every other rejection gets - see Bits/enrollmentGate.js.
+         */
         return new \WP_Error(
             'fls_2fa_enrollment_required',
-            __('Two-factor authentication must be set up on this account before it can be used. Please sign in again to finish.', 'fluent-security'),
+            sprintf(
+                /* translators: %s: the URL of the two-factor setup page */
+                __('Set up two-factor authentication before creating an application password. You can do that at %s.', 'fluent-security'),
+                TotpSetupPageHandler::getUrl()
+            ),
             ['status' => 403]
         );
     }
@@ -201,7 +267,15 @@ class TotpEnforcementHandler
         <div class="notice notice-warning">
             <p>
                 <strong><?php esc_html_e('Two-factor authentication is required for your account.', 'fluent-security'); ?></strong>
-                <?php esc_html_e('Set up an authenticator app below to continue. Until you do, this account cannot use the admin area or the site APIs.', 'fluent-security'); ?>
+                <?php
+                /*
+                 * "A second factor", not "an authenticator app". The requirement is read
+                 * as a factor - see DeviceRequirement - so naming one method was wrong
+                 * wherever the other was the one switched on, and it was wrong on the
+                 * screen most likely to be read by somebody the app is not available to.
+                 */
+                esc_html_e('Set up a passkey or an authenticator app below to continue. Until you do, this account cannot use the admin area or the site APIs.', 'fluent-security');
+                ?>
             </p>
         </div>
         <?php

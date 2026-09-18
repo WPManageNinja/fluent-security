@@ -2,6 +2,7 @@ import {createApp} from 'vue'
 import {createRouter, createWebHashHistory} from 'vue-router';
 import {routes} from './routes';
 import Rest from './Bits/Rest.js';
+import {isEnrollmentRefusal} from './Bits/enrollmentGate';
 import {ElNotification, ElLoading, ElMessageBox} from 'element-plus'
 import Storage from '@/Bits/Storage';
 import App from './App.vue';
@@ -53,6 +54,14 @@ app.mixin({
             jQuery('head title').text(title + ' - Fluent Auth');
         },
         $handleError(response) {
+            /*
+             * Already answered with a modal by Bits/Rest.js, and a toast underneath it
+             * would say the same thing worse - see enrollmentGate.js.
+             */
+            if (isEnrollmentRefusal(response)) {
+                return;
+            }
+
             let errorMessage = '';
             if (typeof response === 'string') {
                 errorMessage = response;

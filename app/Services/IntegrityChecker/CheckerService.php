@@ -7,6 +7,9 @@ use FluentAuth\App\Helpers\Arr;
 
 class CheckerService
 {
+    /* The only file whose hash differs between a translated package and the en_US one. */
+    const LOCAL_PACKAGE_FILE = 'wp-includes/version.php';
+
     protected $remoteHashes = null;
 
     protected $localHashes = null;
@@ -18,6 +21,17 @@ class CheckerService
     protected $extraFolders = null;
 
     protected $modifiedFiles = null;
+
+    /*
+     * Files this scan is not in a position to judge, as file => true.
+     *
+     * Only ever populated on the en_US fallback path in getRemoteHashes(), and only with
+     * wp-includes/version.php. Dropping a file from the remote hashes is not enough to stop it
+     * being reported: a local file with no remote hash is an unexpected file, which is how
+     * removing it turned a false "modified" into a false "new". It has to be skipped on both
+     * sides of the comparison, which is what this is for.
+     */
+    protected $exemptFiles = [];
 
     public function __construct()
     {
@@ -58,6 +72,10 @@ class CheckerService
 
         $modifiedFiles = [];
         foreach ($localHashes as $file => $localHash) {
+            if (isset($this->exemptFiles[$file])) {
+                continue;
+            }
+
             $remoteHash = isset($remoteHashes[$file]) ? $remoteHashes[$file] : null;
             if (!$remoteHash) {
                 // the file is deleted
@@ -148,23 +166,177 @@ class CheckerService
         }
 
         global $wp_version;
-        require_once ABSPATH . 'wp-admin/includes/update.php';
-        $remoteHashes = get_core_checksums($wp_version, get_locale());
-        if (!$remoteHashes) {
-            throw new \Exception('Unable to get remote hashes');
-        }
 
-        foreach ($remoteHashes as $file => $hash) {
-            // if file has wp-content at the start, remove it
-            if (strpos($file, 'wp-content') === 0) {
-                unset($remoteHashes[$file]);
-            }
-        }
-        unset($remoteHashes['wp-config-sample.php']);
+        $checksums = self::getCoreChecksums($wp_version, get_locale());
 
-        $this->remoteHashes = $remoteHashes;
+        $this->remoteHashes = $checksums['files'];
+        $this->exemptFiles = $checksums['exempt'];
 
         return $this->remoteHashes;
+    }
+
+    /*
+     * The official checksums for this exact WordPress build, ready to compare against.
+     *
+     * Deliberately not core's get_core_checksums(). Two things in that function fail the scan
+     * on sites that are perfectly healthy:
+     *
+     *  - It caps the request at `wp_doing_cron() ? 30 : 3` seconds for a response that is over
+     *    300KB. The daily scan runs under cron and gets 30 seconds; the Scan button is a REST
+     *    request and gets 3, so a site on a slow link reports the scheduled scan working and
+     *    the button failing. 30 either way here.
+     *  - It asks for get_locale() and gives up when wordpress.org answers {"checksums":false},
+     *    which is the answer for any locale whose package for that exact version has not been
+     *    built. Translated builds trail a point release, so a site in a lagging locale loses
+     *    core scanning for the window in between - at the time of writing, fr_FR, es_ES,
+     *    ru_RU, it_IT, zh_CN, ar and hi_IN all had checksums for 7.1 but none for 7.1.1. For
+     *    he_IL and hi_IN nothing is published for any recent version at all, so those sites
+     *    could never scan.
+     *
+     * Hence the en_US fallback. It is exact rather than approximate: once the wp-content
+     * entries and wp-config-sample.php are dropped - which this method does anyway, because
+     * neither belongs to a core integrity check - a localized package differs from en_US in
+     * exactly one file, wp-includes/version.php, which carries $wp_local_package. That file
+     * goes with them on the fallback path, and only there.
+     *
+     * @param string $version
+     * @param string $locale
+     * @return array ['files' => file => md5, 'exempt' => file => true]
+     * @throws ChecksumException when wordpress.org has nothing to offer for this build
+     */
+    public static function getCoreChecksums($version, $locale)
+    {
+        $cacheKey = 'fls_core_checksums_' . md5($version . '|' . $locale);
+
+        $cached = get_transient($cacheKey);
+
+        if (is_array($cached) && !empty($cached['files'])) {
+            return $cached;
+        }
+
+        $checksums = self::requestChecksums($version, $locale);
+
+        $isFallback = false;
+
+        if (is_wp_error($checksums) && $checksums->get_error_code() === ChecksumException::UNPUBLISHED && $locale !== 'en_US') {
+            $checksums = self::requestChecksums($version, 'en_US');
+            $isFallback = !is_wp_error($checksums);
+        }
+
+        if (is_wp_error($checksums)) {
+            throw self::checksumFailure($checksums, $version);
+        }
+
+        $result = [
+            'files'  => self::pruneChecksums($checksums),
+            'exempt' => $isFallback ? [self::LOCAL_PACKAGE_FILE => true] : []
+        ];
+
+        /*
+         * The one file a translated build does not share with en_US - it declares
+         * $wp_local_package, so its hash differs by design. Exempt rather than simply absent:
+         * see $exemptFiles.
+         */
+        if ($isFallback) {
+            unset($result['files'][self::LOCAL_PACKAGE_FILE]);
+        }
+
+        /*
+         * Cached because the checksums for a released version never change, and three separate
+         * callers - the Scan button, the daily run and a core reinstall - each pull the same
+         * 300KB otherwise. A core update changes $wp_version, which changes the key, so a
+         * stale set can never be compared against the wrong build.
+         */
+        set_transient($cacheKey, $result, 12 * HOUR_IN_SECONDS);
+
+        return $result;
+    }
+
+    /*
+     * One request to the checksum API. Returns the raw set, or a WP_Error whose code is one of
+     * the two ChecksumException reasons.
+     */
+    protected static function requestChecksums($version, $locale)
+    {
+        $url = 'https://api.wordpress.org/core/checksums/1.0/?' . http_build_query([
+                'version' => $version,
+                'locale'  => $locale
+            ], '', '&');
+
+        $response = wp_remote_get($url, [
+            'timeout' => 30,
+            'headers' => ['Accept' => 'application/json']
+        ]);
+
+        if (is_wp_error($response)) {
+            return new \WP_Error(ChecksumException::UNREACHABLE, $response->get_error_message());
+        }
+
+        $code = (int)wp_remote_retrieve_response_code($response);
+
+        if ($code !== 200) {
+            return new \WP_Error(ChecksumException::UNREACHABLE, sprintf('HTTP %d from api.wordpress.org', $code));
+        }
+
+        $body = json_decode(trim(wp_remote_retrieve_body($response)), true);
+
+        /*
+         * Not an error response: the API answers 200 with {"checksums":false} for a version and
+         * locale it has never built, which is the unpublished case and the one worth retrying
+         * against en_US.
+         */
+        if (!is_array($body) || empty($body['checksums']) || !is_array($body['checksums'])) {
+            return new \WP_Error(ChecksumException::UNPUBLISHED, sprintf('No checksums published for %s (%s)', $version, $locale));
+        }
+
+        return $body['checksums'];
+    }
+
+    /*
+     * Drop everything a core integrity check has no business comparing.
+     *
+     * wp-content is the site's own - plugins, themes and translations all live there and all
+     * legitimately differ from the shipped package - and it is scanned separately against its
+     * own sources. wp-config-sample.php is not installed as-is by anyone.
+     */
+    protected static function pruneChecksums($checksums)
+    {
+        foreach ($checksums as $file => $hash) {
+            // if file has wp-content at the start, remove it
+            if (strpos($file, 'wp-content') === 0) {
+                unset($checksums[$file]);
+            }
+        }
+
+        unset($checksums['wp-config-sample.php']);
+
+        return $checksums;
+    }
+
+    /*
+     * The sentence the site owner sees. Neither reason involves the alert relay, so neither
+     * mentions it - the previous message sent people to reconnect an API that this scan does
+     * not use and that most sites running it have never set up.
+     */
+    protected static function checksumFailure($error, $version)
+    {
+        if ($error->get_error_code() === ChecksumException::UNPUBLISHED) {
+            return new ChecksumException(
+                ChecksumException::UNPUBLISHED,
+                sprintf(
+                    /* translators: %s: WordPress version number. */
+                    __('WordPress.org has not published file checksums for WordPress %s, so there is nothing official to compare your core files against. This usually resolves within a few days of a release. If this site does not run a release built by WordPress.org, core files cannot be verified at all.', 'fluent-security'),
+                    $version
+                ),
+                $error->get_error_message()
+            );
+        }
+
+        return new ChecksumException(
+            ChecksumException::UNREACHABLE,
+            __('Could not reach api.wordpress.org to download the official WordPress checksums, so there was nothing to compare your core files against. This is usually a temporary network problem, or a firewall blocking outgoing requests from your server.', 'fluent-security'),
+            $error->get_error_message()
+        );
     }
 
     public function getLocalHashes()
