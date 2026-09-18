@@ -234,6 +234,49 @@ class SecurityChecksTest extends BaseTestCase
         $this->assertEquals(['administrator'], $settings['totp_required_roles']);
     }
 
+    /**
+     * apply() writes every key in a definition's `settings` list, so that list is not a
+     * "what this item watches" note - it is the set of switches the button throws. The
+     * two-factor item counts passkeys towards `done` but must not turn them on: the
+     * recommended settings do not, so doing it here would leave this button and "Apply
+     * recommended" disagreeing, and over plain http it would store a factor nobody on the
+     * site can register.
+     */
+    public function testApplyingTwoFaDoesNotTurnOnPasskeys()
+    {
+        $settings = get_option('__fls_auth_settings');
+        $settings['passkey_2fa'] = 'no';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        SecurityChecks::apply('two_fa');
+
+        $this->assertEquals('no', get_option('__fls_auth_settings')['passkey_2fa']);
+    }
+
+    /**
+     * The general guard behind the case above: a one-click button may only write keys the
+     * recommended settings have an opinion on. Anything else falls back to 'yes' in apply()
+     * and switches on something nobody chose.
+     */
+    public function testNoCheckWritesASettingTheRecommendationsDoNotCover()
+    {
+        $recommended = Helper::getRecommendedSettings();
+
+        $definitions = new \ReflectionMethod(SecurityChecks::class, 'definitions');
+        $definitions->setAccessible(true);
+
+        foreach ($definitions->invoke(null) as $key => $definition) {
+            foreach ($definition['settings'] as $settingKey) {
+                $this->assertArrayHasKey(
+                    $settingKey,
+                    $recommended,
+                    sprintf('Check "%s" writes "%s", which getRecommendedSettings() does not cover.', $key, $settingKey)
+                );
+            }
+        }
+    }
+
     public function testApplyRefusesAnUnknownCheck()
     {
         $this->assertWpErrorWithCode(SecurityChecks::apply('disable_admin_bar'), 'unknown_check');

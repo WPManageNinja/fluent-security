@@ -193,7 +193,17 @@ class SecurityChecks
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'two_fa',
-                'settings' => ['totp_2fa', 'email2fa', 'email2fa_roles', 'totp_2fa_roles', 'passkey_2fa'],
+                /*
+                 * What the button writes, and `passkey_2fa` is deliberately not in it even
+                 * though `done` below counts it. apply() writes every key in this list, so
+                 * adding it here would have the one-click button switch passkeys on - which
+                 * getRecommendedSettings() does not do, leaving this button and "Apply
+                 * recommended" disagreeing about what a well-configured site looks like. It
+                 * would also store the switch on over plain http, where no passkey can be
+                 * created, so the site would be told it had gained a factor nobody can register.
+                 * Counting a setting and turning it on are different questions.
+                 */
+                'settings' => ['totp_2fa', 'email2fa', 'email2fa_roles', 'totp_2fa_roles'],
                 /*
                  * Any factor counts. Turning them on only lets people set one up - the
                  * roles that must have one are left alone on purpose, because imposing

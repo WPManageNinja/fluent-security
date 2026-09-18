@@ -61,7 +61,19 @@ class TwoFaProfileHandler
             return;
         }
 
-        $notice = TotpProfileHandler::pullNotice($user->ID);
+        /*
+         * Only ever to the person the codes belong to.
+         *
+         * This handler draws both `show_user_profile` and `edit_user_profile`, so without the
+         * check an administrator opening somebody else's profile inside the five-minute window
+         * was shown that person's recovery codes - and pullNotice() deletes the transient on
+         * the way past, so the owner then never saw them and had no idea they existed. Nothing
+         * here is worth showing to a reader it does not belong to: an unread notice expiring on
+         * its own costs its owner a re-generate, which is a button they already have.
+         */
+        $notice = $user->ID === get_current_user_id()
+            ? TotpProfileHandler::pullNotice($user->ID)
+            : null;
 
         $this->renderStyles();
 

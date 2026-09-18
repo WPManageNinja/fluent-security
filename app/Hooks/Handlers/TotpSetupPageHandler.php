@@ -216,6 +216,20 @@ class TotpSetupPageHandler
          */
         TotpTwoFaMethod::activate($user->ID, $pending, $counter);
 
+        /*
+         * Only where the account has none, for the reason processPasskey() gives below:
+         * RecoveryCodes::generate() clears the filed set first, so minting unconditionally
+         * retires codes the user may have printed and put somewhere, without telling them.
+         * They are not locked out - the new set is shown - but the paper in the drawer is
+         * dead and nothing said so.
+         */
+        if (RecoveryCodes::hasAny($user->ID)) {
+            return [
+                'type'    => 'codes',
+                'message' => __('Your authenticator app is now set up. Your existing recovery codes still work.', 'fluent-security')
+            ];
+        }
+
         return [
             'type'    => 'codes',
             'message' => __('Your authenticator app is now set up. Save these recovery codes - they are the only way back in if you lose the device, and they are not shown again.', 'fluent-security'),
