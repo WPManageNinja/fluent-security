@@ -29,8 +29,9 @@ use FluentAuth\App\Services\TwoFa\DeviceRequirement;
  *
  * XML-RPC is not among them, and deliberately: it authenticates with a username and
  * password on every call and carries no cookie, so there is no pre-existing session to
- * catch. That route is refused during the login itself, by
- * TwoFaHandler::maybeDenyHeadlessLogin(), which is where it belongs.
+ * catch. Nor is the requirement applied during that login - see
+ * TwoFaHandler::isUnattendedRequest() for why a route with nobody at a keyboard is let
+ * through on the password rather than refused, and what `disable_xmlrpc` is for.
  *
  * The requirement is read as a factor, not a product: a user who registered a passkey
  * has met it, and used to be marched off to set up an authenticator app anyway.

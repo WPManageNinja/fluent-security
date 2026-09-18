@@ -347,10 +347,16 @@ class TwoFaHandlerTest extends BaseTestCase
     }
 
     /**
-     * XML-RPC and REST have no form and no reader, so the pass never applies to them.
+     * REST has no form and no reader, so the low-privilege pass never applies to it.
+     *
+     * XML-RPC is tested by the same check and never arrives at it - see
+     * testAnUnattendedLoginIsLetThroughWithoutMailingACode, which takes that route out
+     * of this caller entirely. The check keeps both because a site that answers
+     * `fluent_auth/unattended_login_request` false puts XML-RPC back here, and it should
+     * land on the refusal rather than on a role test.
      *
      * Driven through the filter the production check feeds rather than by defining
-     * XMLRPC_REQUEST: a constant cannot be undefined again, so defining one here would
+     * REST_REQUEST: a constant cannot be undefined again, so defining one here would
      * silently change every test that ran afterwards in the same process.
      */
     public function testAnApiLoginIsNeverLetThrough()
@@ -399,6 +405,193 @@ class TwoFaHandlerTest extends BaseTestCase
         }
 
         $this->assertFalse($seen, 'a plain ajax login is not an API request, and the filter is told so');
+    }
+
+    /**
+     * @return array the subject of every mail sent while the callback ran
+     */
+    private function mailsSentDuring(callable $fn)
+    {
+        $sent = [];
+
+        $spy = function ($args) use (&$sent) {
+            $sent[] = $args['subject'];
+            return $args;
+        };
+
+        add_filter('wp_mail', $spy);
+
+        try {
+            $fn();
+        } finally {
+            remove_filter('wp_mail', $spy);
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Runs the callback as a request nobody is waiting on.
+     *
+     * Driven through the filter rather than by defining XMLRPC_REQUEST or WP_CLI, for
+     * the reason given on testAnApiLoginIsNeverLetThrough: a constant cannot be undefined
+     * again. The ajax wrapper is what makes cannotShowChallenge() answer the way
+     * xmlrpc.php makes it answer in production.
+     */
+    private function withUnattendedRequest(callable $fn)
+    {
+        add_filter('fluent_auth/unattended_login_request', '__return_true');
+
+        try {
+            return $this->withHeadlessAjax($fn);
+        } finally {
+            remove_filter('fluent_auth/unattended_login_request', '__return_true');
+        }
+    }
+
+    /**
+     * A client with the right password and nobody at the keyboard - xmlrpc.php, WP-CLI,
+     * cron - is let past rather than refused, and above all is not mailed a code.
+     *
+     * It used to be refused, which meant a code for every attempt: the client cannot read
+     * a mailbox or answer a form, so it retries, and each retry mailed another code to
+     * whoever owns the account. Reported as a flood of login codes nobody asked for.
+     */
+    public function testAnUnattendedLoginIsLetThroughWithoutMailingACode()
+    {
+        $result = null;
+
+        $mails = $this->mailsSentDuring(function () use (&$result) {
+            $result = $this->withUnattendedRequest(function () {
+                return $this->handler->maybeDenyHeadlessLogin($this->user);
+            });
+        });
+
+        $this->assertSame($this->user, $result, 'the login proceeds on the password alone');
+        $this->assertNull($this->pendingRowFor($this->user), 'no challenge is raised for it');
+        $this->assertSame([], $mails, 'and nothing reaches the account owner');
+    }
+
+    /**
+     * The same rule at the other door: a plugin calling wp_set_auth_cookie() from a cron
+     * task or a WP-CLI command. Withholding a cookie no browser will read protects
+     * nothing, and the challenge raised beside it mailed a code once per run, on a timer.
+     */
+    public function testACookieSetWhereNobodyIsWaitingIsNotWithheld()
+    {
+        $send = null;
+
+        $mails = $this->mailsSentDuring(function () use (&$send) {
+            $send = $this->withUnattendedRequest(function () {
+                return $this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID);
+            });
+        });
+
+        $this->assertTrue($send, 'the cookie is left alone');
+        $this->assertFalse(TwoFaHandler::hasWithheldCookiesFor($this->user->ID));
+        $this->assertNull($this->pendingRowFor($this->user));
+        $this->assertSame([], $mails);
+    }
+
+    /**
+     * And at the third: maybe2FaRedirect() runs before cannotShowChallenge() can speak
+     * for WP-CLI and cron, neither of which is in that list. Without the guard a sign in
+     * driven from either mailed a code and then called wp_safe_redirect() and exit() in a
+     * process with no browser to redirect.
+     */
+    public function testAnUnattendedLoginIsNotRedirectedToAChallenge()
+    {
+        $user = $this->user;
+        $mails = [];
+
+        $captured = $this->captureRedirect(function () use ($user, &$mails) {
+            $mails = $this->mailsSentDuring(function () use ($user) {
+                add_filter('fluent_auth/unattended_login_request', '__return_true');
+
+                try {
+                    $this->handler->maybe2FaRedirect($user);
+                } finally {
+                    remove_filter('fluent_auth/unattended_login_request', '__return_true');
+                }
+            });
+        });
+
+        $this->assertNull($captured, 'nothing to redirect');
+        $this->assertNull($this->pendingRowFor($this->user));
+        $this->assertSame([], $mails);
+    }
+
+    /**
+     * Forcing the filter true proves the guard works but would pass just as well if the
+     * value handed to it were hardcoded, so this pins that the request is what feeds it.
+     * The constants cannot be defined here without changing every test that runs after.
+     */
+    public function testTheUnattendedCheckIsFedByTheRequestItself()
+    {
+        $seen = 'not called';
+
+        $spy = function ($unattended) use (&$seen) {
+            $seen = $unattended;
+            return $unattended;
+        };
+
+        add_filter('fluent_auth/unattended_login_request', $spy);
+
+        try {
+            $this->withHeadlessAjax(function () {
+                return $this->handler->maybeDenyHeadlessLogin($this->user);
+            });
+        } finally {
+            remove_filter('fluent_auth/unattended_login_request', $spy);
+        }
+
+        $this->assertFalse($seen, 'an ajax login has a browser behind it, and the filter is told so');
+    }
+
+    /**
+     * REST is the other half of the policy, and it goes the other way: the login is
+     * refused, because an application password is the supported way for a client to hold
+     * a session. What it must not do is mail a code - a challenge raised for a caller
+     * that keeps no cookie and renders no form can never be answered, so the code only
+     * ever lands in an inbox nobody asked to fill.
+     */
+    public function testALoginThatCannotResumeIsRefusedWithoutMailingACode()
+    {
+        $result = null;
+
+        $mails = $this->mailsSentDuring(function () use (&$result) {
+            add_filter('fluent_auth/2fa_challenge_resumable', '__return_false');
+
+            try {
+                $result = $this->withHeadlessAjax(function () {
+                    return $this->handler->maybeDenyHeadlessLogin($this->user);
+                });
+            } finally {
+                remove_filter('fluent_auth/2fa_challenge_resumable', '__return_false');
+            }
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
+        $this->assertNull($this->pendingRowFor($this->user), 'nothing to answer, so nothing is raised');
+        $this->assertSame([], $mails);
+        $this->assertStringContainsString('application password', $result->get_error_message());
+    }
+
+    /**
+     * The half that has to keep working. Another plugin's ajax login has a real browser
+     * behind it: the pending cookie carries the challenge to the next page load, so the
+     * code is both answerable and wanted.
+     */
+    public function testAnAjaxLoginIsStillMailedItsCode()
+    {
+        $mails = $this->mailsSentDuring(function () {
+            $this->withHeadlessAjax(function () {
+                return $this->handler->maybeDenyHeadlessLogin($this->user);
+            });
+        });
+
+        $this->assertCount(1, $mails);
+        $this->assertNotNull($this->pendingRowFor($this->user));
     }
 
     /**

@@ -290,6 +290,16 @@ class TwoFaHandler
             return false;
         }
 
+        /*
+         * Nobody is waiting on this one - see isUnattendedRequest(). Checked ahead of
+         * cannotShowChallenge() because WP-CLI and cron are not in that list: a sign in
+         * driven from either would otherwise mail a code and then run wp_safe_redirect()
+         * and exit() inside a process with no browser to redirect.
+         */
+        if ($this->isUnattendedRequest()) {
+            return false;
+        }
+
         // Nowhere to send a form. maybeDenyHeadlessLogin() decides what happens instead.
         if ($this->cannotShowChallenge()) {
             return false;
@@ -489,7 +499,7 @@ class TwoFaHandler
          *
          * wp_signon() fires `wp_login`, and a rival listening there throws this session away
          * and renders its own challenge into the middle of this request - which is the loop
-         * described in TwoFaConflictCheck. Several of them publish a filter for exactly this,
+         * described in RivalTwoFa. Several of them publish a filter for exactly this,
          * so where one exists the loop simply does not happen.
          *
          * Safe here and nowhere else: the user has just produced a second factor, so what is
@@ -587,6 +597,14 @@ class TwoFaHandler
         }
 
         /*
+         * Nobody to refuse and nobody to mail - see isUnattendedRequest(). The login
+         * proceeds on the password alone, which is the deliberate trade documented there.
+         */
+        if ($this->isUnattendedRequest()) {
+            return $user;
+        }
+
+        /*
          * Not every wp_authenticate() is a sign in. A "confirm your password" dialog
          * re-checks the password of whoever is already here, and there is nothing to
          * gain from challenging someone who has already answered.
@@ -614,6 +632,25 @@ class TwoFaHandler
 
         if ($this->headlessLoginMayPass($user, $method)) {
             return $user;
+        }
+
+        /*
+         * Refused, and nothing raised behind it.
+         *
+         * A challenge only means something to a caller that can come back for it, and a
+         * REST client posting credentials to a route of its own cannot: no form, no
+         * pending cookie, no way to spend the code. Raising one anyway wrote a row nobody
+         * could answer and mailed a code to somebody who had not asked for it - on a
+         * client polling with the right password, one every few minutes.
+         *
+         * The refusal itself stands. Application passwords are the way in for a client
+         * that needs one, and they are exempt above.
+         */
+        if (!$this->canResumeInBrowser()) {
+            return new \WP_Error(
+                'fls_2fa_required',
+                __('This account needs a second factor, which cannot be completed over the REST API. Sign in through the site\'s login page, or use an application password.', 'fluent-security')
+            );
         }
 
         /*
@@ -782,10 +819,16 @@ class TwoFaHandler
     {
         /*
          * A browser looking at somebody else's login form is the whole reason this
-         * exists. XML-RPC and REST are not that: there is no form, no reader, and no
-         * error message anybody would see - just a client that wanted a session without
-         * answering for it. Letting those through is how a second factor becomes
-         * optional for whoever can spell `xmlrpc.php`, and `disable_xmlrpc` ships off.
+         * exists. REST is not that: there is no form, no reader, and no error message
+         * anybody would see - just a client that wanted a session without answering for
+         * it. Such a request is refused rather than passed, and nothing is mailed to it.
+         *
+         * XML-RPC is tested here too and never reaches it. isUnattendedRequest() takes
+         * that route out of the caller above, where the login proceeds on the password
+         * alone; the test is kept because this is the one place the two are the same
+         * shape, and a site that puts XML-RPC back through the factor - by answering
+         * `fluent_auth/unattended_login_request` false - lands here and should be refused
+         * rather than waved past on a role check.
          */
         $isApiRequest = (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST)
             || (defined('REST_REQUEST') && REST_REQUEST);
@@ -880,6 +923,16 @@ class TwoFaHandler
         // wp_set_auth_cookie() asks more than once per request. Same answer every time.
         if (isset(self::$withheldUsers[$userId])) {
             return false;
+        }
+
+        /*
+         * A cookie minted where no browser will ever read it - see isUnattendedRequest().
+         * Withholding it protects nothing, and the challenge raised alongside mailed a
+         * code for a sign in no person performed: a cron task or a WP-CLI command that
+         * calls wp_set_auth_cookie() did it once per run, on a timer, forever.
+         */
+        if ($this->isUnattendedRequest()) {
+            return $send;
         }
 
         /*
@@ -1167,8 +1220,9 @@ class TwoFaHandler
     /**
      * The error a headless login gets back: what happened, and where to finish.
      *
-     * A link for a browser, a bare address for anything else - a REST or XML-RPC client
-     * is not rendering HTML, and its user is better served by a URL they can open.
+     * A link for a browser, a bare address for anything else - a headless build that has
+     * said its REST sign-in can resume, through `fluent_auth/2fa_challenge_resumable`, is
+     * not rendering HTML, and its user is better served by a URL they can open.
      *
      * @param $method \FluentAuth\App\Services\TwoFa\BaseTwoFaMethod
      * @param $url string
@@ -1228,6 +1282,62 @@ class TwoFaHandler
             'httponly' => true,
             'samesite' => 'Lax'
         ]);
+    }
+
+    /**
+     * Whether this request has nobody at a keyboard waiting on it.
+     *
+     * XML-RPC, WP-CLI and cron are not sign-ins somebody is standing in front of. There
+     * is no form to show, no cookie jar to leave a pending marker in, and no inbox
+     * anybody is watching on behalf of the process - so a challenge raised here can
+     * never be answered, and the code mailed for it only ever reaches somebody who did
+     * not ask for it. A client with the right password retrying on a timer turns that
+     * into a code every few minutes, for as long as it keeps running.
+     *
+     * So the second factor is not enforced on these at all, rather than enforced by
+     * refusing them: refusing mails nothing but breaks every such client silently, and
+     * both halves of that were reported as bugs. The trade is real and deliberate - a
+     * correct password alone is enough over XML-RPC where it is left open - which is
+     * what `disable_xmlrpc` is for, and it is in the recommended settings. Application
+     * passwords remain the supported way in for a client that needs one.
+     *
+     * REST is deliberately not in this list. It carries application passwords, which are
+     * exempt above it, and anything else authenticating there is answered rather than
+     * waved through - see maybeDenyHeadlessLogin().
+     *
+     * @return bool
+     */
+    private function isUnattendedRequest()
+    {
+        $unattended = (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST)
+            || (defined('WP_CLI') && WP_CLI)
+            || wp_doing_cron();
+
+        /*
+         * The way back for a site that would rather XML-RPC met the factor it would meet
+         * anywhere else, and the seam these are tested through - a constant cannot be
+         * undefined once set, so a test that defined one would change every test after it.
+         */
+        return (bool)apply_filters('fluent_auth/unattended_login_request', $unattended);
+    }
+
+    /**
+     * Whether a browser will come back for a challenge raised now.
+     *
+     * The pending cookie is what carries an unanswered challenge to the next page load,
+     * so a request with no cookie jar cannot be handed one. REST is the case that
+     * matters: a client posting a username and password to a route of its own gets no
+     * form, keeps no cookie, and cannot spend the code - so it is refused outright and
+     * nothing is mailed. Ajax is the opposite and is left alone: there is a real browser
+     * behind it, the pending cookie works, and the error carries the link to finish.
+     *
+     * @return bool
+     */
+    private function canResumeInBrowser()
+    {
+        $canResume = !(defined('REST_REQUEST') && REST_REQUEST);
+
+        return (bool)apply_filters('fluent_auth/2fa_challenge_resumable', $canResume);
     }
 
     /**

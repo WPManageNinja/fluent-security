@@ -1,309 +1,74 @@
 <?php
 
-namespace FluentAuth\App\Services\Checks\Plugins;
+namespace FluentAuth\App\Services\TwoFa;
 
 use FluentAuth\App\Helpers\Helper;
-use FluentAuth\App\Services\Checks\Check;
-use FluentAuth\App\Services\Checks\Dismissals;
-use FluentAuth\App\Services\Checks\Finding;
-use FluentAuth\App\Services\TwoFa\RivalStandDown;
 
 /**
- * Another plugin that also wants to be the one that finishes a login.
+ * Another plugin that also wants to finish the login.
  *
  * Two second factors on one site is not twice the security, it is a login that cannot be
- * completed. The reason is structural rather than anybody's bug: a second factor works by
- * letting the password through, holding the session back, and handing it over only once the
- * proof arrives. This plugin completes that handover by signing the user in for real, which
- * fires `wp_login` - and a rival plugin listening there does what it was written to do, which
- * is to throw the session away and put its own form up instead. Its form is then rendered
- * into the middle of our verification request and the request ends there.
+ * completed. Not anybody's bug: a second factor lets the password through, holds the session
+ * back, and hands it over once the proof arrives. This plugin hands it over by signing the
+ * user in for real, which fires `wp_login` - and a rival listening there throws that session
+ * away and puts its own form up instead, in the middle of our verification request.
  *
- * What the site owner sees is a loop. The passkey prompt succeeds, the page returns to the
- * login screen, and the passkey prompt comes back. A recovery code behaves the same way and
- * is spent on the way past, so a user working through a printed list watches codes disappear
- * without ever getting in. Meanwhile `wp_login` really did fire, so the audit log records a
- * success and the login notification email goes out on every attempt - the one signal the
- * owner has says the logins are working.
+ * What the owner sees is a loop. The passkey prompt succeeds, the page returns to the login
+ * screen, the prompt comes back. A recovery code behaves the same way and is spent on the way
+ * past. Meanwhile `wp_login` really did fire, so the audit log records a success and the login
+ * email goes out every time - the one signal they have says the logins are working.
  *
- * None of that is diagnosable from the symptoms, which is why it is worth a check. The rival
- * is doing nothing wrong and neither are we; the site simply has to pick one.
+ * Where a rival publishes a filter, RivalStandDown heads that off and nothing breaks. Where it
+ * does not, the login is broken and the settings screen says so.
  *
- * Two findings rather than one, because they are two different decisions. A plugin whose
- * second factor we can see is switched on is something to turn off today. A plugin that
- * merely *has* a second factor among a dozen other features, whose setting lives somewhere we
- * cannot read, is something to go and look at. Saying both in the same red row would either
- * cry wolf about the second or undersell the first.
+ * Deliberately not a check and not on the findings list. That list is for things a site could
+ * do better; this is a switch on the settings screen not working, and it belongs beside that
+ * switch. See SettingsController::getSettings().
  */
-class TwoFaConflictCheck extends Check
+class RivalTwoFa
 {
-    const FINDING_ACTIVE = 'two_fa_conflict';
-
-    const FINDING_POSSIBLE = 'two_fa_conflict_possible';
-
-    public function id()
-    {
-        return 'two_fa_conflict';
-    }
-
-    public function group()
-    {
-        return 'plugins';
-    }
-
-    public function run()
-    {
-        /*
-         * Nothing to clash over. A site running somebody else's second factor and none of
-         * ours is not misconfigured - it has made a choice, and this check has no business
-         * having an opinion about it.
-         */
-        if (!self::ownSecondFactorIsOn()) {
-            return [];
-        }
-
-        $rivals = self::activeRivals();
-
-        $confirmed = array_values(array_filter($rivals, function ($rival) {
-            return !empty($rival['certain']);
-        }));
-
-        $possible = array_values(array_filter($rivals, function ($rival) {
-            return empty($rival['certain']);
-        }));
-
-        /*
-         * The all-clear is about the site, not about half of this check.
-         *
-         * It used to be emitted whenever the confirmed list came back empty, which is a
-         * different question from whether anything was found - so a site running Wordfence
-         * drew "No other plugin is competing to finish your logins" in green directly above
-         * "Wordfence Security may be running two-factor authentication as well". Two rows
-         * from one check, contradicting each other, and the green one is the one that reads
-         * as the verdict.
-         */
-        if (!$confirmed && !$possible) {
-            return [$this->settledFinding()];
-        }
-
-        return array_merge(
-            $confirmed ? $this->confirmedFinding($confirmed) : [],
-            $this->possibleFinding($possible)
-        );
-    }
-
     /**
-     * Nothing found, by either half. The only state that earns a green row.
+     * What the settings screen needs to say, or null when there is nothing to say.
      *
-     * @return Finding
-     */
-    protected function settledFinding()
-    {
-        return new Finding([
-            'id'     => self::FINDING_ACTIVE,
-            'check'  => $this->id(),
-            'group'  => $this->group(),
-            'state'  => Finding::STATE_PASSED,
-            'title'  => __('No other plugin is competing to finish your logins', 'fluent-security'),
-            'scored' => false
-        ]);
-    }
-
-    /**
-     * @param array $rivals
-     * @return Finding[]
-     */
-    protected function confirmedFinding($rivals)
-    {
-        $names = self::names($rivals);
-
-        if (Dismissals::has(self::FINDING_ACTIVE)) {
-            return [new Finding([
-                'id'     => self::FINDING_ACTIVE,
-                'check'  => $this->id(),
-                'group'  => $this->group(),
-                'state'  => Finding::STATE_ACCEPTED,
-                'title'  => $this->confirmedTitle($names),
-                'why'    => __('You have said this one is not for your site.', 'fluent-security'),
-                'scored' => false
-            ])];
-        }
-
-        /*
-         * Whether the loop actually happens here, or is headed off.
-         *
-         * Some of these publish a filter that lets this plugin ask them to stand down for the
-         * one request that completes a verified challenge - see RivalStandDown. Where every
-         * rival on the site is one of those, logins work, and a red row telling somebody to
-         * fix a broken login would be describing a site other than theirs. It is still worth
-         * saying: two second factors are still configured, and only one of them is being
-         * applied.
-         */
-        $unhandled = array_values(array_filter($rivals, function ($rival) {
-            return !in_array($rival['plugin'], RivalStandDown::handledRivals(), true);
-        }));
-
-        return [new Finding([
-            'id'       => self::FINDING_ACTIVE,
-            'check'    => $this->id(),
-            'group'    => $this->group(),
-            'state'    => Finding::STATE_OPEN,
-            'severity' => $unhandled ? Finding::SEVERITY_FIX : Finding::SEVERITY_LOOK,
-            'title'    => $this->confirmedTitle($names),
-            'why'      => $unhandled
-                ? __('Two plugins cannot both finish the same login. The other one throws away the session this plugin has just created, so passkeys, authenticator codes and recovery codes all end up back at the login screen - and a recovery code is spent each time it happens.', 'fluent-security')
-                : __('Two plugins are set up to finish the same login. This one asks the other to stand aside for the moment it would otherwise take the session over, so your logins work - but two second factors are configured and only one of them is being asked for.', 'fluent-security'),
-            'details'  => array_merge(
-                self::describe($rivals),
-                $unhandled
-                    ? [
-                        __('Turn off the second factor in one plugin or the other. Both protect the same logins, so whichever you keep loses you nothing.', 'fluent-security'),
-                        __('Until then the audit log and the login notification emails will report each attempt as a success, because the other plugin does not step in until after the sign in has been recorded.', 'fluent-security')
-                    ]
-                    : [
-                        __('Nothing is broken, so there is no hurry. Turning one of them off is still tidier than leaving both configured, and it is the only way to be sure which one is protecting your logins.', 'fluent-security')
-                    ]
-            ),
-            'action'   => 'navigate',
-            'label'    => count($rivals) === 1 && !empty($rivals[0]['url'])
-                ? __('Open its settings', 'fluent-security')
-                : __('Open plugins', 'fluent-security'),
-            'url'      => count($rivals) === 1 && !empty($rivals[0]['url'])
-                ? admin_url($rivals[0]['url'])
-                : admin_url('plugins.php'),
-            'dismiss'  => 'ignore',
-            'scored'   => false
-        ])];
-    }
-
-    /**
-     * @param array $rivals
-     * @return Finding[]
-     */
-    protected function possibleFinding($rivals)
-    {
-        /*
-         * No passed twin for this one. "We looked and found no plugin that might have a
-         * second factor switched on somewhere we cannot read" is not a reassurance anybody
-         * can act on, and the confirmed finding above already says the useful half.
-         */
-        if (!$rivals) {
-            return [];
-        }
-
-        $names = self::names($rivals);
-
-        if (Dismissals::has(self::FINDING_POSSIBLE)) {
-            return [new Finding([
-                'id'     => self::FINDING_POSSIBLE,
-                'check'  => $this->id(),
-                'group'  => $this->group(),
-                'state'  => Finding::STATE_ACCEPTED,
-                'title'  => $this->possibleTitle($names),
-                'why'    => __('You have said this one is not for your site.', 'fluent-security'),
-                'scored' => false
-            ])];
-        }
-
-        return [new Finding([
-            'id'       => self::FINDING_POSSIBLE,
-            'check'    => $this->id(),
-            'group'    => $this->group(),
-            'state'    => Finding::STATE_OPEN,
-            'severity' => Finding::SEVERITY_LOOK,
-            'title'    => $this->possibleTitle($names),
-            'why'      => __('These plugins can run a second factor of their own alongside everything else they do. This plugin cannot read whether that feature is switched on, so it is worth checking - if it is, your logins will loop instead of completing.', 'fluent-security'),
-            'details'  => array_merge(
-                self::describe($rivals),
-                [__('If the feature is off, nothing is wrong and you can mark this as expected.', 'fluent-security')]
-            ),
-            'action'   => 'navigate',
-            'label'    => __('Open plugins', 'fluent-security'),
-            'url'      => admin_url('plugins.php'),
-            'dismiss'  => 'ignore',
-            'scored'   => false
-        ])];
-    }
-
-    /**
-     * @param string $findingId
-     * @return array|\WP_Error
-     */
-    public function accept($findingId)
-    {
-        if (!in_array($findingId, [self::FINDING_ACTIVE, self::FINDING_POSSIBLE], true)) {
-            return new \WP_Error('unknown_check', __('That is not something this plugin knows how to check.', 'fluent-security'), ['status' => 404]);
-        }
-
-        Dismissals::add($findingId);
-
-        return ['message' => __('Noted. This will not be mentioned again.', 'fluent-security')];
-    }
-
-    /**
-     * @param string $findingId
-     * @return array|\WP_Error
-     */
-    public function unaccept($findingId)
-    {
-        if (!in_array($findingId, [self::FINDING_ACTIVE, self::FINDING_POSSIBLE], true)) {
-            return new \WP_Error('unknown_check', __('There is nothing to undo for this one.', 'fluent-security'), ['status' => 404]);
-        }
-
-        Dismissals::remove($findingId);
-
-        return ['message' => __('This is back on the list.', 'fluent-security')];
-    }
-
-    /**
-     * The same conflict, for a screen that is not the checklist.
-     *
-     * The findings list is where a site goes looking for things it could do better. This is
-     * not one of those: a confirmed conflict means the second factor being configured on that
-     * screen does not work, right now, and the person switching it on is the person who needs
-     * to know. Waiting for them to visit a different tab and read a row about plugins is the
-     * wrong shape for that news.
-     *
-     * Confirmed rivals only. A maybe belongs on the checklist, where a reader has come to
-     * weigh things up - putting one here would mean the settings screen crying wolf at every
-     * site that happens to have Wordfence installed, whether or not anybody uses its second
-     * factor.
-     *
-     * Silent once dismissed, so turning the row down on the checklist turns this off too. One
-     * decision, made once, honoured everywhere - the alternative being an owner who declines
-     * it and then meets it again somewhere they cannot decline it.
+     * Confirmed rivals only. A plugin that merely *has* a second factor somewhere we cannot
+     * read is not worth a warning box on a settings screen - that would put a red panel in
+     * front of every site with Wordfence installed, whether or not anybody uses its second
+     * factor, and a warning that is usually wrong stops being read.
      *
      * @return array|null
      */
     public static function notice()
     {
-        if (!self::ownSecondFactorIsOn() || Dismissals::has(self::FINDING_ACTIVE)) {
+        if (!self::ownSecondFactorIsOn()) {
             return null;
         }
 
-        $confirmed = array_values(array_filter(self::activeRivals(), function ($rival) {
+        $rivals = array_values(array_filter(self::activeRivals(), function ($rival) {
             return !empty($rival['certain']);
         }));
 
-        if (!$confirmed) {
+        if (!$rivals) {
             return null;
         }
 
-        $unhandled = array_values(array_filter($confirmed, function ($rival) {
+        $unhandled = array_values(array_filter($rivals, function ($rival) {
             return !in_array($rival['plugin'], RivalStandDown::handledRivals(), true);
         }));
 
         return [
-            'names'    => self::names($confirmed),
-            'details'  => self::describe($confirmed),
+            'names' => self::names($rivals),
+            /* Where to go and switch it off, in that plugin's own words for its own screens. */
+            'where' => array_values(array_filter(array_map(function ($rival) {
+                return (string)$rival['where'];
+            }, $rivals))),
             /*
              * Whether logins are actually failing. False means every rival here is one this
-             * plugin can ask to stand aside, so the screen should say so plainly rather than
-             * warn about a breakage that is not happening - see RivalStandDown.
+             * plugin can ask to stand aside, so the box says nothing is broken rather than
+             * warning about a breakage that is not happening - see RivalStandDown.
              */
             'blocking' => !empty($unhandled),
-            'url'      => count($confirmed) === 1 && !empty($confirmed[0]['url'])
-                ? admin_url($confirmed[0]['url'])
+            'url'      => count($rivals) === 1 && !empty($rivals[0]['url'])
+                ? admin_url($rivals[0]['url'])
                 : admin_url('plugins.php')
         ];
     }
@@ -881,39 +646,5 @@ class TwoFaConflictCheck extends Check
                 $rival['where']
             );
         }, $rivals);
-    }
-
-    /**
-     * @param array $names
-     * @return string
-     */
-    protected function confirmedTitle($names)
-    {
-        if (count($names) === 1) {
-            return sprintf(
-                /* translators: %s: plugin name */
-                __('%s is also running two-factor authentication', 'fluent-security'),
-                $names[0]
-            );
-        }
-
-        return __('Other plugins are also running two-factor authentication', 'fluent-security');
-    }
-
-    /**
-     * @param array $names
-     * @return string
-     */
-    protected function possibleTitle($names)
-    {
-        if (count($names) === 1) {
-            return sprintf(
-                /* translators: %s: plugin name */
-                __('%s may be running two-factor authentication as well', 'fluent-security'),
-                $names[0]
-            );
-        }
-
-        return __('Other plugins may be running two-factor authentication as well', 'fluent-security');
     }
 }

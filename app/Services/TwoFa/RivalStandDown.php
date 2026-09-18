@@ -5,7 +5,7 @@ namespace FluentAuth\App\Services\TwoFa;
 /**
  * Ask the other second factor to stand down, for the one moment it would break the login.
  *
- * The problem this solves is in TwoFaConflictCheck: completing a verified challenge means
+ * The problem this solves is in RivalTwoFa: completing a verified challenge means
  * signing the user in for real, which fires `wp_login`, and a rival second factor listening
  * there throws the session away and renders its own form into our verification request. The
  * user loops. Several of these plugins publish a filter for exactly this situation, so where
@@ -23,7 +23,7 @@ namespace FluentAuth\App\Services\TwoFa;
  * be this plugin quietly switching off somebody else's security control for the whole
  * request, which is not a thing to do by accident.
  *
- * Only three of the plugins TwoFaConflictCheck knows about can be asked. The rest have no
+ * Only three of the plugins RivalTwoFa knows about can be asked. The rest have no
  * hook, or have one that does not mean what its name suggests - SiteGround's
  * `sg_security_2fa_do_not_challenge` gates whether a remember-this-device cookie is honoured,
  * so returning false there would *force* a challenge rather than skip one. For those the
@@ -43,8 +43,8 @@ class RivalStandDown
     /**
      * The plugins that can be asked, and what answer means "not this login".
      *
-     * `rival` ties each one to its entry in TwoFaConflictCheck, so the check can say which
-     * conflicts this plugin defuses and which it can only report.
+     * `rival` ties each one to its entry in RivalTwoFa, so the settings screen can tell a
+     * conflict this plugin defuses from one it can only report.
      *
      * Every value here was read from the plugin's own source and the direction confirmed at
      * the call site, because two of the candidates that did not make this list read as

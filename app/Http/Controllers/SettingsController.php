@@ -7,7 +7,7 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Services\ProxyDetection;
-use FluentAuth\App\Services\Checks\Plugins\TwoFaConflictCheck;
+use FluentAuth\App\Services\TwoFa\RivalTwoFa;
 use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 class SettingsController
@@ -28,11 +28,10 @@ class SettingsController
             'proxy_detection'     => ProxyDetection::detect(),
             /*
              * Another plugin finishing the logins this screen is configuring. Null on almost
-             * every site; when it is not null the second factor being switched on below does
-             * not work, which is news this screen has to break rather than leave to the
-             * findings list. See TwoFaConflictCheck::notice().
+             * every site; when it is not, the second factor being switched on below does not
+             * work, and this screen is where that has to be said. See RivalTwoFa::notice().
              */
-            'two_fa_conflict'     => TwoFaConflictCheck::notice()
+            'two_fa_conflict'     => RivalTwoFa::notice()
         ];
     }
 

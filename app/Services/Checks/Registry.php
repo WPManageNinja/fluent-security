@@ -38,8 +38,7 @@ class Registry
             new Config\SecretEncryptionCheck(),
             new Users\AdminUsernameCheck(),
             new Users\DormantAdminCheck(),
-            new Users\HiddenUsersCheck(),
-            new Plugins\TwoFaConflictCheck()
+            new Users\HiddenUsersCheck()
         ];
 
         /*

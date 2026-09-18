@@ -1124,15 +1124,11 @@
         color: var(--fls-text-mid);
     }
 
-    ul {
-        margin: 10px 0 0;
-        padding-left: 18px;
-
-        li {
-            font-size: 13px;
-            line-height: 1.6;
-            color: var(--fls-text-mid);
-        }
+    /* Where to go and switch it off, in that plugin's own words for its own screens. */
+    &__where {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--fls-text-light);
     }
 
     &__action {
