@@ -3,22 +3,27 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
+use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
 /**
- * Offers an authenticator app to people who could have one and do not.
+ * Offers a second factor to people who could have one and do not.
  *
  * A second factor nobody is told about is a second factor nobody turns on, and the
  * moment after a successful login is the one moment worth asking: they have just proved
  * who they are, they are at a keyboard, and they are not in the middle of anything yet.
  *
  * Asking is all it does. The answer "not now" is taken, and they carry on to wherever
- * they were going - the enforcement handler is what refuses to take no for an answer,
- * and this deliberately steps aside for anyone it covers.
+ * they were going. Anybody who *must* hold a factor never reaches this at all - they meet
+ * EnrollmentTwoFaMethod during the login itself, which is a step rather than an offer -
+ * and this deliberately steps aside for them, because offering "not now" first would only
+ * teach them there is one.
  *
  * It asks after every login. That is a deliberate choice by the site owner rather than
  * the gentlest option available, so `fluent_auth/ask_to_set_up_totp` is here to soften
- * it without patching the plugin - return false and the asking stops.
+ * it without patching the plugin - return false and the asking stops. The filter keeps
+ * its name, which now says less than it does: it governs the offer of any device factor,
+ * not only the authenticator app. Renaming it would break the sites already using it.
  */
 class TotpNudgeHandler
 {
@@ -45,8 +50,8 @@ class TotpNudgeHandler
         add_action('template_redirect', [$this, 'maybeAsk']);
 
         /*
-         * Behind the enforcement gate, which registers at 1. Somebody who must have an
-         * app should meet the redirect that says so, not this one.
+         * Late, so anything else hooking admin_init has had its say first. Nobody who is
+         * *required* to hold a factor reaches this anyway - see shouldAsk().
          */
         add_action('admin_init', [$this, 'maybeAsk'], 2);
     }
@@ -133,7 +138,7 @@ class TotpNudgeHandler
             return false;
         }
 
-        if (!TotpTwoFaMethod::isAllowedForUser($user)) {
+        if (!self::canSetUpADeviceFactor($user)) {
             return false;
         }
 
@@ -146,22 +151,47 @@ class TotpNudgeHandler
          * people the requirement is about. isSatisfiedBy() answers against the configured
          * floor, so at `any` it would count an emailed code - and relaxing a setting that
          * is labelled as being about required roles would silently stop every ordinary
-         * user with email codes ever being offered an app.
+         * user with email codes ever being offered a device factor.
          */
         if (DeviceRequirement::hasDeviceFactor($user)) {
             return false;
         }
 
         /*
-         * Left to the rule that has no way past it - which is now the enrollment step in
-         * the login flow, and the enforcement handler behind it for sessions that predate
-         * the policy. Offering "not now" first would only teach them there is one.
+         * Left to the rule that has no way past it: the enrollment step in the login
+         * flow, which happens before a cookie exists. Offering "not now" first would only
+         * teach them there is one. In wp-admin they also have the reminder notice - see
+         * TwoFaReminderHandler - and that one does not offer to go away.
          */
         if (DeviceRequirement::isRequiredForUser($user)) {
             return false;
         }
 
         return (bool)apply_filters('fluent_auth/ask_to_set_up_totp', true, $user);
+    }
+
+    /**
+     * Whether there is anything this user could actually set up.
+     *
+     * Both device methods, not just the authenticator app, and the app-only version was a
+     * real gap: a site running passkeys with the app switched off offered nobody anything
+     * after login, while the screen this redirects to had grown a passkey pane and was
+     * sitting there ready to serve them. Nothing failed - the offer simply never appeared,
+     * which is the kind of bug that gets reported as "the feature does not work".
+     *
+     * Asked of the two methods directly rather than through
+     * DeviceRequirement::canBeSatisfiedBy(), which reads the required-roles floor. That
+     * floor is a statement about people this offer is not about, and letting it in here is
+     * how relaxing a setting for administrators would quietly stop every ordinary
+     * subscriber being offered anything - the same trap hasDeviceFactor() avoids below.
+     *
+     * @param $user \WP_User
+     * @return bool
+     */
+    public static function canSetUpADeviceFactor($user)
+    {
+        return TotpTwoFaMethod::isAllowedForUser($user)
+            || PasskeyTwoFaMethod::isAllowedForUser($user);
     }
 
     /**

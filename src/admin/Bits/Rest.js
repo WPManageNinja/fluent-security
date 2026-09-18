@@ -1,5 +1,3 @@
-import {handleEnrollmentRefusal} from './enrollmentGate';
-
 const request = function (method, route, data = {}) {
     const url = `${window.fluentAuthAdmin.rest.url}/${route}`;
 
@@ -20,18 +18,7 @@ const request = function (method, route, data = {}) {
             headers: headers
         })
             .then(response => resolve(response))
-            .fail(errors => {
-                /*
-                 * Caught here rather than in `$handleError`, because this one is about the
-                 * session rather than about the request: it refuses every call this app
-                 * makes from now on, and not every caller routes its rejections through
-                 * the error handler. The rejection still goes out so callers clear their
-                 * own loading state - see enrollmentGate.js.
-                 */
-                handleEnrollmentRefusal(errors.responseJSON);
-
-                reject(errors.responseJSON);
-            });
+            .fail(errors => reject(errors.responseJSON));
     });
 }
 

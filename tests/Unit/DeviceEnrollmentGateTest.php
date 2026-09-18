@@ -4,7 +4,7 @@ namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Activator;
 use FluentAuth\App\Helpers\Helper;
-use FluentAuth\App\Hooks\Handlers\TotpEnforcementHandler;
+use FluentAuth\App\Hooks\Handlers\TwoFaReminderHandler;
 use FluentAuth\App\Hooks\Handlers\TotpNudgeHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
@@ -44,7 +44,6 @@ class DeviceEnrollmentGateTest extends BaseTestCase
     {
         remove_all_filters('fluent_auth/device_factor_required');
         remove_all_filters('fluent_auth/passkey_allow_without_fallback');
-        remove_all_filters('fluent_auth/enforce_enrollment_on_rest');
         wp_set_current_user(0);
         parent::tearDown();
     }
@@ -1018,7 +1017,7 @@ class DeviceEnrollmentGateTest extends BaseTestCase
      * URL to finish at - and that refusal has to cover somebody who owes enrollment
      * just as it covers somebody who owes a code.
      *
-     * This is also the whole of the XML-RPC story, and why TotpEnforcementHandler has no
+     * This is also the whole of the XML-RPC story, and why TwoFaReminderHandler has no
      * `xmlrpc_enabled` filter: that filter is applied from wp_xmlrpc_server::__construct()
      * before any authentication happens, and XML-RPC carries a username and password
      * rather than a cookie - so there is never a pre-existing session there for a
@@ -1263,248 +1262,109 @@ class DeviceEnrollmentGateTest extends BaseTestCase
         $this->assertGreaterThan(0, RecoveryCodes::countRemaining($this->admin));
     }
 
-    /* ----------------------------------------------------- the legacy backstop */
+    /* ------------------------------------------------- the reminder, not a gate */
 
     /**
-     * The surface the old gate left wide open: a cookie issued before the policy
-     * existed still authenticated every REST call on the site.
-     */
-    public function test_rest_is_refused_for_a_session_that_owes_a_factor()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $result = (new TotpEnforcementHandler())->maybeDenyRest(null);
-
-        $this->assertWpErrorWithCode($result, 'fls_2fa_enrollment_required');
-        $this->assertSame(403, $result->get_error_data()['status']);
-    }
-
-    public function test_rest_is_left_alone_for_a_session_that_owes_nothing()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        $this->enrolTotp($this->admin);
-        wp_set_current_user($this->admin->ID);
-
-        $this->assertNull((new TotpEnforcementHandler())->maybeDenyRest(null));
-    }
-
-    public function test_rest_is_left_alone_for_anonymous_requests()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user(0);
-
-        $this->assertNull((new TotpEnforcementHandler())->maybeDenyRest(null));
-    }
-
-    /**
-     * Somebody else's refusal is somebody else's to explain.
-     */
-    public function test_an_existing_rest_error_is_not_replaced()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $existing = new \WP_Error('someone_else', 'Nope');
-
-        $this->assertSame($existing, (new TotpEnforcementHandler())->maybeDenyRest($existing));
-    }
-
-    /**
-     * Core's rest_cookie_check_errors() runs at 100 and treats a REST request carrying a
-     * login cookie but no nonce as anonymous - it zeroes the current user and returns
-     * true. Running ahead of that would 403 ordinary nonce-less fetches against public
-     * endpoints for this user and nobody else, so the filter sits at 101 and this is the
-     * shape it must have by then.
-     */
-    /**
-     * The escape hatch, and the reason there has to be one: a membership site whose front
-     * end makes nonce-carrying calls for a member who owes a factor had no way to let
-     * them through, while the ajax side has had
-     * `fluent_auth/enrollment_permitted_ajax_actions` all along.
-     */
-    public function test_a_site_can_let_a_rest_request_through_by_filter()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $handler = new TotpEnforcementHandler();
-
-        // The premise: refused without the filter.
-        $this->assertWpErrorWithCode($handler->maybeDenyRest(null), 'fls_2fa_enrollment_required');
-
-        add_filter('fluent_auth/enforce_enrollment_on_rest', '__return_false');
-
-        $this->assertNull($handler->maybeDenyRest(null));
-    }
-
-    /**
-     * The cookie is not grounds for an exemption, however much it reads like one. With
-     * cookie REST open, a user who owes a factor can mint an application password - which
-     * maybeDenyRest() then exempts for good - and walk out of the requirement entirely.
-     */
-    public function test_a_valid_cookie_session_is_still_refused()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $this->assertTrue(is_user_logged_in(), 'The premise: a perfectly valid session.');
-        $this->assertWpErrorWithCode(
-            (new TotpEnforcementHandler())->maybeDenyRest(null),
-            'fls_2fa_enrollment_required'
-        );
-    }
-
-    public function test_rest_is_left_alone_once_core_has_ruled_the_request_anonymous()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user(0);
-
-        $this->assertTrue(
-            (new TotpEnforcementHandler())->maybeDenyRest(true),
-            "Core's own decision must survive."
-        );
-    }
-
-    public function test_the_rest_filter_runs_after_core_decides_who_is_signed_in()
-    {
-        $handler = new TotpEnforcementHandler();
-        $handler->register();
-
-        $this->assertGreaterThan(
-            100,
-            has_filter('rest_authentication_errors', [$handler, 'maybeDenyRest']),
-            'Ahead of core at 100 this refuses requests core would serve anonymously.'
-        );
-    }
-
-    /* ----------------------------------------------------------- admin-ajax */
-
-    public function test_admin_ajax_is_refused_for_a_session_that_owes_a_factor()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $_REQUEST['action'] = 'some_other_plugin_action';
-
-        $this->assertSame(403, $this->captureAjaxDenial());
-    }
-
-    /**
-     * Registering a passkey is one of the two ways to satisfy the very requirement being
-     * enforced, and it runs entirely over ajax. Closing it would tell a user to set up a
-     * second factor and then refuse them the means.
-     */
-    public function test_passkey_registration_stays_open_to_somebody_who_owes_a_factor()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $_REQUEST['action'] = 'fluent_auth_passkey_register';
-
-        $this->assertNull($this->captureAjaxDenial());
-    }
-
-    /**
-     * The hole that turned "I only wanted a fingerprint" into a locked account.
+     * Nothing about a session that predates the requirement is refused any more, and this
+     * is the decision rather than an oversight (2026-09-18).
      *
-     * A lone passkey does not satisfy the requirement - hasFallback() will not have it -
-     * and recovery codes are what make it count. So the user who had registered one and
-     * needed exactly one more step was the user refused that step, with no route left
-     * that did not involve wp-config.php. Reported from 3.0.1 on 2026-09-18.
+     * What stood here was a gate: a redirect out of every wp-admin page, a blanket
+     * refusal of admin-ajax, and a blanket refusal of REST. It covered only the window
+     * between an owner switching the requirement on and the people already signed in
+     * next signing out - on these sites, usually the owner themselves for one session -
+     * and it paid for that with 403s on ordinary traffic that nothing traced back to this
+     * plugin. See TwoFaReminderHandler.
+     *
+     * The requirement is unchanged and still cannot be worked around: it is applied
+     * during login by EnrollmentTwoFaMethod, before a cookie exists. These tests pin the
+     * *absence* of the old gate so it cannot come back by accident.
      */
-    public function test_generating_recovery_codes_stays_open_to_somebody_who_owes_a_factor()
+    public function test_a_session_that_owes_a_factor_is_not_gated_anywhere()
     {
         $this->policy(['administrator'], ['administrator']);
-        $this->enablePasskeys();
-        $this->addPasskey($this->admin, 'lone-credential');
-
         wp_set_current_user($this->admin->ID);
 
-        // The premise: a registered passkey, and the requirement still standing over it.
+        // The premise: this user really does still owe one.
         $this->assertTrue(DeviceRequirement::isOwedBy($this->admin));
 
-        $_REQUEST['action'] = 'fluent_auth_totp_recovery';
+        $reminder = new TwoFaReminderHandler();
+        $reminder->register();
 
-        $this->assertNull($this->captureAjaxDenial());
-    }
+        $this->assertTrue($reminder->owesDeviceFactor(), 'They are told, on every admin screen.');
 
-    /**
-     * What stays shut. A screen reachable by somebody who owes a factor must not be a way
-     * to reduce what the account already has.
-     *
-     * @dataProvider weakeningAjaxActions
-     */
-    public function test_weakening_an_account_stays_refused_to_somebody_who_owes_a_factor($action)
-    {
-        $this->policy(['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $_REQUEST['action'] = $action;
-
-        $this->assertSame(403, $this->captureAjaxDenial(), $action);
-    }
-
-    public function weakeningAjaxActions()
-    {
-        return [
-            'deleting a passkey'    => ['fluent_auth_passkey_delete'],
-            'renaming a passkey'    => ['fluent_auth_passkey_rename'],
-            'turning off the app'   => ['fluent_auth_totp_disable']
-        ];
-    }
-
-    public function test_admin_ajax_is_left_alone_for_a_session_that_owes_nothing()
-    {
-        $this->policy(['administrator'], ['administrator']);
-        $this->enrolTotp($this->admin);
-        wp_set_current_user($this->admin->ID);
-
-        $_REQUEST['action'] = 'some_other_plugin_action';
-
-        $this->assertNull($this->captureAjaxDenial());
-    }
-
-    /**
-     * @return int|null the status wp_send_json emitted, or null if nothing was refused
-     */
-    private function captureAjaxDenial()
-    {
-        $status = null;
-
-        $catch = function ($response, $statusCode) use (&$status) {
-            $status = $statusCode;
-            throw new \RuntimeException('denied');
-        };
-
-        add_filter('wp_doing_ajax', '__return_true');
-        add_filter('fluent_auth_test_json', $catch, 10, 2);
-        add_filter('wp_die_ajax_handler', [$this, 'throwingDieHandler']);
-
-        ob_start();
-        try {
-            (new TotpEnforcementHandler())->maybeDenyAjax();
-        } catch (\WPDieException $e) {
-            $status = 403;
-        } catch (\RuntimeException $e) {
-            // not reached; kept so a future change to the denial shape is visible
+        /*
+         * Core has its own callbacks on these, so the question is not whether the hook is
+         * empty - it is whether anything of *ours* is on it.
+         */
+        foreach (['rest_authentication_errors', 'rest_pre_dispatch'] as $hook) {
+            $this->assertSame([], $this->ourCallbacksOn($hook), $hook);
         }
-        ob_end_clean();
-
-        remove_filter('wp_doing_ajax', '__return_true');
-        remove_filter('fluent_auth_test_json', $catch, 10);
-        remove_filter('wp_die_ajax_handler', [$this, 'throwingDieHandler']);
-
-        unset($_REQUEST['action']);
-
-        return $status;
     }
 
-    public function throwingDieHandler()
+    /**
+     * The FluentAuth callbacks registered on a hook, by class::method.
+     *
+     * @param $hook string
+     * @return array
+     */
+    private function ourCallbacksOn($hook)
     {
-        return function ($message = '') {
-            throw new \WPDieException((string)$message);
-        };
+        $found = [];
+
+        if (empty($GLOBALS['wp_filter'][$hook])) {
+            return $found;
+        }
+
+        foreach ($GLOBALS['wp_filter'][$hook]->callbacks as $callbacks) {
+            foreach ($callbacks as $callback) {
+                $fn = $callback['function'];
+
+                if (!is_array($fn) || !is_object($fn[0])) {
+                    continue;
+                }
+
+                $class = get_class($fn[0]);
+
+                if (strpos($class, 'FluentAuth\\') === 0) {
+                    $found[] = $class . '::' . $fn[1];
+                }
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * The reminder hooks one thing and one thing only.
+     */
+    public function test_the_reminder_only_renders_a_notice()
+    {
+        $reminder = new TwoFaReminderHandler();
+        $reminder->register();
+
+        $this->assertNotFalse(has_action('admin_notices', [$reminder, 'renderNotice']));
+
+        // And none of the three surfaces the old gate reached for.
+        $this->assertFalse(has_action('admin_init', [$reminder, 'maybeForceEnrollment']));
+        $this->assertFalse(has_action('admin_init', [$reminder, 'maybeDenyAjax']));
+        $this->assertFalse(has_filter('rest_pre_dispatch', [$reminder, 'maybeDenyAppPasswordCreation']));
+    }
+
+    /**
+     * The one that actually matters, and the one the removal does not touch: a required
+     * user cannot get a session without setting a factor up.
+     */
+    public function test_the_login_flow_still_demands_a_factor()
+    {
+        $this->policy(['administrator'], ['administrator']);
+
+        $method = TwoFaService::getRequiredMethod($this->admin);
+
+        $this->assertInstanceOf(EnrollmentTwoFaMethod::class, $method);
+        $this->assertFalse(
+            apply_filters('send_auth_cookies', true, 0, 0, $this->admin->ID, 'auth'),
+            'No cookie for a required user who has not enrolled.'
+        );
     }
 
     /* ------------------------------------------------------------- the nudge */
@@ -1528,5 +1388,45 @@ class DeviceEnrollmentGateTest extends BaseTestCase
         $this->policy(['administrator'], []);
 
         $this->assertTrue((new TotpNudgeHandler())->shouldAsk($this->admin));
+    }
+
+    /**
+     * A site running passkeys with the authenticator app switched off used to offer
+     * nobody anything after login, while the screen the offer redirects to had a passkey
+     * pane sitting there ready. Nothing failed - the offer simply never appeared.
+     */
+    public function test_a_passkey_only_site_still_makes_the_offer()
+    {
+        $this->policy(['administrator'], [], 'no');   // authenticator app off
+        $this->enablePasskeys();
+
+        $this->assertFalse(
+            TotpTwoFaMethod::isAllowedForUser($this->admin),
+            'The premise: the app is off, so the old check refused here.'
+        );
+        $this->assertTrue((new TotpNudgeHandler())->shouldAsk($this->admin));
+    }
+
+    /**
+     * With neither device method on there is nothing to send them to, and a redirect to a
+     * screen that says "nothing to set up" is worse than no redirect.
+     */
+    public function test_nobody_is_asked_where_no_device_method_is_switched_on()
+    {
+        $this->policy(['administrator'], [], 'no');
+
+        $this->assertFalse((new TotpNudgeHandler())->shouldAsk($this->admin));
+    }
+
+    /**
+     * The offer is for people who may set one up, not for people who must - they meet the
+     * enrollment step during the login itself, and the reminder notice in wp-admin.
+     */
+    public function test_a_required_user_is_never_merely_offered()
+    {
+        $this->policy(['administrator'], ['administrator']);
+
+        $this->assertTrue(DeviceRequirement::isOwedBy($this->admin));
+        $this->assertFalse((new TotpNudgeHandler())->shouldAsk($this->admin));
     }
 }

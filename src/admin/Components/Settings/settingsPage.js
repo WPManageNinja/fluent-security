@@ -8,7 +8,6 @@
  * button used to fall into.
  */
 import {selfWillOweFactor} from '@/Bits/selfLockout';
-import {enrollmentSetupUrl} from '@/Bits/enrollmentGate';
 
 export default {
     data() {
@@ -52,28 +51,30 @@ export default {
             }
 
             /*
-             * One setting on this page can lock the reader out of the site they are
-             * reading it on, and only that one is worth a dialog - see Bits/selfLockout.js.
+             * The one setting on this page that changes how the reader themselves signs
+             * in, so it says so before it happens - see Bits/selfLockout.js. Nothing
+             * breaks either way: saving it leaves this screen working normally and the
+             * requirement is met at the next sign-in.
              */
             if (!selfWillOweFactor(this.settings, this.appVars)) {
                 return this.postSettings();
             }
 
             return this.$confirm(
-                this.$t('Your own role is on the required list, and this account does not have a passkey or an authenticator app yet. As soon as you save, this screen stops working until you set one up - we will take you straight there.'),
-                this.$t('Set up your own second factor next'),
+                this.$t('Your own role is on the required list, and this account does not have a passkey or an authenticator app yet. You can carry on using the site, but you will be asked to set one up the next time you sign in.'),
+                this.$t('You will need one yourself'),
                 {
-                    confirmButtonText: this.$t('Save and set it up'),
+                    confirmButtonText: this.$t('Save and set it up now'),
                     cancelButtonText: this.$t('Go back'),
                     type: 'warning'
                 }
             )
-                .then(() => this.postSettings())
+                .then(() => this.postSettings(true))
                 /* Cancelled. Nothing is saved and nothing needs saying. */
                 .catch(() => {
                 });
         },
-        postSettings() {
+        postSettings(thenEnroll = false) {
             this.errors = false;
             this.saving = true;
 
@@ -84,19 +85,14 @@ export default {
                     this.appVars.auth_settings = response.settings;
 
                     /*
-                     * Asked again against what the server actually stored rather than
-                     * against what was posted, because the two can differ - and then gone
-                     * to, because the alternative is leaving the reader on a screen whose
-                     * next request will be refused. The enrollment gate would catch that
-                     * and say so, but being sent where you were told you would be sent
-                     * beats being stopped and offered a link.
+                     * Only where they asked for it by pressing that button, and asked
+                     * again against what the server actually stored rather than against
+                     * what was posted, because the two can differ. The profile screen
+                     * rather than the standalone setup page: it is the fuller of the two
+                     * and it is where the admin notice sends everybody else.
                      */
-                    if (selfWillOweFactor(response.settings, this.appVars)) {
-                        const url = enrollmentSetupUrl();
-
-                        if (url) {
-                            window.location.href = url;
-                        }
+                    if (thenEnroll && selfWillOweFactor(response.settings, this.appVars)) {
+                        window.location.href = this.appVars.profile_2fa_url;
                     }
                 })
                 .catch(errors => {

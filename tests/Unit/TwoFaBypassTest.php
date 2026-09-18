@@ -3,7 +3,7 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Helper;
-use FluentAuth\App\Hooks\Handlers\TotpEnforcementHandler;
+use FluentAuth\App\Hooks\Handlers\TwoFaReminderHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaBypassHandler;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
@@ -167,21 +167,23 @@ class TwoFaBypassTest extends BaseTestCase
     }
 
     /**
-     * Lifting it at the login screen while still refusing the same person's REST calls
-     * would be a door unlocked onto a wall.
+     * Lifting it at the login screen while still nagging the same person on every admin
+     * screen would be a door unlocked onto a wall.
+     *
+     * There is nothing left to refuse - see TwoFaReminderHandler - so what the bypass has
+     * to reach now is the reminder itself.
      */
-    public function test_the_rest_backstop_lets_a_bypassed_account_through()
+    public function test_the_reminder_goes_quiet_for_a_bypassed_account()
     {
         wp_set_current_user($this->admin->ID);
 
-        $this->assertWpErrorWithCode(
-            (new TotpEnforcementHandler())->maybeDenyRest(null),
-            'fls_2fa_enrollment_required'
-        );
+        $reminder = new TwoFaReminderHandler();
+
+        $this->assertTrue($reminder->owesDeviceFactor());
 
         $this->configure('locked_out_admin');
 
-        $this->assertNull((new TotpEnforcementHandler())->maybeDenyRest(null));
+        $this->assertFalse($reminder->owesDeviceFactor());
     }
 
     public function test_it_lifts_nothing_for_an_account_it_does_not_name()

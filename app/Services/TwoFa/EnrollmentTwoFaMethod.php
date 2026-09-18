@@ -20,7 +20,7 @@ use FluentAuth\App\Services\TwoFa\WebAuthn\WebAuthnException;
  * vocabulary as the other methods is what moves enforcement to the only place it can
  * be complete.
  *
- * It used to live at the door of wp-admin instead - TotpEnforcementHandler, on
+ * It used to live at the door of wp-admin instead - an enforcement gate on
  * `admin_init`. That is after the auth cookie has been issued, so the user it was
  * holding back already had a working session: the gate hid the dashboard from them
  * while REST, XML-RPC and admin-ajax stayed open, to this plugin and to every other

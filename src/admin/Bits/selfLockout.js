@@ -2,14 +2,14 @@
  * Whether the settings about to be saved lock the person saving them out.
  *
  * Every other field on the settings screen is somebody else's problem to discover. This
- * one is the reader's own, immediately: `totp_required_roles` including their own role
- * means their very next request is refused until they enroll - see
- * TotpEnforcementHandler::maybeDenyRest() - and the screen used to say so only in a note
+ * one is the reader's own: `totp_required_roles` including their own role changes how
+ * they themselves will sign in next time, and the screen used to say so only in a note
  * above the Save button, which is the one place nobody reads twice.
  *
- * So Save asks first. Not a refusal: requiring a factor of yourself is a perfectly
- * ordinary thing to do, and the right answer is usually yes. It is a confirmation that
- * names the consequence while it can still be avoided.
+ * Nothing breaks when they save it - the plugin asks for the factor at the next sign-in
+ * and leaves the current session alone. So Save is not warning them about damage; it is
+ * telling them a thing about their own account that they would otherwise meet at the
+ * login screen, and offering to get it out of the way now.
  *
  * The check mirrors DeviceRequirement, and the pieces have to agree with it or the dialog
  * is either missing or crying wolf:

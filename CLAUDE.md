@@ -6,6 +6,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FluentAuth (fluent-security) is a WordPress security plugin providing login security, audit logging, magic login, 2FA, social login (Google/GitHub/Facebook), login customization, and system email management.
 
+## Who It Is For — read this before designing anything
+
+**Small businesses. Usually one administrator. Often the owner is the only user.**
+
+This is not enterprise software and must not be built like it. Keep things stupid simple.
+When a design decision is open, take the simpler branch — even when the more thorough one
+is more defensible in the abstract.
+
+What that rules out, concretely:
+
+- **Do not intercept ordinary traffic to enforce a policy.** No blanket refusals of REST
+  calls, admin-ajax calls, or page loads. A guardrail that 403s normal site activity costs
+  a real site owner more than the thing it prevents, and the symptom never points back at
+  this plugin. Enforce at the door — during login — where the answer is unambiguous and
+  nothing else can break.
+- **Prefer telling people over stopping them.** An admin notice with a link to the fix
+  beats a redirect, a modal, or a locked screen. If a setting takes effect at next login,
+  say so and let them carry on.
+- **One way to do a thing, not three.** No layered fallbacks or backstops "in case the
+  first one is bypassed".
+- **Do not add a setting, filter, or allowlist to soften a guardrail** — remove the
+  guardrail instead.
+
+The load-bearing example: 2FA enforcement used to redirect users out of wp-admin and refuse
+admin-ajax and REST wholesale for anyone who owed a second factor. It broke front-end form
+submissions and add-to-cart for logged-in members, and one missing allowlist entry locked a
+3.0.1 user out of their own site with no route back in. All of it was replaced by a single
+admin notice (`TwoFaReminderHandler`), because the requirement is already applied during
+login by `EnrollmentTwoFaMethod`, before a cookie exists. Less code, no breakage, same
+protection where it counts.
+
 ## Commands
 
 ```bash

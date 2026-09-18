@@ -142,11 +142,10 @@ class PasskeyProfileHandler
      * asks for it. For a user under a requirement that means they still owe a factor
      * after setting one up, so they are asked again, and again.
      *
-     * Worse, the one action that would have fixed it - generating recovery codes - was
-     * refused by TotpEnforcementHandler::maybeDenyAjax() for exactly the users who needed
-     * it, which turned "I only wanted a fingerprint" into an account that could not reach
-     * wp-admin and could not be repaired from inside it. That hole is closed in the
-     * allowlist as well; this closes the reason anybody had to walk into it.
+     * It was worse than a nag in 3.0.1: the enforcement gate of the day also refused the
+     * ajax call that generates recovery codes, so the one action that would have fixed it
+     * was shut to exactly the users who needed it. That whole gate is gone now - see
+     * TwoFaReminderHandler - and this closes the reason anybody had to go looking for it.
      *
      * The codes ride back on the notice transient rather than in this response, because
      * the profile screen reloads after a registration and they are shown exactly once -

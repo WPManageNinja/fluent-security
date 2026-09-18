@@ -27,7 +27,7 @@ use FluentAuth\App\Services\TwoFa\WebAuthn\WebAuthnException;
  * The class name says Totp and the screen no longer only does that, deliberately. It
  * offered an authenticator app and nothing else, which made it a dead end for the exact
  * population it exists to serve: on a site running passkeys with the app switched off,
- * TotpEnforcementHandler redirected a required user here, the page told them an
+ * the enforcement gate of the day redirected a required user here, the page told them an
  * authenticator app was not enabled for their account, and its only control was a
  * Continue link back to the admin area - which redirected them here again. The way out
  * was the profile screen, which this screen's audience cannot reach. So it offers both

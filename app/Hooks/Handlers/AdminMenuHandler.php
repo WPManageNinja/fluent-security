@@ -197,6 +197,13 @@ class AdminMenuHandler
              */
             'totp_setup_url'  => TotpSetupPageHandler::getUrl(),
             /*
+             * Where an administrator sets up their own second factor. The profile screen
+             * rather than the address above, because it is the fuller of the two - passkey,
+             * authenticator app and recovery codes on one card - and anyone reading the
+             * admin app can reach it. Same place TwoFaReminderHandler's notice points.
+             */
+            'profile_2fa_url' => admin_url('profile.php#fls-two-factor'),
+            /*
              * Browsers refuse WebAuthn outside a secure context, so on a plain http site
              * the switch would turn on a feature that cannot work. The screen says so
              * rather than letting an administrator discover it from a user's report.
