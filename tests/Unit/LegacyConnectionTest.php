@@ -5,20 +5,17 @@ namespace FluentAuth\Tests\Unit;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 
 /**
- * A registration left half-finished by the alerts service that dash.fluentauth.com replaced.
+ * A connection made against the alerts service that dash.fluentauth.com replaced.
  *
- * The confirmed connections that service held were carried across into the current relay,
- * keys and all, and go on working: the relay looks an id up and compares a hash, and has
- * never had an opinion about the shape of either half. So most of what these tests guard is
- * restraint - an install holding one of those pairs must be left completely alone, and the
- * cost of getting that wrong is a working credential destroyed, replaceable only by
- * registering again by email.
+ * Both services kept their credentials in the same option under the same two keys, so an
+ * update carries the old pair forward untouched and the site goes on calling itself connected
+ * while nothing it sends can be accepted. Nothing else here finds that out reliably: the only
+ * other route is being refused mid-report, and the scheduled report will not run at all unless
+ * `auto_scan` is on - which on the old service was a separate switch, off by default.
  *
- * What was not carried across is the registration that was never completed: a key emailed by
- * a service that no longer runs, never redeemed, and so present in no system either side can
- * reach. That site sits on a screen asking for a token nobody can produce, and nothing else
- * here will ever find out - a pending site posts no reports, so the refusal path never runs
- * for it.
+ * The test is a shape test, and these cases are about where it is allowed to conclude
+ * anything at all. Getting it wrong in the other direction destroys a working credential that
+ * can only be replaced by registering again by email.
  */
 class LegacyConnectionTest extends BaseTestCase
 {
@@ -69,28 +66,9 @@ class LegacyConnectionTest extends BaseTestCase
         $this->assertSame('', $settings['relay_rejection']);
     }
 
-    /**
-     * The one that matters most. This pair was carried across, so it authenticates exactly
-     * like a native one - and an install holding it is a connected site, not a stale record.
-     */
-    public function testAConfirmedConnectionFromTheOldServiceIsLeftAlone()
+    public function testAPairFromTheOldServiceIsRetired()
     {
         $this->connectedWith(self::OLD_ID, self::OLD_KEY);
-
-        $this->assertFalse(IntegrityHelper::maybeRetireLegacyConnection());
-
-        $settings = IntegrityHelper::getSettings();
-
-        $this->assertSame('active', $settings['status']);
-        $this->assertSame(self::OLD_ID, $settings['api_id']);
-        $this->assertSame(self::OLD_KEY, $settings['api_key']);
-        $this->assertSame('yes', $settings['auto_scan']);
-        $this->assertSame('', $settings['relay_rejection']);
-    }
-
-    public function testAStrandedRegistrationIsReleased()
-    {
-        $this->connectedWith(self::OLD_ID, '', ['status' => 'pending', 'auto_scan' => 'no']);
 
         $this->assertTrue(IntegrityHelper::maybeRetireLegacyConnection());
 
@@ -99,16 +77,17 @@ class LegacyConnectionTest extends BaseTestCase
         $this->assertSame('unregistered', $settings['status']);
         $this->assertSame(IntegrityHelper::RELAY_LEGACY, $settings['relay_rejection']);
         $this->assertSame('', $settings['api_id']);
+        $this->assertSame('', $settings['api_key']);
         $this->assertSame('no', $settings['auto_scan']);
     }
 
     /**
-     * The id survives, in the field nothing acts on. It is the only record of what this site
-     * was registered as - the screen is what decides not to offer it to support.
+     * The id survives the credential, in the field nothing acts on. It is the only record of
+     * what this site was connected as - the screen is what decides not to offer it to support.
      */
     public function testTheRetiredIdIsKept()
     {
-        $this->connectedWith(self::OLD_ID, '', ['status' => 'pending', 'auto_scan' => 'no']);
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         IntegrityHelper::maybeRetireLegacyConnection();
 
@@ -116,6 +95,22 @@ class LegacyConnectionTest extends BaseTestCase
             self::OLD_ID,
             IntegrityHelper::getSettings()['relay_retired_api_id']
         );
+    }
+
+    /**
+     * The case nothing else reaches. A site left at `pending` by the old service never posts a
+     * report, so the refusal path cannot fire, and it would sit for ever on a screen asking
+     * for an emailed key that can no longer be redeemed anywhere.
+     */
+    public function testASiteStillWaitingForItsOldKeyIsRetired()
+    {
+        $this->connectedWith(self::OLD_ID, '', [
+            'status'    => 'pending',
+            'auto_scan' => 'no'
+        ]);
+
+        $this->assertTrue(IntegrityHelper::maybeRetireLegacyConnection());
+        $this->assertSame('unregistered', IntegrityHelper::getSettings()['status']);
     }
 
     /**
@@ -162,7 +157,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testAnInstallPointedAtItsOwnRelayIsNeverRetired()
     {
-        $this->connectedWith(self::OLD_ID, '', ['status' => 'pending', 'auto_scan' => 'no']);
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         $filter = function () {
             return 'https://relay.example.com/api/v1/';
@@ -172,7 +167,7 @@ class LegacyConnectionTest extends BaseTestCase
 
         try {
             $this->assertFalse(IntegrityHelper::maybeRetireLegacyConnection());
-            $this->assertSame('pending', IntegrityHelper::getSettings()['status']);
+            $this->assertSame('active', IntegrityHelper::getSettings()['status']);
         } finally {
             remove_filter('fluent_auth/alerts_api_url', $filter);
         }
@@ -185,7 +180,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testRetiringIsIdempotent()
     {
-        $this->connectedWith(self::OLD_ID, '', ['status' => 'pending', 'auto_scan' => 'no']);
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         $this->assertTrue(IntegrityHelper::maybeRetireLegacyConnection());
 
@@ -202,7 +197,7 @@ class LegacyConnectionTest extends BaseTestCase
      */
     public function testReconnectingClearsTheRetirement()
     {
-        $this->connectedWith(self::OLD_ID, '', ['status' => 'pending', 'auto_scan' => 'no']);
+        $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
         IntegrityHelper::maybeRetireLegacyConnection();
 
@@ -213,11 +208,10 @@ class LegacyConnectionTest extends BaseTestCase
     }
 
     /**
-     * A carried-across key is a live credential like any other, and the fact that it was
-     * issued by a service that no longer runs makes it no less of a secret - it still signs
-     * this site's reports and can still switch its monitoring off.
+     * The key is a secret, and a retired one is still a secret. Whatever else the screen is
+     * told about this, it is not told that.
      */
-    public function testACarriedAcrossKeyNeverReachesTheBrowser()
+    public function testTheRetiredKeyNeverReachesTheBrowser()
     {
         $this->connectedWith(self::OLD_ID, self::OLD_KEY);
 
@@ -226,6 +220,6 @@ class LegacyConnectionTest extends BaseTestCase
         $public = IntegrityHelper::getPublicSettings();
 
         $this->assertArrayNotHasKey('api_key', $public);
-        $this->assertTrue($public['has_api_key']);
+        $this->assertFalse($public['has_api_key']);
     }
 }

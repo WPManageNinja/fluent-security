@@ -49,11 +49,10 @@ export default {
             }
 
             /*
-             * Never connected in the first place - this one was half-way through registering
-             * when the service it was registering with was replaced, and the key it is
-             * waiting for cannot be redeemed anywhere now. Said in its own words because the
-             * paragraph below would send this owner looking for a deletion on a dashboard
-             * they have never opened, of a site that was never on it.
+             * Not a disconnection anybody performed - the service this site was connected to
+             * was replaced, and the credential went with it. Said in its own words because
+             * the paragraph below would send this owner looking for a deletion on a
+             * dashboard they have never opened.
              */
             if (this.settings.relay_rejection === 'legacy') {
                 return this.$t('__relay_legacy_desc__');
@@ -78,8 +77,8 @@ export default {
         },
         /*
          * The heading over that paragraph. "This site was disconnected" is right for a site
-         * somebody disowned and wrong for one that never finished connecting - the second
-         * reads as the loss of something this owner never actually had.
+         * somebody disowned and wrong for one that was simply left behind by a move - the
+         * second reads as an accusation of something the owner did not do.
          */
         disconnectedTitle() {
             if (this.settings && this.settings.relay_rejection === 'legacy') {

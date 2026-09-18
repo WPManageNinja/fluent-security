@@ -32,17 +32,15 @@ class IntegrityHelper
     const RELAY_LEGACY = 'legacy';
 
     /**
-     * What an id issued by the current relay looks like.
+     * What a credential minted by the current relay looks like.
      *
-     * From `mintApiId()` in the relay's src/lib/keys.ts, a file that has had one commit in its
-     * life - so every id the service has ever issued carries this, and one that does not was
-     * issued by the service it replaced, whose ids were bare UUIDs.
-     *
-     * Used to date an id, never to validate one. The relay itself has no opinion on the shape
-     * of either half of a credential: it looks the id up and compares a hash, which is what
-     * lets a connection made against the old service go on working after being carried across.
+     * Both prefixes are from `mintApiId()` and `mintSiteKey()` in the relay's src/lib/keys.ts,
+     * and that file has had one commit in its life - so every pair the service has ever issued
+     * carries them, and a pair that does not cannot be one of ours.
      */
     const CREDENTIAL_ID_PREFIX = 'site_';
+
+    const CREDENTIAL_KEY_PREFIX = 'fask_';
 
     /**
      * How far apart the two refusals that destroy a credential have to be.
@@ -1040,58 +1038,37 @@ class IntegrityHelper
             return true;
         }
 
-        return strpos($apiId, self::CREDENTIAL_ID_PREFIX) === 0;
-    }
-
-    /**
-     * Whether this site is waiting for a key that no longer exists anywhere.
-     *
-     * The narrow case left over once the old service's confirmed connections were carried
-     * across into the current relay. A migrated pair is a working credential - the relay
-     * authenticates by looking its id up and comparing a hash, and has never cared what shape
-     * either half is - so an install holding one must be left entirely alone.
-     *
-     * A site stopped at `pending` is the one that was not carried across and could not be. Its
-     * key was emailed by a service that no longer runs and was never redeemed; the row it
-     * would have been redeemed against is not in the new relay, and the owner has not got the
-     * token. So the screen is asking them to paste something that cannot be produced, and
-     * nothing else here will ever find that out: a pending site posts no reports, so the
-     * refusal path never runs for it.
-     *
-     * The id is what dates it. Anything the current relay issued begins with its own prefix;
-     * a `pending` id that does not was issued by the old one.
-     *
-     * @param array $settings
-     * @return bool
-     */
-    public static function isStrandedRegistration($settings)
-    {
-        if (Arr::get($settings, 'status') !== 'pending') {
+        if (strpos($apiId, self::CREDENTIAL_ID_PREFIX) !== 0) {
             return false;
         }
 
-        return !self::credentialIsCurrent($settings);
+        $apiKey = (string)Arr::get($settings, 'api_key', '');
+
+        /*
+         * Registered, not yet confirmed. There is no key to look at until the emailed one is
+         * redeemed, so the id is the whole of the answer - which is the point: a site left at
+         * `pending` by the old service never posts a report, so nothing else would ever find
+         * out that the key it is waiting for can no longer be redeemed anywhere.
+         */
+        if (!$apiKey) {
+            return true;
+        }
+
+        return strpos($apiKey, self::CREDENTIAL_KEY_PREFIX) === 0;
     }
 
     /**
-     * Release a site from a registration that can never be completed.
+     * Retire a connection that belongs to the previous alerts service.
      *
-     * Deliberately narrow. The confirmed connections the old service held were carried across
-     * into the current relay, keys and all, so an install that finished registering there is
-     * still connected and nothing here may touch it - the relay authenticates by looking an id
-     * up and comparing a hash, and has never cared what shape either half is. Only the
-     * half-finished registrations were left behind, because there was nothing to carry: a key
-     * that was emailed and never redeemed exists in no system either side can reach.
-     *
-     * Called where the credential is about to matter rather than once behind a migration flag,
-     * because a flag only answers for the moment it was set. A site restored from a backup
-     * taken before the move comes up with the flag already set and the old state back in the
-     * option, and a one-time migration has no more to say about it.
+     * Called where the credential is about to matter rather than once behind a migration
+     * flag, because a flag only answers for the moment it was set. A site restored from a
+     * backup taken before the move comes up with the flag already set and the old pair back in
+     * the option, and a one-time migration has no more to say about it.
      *
      * Skipped entirely when a filter has pointed this install somewhere else: another relay
-     * issues its own ids in its own shape, and the prefix this rests on is a fact about ours.
+     * mints its own tokens in its own shape, and the prefixes below are a fact about ours.
      *
-     * @return bool whether a registration was released
+     * @return bool whether a connection was retired
      */
     public static function maybeRetireLegacyConnection()
     {
@@ -1101,7 +1078,7 @@ class IntegrityHelper
 
         $settings = self::getSettings();
 
-        if (!self::isStrandedRegistration($settings)) {
+        if (self::credentialIsCurrent($settings)) {
             return false;
         }
 

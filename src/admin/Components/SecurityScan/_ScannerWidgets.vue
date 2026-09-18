@@ -81,10 +81,10 @@ export default {
             return this.settings.relay_rejection === 'revoked';
         },
         /*
-         * A third state, and not a disowning at all: this site never finished registering
-         * with the service that the current one replaced, so the key it was sent exists
-         * nowhere any more. The way back is the same as a revoked site's - register again -
-         * but the sentence is not, because nothing was lost and nobody did anything wrong.
+         * A third state, and not a disowning at all: the connection was made against the
+         * service this one replaced, and nothing on either side can honour it. The way back
+         * is the same as a revoked site's - register again - but the sentence is not, because
+         * there is nothing here for the owner to have done wrong.
          */
         relayLegacy() {
             return this.settings.relay_rejection === 'legacy';
