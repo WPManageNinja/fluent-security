@@ -397,7 +397,7 @@ class ShortcodeTest extends BaseTestCase
     /**
      * And there is no second chance. maybe2FaRedirect() - the path a shortcode login
      * takes - answers with the form and stops; it never drops the pending cookie that
-     * maybeWithholdAuthCookies() and maybeDenyHeadlessLogin() leave behind. So the
+     * maybeDenyHeadlessLogin() and raiseChallengeForDirectLogin() leave behind. So the
      * resume on the next page load, which is what rescues every other stuck challenge,
      * does not apply here: reloading returns an empty login form and the password has
      * to be typed again, for the same dead form.

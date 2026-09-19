@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FluentAuth - Auth Security Plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-18 17:35+0000\n"
+"POT-Creation-Date: 2026-09-19 22:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -512,7 +512,7 @@ msgid ""
 msgstr ""
 
 #. %s: Form Field Label
-#: app/Hooks/Handlers/CustomAuthHandler.php:1110
+#: app/Hooks/Handlers/CustomAuthHandler.php:1117
 #, php-format
 msgid "%s is required"
 msgstr ""
@@ -710,7 +710,7 @@ msgstr ""
 msgid "%s: %s"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1355
+#: app/Hooks/Handlers/CustomAuthHandler.php:1391
 msgid "2FA Code"
 msgstr ""
 
@@ -718,56 +718,58 @@ msgstr ""
 msgid "2FA Enrollment"
 msgstr ""
 
-#: app/Services/AuthService.php:402
+#: app/Services/AuthService.php:445
 msgid ""
-"<strong>Error:</strong> This email address is already registered. Please "
-"login or try reset password"
+"<strong>Error:</strong> That email address already has an account. Please "
+"sign in, or reset your password."
 msgstr ""
 
-#: app/Services/AuthService.php:347
+#: app/Services/AuthService.php:422
+msgid "<strong>Error</strong>: Please enter a username."
+msgstr ""
+
+#: app/Services/AuthService.php:438
+msgid "<strong>Error</strong>: Please enter your email address."
+msgstr ""
+
+#: app/Services/AuthService.php:440
+msgid "<strong>Error</strong>: That email address does not look right."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:410
 msgid ""
-"<strong>Error</strong>: Could not register you. Please contact the site "
-"admin!"
+"<strong>Error</strong>: That username and password do not match. Please try "
+"again."
+msgstr ""
+
+#: app/Services/AuthService.php:427
+msgid ""
+"<strong>Error</strong>: That username is already taken. Please choose "
+"another one."
+msgstr ""
+
+#: app/Services/AuthService.php:432
+msgid ""
+"<strong>Error</strong>: That username is not available. Please choose "
+"another one."
+msgstr ""
+
+#: app/Services/AuthService.php:424
+msgid ""
+"<strong>Error</strong>: That username uses characters that are not allowed. "
+"Please try another one."
 msgstr ""
 
 #: app/Hooks/Handlers/CustomAuthHandler.php:764
 msgid ""
-"<strong>Error</strong>: Invalid username, email address or incorrect "
-"password."
+"<strong>Error</strong>: That username, email address or password is not "
+"correct."
 msgstr ""
 
-#: app/Services/AuthService.php:379
-msgid "<strong>Error</strong>: Please enter a username."
-msgstr ""
-
-#: app/Services/AuthService.php:395
-msgid "<strong>Error</strong>: Please type your email address."
-msgstr ""
-
-#: app/Services/AuthService.php:389
-msgid "<strong>Error</strong>: Sorry, that username is not allowed."
-msgstr ""
-
-#: app/Services/AuthService.php:397
-msgid "<strong>Error</strong>: The email address is not correct."
-msgstr ""
-
-#: app/Hooks/Handlers/LoginSecurityHandler.php:383
+#: app/Services/AuthService.php:390
 msgid ""
-"<strong>Error</strong>: The username or the password is invalid. Please try "
-"different combination."
-msgstr ""
-
-#: app/Services/AuthService.php:384
-msgid ""
-"<strong>Error</strong>: This username is already registered. Please choose "
-"another one."
-msgstr ""
-
-#: app/Services/AuthService.php:381
-msgid ""
-"<strong>Error</strong>: This username is invalid because it uses illegal "
-"characters. Please enter a valid username."
+"<strong>Error</strong>: We could not create your account. Please contact the "
+"site owner."
 msgstr ""
 
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:264
@@ -979,7 +981,7 @@ msgid "A verification code has been sent to %s. Please provide the code below:"
 msgstr ""
 
 #. %s: Email
-#: app/Hooks/Handlers/CustomAuthHandler.php:1348
+#: app/Hooks/Handlers/CustomAuthHandler.php:1384
 #, php-format
 msgid ""
 "A verification code has been sent to %s. Please provide the code below: "
@@ -1013,7 +1015,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1331
+#: app/Hooks/Handlers/CustomAuthHandler.php:1367
 msgid "Activate your account"
 msgstr ""
 
@@ -1094,17 +1096,16 @@ msgstr ""
 msgid "Add the address of the proxy in front of this site."
 msgstr ""
 
+#: app/Services/TwoFa/TwoFaBypass.php:250
+msgid ""
+"Add this line to your site's wp-config.php file, then sign in with your "
+"password:"
+msgstr ""
+
 #: app/Services/Checks/Config/ConfigConstantCheck.php:78
 msgid ""
 "Add this line to your wp-config.php, above the line that says \"That's all, "
 "stop editing\"."
-msgstr ""
-
-#: app/Services/TwoFa/TwoFaBypass.php:232
-msgid ""
-"Add this line to your wp-config.php, above the line that says \"That's all, "
-"stop editing\". It turns the second factor off for your account only, so you "
-"can sign in and fix it."
 msgstr ""
 
 #: app/Services/TransStrings.php:124
@@ -1300,7 +1301,7 @@ msgid ""
 "during the login process when Two-Factor Authentication (2FA) is enabled."
 msgstr ""
 
-#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:246
+#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:261
 msgid "An error occurred during the login process. Please try again."
 msgstr ""
 
@@ -1436,7 +1437,7 @@ msgstr ""
 msgid "App"
 msgstr ""
 
-#: app/Helpers/Helper.php:344
+#: app/Helpers/Helper.php:345
 msgid "Application password"
 msgstr ""
 
@@ -1504,7 +1505,7 @@ msgstr ""
 msgid "Authenticator App"
 msgstr ""
 
-#: app/Helpers/Helper.php:335 app/Helpers/Helper.php:338
+#: app/Helpers/Helper.php:336 app/Helpers/Helper.php:339
 #: app/Services/TransStrings.php:172
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:290
 #: app/Services/TwoFa/FactorMigration.php:155
@@ -1644,7 +1645,7 @@ msgstr ""
 msgid "Block XML-RPC requests"
 msgstr ""
 
-#: app/Helpers/Helper.php:272 app/Services/TransStrings.php:196
+#: app/Helpers/Helper.php:273 app/Services/TransStrings.php:196
 #: app/Http/Controllers/DashboardController.php:293
 msgid "Blocked"
 msgstr ""
@@ -1681,11 +1682,11 @@ msgstr ""
 msgid "Browser details"
 msgstr ""
 
-#: app/Helpers/Helper.php:357
+#: app/Helpers/Helper.php:361
 msgid "Bulk password reset finished"
 msgstr ""
 
-#: app/Helpers/Helper.php:356
+#: app/Helpers/Helper.php:360
 msgid "Bulk password reset started"
 msgstr ""
 
@@ -1729,10 +1730,6 @@ msgstr ""
 
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:1144
 msgid "Cancelled."
-msgstr ""
-
-#: app/Services/TwoFa/TwoFaBypass.php:229
-msgid "Cannot complete this step?"
 msgstr ""
 
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:651
@@ -1787,6 +1784,10 @@ msgstr ""
 
 #: app/Services/TransStrings.php:215
 msgid "Check who can change your site"
+msgstr ""
+
+#: app/Services/TwoFa/EmailTwoFaMethod.php:198
+msgid "Check your email for your login code, then type it in below."
 msgstr ""
 
 #: app/Hooks/Handlers/MagicLoginHandler.php:362
@@ -1937,7 +1938,7 @@ msgid ""
 "Comparing your premium and custom plugins and themes with your snapshot."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1370
+#: app/Hooks/Handlers/CustomAuthHandler.php:1406
 msgid "Complete Signup"
 msgstr ""
 
@@ -2396,10 +2397,6 @@ msgstr ""
 msgid "Email Address Change Notification After Confirmation"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:729
-msgid "Email and Password is required"
-msgstr ""
-
 #: app/Http/Controllers/SystemEmailsController.php:156
 msgid "Email body is not valid. Please check the smartcodes."
 msgstr ""
@@ -2408,7 +2405,7 @@ msgstr ""
 msgid "Email Code"
 msgstr ""
 
-#: app/Helpers/Helper.php:334 app/Helpers/Helper.php:337
+#: app/Helpers/Helper.php:335 app/Helpers/Helper.php:338
 #: app/Services/TransStrings.php:309
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:540
 msgid "Email code"
@@ -2437,10 +2434,6 @@ msgstr ""
 
 #: app/Services/TransStrings.php:311
 msgid "Email me about sign-ins"
-msgstr ""
-
-#: app/Hooks/Handlers/CustomAuthHandler.php:769
-msgid "Email or Password is not valid. Please try again"
 msgstr ""
 
 #: app/Http/Controllers/SystemEmailsController.php:179
@@ -2745,7 +2738,7 @@ msgstr ""
 msgid "Expected"
 msgstr ""
 
-#: app/Helpers/Helper.php:347 app/Services/TransStrings.php:358
+#: app/Helpers/Helper.php:351 app/Services/TransStrings.php:358
 msgid "Facebook"
 msgstr ""
 
@@ -2757,7 +2750,7 @@ msgstr ""
 msgid "Facebook App Secret"
 msgstr ""
 
-#: app/Helpers/Helper.php:267 app/Http/Controllers/DashboardController.php:292
+#: app/Helpers/Helper.php:268 app/Http/Controllers/DashboardController.php:292
 msgid "Failed"
 msgstr ""
 
@@ -2801,7 +2794,7 @@ msgid ""
 "Jetpack."
 msgstr ""
 
-#: app/Helpers/Helper.php:358
+#: app/Helpers/Helper.php:362
 msgid "File deleted"
 msgstr ""
 
@@ -2813,11 +2806,11 @@ msgstr ""
 msgid "File monitoring"
 msgstr ""
 
-#: app/Helpers/Helper.php:359
+#: app/Helpers/Helper.php:363
 msgid "File quarantined"
 msgstr ""
 
-#: app/Helpers/Helper.php:360
+#: app/Helpers/Helper.php:364
 msgid "File restored"
 msgstr ""
 
@@ -2869,12 +2862,12 @@ msgstr ""
 msgid "Finish setup and sign in"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:1229
+#: app/Hooks/Handlers/TwoFaHandler.php:1122
 msgid "Finish signing in"
 msgstr ""
 
 #. %s: URL of the second factor form
-#: app/Hooks/Handlers/TwoFaHandler.php:1234
+#: app/Hooks/Handlers/TwoFaHandler.php:1127
 #, php-format
 msgid "Finish signing in at %s"
 msgstr ""
@@ -2981,10 +2974,6 @@ msgstr ""
 msgid "Form Validation failed"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:830
-msgid "Form validation failed. Please provide the correct data"
-msgstr ""
-
 #: app/Services/TransStrings.php:384
 msgid "Forms"
 msgstr ""
@@ -3065,7 +3054,7 @@ msgstr ""
 msgid "Get the token"
 msgstr ""
 
-#: app/Helpers/Helper.php:346 app/Services/TransStrings.php:393
+#: app/Helpers/Helper.php:350 app/Services/TransStrings.php:393
 msgid "GitHub"
 msgstr ""
 
@@ -3104,7 +3093,7 @@ msgstr ""
 msgid "Good morning %s"
 msgstr ""
 
-#: app/Helpers/Helper.php:345 app/Services/TransStrings.php:402
+#: app/Helpers/Helper.php:349 app/Services/TransStrings.php:402
 msgid "Google"
 msgstr ""
 
@@ -3135,6 +3124,10 @@ msgstr ""
 msgid "Google, GitHub and Facebook sign-in"
 msgstr ""
 
+#: app/Services/TwoFa/TwoFaBypass.php:244
+msgid "Having trouble with this step?"
+msgstr ""
+
 #: app/Services/TransStrings.php:408
 msgid "Header that carries the visitor's address"
 msgstr ""
@@ -3146,7 +3139,7 @@ msgstr ""
 #. %s: First Name
 #. %s: user's display name
 #. %s: User's Display Name
-#: app/Hooks/Handlers/CustomAuthHandler.php:1320
+#: app/Hooks/Handlers/CustomAuthHandler.php:1356
 #: app/Hooks/Handlers/MagicLoginHandler.php:287
 #: app/Services/TwoFa/EmailTwoFaMethod.php:298
 #, php-format
@@ -3158,7 +3151,7 @@ msgid "Here is your new set. The previous codes no longer work."
 msgstr ""
 
 #. %s: User's first name
-#: app/Hooks/Handlers/CustomAuthHandler.php:1055
+#: app/Hooks/Handlers/CustomAuthHandler.php:1062
 #, php-format
 msgid "Hi %s,"
 msgstr ""
@@ -3311,7 +3304,7 @@ msgstr ""
 msgid "If you did not make this request, you can safely ignore this email."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1060
+#: app/Hooks/Handlers/CustomAuthHandler.php:1067
 msgid ""
 "If you did not request to reset your password, please ignore this email."
 msgstr ""
@@ -3326,6 +3319,12 @@ msgstr ""
 msgid ""
 "If you use Jetpack, a mobile app, or a tool that posts to this site for you, "
 "leave XML-RPC unblocked."
+msgstr ""
+
+#: app/Services/TwoFa/TwoFaBypass.php:247
+msgid ""
+"If you've lost your phone, or your code isn't working, you can still get "
+"into your site."
 msgstr ""
 
 #: app/Http/Controllers/SecurityScanController.php:1298
@@ -3432,10 +3431,6 @@ msgstr ""
 
 #: app/Http/Controllers/SettingsController.php:503
 msgid "Invalid site URL"
-msgstr ""
-
-#: app/Hooks/Handlers/TwoFaHandler.php:1405
-msgid "Invalid two factor authentication code"
 msgstr ""
 
 #: app/Http/Controllers/SettingsController.php:623
@@ -3643,7 +3638,7 @@ msgid "Log has been deleted"
 msgstr ""
 
 #: app/Services/TransStrings.php:472
-#: app/Hooks/Handlers/CustomAuthHandler.php:1198
+#: app/Hooks/Handlers/CustomAuthHandler.php:1234
 msgid "Log In"
 msgstr ""
 
@@ -3682,11 +3677,16 @@ msgstr ""
 msgid "Login Code"
 msgstr ""
 
+#: app/Services/SystemEmailService.php:118
+#: app/Services/TwoFa/EmailTwoFaMethod.php:199
+msgid "Login code"
+msgstr ""
+
 #: app/Services/SystemEmailService.php:124
 msgid "Login Email via Magic URL"
 msgstr ""
 
-#: app/Helpers/Helper.php:332 app/Services/TransStrings.php:482
+#: app/Helpers/Helper.php:333 app/Services/TransStrings.php:482
 msgid "Login form"
 msgstr ""
 
@@ -3745,10 +3745,6 @@ msgstr ""
 msgid "Login via URL"
 msgstr ""
 
-#: app/Hooks/Handlers/MagicLoginHandler.php:173
-msgid "Login via URL is not activated"
-msgstr ""
-
 #: app/Hooks/Handlers/SocialAuthHandler.php:420
 msgid "Login with"
 msgstr ""
@@ -3763,7 +3759,7 @@ msgstr ""
 msgid "Login/Signup Forms"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:690
+#: app/Hooks/Handlers/LoginSecurityHandler.php:909
 msgid "Logins from your network are not permitted on this site."
 msgstr ""
 
@@ -3802,7 +3798,7 @@ msgstr ""
 msgid "Lost your password?"
 msgstr ""
 
-#: app/Helpers/Helper.php:333
+#: app/Helpers/Helper.php:334
 msgid "Magic link"
 msgstr ""
 
@@ -4169,10 +4165,6 @@ msgstr ""
 
 #: app/Services/TransStrings.php:552
 msgid "Nobody yet"
-msgstr ""
-
-#: app/Hooks/Handlers/MagicLoginHandler.php:218
-msgid "Nonce Verification failed. Please try again"
 msgstr ""
 
 #: app/Services/TransStrings.php:553
@@ -4635,6 +4627,10 @@ msgstr ""
 msgid "Or a setup link"
 msgstr ""
 
+#: app/Services/TwoFa/EmailTwoFaMethod.php:313
+msgid "Or you can sign in by tapping the button below."
+msgstr ""
+
 #: app/Services/TransStrings.php:609
 msgid "Other plugins are also enforcing two-factor login"
 msgstr ""
@@ -4657,7 +4653,7 @@ msgstr ""
 msgid "Passed"
 msgstr ""
 
-#: app/Helpers/Helper.php:339 app/Services/TransStrings.php:614
+#: app/Helpers/Helper.php:340 app/Services/TransStrings.php:614
 #: app/Hooks/Handlers/TotpSetupPageHandler.php:303
 #: app/Services/TwoFa/PasskeyTwoFaMethod.php:47
 #: app/Services/TwoFa/EnrollmentTwoFaMethod.php:575
@@ -4665,7 +4661,7 @@ msgstr ""
 msgid "Passkey"
 msgstr ""
 
-#: app/Helpers/Helper.php:341
+#: app/Helpers/Helper.php:342
 msgid "Passkey (no password)"
 msgstr ""
 
@@ -4712,19 +4708,15 @@ msgstr ""
 #: app/Hooks/Handlers/LoginCustomizerHandler.php:220
 #: app/Hooks/Handlers/CustomAuthHandler.php:459
 #: app/Hooks/Handlers/CustomAuthHandler.php:461
-#: app/Hooks/Handlers/CustomAuthHandler.php:1196
+#: app/Hooks/Handlers/CustomAuthHandler.php:1232
 msgid "Password"
-msgstr ""
-
-#: app/Hooks/Handlers/LoginCustomizerHandler.php:423
-msgid "Password and Confirm password need to be matched"
 msgstr ""
 
 #: app/Services/SystemEmailService.php:98
 msgid "Password Change Notification"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1124
+#: app/Hooks/Handlers/CustomAuthHandler.php:1131
 msgid "Password must be at least 6 characters long"
 msgstr ""
 
@@ -4736,7 +4728,7 @@ msgstr ""
 msgid "Password Reset Request Email"
 msgstr ""
 
-#: app/Helpers/Helper.php:367
+#: app/Helpers/Helper.php:371
 msgid "Password reset requested"
 msgstr ""
 
@@ -4840,7 +4832,7 @@ msgid ""
 "with your app values)."
 msgstr ""
 
-#: app/Hooks/Handlers/LoginCustomizerHandler.php:427
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:446
 msgid "Please agree to the terms and conditions."
 msgstr ""
 
@@ -4850,14 +4842,8 @@ msgid ""
 "app."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1002
+#: app/Hooks/Handlers/CustomAuthHandler.php:1009
 msgid "Please check your email for the reset link"
-msgstr ""
-
-#: app/Services/TwoFa/EmailTwoFaMethod.php:198
-msgid ""
-"Please check your email inbox and get the 2 factor Authentication code and "
-"Provide here to login"
 msgstr ""
 
 #. %s: the site name
@@ -4866,7 +4852,12 @@ msgstr ""
 msgid "Please choose a new password for %s"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:64
+#: app/Services/AuthService.php:221
+#: app/Hooks/Handlers/CustomAuthHandler.php:924
+msgid "Please complete the second step to finish signing in."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:91
 msgid ""
 "Please contact an administrator of this site to have your address allowed."
 msgstr ""
@@ -4879,11 +4870,24 @@ msgstr ""
 msgid "Please enter the code from your authenticator app"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginCustomizerHandler.php:401
+#: app/Services/TwoFa/TotpTwoFaMethod.php:252
+msgid "Please enter the code from your authenticator app."
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:729
+msgid "Please enter your email address and password."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:420
 msgid "Please enter your full name."
 msgstr ""
 
-#: app/Hooks/Handlers/LoginCustomizerHandler.php:419
+#: app/Hooks/Handlers/TwoFaHandler.php:401
+#: app/Services/TwoFa/EmailTwoFaMethod.php:175
+msgid "Please enter your login code."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:438
 msgid "Please enter your password."
 msgstr ""
 
@@ -4892,7 +4896,7 @@ msgstr ""
 msgid "Please paste the previous encryption key."
 msgstr ""
 
-#: app/Hooks/Handlers/LoginCustomizerHandler.php:410
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:429
 msgid "Please provide a full name."
 msgstr ""
 
@@ -4914,24 +4918,13 @@ msgstr ""
 msgid "Please provide a valid interval."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:418
-#: app/Services/TwoFa/EmailTwoFaMethod.php:175
-#: app/Services/TwoFa/TotpTwoFaMethod.php:252
-msgid "Please provide a valid login code"
-msgstr ""
-
 #: app/Hooks/Handlers/CustomAuthHandler.php:864
 #: app/Hooks/Handlers/CustomAuthHandler.php:869
 msgid "Please provide a valid name"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginCustomizerHandler.php:415
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:434
 msgid "Please provide a valid name."
-msgstr ""
-
-#: app/Services/AuthService.php:423 app/Services/AuthService.php:440
-msgid ""
-"Please provide a valid vefification code that sent to your email address"
 msgstr ""
 
 #: app/Http/Controllers/SecurityScanController.php:403
@@ -4966,11 +4959,11 @@ msgstr ""
 msgid "Plugin"
 msgstr ""
 
-#: app/Helpers/Helper.php:364
+#: app/Helpers/Helper.php:368
 msgid "Plugin activated"
 msgstr ""
 
-#: app/Helpers/Helper.php:365
+#: app/Helpers/Helper.php:369
 msgid "Plugin deactivated"
 msgstr ""
 
@@ -4978,11 +4971,11 @@ msgstr ""
 msgid "Plugin installation failed. Please try again."
 msgstr ""
 
-#: app/Helpers/Helper.php:362
+#: app/Helpers/Helper.php:366
 msgid "Plugin reinstalled"
 msgstr ""
 
-#: app/Helpers/Helper.php:366
+#: app/Helpers/Helper.php:370
 msgid "Plugin updated"
 msgstr ""
 
@@ -5010,6 +5003,10 @@ msgstr ""
 msgid "Previous Email Address"
 msgstr ""
 
+#: app/Helpers/Helper.php:348
+msgid "Programmatic login"
+msgstr ""
+
 #: app/Services/Onboarding.php:289
 msgid "Protections"
 msgstr ""
@@ -5022,12 +5019,12 @@ msgid ""
 "used for API key generation and security updates."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:226
+#: app/Hooks/Handlers/TwoFaHandler.php:209
 msgid "Provide Login Code"
 msgstr ""
 
 #. %s: Form Field Label
-#: app/Hooks/Handlers/CustomAuthHandler.php:1116
+#: app/Hooks/Handlers/CustomAuthHandler.php:1123
 #, php-format
 msgid "Provided %s is not a valid email"
 msgstr ""
@@ -5190,10 +5187,6 @@ msgstr ""
 msgid "Registration confirmation will be emailed to you."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:915
-msgid "Registration has been completed. Please login now"
-msgstr ""
-
 #: app/Services/TransStrings.php:676
 msgid "Registration only"
 msgstr ""
@@ -5262,7 +5255,7 @@ msgid "Relaxed"
 msgstr ""
 
 #: app/Services/TransStrings.php:686
-#: app/Hooks/Handlers/CustomAuthHandler.php:1197
+#: app/Hooks/Handlers/CustomAuthHandler.php:1233
 msgid "Remember Me"
 msgstr ""
 
@@ -5383,8 +5376,8 @@ msgid "Reset Password"
 msgstr ""
 
 #. %s: Site Name
-#: app/Hooks/Handlers/CustomAuthHandler.php:1033
-#: app/Hooks/Handlers/CustomAuthHandler.php:1052
+#: app/Hooks/Handlers/CustomAuthHandler.php:1040
+#: app/Hooks/Handlers/CustomAuthHandler.php:1059
 #, php-format
 msgid "Reset your password for %s"
 msgstr ""
@@ -5714,11 +5707,6 @@ msgstr ""
 msgid "Security verification failed"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:806
-#: app/Hooks/Handlers/CustomAuthHandler.php:959
-msgid "Security verification failed. Please try again"
-msgstr ""
-
 #: app/Services/TwoFa/RivalTwoFa.php:270
 msgid "Security → Settings → Two-Factor"
 msgstr ""
@@ -5816,7 +5804,7 @@ msgstr ""
 msgid "Server Mode Settings"
 msgstr ""
 
-#: app/Helpers/Helper.php:355
+#: app/Helpers/Helper.php:359
 msgid "Sessions cleared"
 msgstr ""
 
@@ -6068,6 +6056,10 @@ msgstr ""
 msgid "Sign-in code"
 msgstr ""
 
+#: app/Hooks/Handlers/MagicLoginHandler.php:173
+msgid "Sign-in links are switched off on this site."
+msgstr ""
+
 #: app/Services/TransStrings.php:805
 msgid "Sign-in methods"
 msgstr ""
@@ -6081,6 +6073,11 @@ msgstr ""
 #: app/Services/Recovery/RecoveryService.php:279
 #, php-format
 msgid "Signed in %s ago"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:787
+msgid ""
+"Signed in by another plugin or script, without a password or a login form."
 msgstr ""
 
 #: app/Hooks/Handlers/TwoFaBypassHandler.php:55
@@ -6146,7 +6143,7 @@ msgstr ""
 msgid "Single-use codes to get back in if you lose the device."
 msgstr ""
 
-#: app/Helpers/Helper.php:277
+#: app/Helpers/Helper.php:278
 msgid "Site activity"
 msgstr ""
 
@@ -6228,6 +6225,10 @@ msgstr ""
 msgid "Some files differ from the official copies on WordPress.org"
 msgstr ""
 
+#: app/Hooks/Handlers/CustomAuthHandler.php:830
+msgid "Some of the details are not right. Please check the form and try again."
+msgstr ""
+
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:664
 msgid "Some password managers accept this directly."
 msgstr ""
@@ -6246,22 +6247,20 @@ msgstr ""
 msgid "Some sign-in methods are off"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1056
-msgid ""
-"Someone has requested a new password for the following account on WordPress:"
-msgstr ""
-
-#: app/Services/TransStrings.php:821
-#, php-format
-msgid "Someone just signed in to %s."
+#: app/Hooks/Handlers/CustomAuthHandler.php:1063
+msgid "Someone asked to reset the password for this account:"
 msgstr ""
 
 #. %s: Site Name
 #: app/Services/TwoFa/EmailTwoFaMethod.php:300
 #, php-format
 msgid ""
-"Someone requested to login to %s and here is the Login code that you can use "
-"in the login form"
+"Someone asked to sign in to %s. Here is the code to type into the login form:"
+msgstr ""
+
+#: app/Services/TransStrings.php:821
+#, php-format
+msgid "Someone just signed in to %s."
 msgstr ""
 
 #: app/Services/TransStrings.php:822
@@ -6280,6 +6279,10 @@ msgstr ""
 
 #: app/Services/Checks/Files/MuPluginsCheck.php:88
 msgid "Something running on every page of your site has changed"
+msgstr ""
+
+#: app/Hooks/Handlers/TwoFaHandler.php:531
+msgid "Something went wrong while signing you in. Please try again."
 msgstr ""
 
 #: app/Services/TransStrings.php:825
@@ -6331,7 +6334,7 @@ msgstr ""
 msgid "Sorry! we could not find your valid email from Facebook API"
 msgstr ""
 
-#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:162
+#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:177
 #: app/Hooks/Handlers/SocialAuthHandler.php:287
 msgid "Sorry! we could not find your valid email from Google API"
 msgstr ""
@@ -6348,21 +6351,8 @@ msgstr ""
 msgid "Sorry, we could not fetch the original file from WordPress.org."
 msgstr ""
 
-#: app/Hooks/Handlers/MagicLoginHandler.php:256
-msgid "Sorry, You can not login via magic url. Please use regular login form"
-msgstr ""
-
-#: app/Hooks/Handlers/TwoFaHandler.php:463
-#: app/Services/TwoFa/TotpTwoFaMethod.php:261
-msgid "Sorry, You can not use this verification method"
-msgstr ""
-
 #: app/Http/Controllers/SettingsController.php:442
 msgid "Sorry, you can only upload JPG, PNG, GIF, WebP or BMP files."
-msgstr ""
-
-#: app/Hooks/Handlers/TwoFaHandler.php:444
-msgid "Sorry, your login code has been expired. Please try to login again"
 msgstr ""
 
 #: app/Hooks/Handlers/TwoFaProfileHandler.php:544
@@ -6440,7 +6430,7 @@ msgstr ""
 msgid "Subscribe to updates"
 msgstr ""
 
-#: app/Helpers/Helper.php:262 app/Http/Controllers/DashboardController.php:291
+#: app/Helpers/Helper.php:263 app/Http/Controllers/DashboardController.php:291
 msgid "Successful"
 msgstr ""
 
@@ -6453,7 +6443,7 @@ msgstr ""
 msgid "Successful sign-ins"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:924
+#: app/Hooks/Handlers/CustomAuthHandler.php:930
 msgid "Successfully registered to the site."
 msgstr ""
 
@@ -6526,13 +6516,6 @@ msgid ""
 "has already been broken into would treat the break-in as normal."
 msgstr ""
 
-#: app/Services/TwoFa/TwoFaBypass.php:244
-msgid ""
-"Take the line out again once you are back in and your second factor is "
-"working. While it is there, this account is protected by its password alone, "
-"and every sign in it allows is recorded in the log."
-msgstr ""
-
 #: app/Services/TransStrings.php:851
 msgid "Taken"
 msgstr ""
@@ -6587,10 +6570,10 @@ msgid ""
 "to enable enhanced security of your site"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1321
+#: app/Hooks/Handlers/CustomAuthHandler.php:1357
 msgid ""
-"Thank you for registering with us! To complete the setup of your account, "
-"please enter the verification code below on the registration page."
+"Thanks for signing up. Enter the code below on the registration page to "
+"finish setting up your account."
 msgstr ""
 
 #: app/Hooks/Handlers/TotpProfileHandler.php:111
@@ -6598,6 +6581,27 @@ msgstr ""
 msgid ""
 "That code did not match. Check your phone clock is set automatically, then "
 "try the current code."
+msgstr ""
+
+#: app/Services/AuthService.php:466 app/Services/AuthService.php:483
+msgid ""
+"That code does not match the one we emailed you. Please check and try again."
+msgstr ""
+
+#: app/Services/AuthService.php:471
+msgid "That code has expired. Please ask for a new one."
+msgstr ""
+
+#: app/Hooks/Handlers/TwoFaHandler.php:427
+msgid "That code has expired. Please sign in again."
+msgstr ""
+
+#: app/Hooks/Handlers/TwoFaHandler.php:1298
+msgid "That code is not correct."
+msgstr ""
+
+#: app/Hooks/Handlers/TwoFaHandler.php:462
+msgid "That code is not correct. Please try again."
 msgstr ""
 
 #: app/Services/TwoFa/PasskeyTwoFaMethod.php:320
@@ -6608,8 +6612,25 @@ msgstr ""
 msgid "That does not look like an email address."
 msgstr ""
 
+#: app/Hooks/Handlers/CustomAuthHandler.php:769
+msgid "That email address and password do not match. Please try again."
+msgstr ""
+
 #: app/Services/Optin.php:164
 msgid "That email address is not valid."
+msgstr ""
+
+#: app/Services/TwoFa/TwoFaBypass.php:263
+msgid ""
+"That file sits with the rest of your site's files on your server. The line "
+"can go anywhere above the line that says \"That's all, stop editing\". If "
+"you're not sure how to do that, your hosting support can add it for you."
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:806
+#: app/Hooks/Handlers/CustomAuthHandler.php:966
+#: app/Hooks/Handlers/MagicLoginHandler.php:218
+msgid "That form had been open too long. Please reload the page and try again."
 msgstr ""
 
 #: app/Hooks/Handlers/TotpSetupPageHandler.php:159
@@ -6657,6 +6678,10 @@ msgstr ""
 
 #: app/Services/ConfigWriter.php:148 app/Services/ConfigWriter.php:263
 msgid "That key contains characters that will not be written to a PHP file."
+msgstr ""
+
+#: app/Hooks/Handlers/TwoFaHandler.php:413
+msgid "That link or code is not valid."
 msgstr ""
 
 #: app/Hooks/Handlers/PasskeyProfileHandler.php:193
@@ -6736,6 +6761,11 @@ msgstr ""
 #: app/Services/TwoFa/PasskeyTwoFaMethod.php:472
 #: app/Services/TwoFa/EnrollmentTwoFaMethod.php:336
 msgid "That was cancelled. You can try again."
+msgstr ""
+
+#: app/Hooks/Handlers/TwoFaHandler.php:446
+#: app/Services/TwoFa/TotpTwoFaMethod.php:261
+msgid "That way of signing in is not available for your account."
 msgstr ""
 
 #: app/Services/TransStrings.php:860
@@ -6851,6 +6881,12 @@ msgstr ""
 
 #: app/Services/TransStrings.php:867
 msgid "The card the message sits on."
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:1361
+msgid ""
+"The code works for 10 minutes. If you did not ask for it, you can ignore "
+"this email."
 msgstr ""
 
 #: app/Services/TransStrings.php:868
@@ -7200,7 +7236,7 @@ msgstr ""
 msgid "Theme"
 msgstr ""
 
-#: app/Helpers/Helper.php:363
+#: app/Helpers/Helper.php:367
 msgid "Theme reinstalled"
 msgstr ""
 
@@ -7228,10 +7264,6 @@ msgstr ""
 #: app/Http/Controllers/SecurityScanController.php:561
 msgid ""
 "There are no must-use plugins on this site, so there is nothing to record."
-msgstr ""
-
-#: app/Hooks/Handlers/TwoFaHandler.php:548
-msgid "There has an error when log you in. Please try to login again"
 msgstr ""
 
 #: app/Services/TransStrings.php:899
@@ -7397,7 +7429,7 @@ msgstr ""
 msgid "Think somebody has been in?"
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:637
+#: app/Hooks/Handlers/TwoFaHandler.php:620
 msgid ""
 "This account needs a second factor, which cannot be completed over the REST "
 "API. Sign in through the site's login page, or use an application password."
@@ -7437,10 +7469,11 @@ msgid ""
 "it stored."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1325
+#: app/Services/TwoFa/TwoFaBypass.php:266
 msgid ""
-"This code is valid for 10 minutes and is meant to ensure the security of "
-"your account. If you did not initiate this request, please ignore this email."
+"This changes your account only - everyone else signs in as usual. While the "
+"line is there, your password is the only thing keeping your account safe, so "
+"take it out once your code is working again."
 msgstr ""
 
 #. %d: Minute
@@ -7697,7 +7730,7 @@ msgid ""
 "still logged."
 msgstr ""
 
-#: app/Hooks/Handlers/PasskeyLoginHandler.php:289
+#: app/Hooks/Handlers/PasskeyLoginHandler.php:301
 msgid "This page has expired. Please reload it and try again."
 msgstr ""
 
@@ -7899,6 +7932,10 @@ msgstr ""
 msgid "This user does not have an authenticator app set up"
 msgstr ""
 
+#: app/Hooks/Handlers/LoginCustomizerHandler.php:442
+msgid "Those two passwords do not match."
+msgstr ""
+
 #: app/Services/TransStrings.php:946
 msgid "Thursday"
 msgstr ""
@@ -7937,7 +7974,13 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:274
+#. %d: minutes
+#: app/Hooks/Handlers/LoginSecurityHandler.php:486
+msgid ""
+"Too many attempts from your network. Please wait %d minutes and try again."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:301
 msgid "Too many failed application password attempts"
 msgstr ""
 
@@ -7946,13 +7989,19 @@ msgstr ""
 msgid "Too many failed attempts. Try again in %s minutes."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:452
-msgid ""
-"Too many invalid attempts for this login code. Please try to login again"
+#: app/Hooks/Handlers/CustomAuthHandler.php:1332
+msgid "Too many requests. Please try again later"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1296
-msgid "Too many requests. Please try again later"
+#: app/Hooks/Handlers/TwoFaHandler.php:435
+msgid "Too many tries with that code. Please sign in again."
+msgstr ""
+
+#. %d: munites
+#. %d: Minite
+#: app/Hooks/Handlers/LoginSecurityHandler.php:985
+#: app/Hooks/Handlers/MagicLoginHandler.php:208
+msgid "Too many tries. Please wait %d minutes and try again."
 msgstr ""
 
 #: app/Services/TransStrings.php:953
@@ -8102,11 +8151,6 @@ msgid ""
 "your host."
 msgstr ""
 
-#: app/Services/SystemEmailService.php:118
-#: app/Services/TwoFa/EmailTwoFaMethod.php:199
-msgid "Two-Factor Authentication Code"
-msgstr ""
-
 #: app/Services/TwoFa/EnrollmentTwoFaMethod.php:508
 msgid "Two-factor authentication could not be saved. Please try again."
 msgstr ""
@@ -8134,7 +8178,7 @@ msgstr ""
 msgid "Two-factor method"
 msgstr ""
 
-#: app/Helpers/Helper.php:342
+#: app/Helpers/Helper.php:343
 msgid "Two-factor setup"
 msgstr ""
 
@@ -8142,7 +8186,7 @@ msgstr ""
 msgid "Two-factor sign-in is off"
 msgstr ""
 
-#: app/Helpers/Helper.php:343
+#: app/Helpers/Helper.php:344
 msgid "Two-factor skipped (wp-config)"
 msgstr ""
 
@@ -8310,7 +8354,7 @@ msgstr ""
 msgid "User Data"
 msgstr ""
 
-#: app/Services/AuthService.php:178
+#: app/Services/AuthService.php:186
 msgid "User not found"
 msgstr ""
 
@@ -8319,7 +8363,7 @@ msgstr ""
 msgid "User Profile Edit URL"
 msgstr ""
 
-#: app/Services/AuthService.php:44
+#: app/Services/AuthService.php:45
 msgid "User registration is disabled"
 msgstr ""
 
@@ -8349,16 +8393,16 @@ msgid "Username or Email"
 msgstr ""
 
 #: app/Services/TransStrings.php:992
-#: app/Hooks/Handlers/CustomAuthHandler.php:1195
+#: app/Hooks/Handlers/CustomAuthHandler.php:1231
 msgid "Username or Email Address"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:968
+#: app/Hooks/Handlers/CustomAuthHandler.php:975
 msgid "Username or email is required"
 msgstr ""
 
 #. %s: User's Login
-#: app/Hooks/Handlers/CustomAuthHandler.php:1058
+#: app/Hooks/Handlers/CustomAuthHandler.php:1065
 #, php-format
 msgid "Username: %s"
 msgstr ""
@@ -8396,7 +8440,7 @@ msgid ""
 "safe."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1351
+#: app/Hooks/Handlers/CustomAuthHandler.php:1387
 msgid "Verification Code"
 msgstr ""
 
@@ -8405,7 +8449,7 @@ msgid "Verification code"
 msgstr ""
 
 #. %s: Verification code
-#: app/Hooks/Handlers/CustomAuthHandler.php:1323
+#: app/Hooks/Handlers/CustomAuthHandler.php:1359
 #, php-format
 msgid "Verification Code: %s"
 msgstr ""
@@ -8784,7 +8828,7 @@ msgstr ""
 msgid "WordPress default"
 msgstr ""
 
-#: app/Helpers/Helper.php:361
+#: app/Helpers/Helper.php:365
 msgid "WordPress reinstalled"
 msgstr ""
 
@@ -8878,7 +8922,7 @@ msgid "You"
 msgstr ""
 
 #. %s: a line of PHP to add to wp-config.php
-#: app/Hooks/Handlers/LoginSecurityHandler.php:68
+#: app/Hooks/Handlers/LoginSecurityHandler.php:95
 #, php-format
 msgid ""
 "You administer this site, so if that address is your own you have locked "
@@ -8900,16 +8944,11 @@ msgstr ""
 msgid "You are already logged in. <a href=\"%s\">Go to Home Page</a>"
 msgstr ""
 
-#. %d: munites
-#: app/Hooks/Handlers/LoginSecurityHandler.php:459
-msgid "You are blocked for next %d minutes. Please try after that time"
-msgstr ""
-
 #: app/Http/Controllers/TwoFaController.php:82
 msgid "You are not allowed to change this user"
 msgstr ""
 
-#: app/Services/AuthService.php:188
+#: app/Services/AuthService.php:196
 msgid "You are not allowed to login."
 msgstr ""
 
@@ -8921,21 +8960,10 @@ msgstr ""
 msgid "You are subscribed. You will only get update notifications."
 msgstr ""
 
-#. %d: munites
-#. %d: Minite
-#: app/Hooks/Handlers/LoginSecurityHandler.php:766
-#: app/Hooks/Handlers/MagicLoginHandler.php:208
-msgid "You are trying too much. Please try after %d minutes"
-msgstr ""
-
 #: app/Services/TransStrings.php:1063
 msgid ""
 "You can add your own address to the allow list later, so this can never shut "
 "you out of your own site."
-msgstr ""
-
-#: app/Services/TwoFa/EmailTwoFaMethod.php:313
-msgid "You can also login by clicking the following button"
 msgstr ""
 
 #: app/Hooks/Handlers/TwoFaReminderHandler.php:70
@@ -9043,6 +9071,15 @@ msgstr ""
 
 #: app/Services/TransStrings.php:1067
 msgid "You will need one yourself"
+msgstr ""
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:256
+msgid ""
+"Your account cannot use sign-in links. Please use the normal login form."
+msgstr ""
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:915
+msgid "Your account has been created. You can sign in now."
 msgstr ""
 
 #: app/Hooks/Handlers/TotpSetupPageHandler.php:433
@@ -9175,7 +9212,7 @@ msgid ""
 "Google and try again"
 msgstr ""
 
-#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:157
+#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:172
 #: app/Hooks/Handlers/SocialAuthHandler.php:282
 msgid ""
 "Your Google email address does not match with your current account email "
@@ -9193,10 +9230,10 @@ msgstr ""
 msgid "Your last scan was clean, so now is a good time to take one."
 msgstr ""
 
-#. %1$1s: Site Name, %2$d: verification code
+#. %1$s: Site Name, %2$d: login code
 #: app/Services/TwoFa/EmailTwoFaMethod.php:294
 #, php-format
-msgid "Your Login code for %1$1s - %2$d"
+msgid "Your login code for %1$s - %2$d"
 msgstr ""
 
 #: app/Services/TwoFa/EmailTwoFaMethod.php:301
@@ -9259,14 +9296,6 @@ msgstr ""
 msgid "Your previous recovery codes no longer work. Here is the new set."
 msgstr ""
 
-#: app/Hooks/Handlers/TwoFaHandler.php:479
-msgid "Your provided code is not valid. Please try again"
-msgstr ""
-
-#: app/Hooks/Handlers/TwoFaHandler.php:430
-msgid "Your provided code or url is not valid"
-msgstr ""
-
 #: app/Services/TransStrings.php:1082
 msgid "Your proxy is set in wp-config.php, so there is nothing to choose here."
 msgstr ""
@@ -9282,7 +9311,7 @@ msgid "Your recovery codes"
 msgstr ""
 
 #. %s: Site Name
-#: app/Hooks/Handlers/CustomAuthHandler.php:1315
+#: app/Hooks/Handlers/CustomAuthHandler.php:1351
 #, php-format
 msgid "Your registration verification code for %s"
 msgstr ""
@@ -9369,16 +9398,16 @@ msgid "Your subject and body below are sent instead of the WordPress default."
 msgstr ""
 
 #. %s: the IP address the visitor is connecting from
-#: app/Hooks/Handlers/LoginSecurityHandler.php:127
+#: app/Hooks/Handlers/LoginSecurityHandler.php:154
 #, php-format
 msgid ""
-"Your username and password are correct, but this account may only be used "
-"from an approved location, and the address you are connecting from (%s) is "
-"not one of them."
+"Your username and password are correct, but this account can only be used "
+"from certain places, and the address you are connecting from (%s) is not one "
+"of them."
 msgstr ""
 
 #. %s: the IP address the visitor is connecting from
-#: app/Hooks/Handlers/LoginSecurityHandler.php:696
+#: app/Hooks/Handlers/LoginSecurityHandler.php:915
 #, php-format
 msgid ""
 "Your username and password are correct, but this site does not allow sign-"
@@ -9387,10 +9416,6 @@ msgstr ""
 
 #: app/Services/Checks/Users/HiddenUsersCheck.php:86
 msgid "Your users list returns every account in the database"
-msgstr ""
-
-#: app/Services/AuthService.php:428
-msgid "Your verification code has beeen expired. Please try again"
 msgstr ""
 
 #: app/Services/Checks/Files/UploadsExecutionCheck.php:223

@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.2
+Stable tag: 3.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -310,6 +310,13 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.0.3 - Date: Sep 20, 2026 =
+* Added compatibility with MainWP and other plugins that sign users in programmatically. These sign ins are now recorded in the audit log as a programmatic login, collapsed into one entry per hour, and do not send a login notification email.
+* Fix: Signing in with Google One Tap or a passkey on a site that asks for a second factor now takes you to that step, instead of showing an error with no way forward.
+* Fix: Answering a second factor after signing in with a social account now returns you to the page you started from.
+* Improved user facing strings and error messages throughout.
+* The recovery help on the two-factor login screen now appears after 50 seconds.
 
 = 3.0.2 - Date: Sep 18, 2026 =
 * Fix: Requiring two-factor no longer locks anybody out of wp-admin, or breaks front-end forms and add-to-cart for logged-in members.

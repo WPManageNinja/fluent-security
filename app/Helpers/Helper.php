@@ -23,6 +23,7 @@ class Helper
         self::$satisfiedFactors = null;
         \FluentAuth\App\Services\TwoFa\TwoFaService::resetMethods();
         \FluentAuth\App\Hooks\Handlers\TwoFaHandler::resetRequestState();
+        \FluentAuth\App\Hooks\Handlers\LoginSecurityHandler::resetRequestState();
         \FluentAuth\App\Services\LoginBridge::reset();
     }
 
@@ -342,6 +343,9 @@ class Helper
             'two_factor_enroll_device' => __('Two-factor setup', 'fluent-security'),
             'two_fa_bypassed' => __('Two-factor skipped (wp-config)', 'fluent-security'),
             'app_password' => __('Application password', 'fluent-security'),
+            // Code called wp_set_auth_cookie() itself, and we cannot tell whose - see
+            // LoginSecurityHandler::noteDirectLogin().
+            'direct_login' => __('Programmatic login', 'fluent-security'),
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),
             'facebook'    => __('Facebook', 'fluent-security'),

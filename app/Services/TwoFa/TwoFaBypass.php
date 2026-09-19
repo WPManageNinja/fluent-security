@@ -161,11 +161,14 @@ class TwoFaBypass
      * to have tried, it reads as what it is: the thing you need when the normal way has
      * failed.
      *
+     * Long enough to open the email app, find nothing, and come back. What appears then
+     * is one line - the instructions are behind it, for whoever opens them.
+     *
      * @return int
      */
     public static function getHelpDelay()
     {
-        return (int)apply_filters('fluent_auth/lockout_help_delay', 20);
+        return (int)apply_filters('fluent_auth/lockout_help_delay', 50);
     }
 
     /**
@@ -221,28 +224,48 @@ class TwoFaBypass
          * Offering the bypass the moment the challenge appears would teach every user
          * that the way past a second factor is to edit a file; the wait is what keeps it
          * for the person who is actually stuck.
+         *
+         * What the wait reveals is one line, with everything else folded behind it. The
+         * people who reach this screen are not administrators in the technical sense -
+         * they are shop owners - and a wall of file paths and PHP appearing unbidden
+         * under a login form reads as something having gone badly wrong. A question they
+         * can ignore does not.
+         *
+         * <details> rather than a script: the browser has done this since forever, it is
+         * keyboard and screen reader accessible for free, and a disclosure that depends
+         * on JavaScript is one more thing to fail on the screen that exists for when
+         * things have failed.
          */
         ?>
         <div id="fls_lockout_help" data-fls-delay="<?php echo (int)($delay * 1000); ?>"
              style="display: none;margin-top: 16px;padding: 14px 16px;background: #fff;border: 1px solid #c3c4c7;border-left: 4px solid #dba617;box-shadow: 0 1px 3px rgb(0 0 0 / 4%);">
-            <p style="margin: 0 0 8px;">
-                <strong><?php esc_html_e('Cannot complete this step?', 'fluent-security'); ?></strong>
-            </p>
-            <p style="margin: 0 0 10px;font-size: 13px;">
-                <?php esc_html_e('Add this line to your wp-config.php, above the line that says "That\'s all, stop editing". It turns the second factor off for your account only, so you can sign in and fix it.', 'fluent-security'); ?>
-            </p>
-            <!--
-                A field rather than a code block, because the point is to get these exact
-                characters into another file. Selecting on focus is what makes that one
-                gesture on a phone, which is often what somebody locked out is holding.
-            -->
-            <input type="text" readonly
-                   value="<?php echo esc_attr($line); ?>"
-                   onclick="this.select();"
-                   style="width: 100%;font-family: Menlo, Consolas, monospace;font-size: 12px;padding: 6px;"/>
-            <p style="margin: 10px 0 0;font-size: 12px;color: #646970;">
-                <?php esc_html_e('Take the line out again once you are back in and your second factor is working. While it is there, this account is protected by its password alone, and every sign in it allows is recorded in the log.', 'fluent-security'); ?>
-            </p>
+            <details>
+                <summary style="cursor: pointer;font-weight: 600;">
+                    <?php esc_html_e('Having trouble with this step?', 'fluent-security'); ?>
+                </summary>
+                <p style="margin: 12px 0 10px;font-size: 13px;">
+                    <?php esc_html_e('If you\'ve lost your phone, or your code isn\'t working, you can still get into your site.', 'fluent-security'); ?>
+                </p>
+                <p style="margin: 0 0 8px;font-size: 13px;">
+                    <?php esc_html_e('Add this line to your site\'s wp-config.php file, then sign in with your password:', 'fluent-security'); ?>
+                </p>
+                <!--
+                    A field rather than a code block, because the point is to get these
+                    exact characters into another file. Selecting on focus is what makes
+                    that one gesture on a phone, which is often what somebody locked out
+                    is holding.
+                -->
+                <input type="text" readonly
+                       value="<?php echo esc_attr($line); ?>"
+                       onclick="this.select();"
+                       style="width: 100%;font-family: Menlo, Consolas, monospace;font-size: 12px;padding: 6px;"/>
+                <p style="margin: 10px 0 0;font-size: 12px;color: #646970;">
+                    <?php esc_html_e('That file sits with the rest of your site\'s files on your server. The line can go anywhere above the line that says "That\'s all, stop editing". If you\'re not sure how to do that, your hosting support can add it for you.', 'fluent-security'); ?>
+                </p>
+                <p style="margin: 8px 0 0;font-size: 12px;color: #646970;">
+                    <?php esc_html_e('This changes your account only - everyone else signs in as usual. While the line is there, your password is the only thing keeping your account safe, so take it out once your code is working again.', 'fluent-security'); ?>
+                </p>
+            </details>
         </div>
         <?php
 

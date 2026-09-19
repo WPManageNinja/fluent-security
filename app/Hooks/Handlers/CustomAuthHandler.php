@@ -726,7 +726,7 @@ class CustomAuthHandler
 
         if (empty($data['pwd']) || empty($data['log'])) {
             wp_send_json([
-                'message' => __('Email and Password is required', 'fluent-security')
+                'message' => __('Please enter your email address and password.', 'fluent-security')
             ], 422);
         }
 
@@ -761,12 +761,12 @@ class CustomAuthHandler
         }
 
         if (!$user) {
-            $user = new \WP_Error('authentication_failed', __('<strong>Error</strong>: Invalid username, email address or incorrect password.', 'fluent-security'));
+            $user = new \WP_Error('authentication_failed', __('<strong>Error</strong>: That username, email address or password is not correct.', 'fluent-security'));
 
             do_action('wp_login_failed', $email, $user);
 
             wp_send_json([
-                'message' => __('Email or Password is not valid. Please try again', 'fluent-security')
+                'message' => __('That email address and password do not match. Please try again.', 'fluent-security')
             ], 422);
         }
 
@@ -803,7 +803,7 @@ class CustomAuthHandler
 
         if (!wp_verify_nonce(Arr::get($_REQUEST, '_fls_signup_nonce'), 'fluent_auth_signup_nonce')) {
             wp_send_json([
-                'message' => __('Security verification failed. Please try again', 'fluent-security')
+                'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ], 422);
         }
 
@@ -827,7 +827,7 @@ class CustomAuthHandler
 
         if ($errors) {
             wp_send_json([
-                'message' => __('Form validation failed. Please provide the correct data', 'fluent-security'),
+                'message' => __('Some of the details are not right. Please check the form and try again.', 'fluent-security'),
                 'errors'  => $errors
             ], 422);
         }
@@ -912,16 +912,23 @@ class CustomAuthHandler
 
         $user = get_user_by('ID', $userId);
         $isAutoLogin = apply_filters('fluent_auth/auto_login_after_signup', true, $user);
-        $message = __('Registration has been completed. Please login now', 'fluent-security');
+        $message = __('Your account has been created. You can sign in now.', 'fluent-security');
 
         $redirectUrl = false;
         if ($isAutoLogin) {
-            $this->login($userId);
-            $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
-            $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
-            $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
-            $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
-            $message = __('Successfully registered to the site.', 'fluent-security');
+            $challengeUrl = $this->login($userId);
+
+            if ($challengeUrl) {
+                // Registered and signed in as far as the site allows - one step to go.
+                $redirectUrl = $challengeUrl;
+                $message = __('Please complete the second step to finish signing in.', 'fluent-security');
+            } else {
+                $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
+                $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
+                $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
+                $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
+                $message = __('Successfully registered to the site.', 'fluent-security');
+            }
         }
 
         $response = [
@@ -956,7 +963,7 @@ class CustomAuthHandler
         if (!wp_verify_nonce(Arr::get($_REQUEST, '_fls_reset_pass_nonce'), 'fluent_auth_reset_pass_nonce')) {
 
             wp_send_json([
-                'message' => __('Security verification failed. Please try again', 'fluent-security')
+                'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ], 422);
 
         }
@@ -1053,7 +1060,7 @@ class CustomAuthHandler
 
         /* translators: %s: User's first name */
         $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) . '</p>' .
-            '<p>' . __('Someone has requested a new password for the following account on WordPress:', 'fluent-security') . '</p>' .
+            '<p>' . __('Someone asked to reset the password for this account:', 'fluent-security') . '</p>' .
             /* translators: %s: User's Login */
             '<p>' . \sprintf(__('Username: %s', 'fluent-security'), $user_login) . '</p>' .
             \sprintf('<p>%s</p>', $resetLink) .
@@ -1128,6 +1135,10 @@ class CustomAuthHandler
         return $errors;
     }
 
+    /**
+     * @param $userId int
+     * @return string|false the URL of a second factor still owed, if there is one
+     */
     public function login($userId)
     {
         /*
@@ -1138,9 +1149,42 @@ class CustomAuthHandler
          */
         do_action('fluent_auth/before_logging_in_user', $userId);
 
+        /*
+         * A brand new account can still owe a factor - the site may require one of every
+         * account - and this path mints the cookie itself, so nothing on the
+         * `authenticate` chain will ask on its behalf. See
+         * TwoFaHandler::raiseChallengeForDirectLogin().
+         */
+        $user = get_user_by('ID', $userId);
+
+        if ($user) {
+            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+
+            if ($challengeUrl) {
+                return $challengeUrl;
+            }
+        }
+
+        /*
+         * Ours, and said so before the cookie exists. Without this the account the site
+         * just created reads in the log as an unexplained programmatic sign in by some
+         * other plugin - see LoginSecurityHandler::noteDirectLogin().
+         */
+        LoginSecurityHandler::noteOwnLogin($userId);
+
         wp_clear_auth_cookie();
         wp_set_current_user($userId);
         wp_set_auth_cookie($userId, true, is_ssl());
+
+        /*
+         * The same announcement AuthService::makeLogin() makes, and for the same reason:
+         * this is a completed sign in, and `wp_login` is how WordPress says so. Without
+         * it the account the site had just created appeared in nobody's audit log - the
+         * one hook that writes the success row never heard about it.
+         */
+        if ($user) {
+            do_action('wp_login', $user->user_login, $user);
+        }
 
         /*
          * Action after login
@@ -1149,6 +1193,8 @@ class CustomAuthHandler
          * @param integer $userId
          */
         do_action('fluent_auth/after_logging_in_user', $userId);
+
+        return false;
     }
 
     /**
@@ -1318,11 +1364,11 @@ class CustomAuthHandler
 
         /* translators: %s: First Name */
         $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), Arr::get($formData, 'first_name')) . '</p>' .
-            $pStart . __('Thank you for registering with us! To complete the setup of your account, please enter the verification code below on the registration page.', 'fluent-security') . '</p>' .
+            $pStart . __('Thanks for signing up. Enter the code below on the registration page to finish setting up your account.', 'fluent-security') . '</p>' .
             /* translators: %s: Verification code */
             $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
             '<br />' .
-            $pStart . __('This code is valid for 10 minutes and is meant to ensure the security of your account. If you did not initiate this request, please ignore this email.', 'fluent-security') . '</p>';
+            $pStart . __('The code works for 10 minutes. If you did not ask for it, you can ignore this email.', 'fluent-security') . '</p>';
 
         $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData);
 

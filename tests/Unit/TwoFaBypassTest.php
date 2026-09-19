@@ -238,6 +238,38 @@ class TwoFaBypassTest extends BaseTestCase
         $this->assertStringContainsString((string)(TwoFaBypass::getHelpDelay() * 1000), $html);
     }
 
+    /**
+     * What the wait reveals is a question, not a wall of instructions. The people who
+     * reach this screen own shops, not servers, and more than one has said that a block
+     * of file paths and PHP appearing under a login form read as something having gone
+     * badly wrong.
+     */
+    public function test_the_help_offers_one_line_before_the_instructions()
+    {
+        $html = TwoFaBypass::renderHelp($this->admin);
+
+        $this->assertStringContainsString('<details>', $html);
+        $this->assertStringContainsString('Having trouble with this step?', $html);
+
+        $summaryEnds = strpos($html, '</summary>');
+
+        $this->assertNotFalse($summaryEnds);
+        $this->assertGreaterThan(
+            $summaryEnds,
+            strpos($html, TwoFaBypass::CONSTANT),
+            'the line to paste belongs behind the question, not in front of it'
+        );
+    }
+
+    /**
+     * Long enough to open the email app, find nothing and come back. Pinned because it
+     * is a judgement about people rather than a detail of the implementation.
+     */
+    public function test_the_wait_is_long_enough_to_have_tried()
+    {
+        $this->assertSame(50, TwoFaBypass::getHelpDelay());
+    }
+
     public function test_the_help_can_be_turned_off()
     {
         add_filter('fluent_auth/show_lockout_help', '__return_false');

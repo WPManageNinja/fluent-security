@@ -249,7 +249,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         if ($normalised === '') {
             return new \WP_Error(
                 'invalid_code',
-                __('Please provide a valid login code', 'fluent-security')
+                __('Please enter the code from your authenticator app.', 'fluent-security')
             );
         }
 
@@ -258,7 +258,7 @@ class TotpTwoFaMethod extends BaseTwoFaMethod
         if (!$secret) {
             return new \WP_Error(
                 'totp_not_enrolled',
-                __('Sorry, You can not use this verification method', 'fluent-security')
+                __('That way of signing in is not available for your account.', 'fluent-security')
             );
         }
 

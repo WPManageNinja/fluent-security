@@ -63,24 +63,6 @@ class TwoFaHandler
     const PENDING_COOKIE = 'fls_2fa_pending';
 
     /**
-     * Users refused an auth cookie in this request, by id. Static for the same reason as
-     * $completingChallenge: LoginSecurityHandler asks about it from another instance.
-     */
-    private static $withheldUsers = [];
-
-    /**
-     * Users this request let past a headless login without a challenge, by id.
-     * Read by maybeWithholdAuthCookies() so the cookie follows the decision.
-     */
-    private static $headlessPassedUsers = [];
-
-    /**
-     * The user core is about to issue cookies for, caught from `set_auth_cookie` because
-     * `send_auth_cookies` only started naming them in WordPress 6.2.
-     */
-    private $cookieUserId = null;
-
-    /**
      * Whoever this request's own cookie proved to be, recorded the moment core validated
      * it. Read later rather than re-validated later: by the time a cookie is re-issued,
      * the one that got them here may already be dead - a password change invalidates its
@@ -154,13 +136,14 @@ class TwoFaHandler
         add_filter('authenticate', [$this, 'maybeDenyHeadlessLogin'], 1000, 1);
 
         /*
-         * The last line. Everything above works through the login chain, and a plugin
-         * that sets the auth cookie itself never enters it - see maybeWithholdAuthCookies().
+         * Bookkeeping, not enforcement: who this request arrived as, and whether a cookie
+         * has been minted since, so that one cannot be mistaken for the other. Every
+         * factor is applied at the door - see maybe2FaRedirect() and
+         * maybeDenyHeadlessLogin() - and nothing here stops a login.
          */
         add_action('auth_cookie_valid', [$this, 'rememberAuthenticatedUser'], 10, 2);
         add_action('application_password_did_authenticate', [$this, 'rememberAppPasswordAuth']);
         add_action('set_auth_cookie', [$this, 'rememberCookieUser'], 10, 4);
-        add_filter('send_auth_cookies', [$this, 'maybeWithholdAuthCookies'], 999, 4);
 
         // A challenge raised where no form could be shown is picked up on the next page.
         add_action('template_redirect', [$this, 'maybeResumePendingChallenge'], 1);
@@ -415,7 +398,7 @@ class TwoFaHandler
 
         if (!$hash) {
             wp_send_json([
-                'message' => __('Please provide a valid login code', 'fluent-security')
+                'message' => __('Please enter your login code.', 'fluent-security')
             ], 422);
         }
 
@@ -427,7 +410,7 @@ class TwoFaHandler
 
         if (!$logHash) {
             wp_send_json([
-                'message' => __('Your provided code or url is not valid', 'fluent-security')
+                'message' => __('That link or code is not valid.', 'fluent-security')
             ], 422);
         }
 
@@ -441,7 +424,7 @@ class TwoFaHandler
          */
         if (!$user || !$method || $logHash->status != 'issued' || strtotime($logHash->created_at) < current_time('timestamp') - self::PENDING_TIMEOUT) {
             wp_send_json([
-                'message' => __('Sorry, your login code has been expired. Please try to login again', 'fluent-security')
+                'message' => __('That code has expired. Please sign in again.', 'fluent-security')
             ], 422);
         }
 
@@ -449,7 +432,7 @@ class TwoFaHandler
             $this->invalidate2FaCode($logHash);
 
             wp_send_json([
-                'message' => __('Too many invalid attempts for this login code. Please try to login again', 'fluent-security')
+                'message' => __('Too many tries with that code. Please sign in again.', 'fluent-security')
             ], 422);
         }
 
@@ -460,7 +443,7 @@ class TwoFaHandler
          */
         if ($logHash->use_type !== $method->getChallengeKey() && !$method->isAvailableForUser($user)) {
             wp_send_json([
-                'message' => __('Sorry, You can not use this verification method', 'fluent-security')
+                'message' => __('That way of signing in is not available for your account.', 'fluent-security')
             ], 422);
         }
 
@@ -476,7 +459,7 @@ class TwoFaHandler
             $this->recordFailedAttempt($logHash, $user, $method);
 
             wp_send_json([
-                'message' => __('Your provided code is not valid. Please try again', 'fluent-security')
+                'message' => __('That code is not correct. Please try again.', 'fluent-security')
             ], 422);
         }
 
@@ -545,7 +528,7 @@ class TwoFaHandler
         }
 
         wp_send_json([
-            'message' => __('There has an error when log you in. Please try to login again', 'fluent-security')
+            'message' => __('Something went wrong while signing you in. Please try again.', 'fluent-security')
         ], 422);
     }
 
@@ -594,7 +577,7 @@ class TwoFaHandler
          * re-checks the password of whoever is already here, and there is nothing to
          * gain from challenging someone who has already answered.
          */
-        if ($this->arrivedSignedInAs($user->ID)) {
+        if (self::arrivedSignedInAs($user->ID)) {
             return $user;
         }
 
@@ -870,121 +853,48 @@ class TwoFaHandler
          */
         $allowed = (bool)apply_filters('fluent_auth/allow_headless_login_without_challenge', true, $user, $method);
 
-        /*
-         * Recorded, because letting the login past the `authenticate` chain is only half
-         * of a sign-in. maybeWithholdAuthCookies() resolves the challenge again on its
-         * own and refuses the cookie, so without this the caller was handed a WP_User
-         * while the browser stayed signed out - a form told "success" over a session
-         * that does not exist, which is worse than the error message this replaced.
-         */
-        if ($allowed) {
-            self::$headlessPassedUsers[$user->ID] = true;
-        }
-
         return $allowed;
     }
 
     /**
-     * Withholds the auth cookie from a user who still owes a second factor.
+     * Raises the challenge a sign in that never presented a password still owes.
      *
-     * Every other check here lives on the `authenticate` chain, and a plugin that sets
-     * the cookie itself - a community invitation, a checkout that signs the customer in -
-     * never enters that chain. This filter sits under all of them: nothing core does
-     * reaches it without the chain having already passed, so the only logins it ever
-     * stops are the ones nothing else could see.
+     * The plugin's own passwordless logins - social, the signup auto login - mint the
+     * auth cookie themselves and so never meet the `authenticate` chain. They ask for
+     * this instead and hand the browser to the URL it returns.
      *
-     * The challenge is raised and left waiting in the cookie, and the calling plugin is
-     * allowed to carry on. Wherever it sends the browser next, the visitor arrives signed
-     * out and is taken to the form; once answered, they are returned to that page.
+     * Somebody else's programmatic login is neither asked nor stopped, and that is a
+     * decision rather than an oversight. Code calling wp_set_auth_cookie() has already
+     * settled who the user is and could unhook anything placed in its way, so refusing
+     * the cookie there stopped no attacker. What it did stop was management plugins,
+     * which sign in over their own signed channel: their owner got a login code for a
+     * form no machine would ever open, every few minutes, and could not tell where it
+     * came from. Those sign ins are written to the log instead - see
+     * LoginSecurityHandler::noteDirectLogin().
      *
-     * @param $send bool
-     * @param $expire int
-     * @param $expiration int
-     * @param $userId int  Named by core since 6.2; taken from `set_auth_cookie` before that.
-     * @return bool
+     * @param $user \WP_User
+     * @param $redirectIntend string|null where to return the browser afterwards
+     * @return string|false the URL to send the browser to, or false if nothing is owed
      */
-    public function maybeWithholdAuthCookies($send, $expire = 0, $expiration = 0, $userId = 0)
+    public function raiseChallengeForDirectLogin($user, $redirectIntend = null)
     {
-        $userId = (int)$userId ?: (int)$this->cookieUserId;
-        $this->cookieUserId = null;
-
-        // wp_clear_auth_cookie() runs this filter too, with no user. Nothing to decide.
-        if (!$send || !$userId || self::$completingChallenge) {
-            return $send;
+        if (!$user instanceof \WP_User || self::$completingChallenge) {
+            return false;
         }
 
-        // wp_set_auth_cookie() asks more than once per request. Same answer every time.
-        if (isset(self::$withheldUsers[$userId])) {
+        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend);
+
+        if (!$raised) {
             return false;
         }
 
         /*
-         * A cookie minted where no browser will ever read it - see isUnattendedRequest().
-         * Withholding it protects nothing, and the challenge raised alongside mailed a
-         * code for a sign in no person performed: a cron task or a WP-CLI command that
-         * calls wp_set_auth_cookie() did it once per run, on a timer, forever.
+         * The caller decides where the browser goes next, and it may ignore the URL
+         * altogether. The pending cookie is what brings them to the form regardless.
          */
-        if ($this->isUnattendedRequest()) {
-            return $send;
-        }
+        $this->setPendingCookie($raised['login_hash']);
 
-        /*
-         * Already decided, on the way in. maybeDenyHeadlessLogin() weighed this sign-in
-         * and let it through; re-deciding it here on a narrower question would refuse the
-         * cookie for the login it had just allowed.
-         */
-        if (isset(self::$headlessPassedUsers[$userId])) {
-            return $send;
-        }
-
-        /*
-         * The escape hatch for a site where a direct-cookie flow turns out to matter more
-         * than the policy. Everything the login chain enforces stays enforced.
-         */
-        if (!apply_filters('fluent_auth/enforce_2fa_on_auth_cookie', true, $userId)) {
-            return $send;
-        }
-
-        /*
-         * A cookie re-issued to whoever is already signed in - after a session sweep, say
-         * - proves nothing new and takes nothing away. Only a fresh sign in is examined.
-         */
-        if ($this->arrivedSignedInAs($userId)) {
-            return $send;
-        }
-
-        /*
-         * An administrator switching into another account. They could reset that
-         * account's password from the users screen, so a second factor asked of the
-         * account they are stepping into - and mailed to its owner - guards nothing.
-         */
-        if (self::$cookieAuthenticatedUserId && user_can(self::$cookieAuthenticatedUserId, 'edit_user', $userId)) {
-            return $send;
-        }
-
-        $user = get_user_by('ID', $userId);
-
-        if (!$user) {
-            return $send;
-        }
-
-        $method = TwoFaService::getRequiredMethod($user, null, function () use ($user) {
-            return $this->isChallengeRequired($user);
-        });
-
-        if (!$method) {
-            return $send;
-        }
-
-        self::$withheldUsers[$userId] = true;
-
-        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both');
-
-        if ($raised) {
-            $this->setPendingCookie($raised['login_hash']);
-        }
-
-        return false;
+        return $raised['redirect_to'];
     }
 
     /**
@@ -996,7 +906,6 @@ class TwoFaHandler
      */
     public function rememberCookieUser($cookie, $expire = 0, $expiration = 0, $userId = 0)
     {
-        $this->cookieUserId = (int)$userId;
         self::$cookieMinted = true;
     }
 
@@ -1032,23 +941,9 @@ class TwoFaHandler
      * @param $userId int
      * @return bool
      */
-    private function arrivedSignedInAs($userId)
+    public static function arrivedSignedInAs($userId)
     {
         return self::$cookieAuthenticatedUserId && self::$cookieAuthenticatedUserId === (int)$userId;
-    }
-
-    /**
-     * Whether a sign in for this user was stopped at the cookie in this request.
-     *
-     * The plugin that set the cookie will usually go on to fire `wp_login`, and the
-     * audit log must not record a success that did not happen.
-     *
-     * @param $userId int
-     * @return bool
-     */
-    public static function hasWithheldCookiesFor($userId)
-    {
-        return isset(self::$withheldUsers[(int)$userId]);
     }
 
     /**
@@ -1058,8 +953,6 @@ class TwoFaHandler
      */
     public static function resetRequestState()
     {
-        self::$withheldUsers = [];
-        self::$headlessPassedUsers = [];
         self::$completingChallenge = false;
         self::$cookieAuthenticatedUserId = 0;
         self::$cookieMinted = false;
@@ -1069,8 +962,8 @@ class TwoFaHandler
     /**
      * Sends a signed-out visitor carrying a pending challenge to its form.
      *
-     * Raised through a headless login or a withheld cookie, the challenge has never been
-     * shown to anyone. Whatever page the other plugin sends the browser to next is where
+     * Raised through a headless login or a sign in that set its own cookie, the challenge
+     * has never been shown to anyone. Whatever page the other plugin sends the browser to next is where
      * it gets shown - and, unless the challenge already knows where to return them, where
      * they are sent back to afterwards.
      *
@@ -1402,7 +1295,7 @@ class TwoFaHandler
 
         do_action('wp_login_failed', $user->user_login, new \WP_Error(
             'fls_invalid_2fa_code',
-            __('Invalid two factor authentication code', 'fluent-security')
+            __('That code is not correct.', 'fluent-security')
         ));
     }
 

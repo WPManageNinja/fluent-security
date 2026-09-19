@@ -4,6 +4,7 @@ namespace FluentAuth\App\Services;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 
@@ -23,8 +24,8 @@ class AuthService
 
         /*
          * Said here as well as in getSocialTwoFaRedirect(), because a brand new account
-         * never passes through that - and the cookie it is about to be issued is judged
-         * on what this login proved. See TwoFaHandler::maybeWithholdAuthCookies().
+         * never passes through that - and makeLogin() weighs the factor it still owes
+         * against what this login has already proved.
          */
         if ($provider) {
             Helper::setSatisfiedFactors([AuthFactor::IDP, AuthFactor::EMAIL]);
@@ -141,7 +142,9 @@ class AuthService
 
         $handler = new TwoFaHandler();
 
-        return $handler->sendAndGet2FaConfirmFormUrl($user, 'url', self::getIntentRedirect());
+        // Null rather than the '' this returns when there is no intent cookie: '' is an
+        // answer, and it would stop the challenge reading the request for itself.
+        return $handler->sendAndGet2FaConfirmFormUrl($user, 'url', self::getIntentRedirect() ?: null);
     }
 
     /**
@@ -168,6 +171,13 @@ class AuthService
         return Helper::getValidatedRedirectUrl($redirect, '');
     }
 
+    /**
+     * Signs a user in without a password, for the flows that own the decision themselves.
+     *
+     * @param $user \WP_User|int
+     * @param $provider string
+     * @return \WP_User|\WP_Error a `fls_2fa_required` error carries `challenge_url`
+     */
     public static function makeLogin($user, $provider = '')
     {
         if (is_numeric($user)) {
@@ -187,6 +197,45 @@ class AuthService
         if (!$canLogin) {
             return new \WP_Error('login_denied', __('You are not allowed to login.', 'fluent-security'));
         }
+
+        /*
+         * The factor this account still owes, asked before the session exists.
+         *
+         * This path mints its own cookie and so never meets the `authenticate` chain,
+         * where every other login is weighed. Nothing else will ask on its behalf: what
+         * a plugin does with wp_set_auth_cookie() is its own business - see
+         * TwoFaHandler::raiseChallengeForDirectLogin() - and this is our own.
+         *
+         * It is handed where to put the visitor back afterwards, because social login
+         * carries that in a cookie rather than in $_REQUEST and it is otherwise lost
+         * across the redirect - answering the challenge would land a new member on the
+         * dashboard rather than the page they pressed the button on.
+         *
+         * Only on the provider path. The cookie outlives the flow that set it - an hour,
+         * and nothing clears it - so reading it for a passkey or a signup an hour later
+         * would send that person to wherever a social login they abandoned had been
+         * heading. Empty leaves the challenge to read the request, as for every other
+         * caller.
+         */
+        $intendedRedirect = $provider ? self::getIntentRedirect() : '';
+
+        $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, $intendedRedirect ?: null);
+
+        if ($challengeUrl) {
+            return new \WP_Error(
+                'fls_2fa_required',
+                __('Please complete the second step to finish signing in.', 'fluent-security'),
+                ['challenge_url' => $challengeUrl]
+            );
+        }
+
+        /*
+         * Said before the cookie exists, because from the outside this is indistinguishable
+         * from a management plugin signing somebody in - see
+         * LoginSecurityHandler::noteDirectLogin(). The log should name the provider that
+         * vouched for them, not shrug and call it programmatic.
+         */
+        LoginSecurityHandler::noteOwnLogin($user->ID);
 
         wp_clear_auth_cookie();
         wp_set_current_user($user->ID, $user->user_login);
@@ -344,7 +393,7 @@ class AuthService
 
         $user_id = wp_insert_user($data);
         if (!$user_id || is_wp_error($user_id)) {
-            $errors->add('registerfail', __('<strong>Error</strong>: Could not register you. Please contact the site admin!', 'fluent-security'));
+            $errors->add('registerfail', __('<strong>Error</strong>: We could not create your account. Please contact the site owner.', 'fluent-security'));
             return $errors;
         }
 
@@ -378,28 +427,28 @@ class AuthService
         if ('' === $sanitized_user_login) {
             $errors->add('empty_username', __('<strong>Error</strong>: Please enter a username.', 'fluent-security'));
         } elseif (!validate_username($user_login)) {
-            $errors->add('invalid_username', __('<strong>Error</strong>: This username is invalid because it uses illegal characters. Please enter a valid username.', 'fluent-security'));
+            $errors->add('invalid_username', __('<strong>Error</strong>: That username uses characters that are not allowed. Please try another one.', 'fluent-security'));
             $sanitized_user_login = '';
         } elseif (username_exists($sanitized_user_login)) {
-            $errors->add('username_exists', __('<strong>Error</strong>: This username is already registered. Please choose another one.', 'fluent-security'));
+            $errors->add('username_exists', __('<strong>Error</strong>: That username is already taken. Please choose another one.', 'fluent-security'));
         } else {
             /** This filter is documented in wp-includes/user.php */
             $illegal_user_logins = (array)apply_filters('illegal_user_logins', array());
             if (in_array(strtolower($sanitized_user_login), array_map('strtolower', $illegal_user_logins), true)) {
-                $errors->add('invalid_username', __('<strong>Error</strong>: Sorry, that username is not allowed.', 'fluent-security'));
+                $errors->add('invalid_username', __('<strong>Error</strong>: That username is not available. Please choose another one.', 'fluent-security'));
             }
         }
 
         // Check the email address.
         if ('' === $user_email) {
-            $errors->add('empty_email', __('<strong>Error</strong>: Please type your email address.', 'fluent-security'));
+            $errors->add('empty_email', __('<strong>Error</strong>: Please enter your email address.', 'fluent-security'));
         } elseif (!is_email($user_email)) {
-            $errors->add('invalid_email', __('<strong>Error</strong>: The email address is not correct.', 'fluent-security'));
+            $errors->add('invalid_email', __('<strong>Error</strong>: That email address does not look right.', 'fluent-security'));
             $user_email = '';
         } elseif (email_exists($user_email)) {
             $errors->add(
                 'email_exists',
-                __('<strong>Error:</strong> This email address is already registered. Please login or try reset password', 'fluent-security')
+                __('<strong>Error:</strong> That email address already has an account. Please sign in, or reset your password.', 'fluent-security')
             );
         }
 
@@ -420,12 +469,12 @@ class AuthService
             ->first();
 
         if (!$logHash) {
-            return new \WP_Error('invalid_verification_code', __('Please provide a valid vefification code that sent to your email address', 'fluent-security'));
+            return new \WP_Error('invalid_verification_code', __('That code does not match the one we emailed you. Please check and try again.', 'fluent-security'));
         }
 
         // check if it got expired or not
         if ($logHash->used_count > 5 || strtotime($logHash->valid_till) < current_time('timestamp')) {
-            return new \WP_Error('verification_code_expired', __('Your verification code has beeen expired. Please try again', 'fluent-security'));
+            return new \WP_Error('verification_code_expired', __('That code has expired. Please ask for a new one.', 'fluent-security'));
         }
 
         // Bind verification to the email the code was sent to. The hash commits
@@ -437,7 +486,7 @@ class AuthService
                 ->update([
                     'used_count' => $logHash->used_count + 1
                 ]);
-            return new \WP_Error('invalid_verification_code', __('Please provide a valid vefification code that sent to your email address', 'fluent-security'));
+            return new \WP_Error('invalid_verification_code', __('That code does not match the one we emailed you. Please check and try again.', 'fluent-security'));
         }
 
         flsDb()->table('fls_login_hashes')->where('id', $logHash->id)

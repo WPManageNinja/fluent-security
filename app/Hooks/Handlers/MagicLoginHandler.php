@@ -170,7 +170,7 @@ class MagicLoginHandler
     {
         if (!$this->isEnabled()) {
             wp_send_json([
-                'message' => __('Login via URL is not activated', 'fluent-security')
+                'message' => __('Sign-in links are switched off on this site.', 'fluent-security')
             ], 422);
         }
 
@@ -205,7 +205,7 @@ class MagicLoginHandler
         if ($existingCount >= $loginLimit) {
             wp_send_json([
                 /* translators: %d: Minite  */
-                'message' => sprintf(__('You are trying too much. Please try after %d minutes', 'fluent-security'), $timingMinutes)
+                'message' => sprintf(__('Too many tries. Please wait %d minutes and try again.', 'fluent-security'), $timingMinutes)
             ], 422);
         }
 
@@ -215,7 +215,7 @@ class MagicLoginHandler
         // Verify the nonce now
         if (!wp_verify_nonce($nonce, 'fls_magic_logon_nonce')) {
             wp_send_json(array(
-                'message' => __('Nonce Verification failed. Please try again', 'fluent-security')
+                'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ), 422);
         }
 
@@ -253,7 +253,7 @@ class MagicLoginHandler
             if ($user) {
                 $error_message = apply_filters(
                     'fluent_auth/magic_login_error_message',
-                    __('Sorry, You can not login via magic url. Please use regular login form', 'fluent-security'),
+                    __('Your account cannot use sign-in links. Please use the normal login form.', 'fluent-security'),
                     $user
                 );
 

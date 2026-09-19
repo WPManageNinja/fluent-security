@@ -115,7 +115,7 @@ class SystemEmailService
                     'user.two_fa_code'
                 ],
                 'additional_smartcodes' => [
-                    '##user.two_fa_code##'       => __('Two-Factor Authentication Code', 'fluent-security'),
+                    '##user.two_fa_code##'       => __('Login code', 'fluent-security'),
                     '##user.secure_signin_url##' => __('Secure Signin URL', 'fluent-security'),
                 ]
             ],
@@ -259,7 +259,7 @@ class SystemEmailService
             'two_fa_email_to_user'                        => [
                 'status' => 'system',
                 'email'  => [
-                    'subject' => 'Your Login code for Fluent Cloud {{site.title}} -  {{user.two_fa_code}}',
+                    'subject' => 'Your login code for {{site.title}} - {{user.two_fa_code}}',
                     'body'    => self::getDefaultEmailBody('two_fa_email_to_user'),
                 ]
             ],
@@ -456,16 +456,15 @@ class SystemEmailService
             ob_start();
             ?>
             <p>Hello {{user.display_name}},</p>
-            <p>Someone requested to login to {{site.name}} and here is the Login code that you can use in the login
-                form</p>
-            <p><strong>Your Login Code:</strong></p>
+            <p>Someone asked to sign in to {{site.name}}. Here is the code to type into the login form:</p>
+            <p><strong>Your login code:</strong></p>
             <p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">
                 {{user.two_fa_code}}
             </p>
-            <p>This code will expire in 10 minutes and can only be used once</p>
+            <p>The code works for 10 minutes, and only once.</p>
             <p>&nbsp;</p>
             <hr/>
-            <p>You can also login by clicking the following button</p>
+            <p>Or you can sign in by tapping the button below.</p>
             <p>&nbsp;</p>
             <p class="align-center" style="text-align: center;" align="center"><a
                     style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"

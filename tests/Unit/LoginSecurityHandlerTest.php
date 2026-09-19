@@ -989,4 +989,343 @@ class LoginSecurityHandlerTest extends BaseTestCase
             (new LoginSecurityHandler())->maybeDenyRestrictedLocation(true, $admin, 'google')
         );
     }
+
+    /* ------------------------------------------- sign ins nothing else can see */
+
+    /**
+     * A management dashboard, a community invitation, a checkout that signs the customer
+     * in: all of them call wp_set_auth_cookie() directly, none of them reaches the
+     * `authenticate` chain, and until now none of them appeared in the log at all. The
+     * owner could see the plugin updates a dashboard had performed but not the sign in
+     * that performed them - which is exactly the question asked when something looks
+     * wrong.
+     */
+    public function test_a_sign_in_made_by_a_plugin_is_recorded()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logDirectLogins();
+
+        $row = $this->lastRowFor($user->ID);
+
+        $this->assertNotNull($row, 'a sign in that fires no wp_login still happened');
+        $this->assertSame('success', $row->status);
+        $this->assertSame('direct_login', $row->media);
+        $this->assertSame(Helper::getIp(), $row->ip);
+        $this->assertSame('Programmatic login', Helper::getLoginMediaLabel($row->media));
+    }
+
+    /**
+     * An ordinary sign in reaches both hooks - core mints the cookie and then fires
+     * `wp_login` - and must be written once, by the one that knows what kind it was.
+     */
+    public function test_an_ordinary_sign_in_is_not_recorded_twice()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        // The front door: the `authenticate` chain hands back a user, then the cookie.
+        $this->handler->noteChainAuthenticated($user);
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('web', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * The case this whole path was written for. MainWP mints its own cookie and then
+     * fires `wp_login` by hand, which used to be enough to have it written down as a
+     * login form somebody had filled in. Nothing came through the `authenticate` chain,
+     * so it is named for what it is.
+     */
+    public function test_a_plugin_that_fires_wp_login_itself_is_still_a_programmatic_login()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('direct_login', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * And it collapses like any other, rather than leaving a row per sync because the
+     * dashboard happened to announce itself.
+     */
+    public function test_repeated_sign_ins_that_fire_wp_login_collapse_too()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        foreach (range(1, 3) as $ignored) {
+            LoginSecurityHandler::resetRequestState();
+            $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+            $this->handler->logAuthSuccess($user->user_login, $user);
+            $this->handler->logDirectLogins();
+        }
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame(3, (int)$this->lastRowFor($user->ID)->count);
+    }
+
+    /**
+     * Our own passwordless flows mint the cookie themselves and so look exactly like
+     * somebody else's plugin doing it. They own up first, and are then written down
+     * under the route they actually came in by - a Google sign in reads as Google, not
+     * as an unexplained programmatic login by a plugin the owner cannot name.
+     */
+    public function test_our_own_passwordless_login_is_not_blamed_on_another_plugin()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        Helper::setLoginMedia('google');
+        LoginSecurityHandler::noteOwnLogin($user->ID);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('google', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * The auto login after signup: ours, so not somebody else's plugin - but a completed
+     * sign in all the same, and the owner auditing who reached their site today should
+     * find it. Declaring it and then saying nothing else left no row at all.
+     */
+    public function test_the_signup_auto_login_is_recorded_as_our_own()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        (new \FluentAuth\App\Hooks\Handlers\CustomAuthHandler())->login($user->ID);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertNotSame(
+            'direct_login',
+            $this->lastRowFor($user->ID)->media,
+            'the site signing in the member it just created is not an unknown plugin'
+        );
+    }
+
+    /*
+     * `wp_login` and `set_auth_cookie` arrive in whichever order the caller chose, and
+     * the log has to read the same either way.
+     */
+
+    /**
+     * Core mints the cookie first, so this is the order everything in WordPress uses -
+     * and the one an early return in logAuthSuccess() naturally handles.
+     */
+    public function test_a_cookie_before_the_announcement_leaves_one_row()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('direct_login', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * And the other way round. A caller announcing the sign in before minting its cookie
+     * used to be written down twice - once by each logger, neither knowing about the
+     * other.
+     */
+    public function test_an_announcement_before_the_cookie_leaves_one_row_too()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+    }
+
+    /**
+     * A cookie minted before the login was put through the front door. What accounts for
+     * a sign in can arrive after its cookie, and when it does this is an ordinary login
+     * - with the row, the notification and the action that go with one.
+     */
+    public function test_a_cookie_the_chain_vouches_for_afterwards_is_an_ordinary_login()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->noteChainAuthenticated($user);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('web', $this->lastRowFor($user->ID)->media);
+    }
+
+    /* --------------------------------------------- through the real hooks, not by hand */
+
+    /**
+     * Everything above calls the handler directly, which proves the rules and not the
+     * wiring. This one goes through WordPress: if `noteChainAuthenticated` were never
+     * hooked, or hooked below the checks that can still refuse a login, an ordinary
+     * sign in would be filed as somebody else's code and every test above would still
+     * pass.
+     */
+    public function test_a_real_sign_in_through_wp_signon_is_recorded_as_the_front_door()
+    {
+        $password = wp_generate_password(20);
+        $user = $this->factory->user->create_and_get([
+            'role'      => 'administrator',
+            'user_pass' => $password
+        ]);
+
+        /*
+         * The registered handler, not this test's own instance - and its priority, which
+         * has to sit above the checks that can still refuse a login. Hooked below
+         * maybeDenyHeadlessLogin (1000) it would mark a refused login as accounted.
+         */
+        $priority = $this->registeredChainPriority();
+
+        $this->assertNotNull($priority, 'precondition: register() hooked the chain');
+        $this->assertGreaterThan(1000, $priority, 'the verdict, not an opinion on the way to it');
+
+        $signedIn = wp_signon([
+            'user_login'    => $user->user_login,
+            'user_password' => $password
+        ]);
+
+        // What shutdown would do, without firing WordPress's own shutdown handlers.
+        $this->handler->logDirectLogins();
+
+        $this->assertInstanceOf('WP_User', $signedIn, 'precondition: the password was right');
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('web', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * `wp_login` is documented as passing the user, and core always does - but a plugin
+     * firing it by hand may pass the login alone. MainWP does, on the branch that opens
+     * wp-admin, and a required second argument made that a fatal error in its request.
+     */
+    public function test_a_wp_login_fired_with_only_a_username_is_survived()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        do_action('wp_login', $user->user_login);
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+    }
+
+    /**
+     * A dashboard syncing every few minutes would otherwise bury everything else in the
+     * log the owner actually reads. One row, carrying a count, says the same thing.
+     */
+    public function test_repeated_plugin_sign_ins_collapse_into_one_row()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        foreach (range(1, 3) as $ignored) {
+            LoginSecurityHandler::resetRequestState();
+            $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+            $this->handler->logDirectLogins();
+        }
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame(3, (int)$this->lastRowFor($user->ID)->count);
+    }
+
+    /**
+     * A cookie re-issued to whoever is already here - after a password change, or the
+     * recovery sweep - is not a sign in and must not read as one.
+     */
+    public function test_a_cookie_reissued_to_the_person_already_here_is_not_a_sign_in()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        // What core does on the way in when the request carries a valid cookie.
+        do_action('auth_cookie_valid', [], $user);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(0, $this->countRowsFor($user->ID));
+    }
+
+    /**
+     * No mail, whatever the success-email setting says. These arrive on a timer, and a
+     * notification per sync is the noise this whole change exists to remove.
+     */
+    public function test_a_plugin_sign_in_mails_nobody()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notification_user_roles'] = ['administrator'];
+        $settings['notification_email'] = 'owner@example.org';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $mails = [];
+        $spy = function ($atts) use (&$mails) {
+            $mails[] = $atts;
+            return $atts;
+        };
+        add_filter('wp_mail', $spy);
+
+        try {
+            $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+            $this->handler->logDirectLogins();
+
+            $this->assertSame([], $mails, 'a sync every few minutes must not mail every few minutes');
+
+            // The same settings, a person signing in: that one is still announced.
+            $this->handler->logAuthSuccess($user->user_login, $user);
+        } finally {
+            remove_filter('wp_mail', $spy);
+        }
+
+        $this->assertCount(1, $mails, 'precondition: the success email is switched on');
+    }
+
+    /**
+     * The priority `noteChainAuthenticated` is actually hooked at by register(), or null.
+     *
+     * @return int|null
+     */
+    private function registeredChainPriority()
+    {
+        global $wp_filter;
+
+        foreach ($wp_filter['authenticate']->callbacks as $priority => $callbacks) {
+            foreach ($callbacks as $callback) {
+                $fn = $callback['function'];
+
+                if (is_array($fn) && $fn[0] instanceof LoginSecurityHandler && $fn[1] === 'noteChainAuthenticated') {
+                    return $priority;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function lastRowFor($userId)
+    {
+        return flsDb()->table('fls_auth_logs')
+            ->where('user_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->first();
+    }
+
+    private function countRowsFor($userId)
+    {
+        return (int)flsDb()->table('fls_auth_logs')
+            ->where('user_id', $userId)
+            ->count();
+    }
 }

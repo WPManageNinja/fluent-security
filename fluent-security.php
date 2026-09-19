@@ -5,7 +5,7 @@ defined('ABSPATH') or die;
 Plugin Name:  FluentAuth - Auth Security Plugin
 Plugin URI:   https://fluentauth.com
 Description:  Login security for WordPress: two-factor authentication, passkeys, social login, magic login, login attempt limits, file change scanning and audit logs.
-Version:      3.0.2
+Version:      3.0.3
 Author:       Fluent Auth Team
 Author URI:   https://fluentauth.com
 License:      GPLv2 or later
@@ -22,7 +22,7 @@ if (defined('FLUENT_AUTH_VERSION')) {
 
 define('FLUENT_AUTH_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('FLUENT_AUTH_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('FLUENT_AUTH_VERSION', '3.0.2');
+define('FLUENT_AUTH_VERSION', '3.0.3');
 
 class FluentAuthPlugin
 {

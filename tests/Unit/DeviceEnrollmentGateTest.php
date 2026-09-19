@@ -3,10 +3,12 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Activator;
+use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\TwoFaReminderHandler;
 use FluentAuth\App\Hooks\Handlers\TotpNudgeHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\EnrollmentTwoFaMethod;
@@ -984,31 +986,32 @@ class DeviceEnrollmentGateTest extends BaseTestCase
     /* ------------------------------------------------------- before the cookie */
 
     /**
-     * The point of the whole change: the password was right and the cookie is still
-     * not sent.
+     * The point of the whole change: the password was right and the session is still
+     * not granted. Asked of the passwordless path too, which mints its own cookie and
+     * so has to ask for itself - see TwoFaHandler::raiseChallengeForDirectLogin().
      */
-    public function test_the_auth_cookie_is_withheld_from_a_user_who_owes_a_factor()
+    public function test_a_user_who_owes_a_factor_is_not_handed_a_session()
     {
         $this->policy(['administrator'], ['administrator']);
 
-        $handler = new TwoFaHandler();
+        $signedIn = AuthService::makeLogin($this->admin);
 
-        $this->assertFalse(
-            $handler->maybeWithholdAuthCookies(true, 0, 0, $this->admin->ID),
-            'A user who owes a device factor must not be handed a session.'
-        );
-        $this->assertTrue(TwoFaHandler::hasWithheldCookiesFor($this->admin->ID));
+        $this->assertTrue(is_wp_error($signedIn), 'A user who owes a device factor must not be handed a session.');
+        $this->assertSame('fls_2fa_required', $signedIn->get_error_code());
+        $this->assertNotEmpty(Arr::get((array)$signedIn->get_error_data(), 'challenge_url'));
+        $this->assertSame(0, get_current_user_id());
     }
 
-    public function test_the_auth_cookie_is_sent_once_the_factor_is_held()
+    public function test_the_session_is_granted_once_the_factor_is_held()
     {
         $this->policy(['administrator'], ['administrator']);
         $this->enrolTotp($this->admin);
         Helper::setSatisfiedFactors(['device']);
 
-        $handler = new TwoFaHandler();
+        $signedIn = AuthService::makeLogin($this->admin);
 
-        $this->assertTrue($handler->maybeWithholdAuthCookies(true, 0, 0, $this->admin->ID));
+        $this->assertInstanceOf(\WP_User::class, $signedIn);
+        $this->assertSame($this->admin->ID, $signedIn->ID);
     }
 
     /**
@@ -1361,10 +1364,11 @@ class DeviceEnrollmentGateTest extends BaseTestCase
         $method = TwoFaService::getRequiredMethod($this->admin);
 
         $this->assertInstanceOf(EnrollmentTwoFaMethod::class, $method);
-        $this->assertFalse(
-            apply_filters('send_auth_cookies', true, 0, 0, $this->admin->ID, 'auth'),
-            'No cookie for a required user who has not enrolled.'
-        );
+
+        $signedIn = AuthService::makeLogin($this->admin);
+
+        $this->assertTrue(is_wp_error($signedIn), 'No session for a required user who has not enrolled.');
+        $this->assertSame('fls_2fa_required', $signedIn->get_error_code());
     }
 
     /* ------------------------------------------------------------- the nudge */
