@@ -48,6 +48,7 @@ export default {
         <template #label>
             <span class="fls_row_title">
                 {{ label }}
+                <slot name="label-help"/>
                 <span v-if="offRecommendation" class="fls_row_flag">{{ recommendationText }}</span>
             </span>
         </template>

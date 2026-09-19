@@ -103,7 +103,8 @@ export default {
 
                 <SettingsCard id="two_fa" :title="$t('Two-Factor Authentication')"
                                  :description="$t('Ask for more than a password. Turn on the methods you want to offer, then decide which roles must use one.')">
-                    <TwoFaSettings :settings="settings" :user_roles="user_roles"/>
+                    <TwoFaSettings :settings="settings" :user_roles="user_roles"
+                                   :recovery-help-preview="recovery_help_preview"/>
                 </SettingsCard>
 
                 <SettingsCard id="magic_login" :title="$t('Magic Login')"

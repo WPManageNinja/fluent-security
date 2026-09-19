@@ -2,6 +2,8 @@
 
 namespace FluentAuth\App\Services\TwoFa;
 
+use FluentAuth\App\Helpers\Helper;
+
 /**
  * The way back in when the second factor cannot be answered.
  *
@@ -152,15 +154,10 @@ class TwoFaBypass
     }
 
     /**
-     * How long the screen waits before admitting there is a way out, in seconds.
+     * Kept for integrations that used the old delay filter. The challenge now uses a
+     * native collapsed disclosure, so this value no longer controls rendering.
      *
-     * Not zero, and the delay is the whole design. Offered immediately this reads as an
-     * alternative to the second factor, and a proportion of people will take the easier
-     * looking route every time - which is a security feature talked out of existence by
-     * its own help text. Offered after somebody has been sitting on the form long enough
-     * to have tried, it reads as what it is: the thing you need when the normal way has
-     * failed.
-     *
+     * @deprecated The recovery help is expanded manually.
      * @return int
      */
     public static function getHelpDelay()
@@ -188,6 +185,11 @@ class TwoFaBypass
             return false;
         }
 
+        // This is deliberately opt-in. Existing installs receive the default from Helper.
+        if (Helper::getSetting('show_lockout_help') !== 'yes') {
+            return false;
+        }
+
         // Already lifted for them: there is nothing to instruct, they are simply in.
         if (self::isActiveFor($user)) {
             return false;
@@ -202,6 +204,21 @@ class TwoFaBypass
 
     /**
      * @param $user \WP_User|false
+     * @return array
+     */
+    public static function getHelpContent($user)
+    {
+        return [
+            'title' => __('Need help with your verification code?', 'fluent-security'),
+            'intro' => __('If you cannot complete verification, you can temporarily turn off two-factor authentication for your account. You will need access to your website files through your hosting account or SFTP.', 'fluent-security'),
+            'instructions' => __('Open wp-config.php and add the following line above the comment that says "That\'s all, stop editing". This applies only to the account named in the line. Your password is still required.', 'fluent-security'),
+            'code' => self::getSuggestedLine($user),
+            'warning' => __('While this line is present, your account is protected by its password only. After signing in, fix your verification method, remove the line, and test signing in again. Sign-ins that skip two-factor authentication are recorded in the activity log.', 'fluent-security')
+        ];
+    }
+
+    /**
+     * @param $user \WP_User|false
      * @return string
      */
     public static function renderHelp($user)
@@ -210,40 +227,32 @@ class TwoFaBypass
             return '';
         }
 
-        $line = self::getSuggestedLine($user);
-        $delay = self::getHelpDelay();
+        $content = self::getHelpContent($user);
 
         ob_start();
         ?>
-        <?php
-        /*
-         * Hidden, and revealed by login_helper.js after the delay - see initLockoutHelp().
-         * Offering the bypass the moment the challenge appears would teach every user
-         * that the way past a second factor is to edit a file; the wait is what keeps it
-         * for the person who is actually stuck.
-         */
-        ?>
-        <div id="fls_lockout_help" data-fls-delay="<?php echo (int)($delay * 1000); ?>"
-             style="display: none;margin-top: 16px;padding: 14px 16px;background: #fff;border: 1px solid #c3c4c7;border-left: 4px solid #dba617;box-shadow: 0 1px 3px rgb(0 0 0 / 4%);">
-            <p style="margin: 0 0 8px;">
-                <strong><?php esc_html_e('Cannot complete this step?', 'fluent-security'); ?></strong>
-            </p>
-            <p style="margin: 0 0 10px;font-size: 13px;">
-                <?php esc_html_e('Add this line to your wp-config.php, above the line that says "That\'s all, stop editing". It turns the second factor off for your account only, so you can sign in and fix it.', 'fluent-security'); ?>
-            </p>
-            <!--
-                A field rather than a code block, because the point is to get these exact
-                characters into another file. Selecting on focus is what makes that one
-                gesture on a phone, which is often what somebody locked out is holding.
-            -->
-            <input type="text" readonly
-                   value="<?php echo esc_attr($line); ?>"
-                   onclick="this.select();"
-                   style="width: 100%;font-family: Menlo, Consolas, monospace;font-size: 12px;padding: 6px;"/>
-            <p style="margin: 10px 0 0;font-size: 12px;color: #646970;">
-                <?php esc_html_e('Take the line out again once you are back in and your second factor is working. While it is there, this account is protected by its password alone, and every sign in it allows is recorded in the log.', 'fluent-security'); ?>
-            </p>
-        </div>
+        <details id="fls_lockout_help"
+                 style="margin-top: 16px;padding: 14px 16px;background: #fff;border: 1px solid #c3c4c7;border-left: 4px solid #dba617;box-shadow: 0 1px 3px rgb(0 0 0 / 4%);">
+            <summary style="cursor: pointer;">
+                <?php echo esc_html($content['title']); ?>
+            </summary>
+            <div style="margin-top: 12px;">
+                <p style="margin: 0 0 10px;font-size: 13px;">
+                    <?php echo esc_html($content['intro']); ?>
+                </p>
+                <p style="margin: 0 0 10px;font-size: 13px;">
+                    <?php echo esc_html($content['instructions']); ?>
+                </p>
+                <input type="text" readonly
+                       aria-label="<?php esc_attr_e('Account recovery configuration line', 'fluent-security'); ?>"
+                       value="<?php echo esc_attr($content['code']); ?>"
+                       onclick="this.select();"
+                       style="width: 100%;font-family: Menlo, Consolas, monospace;font-size: 12px;padding: 6px;"/>
+                <p style="margin: 10px 0 0;font-size: 12px;color: #646970;">
+                    <?php echo esc_html($content['warning']); ?>
+                </p>
+            </div>
+        </details>
         <?php
 
         return ob_get_clean();
