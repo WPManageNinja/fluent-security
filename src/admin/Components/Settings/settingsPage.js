@@ -19,6 +19,7 @@ export default {
             proxy_detection: {status: 'none', headers: []},
             /* Null on almost every site - see RivalTwoFa::notice(). */
             two_fa_conflict: null,
+            recovery_help_preview: null,
             loading: false,
             saving: false,
             errors: false
@@ -36,6 +37,7 @@ export default {
                     this.proxy_config_locked = response.proxy_config_locked;
                     this.proxy_detection = response.proxy_detection || this.proxy_detection;
                     this.two_fa_conflict = response.two_fa_conflict || null;
+                    this.recovery_help_preview = response.recovery_help_preview || null;
                 })
                 .catch(errors => {
                     this.$handleError(errors);

@@ -5,6 +5,7 @@ namespace FluentAuth\App\Http\Controllers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\FactorStore;
+use FluentAuth\App\Services\TwoFa\TwoFaBypass;
 use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Services\ProxyDetection;
 use FluentAuth\App\Services\TwoFa\RivalTwoFa;
@@ -16,6 +17,7 @@ class SettingsController
     {
         return [
             'settings'            => Helper::getAuthSettings(),
+            'recovery_help_preview' => TwoFaBypass::getHelpContent(wp_get_current_user()),
             'user_roles'          => Helper::getUserRoles(),
             'low_level_roles'     => Helper::getLowLevelRoles(),
             // wp-config.php wins over the saved settings, so say so in the UI.
@@ -129,6 +131,11 @@ class SettingsController
             if (array_key_exists($listKey, $settings)) {
                 $settings[$listKey] = array_values(array_filter((array)$settings[$listKey]));
             }
+        }
+
+        // Keep this switch closed for malformed or legacy values.
+        if (!in_array(Arr::get($settings, 'show_lockout_help'), ['yes', 'no'], true)) {
+            $settings['show_lockout_help'] = 'no';
         }
 
         /*

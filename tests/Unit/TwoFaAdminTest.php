@@ -56,6 +56,33 @@ class TwoFaAdminTest extends BaseTestCase
      * Saving the policy
      * ------------------------------------------------------------------ */
 
+    public function testEmergencyRecoveryHelpIsOffByDefaultAndCanBeEnabled()
+    {
+        $this->assertSame('no', Helper::getSetting('show_lockout_help'));
+
+        $result = $this->save(['show_lockout_help' => 'yes']);
+
+        $this->assertNotWPError($result);
+        $this->assertSame('yes', Helper::getSetting('show_lockout_help'));
+    }
+
+    public function testEmergencyRecoveryHelpCanBeDisabledAgain()
+    {
+        $this->save(['show_lockout_help' => 'yes']);
+        $result = $this->save(['show_lockout_help' => 'no']);
+
+        $this->assertNotWPError($result);
+        $this->assertSame('no', Helper::getSetting('show_lockout_help'));
+    }
+
+    public function testInvalidEmergencyRecoveryHelpValueStaysOff()
+    {
+        $result = $this->save(['show_lockout_help' => 'unexpected']);
+
+        $this->assertNotWPError($result);
+        $this->assertSame('no', Helper::getSetting('show_lockout_help'));
+    }
+
     public function testThePolicyIsSaved()
     {
         $result = $this->save([

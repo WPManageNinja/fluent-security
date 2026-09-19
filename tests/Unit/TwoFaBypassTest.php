@@ -59,6 +59,14 @@ class TwoFaBypassTest extends BaseTestCase
         });
     }
 
+    private function enableHelp()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['show_lockout_help'] = 'yes';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+    }
+
     /* ------------------------------------------------------------ what it reads */
 
     public function test_nothing_is_bypassed_by_default()
@@ -195,8 +203,28 @@ class TwoFaBypassTest extends BaseTestCase
 
     /* ----------------------------------------------------------- the offer */
 
+    public function test_the_help_is_off_by_default_for_existing_settings()
+    {
+        $settings = Helper::getAuthSettings();
+        unset($settings['show_lockout_help']);
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $this->assertSame('no', Helper::getSetting('show_lockout_help'));
+        add_filter('fluent_auth/show_lockout_help', '__return_true');
+        $this->assertSame('', TwoFaBypass::renderHelp($this->admin));
+    }
+
+    public function test_disabled_help_cannot_be_enabled_by_the_audience_filter()
+    {
+        add_filter('fluent_auth/show_lockout_help', '__return_true');
+
+        $this->assertSame('', TwoFaBypass::renderHelp($this->admin));
+    }
+
     public function test_the_help_names_the_account_looking_at_it()
     {
+        $this->enableHelp();
         $html = TwoFaBypass::renderHelp($this->admin);
 
         $this->assertStringContainsString(TwoFaBypass::CONSTANT, $html);
@@ -209,6 +237,7 @@ class TwoFaBypassTest extends BaseTestCase
      */
     public function test_the_help_is_not_offered_to_someone_who_could_not_act_on_it()
     {
+        $this->enableHelp();
         $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
 
         $this->assertSame('', TwoFaBypass::renderHelp($subscriber));
@@ -216,6 +245,7 @@ class TwoFaBypassTest extends BaseTestCase
 
     public function test_the_help_stops_once_it_has_been_taken()
     {
+        $this->enableHelp();
         $this->configure('locked_out_admin');
 
         $this->assertSame(
@@ -225,21 +255,20 @@ class TwoFaBypassTest extends BaseTestCase
         );
     }
 
-    /**
-     * Offered immediately it reads as an alternative to the second factor, and some
-     * people will take the easier looking route every time.
-     */
-    public function test_the_help_waits_before_showing_itself()
+    public function test_the_help_is_collapsed_until_the_user_expands_it()
     {
+        $this->enableHelp();
         $html = TwoFaBypass::renderHelp($this->admin);
 
-        $this->assertGreaterThan(0, TwoFaBypass::getHelpDelay());
-        $this->assertStringContainsString('display: none', $html);
-        $this->assertStringContainsString((string)(TwoFaBypass::getHelpDelay() * 1000), $html);
+        $this->assertStringContainsString('<details id="fls_lockout_help"', $html);
+        $this->assertStringContainsString('Need help with your verification code?', $html);
+        $this->assertDoesNotMatchRegularExpression('/<details\b[^>]*\bopen(?:\s|=|>)/i', $html);
+        $this->assertStringNotContainsString('data-fls-delay', $html);
     }
 
     public function test_the_help_can_be_turned_off()
     {
+        $this->enableHelp();
         add_filter('fluent_auth/show_lockout_help', '__return_false');
 
         $this->assertSame('', TwoFaBypass::renderHelp($this->admin));

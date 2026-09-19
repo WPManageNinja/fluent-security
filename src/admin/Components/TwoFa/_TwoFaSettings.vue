@@ -1,5 +1,6 @@
 <script type="text/babel">
 import SecretEncryption from './_SecretEncryption.vue';
+import SettingToggle from '../Settings/_SettingToggle.vue';
 
 /**
  * What a password login has to produce after the password.
@@ -28,9 +29,11 @@ import SecretEncryption from './_SecretEncryption.vue';
 export default {
     name: 'TwoFaSettings',
     components: {
-        SecretEncryption
+        SecretEncryption,
+        SettingToggle
     },
     props: {
+        recoveryHelpPreview: {type: Object, default: null},
         settings: {
             type: Object,
             required: true
@@ -313,5 +316,59 @@ export default {
         <p v-if="!hasAnyMethod" class="fls_2fa_none">
             {{ $t('Everything here is off, so a password alone signs anyone in.') }}
         </p>
+
+        <SettingToggle v-model="settings.show_lockout_help" recommend="no"
+                       :label="$t('Show emergency recovery help on the two-factor screen')"
+                        :description="$t('When enabled, administrators who cannot complete a challenge can expand instructions for the wp-config.php recovery switch.')">
+            <template #label-help>
+                <el-popover v-if="recoveryHelpPreview" trigger="click" placement="top"
+                            :width="380" :title="$t('Recovery message preview')">
+                    <template #reference>
+                        <button type="button" class="fls_recovery_info"
+                                :aria-label="$t('Preview emergency recovery message')">
+                            <span aria-hidden="true">ⓘ</span>
+                        </button>
+                    </template>
+                    <div class="fls_recovery_preview">
+                        <strong>{{ recoveryHelpPreview.title }}</strong>
+                        <p>{{ recoveryHelpPreview.intro }}</p>
+                        <p>{{ recoveryHelpPreview.instructions }}</p>
+                        <code>{{ recoveryHelpPreview.code }}</code>
+                        <p>{{ recoveryHelpPreview.warning }}</p>
+                    </div>
+                </el-popover>
+            </template>
+        </SettingToggle>
     </div>
 </template>
+
+<style scoped lang="scss">
+.fls_recovery_info {
+    border: 0;
+    background: transparent;
+    color: var(--fls-text-secondary, #50575e);
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 16px;
+
+    &:focus-visible {
+        outline: 2px solid #2271b1;
+        outline-offset: 2px;
+    }
+}
+
+.fls_recovery_preview {
+    font-size: 13px;
+    line-height: 1.5;
+
+    p { margin: 10px 0; }
+    code {
+        display: block;
+        padding: 8px;
+        background: #f0f0f1;
+        color: #1d2327;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+}
+</style>

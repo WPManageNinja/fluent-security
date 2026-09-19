@@ -130,6 +130,8 @@ class Helper
              * that never touches it keeps the meaning the required list already had.
              */
             'two_fa_required_level'   => 'device',
+            // Emergency wp-config.php guidance on the two-factor challenge screen.
+            'show_lockout_help'       => 'no',
             'disable_admin_bar'       => 'no',
             'disable_bar_roles'       => [
                 'subscriber'

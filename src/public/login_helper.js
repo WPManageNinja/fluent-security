@@ -1128,29 +1128,6 @@ function initMagicLogin(passkeyButtonShowing) {
     });
 }
 
-/* --------------------------------------------------------------- the lockout help */
-
-/**
- * The wp-config line that lifts a second factor, shown only after a wait.
- *
- * Offering it the moment the challenge appears would teach every user that the way past
- * a second factor is to edit a file. The delay is the whole point of the feature, so the
- * server sets it and this only honours it.
- */
-function initLockoutHelp() {
-    const help = byId('fls_lockout_help');
-
-    if (!help || !claim(help)) {
-        return;
-    }
-
-    const delay = parseInt(help.dataset.flsDelay, 10);
-
-    window.setTimeout(() => {
-        help.style.display = '';
-    }, isNaN(delay) ? 0 : delay);
-}
-
 /* ------------------------------------------------------------------- the challenge */
 
 /**
@@ -1179,7 +1156,6 @@ function initChallenge() {
 
     initPasskeyChallenge();
     initEnrollment();
-    initLockoutHelp();
 }
 
 /**
