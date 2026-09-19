@@ -142,7 +142,7 @@ class LoginSecurityHandler
     private function restrictedLocationMessage($user)
     {
         /* translators: %s: the IP address the visitor is connecting from */
-        $lead = __('Your username and password are correct, but this account may only be used from an approved location, and the address you are connecting from (%s) is not one of them.', 'fluent-security');
+        $lead = __('Your username and password are correct, but this account can only be used from certain places, and the address you are connecting from (%s) is not one of them.', 'fluent-security');
 
         return $this->lockedOutMessage(sprintf($lead, Helper::getIp()), $user);
     }
@@ -398,7 +398,7 @@ class LoginSecurityHandler
             if ($errorCode == 'invalid_username' || $errorCode == 'incorrect_password') {
                 return new \WP_Error(
                     $errorCode,
-                    __('<strong>Error</strong>: The username or the password is invalid. Please try different combination.', 'fluent-security')
+                    __('<strong>Error</strong>: That username and password do not match. Please try again.', 'fluent-security')
                 );
             }
             return $user;
@@ -473,8 +473,8 @@ class LoginSecurityHandler
             return $errors;
         }
 
-        /* translators: %d: munites */
-        return new \WP_Error('blocked', sprintf(__('You are blocked for next %d minutes. Please try after that time', 'fluent-security'), $minutes));
+        /* translators: %d: minutes */
+        return new \WP_Error('blocked', sprintf(__('Too many attempts from your network. Please wait %d minutes and try again.', 'fluent-security'), $minutes));
     }
 
     /**
@@ -916,7 +916,7 @@ class LoginSecurityHandler
         }
 
         /* translators: %d: munites */
-        return new \WP_Error('login_error', sprintf(__('You are trying too much. Please try after %d minutes', 'fluent-security'), $minutes));
+        return new \WP_Error('login_error', sprintf(__('Too many tries. Please wait %d minutes and try again.', 'fluent-security'), $minutes));
     }
 
     /**

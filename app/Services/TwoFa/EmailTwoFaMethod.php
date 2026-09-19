@@ -172,7 +172,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         if (!$code) {
             return new \WP_Error(
                 'invalid_code',
-                __('Please provide a valid login code', 'fluent-security')
+                __('Please enter your login code.', 'fluent-security')
             );
         }
 
@@ -195,8 +195,8 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
             <input type="hidden" name="login_hash" value="<?php echo esc_attr(Arr::get($data, 'login_hash')); ?>"/>
             <input type="hidden" name="redirect_to" value="<?php echo esc_attr($redirectTo); ?>"/>
             <div class="user-pass-wrap">
-                <p style="margin-bottom: 20px;"><?php esc_html_e('Please check your email inbox and get the 2 factor Authentication code and Provide here to login', 'fluent-security'); ?></p>
-                <label for="login_passcode"><?php esc_html_e('Two-Factor Authentication Code', 'fluent-security'); ?></label>
+                <p style="margin-bottom: 20px;"><?php esc_html_e('Check your email for your login code, then type it in below.', 'fluent-security'); ?></p>
+                <label for="login_passcode"><?php esc_html_e('Login code', 'fluent-security'); ?></label>
                 <div class="wp-pwd">
                     <input style="font-size: 14px;" placeholder="<?php esc_html_e('Login Code', 'fluent-security'); ?>"
                            type="number"
@@ -290,14 +290,14 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         if (empty($emailData['subject']) || empty($emailData['body'])) {
             $blogName = html_entity_decode(get_bloginfo('name'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-            /* translators: %1$1s: Site Name, %2$d: verification code */
-            $emailSubject = sprintf(__('Your Login code for %1$1s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
+            /* translators: %1$s: Site Name, %2$d: login code */
+            $emailSubject = sprintf(__('Your login code for %1$s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
 
             $emailLines = [
                 /* translators: %s: User's Display Name  */
                 sprintf(__('Hello %s,', 'fluent-security'), $user->display_name),
                 /* translators: %s: Site Name  */
-                sprintf(__('Someone requested to login to %s and here is the Login code that you can use in the login form', 'fluent-security'), $blogName),
+                sprintf(__('Someone asked to sign in to %s. Here is the code to type into the login form:', 'fluent-security'), $blogName),
                 '<b>' . __('Your Login Code: ', 'fluent-security') . '</b>',
                 '<p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">' . $data['two_fa_code'] . '</p>',
                 /* translators: %d: Minute  */
@@ -310,7 +310,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
 
             if ($autoLoginUrl) {
                 $emailLines[] = ' ';
-                $emailLines[] = __('You can also login by clicking the following button', 'fluent-security');
+                $emailLines[] = __('Or you can sign in by tapping the button below.', 'fluent-security');
                 $callToAction = [
                     /* translators: %s: Site Name  */
                     'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), $blogName),

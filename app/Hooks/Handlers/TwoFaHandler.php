@@ -398,7 +398,7 @@ class TwoFaHandler
 
         if (!$hash) {
             wp_send_json([
-                'message' => __('Please provide a valid login code', 'fluent-security')
+                'message' => __('Please enter your login code.', 'fluent-security')
             ], 422);
         }
 
@@ -410,7 +410,7 @@ class TwoFaHandler
 
         if (!$logHash) {
             wp_send_json([
-                'message' => __('Your provided code or url is not valid', 'fluent-security')
+                'message' => __('That link or code is not valid.', 'fluent-security')
             ], 422);
         }
 
@@ -424,7 +424,7 @@ class TwoFaHandler
          */
         if (!$user || !$method || $logHash->status != 'issued' || strtotime($logHash->created_at) < current_time('timestamp') - self::PENDING_TIMEOUT) {
             wp_send_json([
-                'message' => __('Sorry, your login code has been expired. Please try to login again', 'fluent-security')
+                'message' => __('That code has expired. Please sign in again.', 'fluent-security')
             ], 422);
         }
 
@@ -432,7 +432,7 @@ class TwoFaHandler
             $this->invalidate2FaCode($logHash);
 
             wp_send_json([
-                'message' => __('Too many invalid attempts for this login code. Please try to login again', 'fluent-security')
+                'message' => __('Too many tries with that code. Please sign in again.', 'fluent-security')
             ], 422);
         }
 
@@ -443,7 +443,7 @@ class TwoFaHandler
          */
         if ($logHash->use_type !== $method->getChallengeKey() && !$method->isAvailableForUser($user)) {
             wp_send_json([
-                'message' => __('Sorry, You can not use this verification method', 'fluent-security')
+                'message' => __('That way of signing in is not available for your account.', 'fluent-security')
             ], 422);
         }
 
@@ -459,7 +459,7 @@ class TwoFaHandler
             $this->recordFailedAttempt($logHash, $user, $method);
 
             wp_send_json([
-                'message' => __('Your provided code is not valid. Please try again', 'fluent-security')
+                'message' => __('That code is not correct. Please try again.', 'fluent-security')
             ], 422);
         }
 
@@ -528,7 +528,7 @@ class TwoFaHandler
         }
 
         wp_send_json([
-            'message' => __('There has an error when log you in. Please try to login again', 'fluent-security')
+            'message' => __('Something went wrong while signing you in. Please try again.', 'fluent-security')
         ], 422);
     }
 
@@ -1295,7 +1295,7 @@ class TwoFaHandler
 
         do_action('wp_login_failed', $user->user_login, new \WP_Error(
             'fls_invalid_2fa_code',
-            __('Invalid two factor authentication code', 'fluent-security')
+            __('That code is not correct.', 'fluent-security')
         ));
     }
 

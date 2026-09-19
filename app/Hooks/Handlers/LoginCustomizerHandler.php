@@ -439,7 +439,7 @@ class LoginCustomizerHandler
         }
 
         if ($data['user_password'] !== $data['user_confirm_password']) {
-            $errors->add('user_confirm_password', __('Password and Confirm password need to be matched', 'fluent-security'));
+            $errors->add('user_confirm_password', __('Those two passwords do not match.', 'fluent-security'));
         }
 
         if (empty($data['agree_terms'])) {

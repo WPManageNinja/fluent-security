@@ -369,7 +369,7 @@ class AuthService
 
         $user_id = wp_insert_user($data);
         if (!$user_id || is_wp_error($user_id)) {
-            $errors->add('registerfail', __('<strong>Error</strong>: Could not register you. Please contact the site admin!', 'fluent-security'));
+            $errors->add('registerfail', __('<strong>Error</strong>: We could not create your account. Please contact the site owner.', 'fluent-security'));
             return $errors;
         }
 
@@ -403,28 +403,28 @@ class AuthService
         if ('' === $sanitized_user_login) {
             $errors->add('empty_username', __('<strong>Error</strong>: Please enter a username.', 'fluent-security'));
         } elseif (!validate_username($user_login)) {
-            $errors->add('invalid_username', __('<strong>Error</strong>: This username is invalid because it uses illegal characters. Please enter a valid username.', 'fluent-security'));
+            $errors->add('invalid_username', __('<strong>Error</strong>: That username uses characters that are not allowed. Please try another one.', 'fluent-security'));
             $sanitized_user_login = '';
         } elseif (username_exists($sanitized_user_login)) {
-            $errors->add('username_exists', __('<strong>Error</strong>: This username is already registered. Please choose another one.', 'fluent-security'));
+            $errors->add('username_exists', __('<strong>Error</strong>: That username is already taken. Please choose another one.', 'fluent-security'));
         } else {
             /** This filter is documented in wp-includes/user.php */
             $illegal_user_logins = (array)apply_filters('illegal_user_logins', array());
             if (in_array(strtolower($sanitized_user_login), array_map('strtolower', $illegal_user_logins), true)) {
-                $errors->add('invalid_username', __('<strong>Error</strong>: Sorry, that username is not allowed.', 'fluent-security'));
+                $errors->add('invalid_username', __('<strong>Error</strong>: That username is not available. Please choose another one.', 'fluent-security'));
             }
         }
 
         // Check the email address.
         if ('' === $user_email) {
-            $errors->add('empty_email', __('<strong>Error</strong>: Please type your email address.', 'fluent-security'));
+            $errors->add('empty_email', __('<strong>Error</strong>: Please enter your email address.', 'fluent-security'));
         } elseif (!is_email($user_email)) {
-            $errors->add('invalid_email', __('<strong>Error</strong>: The email address is not correct.', 'fluent-security'));
+            $errors->add('invalid_email', __('<strong>Error</strong>: That email address does not look right.', 'fluent-security'));
             $user_email = '';
         } elseif (email_exists($user_email)) {
             $errors->add(
                 'email_exists',
-                __('<strong>Error:</strong> This email address is already registered. Please login or try reset password', 'fluent-security')
+                __('<strong>Error:</strong> That email address already has an account. Please sign in, or reset your password.', 'fluent-security')
             );
         }
 
@@ -445,12 +445,12 @@ class AuthService
             ->first();
 
         if (!$logHash) {
-            return new \WP_Error('invalid_verification_code', __('Please provide a valid vefification code that sent to your email address', 'fluent-security'));
+            return new \WP_Error('invalid_verification_code', __('That code does not match the one we emailed you. Please check and try again.', 'fluent-security'));
         }
 
         // check if it got expired or not
         if ($logHash->used_count > 5 || strtotime($logHash->valid_till) < current_time('timestamp')) {
-            return new \WP_Error('verification_code_expired', __('Your verification code has beeen expired. Please try again', 'fluent-security'));
+            return new \WP_Error('verification_code_expired', __('That code has expired. Please ask for a new one.', 'fluent-security'));
         }
 
         // Bind verification to the email the code was sent to. The hash commits
@@ -462,7 +462,7 @@ class AuthService
                 ->update([
                     'used_count' => $logHash->used_count + 1
                 ]);
-            return new \WP_Error('invalid_verification_code', __('Please provide a valid vefification code that sent to your email address', 'fluent-security'));
+            return new \WP_Error('invalid_verification_code', __('That code does not match the one we emailed you. Please check and try again.', 'fluent-security'));
         }
 
         flsDb()->table('fls_login_hashes')->where('id', $logHash->id)

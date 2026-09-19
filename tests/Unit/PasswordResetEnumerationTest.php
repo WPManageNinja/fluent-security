@@ -140,6 +140,6 @@ class PasswordResetEnumerationTest extends BaseTestCase
             $response = $this->requestReset('realuser');
         }
 
-        $this->assertStringContainsString('blocked', strtolower($response['message']));
+        $this->assertStringContainsString('too many attempts', strtolower($response['message']));
     }
 }
