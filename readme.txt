@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.2
+Stable tag: 3.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -310,6 +310,11 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.0.3 - Date: Sep 20, 2026 =
+* Added Compiatibility with MainWP or Programmatically Authenticate Users
+* Improved User Facing Strings and Error Messages
+* Showing recovery help message after 50 seconds of inactivity on the two-factor setup screen
 
 = 3.0.2 - Date: Sep 18, 2026 =
 * Fix: Requiring two-factor no longer locks anybody out of wp-admin, or breaks front-end forms and add-to-cart for logged-in members.
