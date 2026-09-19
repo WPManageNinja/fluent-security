@@ -23,8 +23,8 @@ class AuthService
 
         /*
          * Said here as well as in getSocialTwoFaRedirect(), because a brand new account
-         * never passes through that - and the cookie it is about to be issued is judged
-         * on what this login proved. See TwoFaHandler::maybeWithholdAuthCookies().
+         * never passes through that - and makeLogin() weighs the factor it still owes
+         * against what this login has already proved.
          */
         if ($provider) {
             Helper::setSatisfiedFactors([AuthFactor::IDP, AuthFactor::EMAIL]);
@@ -168,6 +168,13 @@ class AuthService
         return Helper::getValidatedRedirectUrl($redirect, '');
     }
 
+    /**
+     * Signs a user in without a password, for the flows that own the decision themselves.
+     *
+     * @param $user \WP_User|int
+     * @param $provider string
+     * @return \WP_User|\WP_Error a `fls_2fa_required` error carries `challenge_url`
+     */
     public static function makeLogin($user, $provider = '')
     {
         if (is_numeric($user)) {
@@ -186,6 +193,24 @@ class AuthService
 
         if (!$canLogin) {
             return new \WP_Error('login_denied', __('You are not allowed to login.', 'fluent-security'));
+        }
+
+        /*
+         * The factor this account still owes, asked before the session exists.
+         *
+         * This path mints its own cookie and so never meets the `authenticate` chain,
+         * where every other login is weighed. Nothing else will ask on its behalf: what
+         * a plugin does with wp_set_auth_cookie() is its own business - see
+         * TwoFaHandler::raiseChallengeForDirectLogin() - and this is our own.
+         */
+        $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+
+        if ($challengeUrl) {
+            return new \WP_Error(
+                'fls_2fa_required',
+                __('Please complete the second step to finish signing in.', 'fluent-security'),
+                ['challenge_url' => $challengeUrl]
+            );
         }
 
         wp_clear_auth_cookie();

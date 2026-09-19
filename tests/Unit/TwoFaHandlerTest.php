@@ -2,9 +2,11 @@
 
 namespace FluentAuth\Tests\Unit;
 
+use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
@@ -63,6 +65,24 @@ class TwoFaHandlerTest extends BaseTestCase
             }
         }
         parent::tearDown();
+    }
+
+    /**
+     * The test library pins `send_auth_cookies` to false for the whole suite, so ours
+     * has to be the filter that decides for the length of the assertion.
+     *
+     * @param $fn callable
+     * @return mixed
+     */
+    private function withCookiesAllowed(callable $fn)
+    {
+        remove_filter('send_auth_cookies', '__return_false');
+
+        try {
+            return $fn();
+        } finally {
+            add_filter('send_auth_cookies', '__return_false');
+        }
     }
 
     private function pendingRowFor($user)
@@ -473,23 +493,28 @@ class TwoFaHandlerTest extends BaseTestCase
     }
 
     /**
-     * The same rule at the other door: a plugin calling wp_set_auth_cookie() from a cron
-     * task or a WP-CLI command. Withholding a cookie no browser will read protects
-     * nothing, and the challenge raised beside it mailed a code once per run, on a timer.
+     * The same rule at the other door, and now without asking who is calling: a plugin
+     * that signs somebody in by calling wp_set_auth_cookie() is not stopped and not
+     * mailed about.
+     *
+     * It was both, once. Code reaching that function has already decided who the user is
+     * and could unhook whatever stood in its way, so refusing the cookie stopped nobody
+     * worth stopping - while a management dashboard signing in over its own signed
+     * channel mailed its owner a login code every few minutes, for a form no machine
+     * will ever open.
      */
-    public function testACookieSetWhereNobodyIsWaitingIsNotWithheld()
+    public function testAnotherPluginsDirectSignInIsNeitherStoppedNorMailedAbout()
     {
         $send = null;
 
         $mails = $this->mailsSentDuring(function () use (&$send) {
-            $send = $this->withUnattendedRequest(function () {
-                return $this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID);
+            $send = $this->withCookiesAllowed(function () {
+                return apply_filters('send_auth_cookies', true, 0, 0, $this->user->ID, 'auth');
             });
         });
 
-        $this->assertTrue($send, 'the cookie is left alone');
-        $this->assertFalse(TwoFaHandler::hasWithheldCookiesFor($this->user->ID));
-        $this->assertNull($this->pendingRowFor($this->user));
+        $this->assertTrue($send, 'nothing of ours withholds the cookie');
+        $this->assertNull($this->pendingRowFor($this->user), 'and no challenge is raised behind it');
         $this->assertSame([], $mails);
     }
 
@@ -666,10 +691,10 @@ class TwoFaHandlerTest extends BaseTestCase
     }
 
     /**
-     * Letting the login past the authenticate chain is only half a sign-in. The cookie
-     * backstop resolves the challenge on its own, and without being told about the pass
-     * it refused the cookie for the login that had just been allowed - the caller saw a
-     * WP_User while the browser stayed signed out.
+     * Letting the login past the authenticate chain is only half a sign-in, and the
+     * cookie that follows must not be second-guessed: the caller was once handed a
+     * WP_User while the browser stayed signed out - a form told "success" over a session
+     * that did not exist.
      */
     public function testAPassedHeadlessLoginStillGetsItsCookie()
     {
@@ -682,7 +707,9 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertSame($subscriber, $passed, 'precondition: the login was allowed through');
 
         $this->assertTrue(
-            $this->handler->maybeWithholdAuthCookies(true, 0, 0, $subscriber->ID),
+            $this->withCookiesAllowed(function () use ($subscriber) {
+                return apply_filters('send_auth_cookies', true, 0, 0, $subscriber->ID, 'auth');
+            }),
             'the cookie has to follow the decision the login chain already made'
         );
     }
@@ -840,146 +867,95 @@ class TwoFaHandlerTest extends BaseTestCase
     }
 
     /*
-     * The auth cookie itself.
+     * Sign ins that never present a password.
      */
 
-    public function testADirectlySetAuthCookieIsWithheldWhileASecondFactorIsOwed()
+    /**
+     * Our own passwordless flows - social, the signup auto login - mint the cookie
+     * themselves and so never meet the `authenticate` chain. Nothing else will ask on
+     * their behalf, so they ask for themselves.
+     */
+    /**
+     * The whole stack, through the real function: what MainWP, FluentCommunity,
+     * FluentCart and WooCommerce all call after their own checks. This is the case that
+     * mailed a login code every few minutes to an administrator who had not tried to
+     * sign in, and left nothing in the log to explain it.
+     */
+    public function testTheWholeStackLeavesADirectSetterAlone()
     {
-        $send = $this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID);
+        /*
+         * Left under the test library's own refusal, which only stops the browser being
+         * sent a cookie there are no headers left to send: core fires `set_auth_cookie`
+         * and runs the `send_auth_cookies` chain before it reaches that gate, so this
+         * still goes through everything this plugin hangs on the way.
+         */
+        $mails = $this->mailsSentDuring(function () {
+            wp_set_auth_cookie($this->user->ID);
+        });
 
-        $this->assertFalse($send);
-        $this->assertTrue(TwoFaHandler::hasWithheldCookiesFor($this->user->ID));
+        $this->assertSame([], $mails, 'no code for a form no machine will open');
+        $this->assertNull($this->pendingRowFor($this->user), 'and no challenge behind it');
+
+        // It is written down instead - see LoginSecurityHandler::noteDirectLogin().
+        (new LoginSecurityHandler())->logDirectLogins();
+
+        $row = flsDb()->table('fls_auth_logs')
+            ->where('user_id', $this->user->ID)
+            ->orderBy('id', 'DESC')
+            ->first();
+
+        $this->assertNotNull($row);
+        $this->assertSame('direct_login', $row->media);
+    }
+
+    public function testOurOwnPasswordlessSignInRaisesTheChallengeItOwes()
+    {
+        $signedIn = AuthService::makeLogin($this->user);
+
+        $this->assertWpErrorWithCode($signedIn, 'fls_2fa_required');
+
+        $challengeUrl = Arr::get((array)$signedIn->get_error_data(), 'challenge_url');
 
         $row = $this->pendingRowFor($this->user);
-        $this->assertNotNull($row, 'The challenge is raised so the next page can show it');
+        $this->assertNotNull($row, 'the challenge has to exist before the caller is sent to it');
+        $this->assertStringContainsString($row->login_hash, $challengeUrl);
+
+        // The caller may redirect somewhere of its own; this is what brings them back.
         $this->assertSame($row->login_hash, $_COOKIE[TwoFaHandler::PENDING_COOKIE]);
 
-        // The plugin that set the cookie goes on to announce a login that did not happen.
-        do_action('wp_login', $this->user->user_login, $this->user);
-
-        $success = flsDb()->table('fls_auth_logs')
-            ->where('user_id', $this->user->ID)
-            ->where('status', 'success')
-            ->count();
-        $this->assertSame(0, $success);
+        $this->assertSame(0, get_current_user_id(), 'and no session until it is answered');
     }
 
-    public function testTheCookieGoesThroughTheWholeStackForADirectSetter()
-    {
-        // The test library refuses every cookie up front; step out of its way so ours
-        // is the filter that decides. Headers are long gone, so nothing is actually sent.
-        remove_filter('send_auth_cookies', '__return_false');
-
-        try {
-            // What FluentCommunity, FluentCart and WooCommerce do after their own checks.
-            wp_set_auth_cookie($this->user->ID);
-        } finally {
-            add_filter('send_auth_cookies', '__return_false');
-        }
-
-        $this->assertTrue(TwoFaHandler::hasWithheldCookiesFor($this->user->ID));
-        $this->assertNotNull($this->pendingRowFor($this->user));
-    }
-
-    public function testAnAuthCookieForAnAccountOwingNothingIsSent()
+    public function testOurOwnPasswordlessSignInProceedsWhenNothingIsOwed()
     {
         $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
 
-        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $subscriber->ID));
-        $this->assertFalse(TwoFaHandler::hasWithheldCookiesFor($subscriber->ID));
+        $signedIn = AuthService::makeLogin($subscriber);
+
+        $this->assertInstanceOf(\WP_User::class, $signedIn);
+        $this->assertSame($subscriber->ID, $signedIn->ID);
+        $this->assertNull($this->pendingRowFor($subscriber));
     }
 
-    public function testAnAuthCookieReissuedToWhoeverIsAlreadySignedInIsSent()
-    {
-        // What core does on the way in when the request carries a valid cookie.
-        do_action('auth_cookie_valid', [], $this->user);
-
-        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
-        $this->assertNull($this->pendingRowFor($this->user));
-    }
-
+    /**
+     * A plugin signs the user in, writes the new cookie into $_COOKIE, and something
+     * validates it - all inside the same request. That is not an arrival, and reading it
+     * as one would let a login vouch for itself.
+     */
     public function testACookieMintedInThisRequestCannotVouchForItself()
     {
-        // A plugin signs the user in, writes the new cookie into $_COOKIE, and something
-        // validates it - all inside the same request. That is not an arrival.
         $this->handler->rememberCookieUser('minted', 0, 0, $this->user->ID);
         do_action('auth_cookie_valid', [], $this->user);
         $_COOKIE[LOGGED_IN_COOKIE] = wp_generate_auth_cookie($this->user->ID, time() + 3600, 'logged_in');
 
-        $this->assertFalse($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
-        $this->assertNotNull($this->pendingRowFor($this->user));
-    }
+        $this->assertFalse(TwoFaHandler::arrivedSignedInAs($this->user->ID));
 
-    public function testAnAdministratorMaySwitchIntoAnotherAccountWithoutItsSecondFactor()
-    {
-        $admin = $this->factory->user->create_and_get(['role' => 'administrator']);
-        do_action('auth_cookie_valid', [], $admin);
-
-        // User Switching, "login as customer": a cookie for somebody else.
-        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
-        $this->assertNull($this->pendingRowFor($this->user), 'No code is mailed to the account being entered');
-    }
-
-    public function testSomeoneWhoCannotEditTheAccountGetsNoSuchPass()
-    {
-        $subscriber = $this->factory->user->create_and_get(['role' => 'subscriber']);
-        do_action('auth_cookie_valid', [], $subscriber);
-
-        $this->assertFalse($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
-    }
-
-    public function testReCheckingThePasswordOfWhoeverIsAlreadySignedInIsNotRefused()
-    {
-        do_action('auth_cookie_valid', [], $this->user);
-
+        // So a headless login in the same request is still weighed, not waved past.
         $result = $this->withHeadlessAjax(function () {
             return $this->handler->maybeDenyHeadlessLogin($this->user);
         });
 
-        $this->assertSame($this->user, $result);
-        $this->assertNull($this->pendingRowFor($this->user));
-    }
-
-    public function testAnApplicationPasswordLoginIsNotRefused()
-    {
-        // XML-RPC with an application password reaches the authenticate chain too.
-        $this->handler->rememberAppPasswordAuth();
-
-        $result = $this->withHeadlessAjax(function () {
-            return $this->handler->maybeDenyHeadlessLogin($this->user);
-        });
-
-        $this->assertSame($this->user, $result);
-    }
-
-    public function testACookieRenewedAfterThisRequestsOwnCookieDiedIsStillSent()
-    {
-        // The request arrived signed in: core validated the cookie and said so.
-        do_action('auth_cookie_valid', [], $this->user);
-
-        // Then the password changed / the recovery sweep ran - the old cookie is dead.
-        \WP_Session_Tokens::destroy_all_for_all_users();
-        unset($_COOKIE[LOGGED_IN_COOKIE]);
-
-        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
-        $this->assertNull($this->pendingRowFor($this->user));
-    }
-
-    public function testClearingCookiesIsNeverInterferedWith()
-    {
-        // wp_clear_auth_cookie() runs the same filter with no user.
-        $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, 0));
-    }
-
-    public function testTheCookieCheckCanBeSwitchedOffByFilter()
-    {
-        add_filter('fluent_auth/enforce_2fa_on_auth_cookie', '__return_false');
-
-        try {
-            $this->assertTrue($this->handler->maybeWithholdAuthCookies(true, 0, 0, $this->user->ID));
-        } finally {
-            remove_filter('fluent_auth/enforce_2fa_on_auth_cookie', '__return_false');
-        }
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
     }
 
     /*

@@ -916,12 +916,19 @@ class CustomAuthHandler
 
         $redirectUrl = false;
         if ($isAutoLogin) {
-            $this->login($userId);
-            $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
-            $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
-            $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
-            $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
-            $message = __('Successfully registered to the site.', 'fluent-security');
+            $challengeUrl = $this->login($userId);
+
+            if ($challengeUrl) {
+                // Registered and signed in as far as the site allows - one step to go.
+                $redirectUrl = $challengeUrl;
+                $message = __('Please complete the second step to finish signing in.', 'fluent-security');
+            } else {
+                $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
+                $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
+                $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
+                $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
+                $message = __('Successfully registered to the site.', 'fluent-security');
+            }
         }
 
         $response = [
@@ -1128,6 +1135,10 @@ class CustomAuthHandler
         return $errors;
     }
 
+    /**
+     * @param $userId int
+     * @return string|false the URL of a second factor still owed, if there is one
+     */
     public function login($userId)
     {
         /*
@@ -1137,6 +1148,22 @@ class CustomAuthHandler
          * @param integer $userId
          */
         do_action('fluent_auth/before_logging_in_user', $userId);
+
+        /*
+         * A brand new account can still owe a factor - the site may require one of every
+         * account - and this path mints the cookie itself, so nothing on the
+         * `authenticate` chain will ask on its behalf. See
+         * TwoFaHandler::raiseChallengeForDirectLogin().
+         */
+        $user = get_user_by('ID', $userId);
+
+        if ($user) {
+            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+
+            if ($challengeUrl) {
+                return $challengeUrl;
+            }
+        }
 
         wp_clear_auth_cookie();
         wp_set_current_user($userId);
@@ -1149,6 +1176,8 @@ class CustomAuthHandler
          * @param integer $userId
          */
         do_action('fluent_auth/after_logging_in_user', $userId);
+
+        return false;
     }
 
     /**

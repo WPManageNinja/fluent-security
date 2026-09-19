@@ -366,7 +366,26 @@ class LoginCustomizerHandler
         if ($user) {
             $isAutoLogin = apply_filters('fluent_auth/auto_login_after_signup', true, $user);
             if ($isAutoLogin) {
-                $user = AuthService::makeLogin($user);
+                $signedIn = AuthService::makeLogin($user);
+
+                /*
+                 * Registered, and the site asks this account for a second factor before
+                 * it gets a session. The challenge is already raised; this is where it
+                 * is answered. Without the redirect they would land on the "check your
+                 * email" screen having just proved their address.
+                 */
+                $challengeUrl = is_wp_error($signedIn)
+                    ? Arr::get((array)$signedIn->get_error_data(), 'challenge_url')
+                    : '';
+
+                if ($challengeUrl) {
+                    wp_safe_redirect($challengeUrl);
+                    exit;
+                }
+
+                if (!is_wp_error($signedIn)) {
+                    $user = $signedIn;
+                }
             }
         }
 

@@ -989,4 +989,146 @@ class LoginSecurityHandlerTest extends BaseTestCase
             (new LoginSecurityHandler())->maybeDenyRestrictedLocation(true, $admin, 'google')
         );
     }
+
+    /* ------------------------------------------- sign ins nothing else can see */
+
+    /**
+     * A management dashboard, a community invitation, a checkout that signs the customer
+     * in: all of them call wp_set_auth_cookie() directly, none of them reaches the
+     * `authenticate` chain, and until now none of them appeared in the log at all. The
+     * owner could see the plugin updates a dashboard had performed but not the sign in
+     * that performed them - which is exactly the question asked when something looks
+     * wrong.
+     */
+    public function test_a_sign_in_made_by_a_plugin_is_recorded()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logDirectLogins();
+
+        $row = $this->lastRowFor($user->ID);
+
+        $this->assertNotNull($row, 'a sign in that fires no wp_login still happened');
+        $this->assertSame('success', $row->status);
+        $this->assertSame('direct_login', $row->media);
+        $this->assertSame(Helper::getIp(), $row->ip);
+        $this->assertSame('Plugin sign-in', Helper::getLoginMediaLabel($row->media));
+    }
+
+    /**
+     * An ordinary sign in reaches both hooks - core mints the cookie and then fires
+     * `wp_login` - and must be written once, by the one that knows what kind it was.
+     */
+    public function test_an_ordinary_sign_in_is_not_recorded_twice()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('web', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * `wp_login` is documented as passing the user, and core always does - but a plugin
+     * firing it by hand may pass the login alone. MainWP does, on the branch that opens
+     * wp-admin, and a required second argument made that a fatal error in its request.
+     */
+    public function test_a_wp_login_fired_with_only_a_username_is_survived()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        do_action('wp_login', $user->user_login);
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+    }
+
+    /**
+     * A dashboard syncing every few minutes would otherwise bury everything else in the
+     * log the owner actually reads. One row, carrying a count, says the same thing.
+     */
+    public function test_repeated_plugin_sign_ins_collapse_into_one_row()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        foreach (range(1, 3) as $ignored) {
+            LoginSecurityHandler::resetRequestState();
+            $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+            $this->handler->logDirectLogins();
+        }
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame(3, (int)$this->lastRowFor($user->ID)->count);
+    }
+
+    /**
+     * A cookie re-issued to whoever is already here - after a password change, or the
+     * recovery sweep - is not a sign in and must not read as one.
+     */
+    public function test_a_cookie_reissued_to_the_person_already_here_is_not_a_sign_in()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        // What core does on the way in when the request carries a valid cookie.
+        do_action('auth_cookie_valid', [], $user);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(0, $this->countRowsFor($user->ID));
+    }
+
+    /**
+     * No mail, whatever the success-email setting says. These arrive on a timer, and a
+     * notification per sync is the noise this whole change exists to remove.
+     */
+    public function test_a_plugin_sign_in_mails_nobody()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notification_user_roles'] = ['administrator'];
+        $settings['notification_email'] = 'owner@example.org';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $mails = [];
+        $spy = function ($atts) use (&$mails) {
+            $mails[] = $atts;
+            return $atts;
+        };
+        add_filter('wp_mail', $spy);
+
+        try {
+            $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+            $this->handler->logDirectLogins();
+
+            $this->assertSame([], $mails, 'a sync every few minutes must not mail every few minutes');
+
+            // The same settings, a person signing in: that one is still announced.
+            $this->handler->logAuthSuccess($user->user_login, $user);
+        } finally {
+            remove_filter('wp_mail', $spy);
+        }
+
+        $this->assertCount(1, $mails, 'precondition: the success email is switched on');
+    }
+
+    private function lastRowFor($userId)
+    {
+        return flsDb()->table('fls_auth_logs')
+            ->where('user_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->first();
+    }
+
+    private function countRowsFor($userId)
+    {
+        return (int)flsDb()->table('fls_auth_logs')
+            ->where('user_id', $userId)
+            ->count();
+    }
 }

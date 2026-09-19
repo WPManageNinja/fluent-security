@@ -12,6 +12,18 @@ class LoginSecurityHandler
 {
     private $failedLogged = false;
 
+    /**
+     * Users already written to the log as a success in this request, by id. Shared by
+     * both loggers so a sign in is recorded once, whichever of them sees it first.
+     */
+    private static $loggedSuccesses = [];
+
+    /**
+     * Users handed an auth cookie in this request without a login form, by id.
+     * Resolved at shutdown - see noteDirectLogin().
+     */
+    private static $directLogins = [];
+
     private $appPasswordBlocked = null;
 
     public function register()
@@ -20,6 +32,12 @@ class LoginSecurityHandler
         add_filter('lostpassword_errors', [$this, 'maybeBlockPasswordReset'], 10, 2);
         add_action('wp_login_failed', [$this, 'logFailedAuth'], 10, 2);
         add_action('wp_login', [$this, 'logAuthSuccess'], 10, 2);
+
+        /*
+         * A sign in performed by code rather than by a form. Recorded, not refused -
+         * see TwoFaHandler::raiseChallengeForDirectLogin().
+         */
+        add_action('set_auth_cookie', [$this, 'noteDirectLogin'], 10, 4);
 
         /*
          * Application Password auth (REST / XML-RPC over Basic auth) never runs through
@@ -530,19 +548,27 @@ class LoginSecurityHandler
      * @param $user \WP_User
      * @return void
      */
-    public function logAuthSuccess($userName, $user)
+    public function logAuthSuccess($userName, $user = null)
     {
         if (!Helper::isLoginSecurityEnabled()) {
             return;
         }
 
         /*
-         * The plugin that fired `wp_login` believes it signed this user in; the cookie
-         * was withheld pending a second factor. The success is logged when that arrives.
+         * `wp_login` is documented as passing the user, and core always does - but a
+         * plugin firing it by hand may pass the login alone (MainWP does, on the branch
+         * that opens wp-admin), and a required second argument made that a fatal error
+         * in somebody else's request.
          */
-        if (TwoFaHandler::hasWithheldCookiesFor($user->ID)) {
+        if (!$user instanceof \WP_User) {
+            $user = get_user_by('login', $userName);
+        }
+
+        if (!$user) {
             return;
         }
+
+        self::$loggedSuccesses[$user->ID] = true;
 
         $media = Helper::getLoginMedia();
 
@@ -572,6 +598,133 @@ class LoginSecurityHandler
         do_action('fluent_auth/user_login_success', $user);
 
         $this->maybeSendSuccessEmail($user, $media);
+    }
+
+    /**
+     * Notes an auth cookie minted for somebody who never filled in a login form.
+     *
+     * A management dashboard, a community invitation, a checkout that signs the customer
+     * in: all of them call wp_set_auth_cookie() directly and none of them reaches the
+     * `authenticate` chain, so until now none of them appeared in the log at all. The
+     * owner of the site could see the plugin updates a dashboard performed but not the
+     * sign in that performed them, which is precisely the question asked when something
+     * looks wrong.
+     *
+     * The decision is deferred to shutdown because core mints the cookie before firing
+     * `wp_login`: an ordinary sign in reaches both, and only the ones that never reach
+     * the second are written here.
+     *
+     * @param $cookie string
+     * @param $expire int
+     * @param $expiration int
+     * @param $userId int
+     * @return void
+     */
+    public function noteDirectLogin($cookie, $expire = 0, $expiration = 0, $userId = 0)
+    {
+        $userId = (int)$userId;
+
+        if (!$userId || !Helper::isLoginSecurityEnabled()) {
+            return;
+        }
+
+        /*
+         * A cookie re-issued to whoever is already here - after a password change, or
+         * the recovery sweep - is not a sign in and must not read as one.
+         */
+        if (TwoFaHandler::arrivedSignedInAs($userId)) {
+            return;
+        }
+
+        if (empty(self::$directLogins)) {
+            add_action('shutdown', [$this, 'logDirectLogins'], 1);
+        }
+
+        self::$directLogins[$userId] = true;
+    }
+
+    /**
+     * Forgets what this request has already recorded. For tests.
+     *
+     * @return void
+     */
+    public static function resetRequestState()
+    {
+        self::$loggedSuccesses = [];
+        self::$directLogins = [];
+    }
+
+    /**
+     * Writes the sign ins from noteDirectLogin() that `wp_login` never accounted for.
+     *
+     * Repeats collapse into one row. A dashboard that syncs every few minutes would
+     * otherwise bury everything else in the log the owner actually reads, and one row
+     * carrying a count says the same thing.
+     *
+     * No mail, whatever the success-email setting says: these arrive on a timer, and a
+     * notification per sync is the noise this whole change exists to remove.
+     *
+     * @return void
+     */
+    public function logDirectLogins()
+    {
+        $userIds = array_diff_key(self::$directLogins, self::$loggedSuccesses);
+
+        self::$directLogins = [];
+
+        if (!$userIds) {
+            return;
+        }
+
+        global $wpdb;
+
+        $ip = Helper::getIp();
+        $agent = $this->getUserAgent();
+        $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
+
+        foreach (array_keys($userIds) as $userId) {
+            $user = get_user_by('ID', $userId);
+
+            if (!$user) {
+                continue;
+            }
+
+            $recent = flsDb()->table('fls_auth_logs')
+                ->where('user_id', $userId)
+                ->where('media', 'direct_login')
+                ->where('ip', $ip)
+                ->where('created_at', '>', date('Y-m-d H:i:s', current_time('timestamp') - HOUR_IN_SECONDS))
+                ->orderBy('id', 'DESC')
+                ->first();
+
+            if ($recent) {
+                $wpdb->update(
+                    "{$wpdb->prefix}fls_auth_logs",
+                    [
+                        'count'      => (int)$recent->count + 1,
+                        'updated_at' => current_time('mysql')
+                    ],
+                    ['id' => $recent->id]
+                );
+
+                continue;
+            }
+
+            $wpdb->insert("{$wpdb->prefix}fls_auth_logs", [
+                'username'    => $user->user_login,
+                'created_at'  => current_time('mysql'),
+                'updated_at'  => current_time('mysql'),
+                'agent'       => $agent,
+                'ip'          => $ip,
+                'browser'     => $browserDetection->getBrowser($agent)['browser_name'],
+                'device_os'   => $browserDetection->getOS($agent)['os_family'],
+                'description' => __('Signed in by a plugin, without a password or a login form.', 'fluent-security'),
+                'media'       => 'direct_login',
+                'status'      => 'success',
+                'user_id'     => $user->ID,
+                'count'       => 1
+            ]);
+        }
     }
 
     /**
