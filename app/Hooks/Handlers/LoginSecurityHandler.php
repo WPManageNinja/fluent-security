@@ -578,15 +578,24 @@ class LoginSecurityHandler
         }
 
         /*
-         * A cookie minted by code, and `wp_login` fired by hand afterwards. MainWP does
-         * exactly this, and taking the row here would record it as a login form nobody
-         * filled in. Left to logDirectLogins(), which names it for what it is, collapses
-         * the repeats and sends no mail - a dashboard signing in on a timer is the noise
-         * that whole path exists to keep out of the log.
+         * A cookie minted by code that nothing accounted for, and `wp_login` fired by
+         * hand afterwards. MainWP does exactly this, and taking the row here would
+         * record it as a login form nobody filled in. Left to logDirectLogins(), which
+         * names it for what it is, collapses the repeats and sends no mail - a dashboard
+         * signing in on a timer is the noise that whole path exists to keep out of the
+         * log.
          */
-        if (isset(self::$directLogins[$user->ID])) {
+        if (isset(self::$directLogins[$user->ID]) && !isset(self::$accountedLogins[$user->ID])) {
             return;
         }
+
+        /*
+         * Writing the row is itself an account of the sign in. Said here as well as at
+         * the chain and at our own flows, because `wp_login` and `set_auth_cookie` do not
+         * arrive in a fixed order - a caller that announces the login before it mints the
+         * cookie would otherwise be written down twice.
+         */
+        self::$accountedLogins[$user->ID] = true;
 
         $media = Helper::getLoginMedia();
 
@@ -734,7 +743,13 @@ class LoginSecurityHandler
      */
     public function logDirectLogins()
     {
-        $userIds = self::$directLogins;
+        /*
+         * Asked again at the end rather than trusted from noteDirectLogin(), because what
+         * accounts for a sign in can arrive after its cookie: a plugin that mints one and
+         * only then runs the login through wp_signon(), say. Settling it here is what
+         * makes the answer the same whichever order the two hooks fired in.
+         */
+        $userIds = array_diff_key(self::$directLogins, self::$accountedLogins);
 
         self::$directLogins = [];
 

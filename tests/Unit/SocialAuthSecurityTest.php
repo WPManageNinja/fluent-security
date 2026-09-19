@@ -413,4 +413,38 @@ class SocialAuthSecurityTest extends BaseTestCase
         $this->assertNotNull($pending);
         $this->assertSame(home_url('/account/'), $pending->redirect_intend);
     }
+
+    /**
+     * The intent cookie lives an hour and nothing clears it, so an abandoned social
+     * login leaves it lying around. Read on a passkey or a signup an hour later it sent
+     * that person wherever the social flow had been heading, over the top of the
+     * redirect their own request asked for.
+     */
+    public function testAnAbandonedSocialIntentDoesNotSteerALaterLogin()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        $settings['totp_required_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        // Left behind by a social login nobody finished.
+        $_COOKIE['fs_intent_redirect'] = rawurlencode(home_url('/checkout/'));
+        $_REQUEST['redirect_to'] = home_url('/my-account/');
+
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        try {
+            // No provider: a passkey, or the auto login after signing up.
+            AuthService::makeLogin($user);
+        } finally {
+            unset($_COOKIE['fs_intent_redirect'], $_REQUEST['redirect_to']);
+        }
+
+        $pending = flsDb()->table('fls_login_hashes')->where('user_id', $user->ID)->first();
+
+        $this->assertNotNull($pending);
+        $this->assertSame(home_url('/my-account/'), $pending->redirect_intend);
+    }
 }

@@ -1177,6 +1177,16 @@ class CustomAuthHandler
         wp_set_auth_cookie($userId, true, is_ssl());
 
         /*
+         * The same announcement AuthService::makeLogin() makes, and for the same reason:
+         * this is a completed sign in, and `wp_login` is how WordPress says so. Without
+         * it the account the site had just created appeared in nobody's audit log - the
+         * one hook that writes the success row never heard about it.
+         */
+        if ($user) {
+            do_action('wp_login', $user->user_login, $user);
+        }
+
+        /*
          * Action after login
          *
          * @since v1.0.0

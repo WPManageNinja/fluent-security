@@ -142,7 +142,9 @@ class AuthService
 
         $handler = new TwoFaHandler();
 
-        return $handler->sendAndGet2FaConfirmFormUrl($user, 'url', self::getIntentRedirect());
+        // Null rather than the '' this returns when there is no intent cookie: '' is an
+        // answer, and it would stop the challenge reading the request for itself.
+        return $handler->sendAndGet2FaConfirmFormUrl($user, 'url', self::getIntentRedirect() ?: null);
     }
 
     /**
@@ -207,11 +209,15 @@ class AuthService
          * It is handed where to put the visitor back afterwards, because social login
          * carries that in a cookie rather than in $_REQUEST and it is otherwise lost
          * across the redirect - answering the challenge would land a new member on the
-         * dashboard rather than the page they pressed the button on. Null where there is
-         * no such cookie, which leaves the challenge to read the request as it does for
-         * every other caller.
+         * dashboard rather than the page they pressed the button on.
+         *
+         * Only on the provider path. The cookie outlives the flow that set it - an hour,
+         * and nothing clears it - so reading it for a passkey or a signup an hour later
+         * would send that person to wherever a social login they abandoned had been
+         * heading. Empty leaves the challenge to read the request, as for every other
+         * caller.
          */
-        $intendedRedirect = self::getIntentRedirect();
+        $intendedRedirect = $provider ? self::getIntentRedirect() : '';
 
         $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, $intendedRedirect ?: null);
 

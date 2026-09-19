@@ -1093,20 +1093,118 @@ class LoginSecurityHandlerTest extends BaseTestCase
     }
 
     /**
-     * The auto login after signup fires no `wp_login` at all, so the only thing that
-     * could speak for it is the declaration. Without one it left the owner a row saying
-     * another plugin had signed their new member in.
+     * The auto login after signup: ours, so not somebody else's plugin - but a completed
+     * sign in all the same, and the owner auditing who reached their site today should
+     * find it. Declaring it and then saying nothing else left no row at all.
      */
-    public function test_a_declared_login_that_fires_no_wp_login_leaves_no_programmatic_row()
+    public function test_the_signup_auto_login_is_recorded_as_our_own()
     {
         $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
 
-        LoginSecurityHandler::noteOwnLogin($user->ID);
+        (new \FluentAuth\App\Hooks\Handlers\CustomAuthHandler())->login($user->ID);
+        $this->handler->logDirectLogins();
 
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertNotSame(
+            'direct_login',
+            $this->lastRowFor($user->ID)->media,
+            'the site signing in the member it just created is not an unknown plugin'
+        );
+    }
+
+    /*
+     * `wp_login` and `set_auth_cookie` arrive in whichever order the caller chose, and
+     * the log has to read the same either way.
+     */
+
+    /**
+     * Core mints the cookie first, so this is the order everything in WordPress uses -
+     * and the one an early return in logAuthSuccess() naturally handles.
+     */
+    public function test_a_cookie_before_the_announcement_leaves_one_row()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('direct_login', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * And the other way round. A caller announcing the sign in before minting its cookie
+     * used to be written down twice - once by each logger, neither knowing about the
+     * other.
+     */
+    public function test_an_announcement_before_the_cookie_leaves_one_row_too()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->logAuthSuccess($user->user_login, $user);
         $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
         $this->handler->logDirectLogins();
 
-        $this->assertSame(0, $this->countRowsFor($user->ID));
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+    }
+
+    /**
+     * A cookie minted before the login was put through the front door. What accounts for
+     * a sign in can arrive after its cookie, and when it does this is an ordinary login
+     * - with the row, the notification and the action that go with one.
+     */
+    public function test_a_cookie_the_chain_vouches_for_afterwards_is_an_ordinary_login()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->noteChainAuthenticated($user);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('web', $this->lastRowFor($user->ID)->media);
+    }
+
+    /* --------------------------------------------- through the real hooks, not by hand */
+
+    /**
+     * Everything above calls the handler directly, which proves the rules and not the
+     * wiring. This one goes through WordPress: if `noteChainAuthenticated` were never
+     * hooked, or hooked below the checks that can still refuse a login, an ordinary
+     * sign in would be filed as somebody else's code and every test above would still
+     * pass.
+     */
+    public function test_a_real_sign_in_through_wp_signon_is_recorded_as_the_front_door()
+    {
+        $password = wp_generate_password(20);
+        $user = $this->factory->user->create_and_get([
+            'role'      => 'administrator',
+            'user_pass' => $password
+        ]);
+
+        /*
+         * The registered handler, not this test's own instance - and its priority, which
+         * has to sit above the checks that can still refuse a login. Hooked below
+         * maybeDenyHeadlessLogin (1000) it would mark a refused login as accounted.
+         */
+        $priority = $this->registeredChainPriority();
+
+        $this->assertNotNull($priority, 'precondition: register() hooked the chain');
+        $this->assertGreaterThan(1000, $priority, 'the verdict, not an opinion on the way to it');
+
+        $signedIn = wp_signon([
+            'user_login'    => $user->user_login,
+            'user_password' => $password
+        ]);
+
+        // What shutdown would do, without firing WordPress's own shutdown handlers.
+        $this->handler->logDirectLogins();
+
+        $this->assertInstanceOf('WP_User', $signedIn, 'precondition: the password was right');
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('web', $this->lastRowFor($user->ID)->media);
     }
 
     /**
@@ -1192,6 +1290,28 @@ class LoginSecurityHandlerTest extends BaseTestCase
         }
 
         $this->assertCount(1, $mails, 'precondition: the success email is switched on');
+    }
+
+    /**
+     * The priority `noteChainAuthenticated` is actually hooked at by register(), or null.
+     *
+     * @return int|null
+     */
+    private function registeredChainPriority()
+    {
+        global $wp_filter;
+
+        foreach ($wp_filter['authenticate']->callbacks as $priority => $callbacks) {
+            foreach ($callbacks as $callback) {
+                $fn = $callback['function'];
+
+                if (is_array($fn) && $fn[0] instanceof LoginSecurityHandler && $fn[1] === 'noteChainAuthenticated') {
+                    return $priority;
+                }
+            }
+        }
+
+        return null;
     }
 
     private function lastRowFor($userId)
