@@ -530,4 +530,89 @@ class PasskeyLoginTest extends BaseTestCase
 
         return Helper::getAuthSettings();
     }
+
+    /**
+     * A site that has filtered `device_factor_completes_login` to false still wants a
+     * second factor after a passkey, and AuthService::makeLogin() now answers that with
+     * a `fls_2fa_required` error carrying the challenge URL. login_helper.js follows
+     * `data.redirect` on a success and shows `data.message` on a failure, so handing it
+     * the failure shape stranded the very people who had just proved a passkey.
+     */
+    public function test_a_passkey_that_still_owes_a_factor_is_sent_to_the_challenge()
+    {
+        $user = $this->makeUser('administrator');
+        $this->enrol($user);
+
+        $this->setSettings([
+            'email2fa'       => 'yes',
+            'email2fa_roles' => ['administrator']
+        ]);
+
+        add_filter('fluent_auth/device_factor_completes_login', '__return_false');
+
+        list($token, $response) = $this->assertionFor($user);
+
+        $reply = $this->verifyReply($token, $response);
+
+        $pending = flsDb()->table('fls_login_hashes')->where('user_id', $user->ID)->first();
+
+        $this->assertNotNull($pending, 'precondition: a challenge was raised');
+        $this->assertTrue($reply['success'], 'a raised challenge is a next step, not a refusal');
+        $this->assertStringContainsString($pending->login_hash, $reply['data']['redirect']);
+    }
+
+    /**
+     * And a refusal is still a refusal, with nowhere to go.
+     */
+    public function test_a_refused_passkey_is_still_an_error()
+    {
+        $user = $this->makeUser('administrator');
+        $this->enrol($user);
+
+        list($token, $response) = $this->assertionFor($user);
+
+        // Spent already, so the second attempt has nothing to check against.
+        $this->verifyReply($token, $response);
+
+        $reply = $this->verifyReply($token, $response);
+
+        $this->assertFalse($reply['success']);
+        $this->assertArrayNotHasKey('redirect', (array)$reply['data']);
+    }
+
+    /**
+     * handleVerify() terminates through wp_send_json_*(); capture what it emitted.
+     *
+     * @return array
+     */
+    private function verifyReply($token, $response)
+    {
+        $_POST['_nonce'] = wp_create_nonce(PasskeyLoginHandler::NONCE_ACTION);
+        $_POST['token'] = $token;
+        $_POST['webauthn_response'] = addslashes(wp_json_encode($response));
+
+        $die = function () {
+            return function ($message = '') {
+                throw new \WPDieException((string)$message);
+            };
+        };
+
+        add_filter('wp_doing_ajax', '__return_true');
+        add_filter('wp_die_ajax_handler', $die);
+
+        ob_start();
+        try {
+            (new PasskeyLoginHandler())->handleVerify();
+        } catch (\WPDieException $e) {
+            // expected: wp_send_json_*() ends the request
+        }
+        $output = ob_get_clean();
+
+        remove_filter('wp_doing_ajax', '__return_true');
+        remove_filter('wp_die_ajax_handler', $die);
+
+        unset($_POST['_nonce'], $_POST['token'], $_POST['webauthn_response']);
+
+        return (array)json_decode($output, true);
+    }
 }

@@ -1165,6 +1165,13 @@ class CustomAuthHandler
             }
         }
 
+        /*
+         * Ours, and said so before the cookie exists. Without this the account the site
+         * just created reads in the log as an unexplained programmatic sign in by some
+         * other plugin - see LoginSecurityHandler::noteDirectLogin().
+         */
+        LoginSecurityHandler::noteOwnLogin($userId);
+
         wp_clear_auth_cookie();
         wp_set_current_user($userId);
         wp_set_auth_cookie($userId, true, is_ssl());

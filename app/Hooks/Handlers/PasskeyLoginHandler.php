@@ -271,6 +271,18 @@ class PasskeyLoginHandler
         $user = PasskeyLogin::authenticate($token, $response);
 
         if (is_wp_error($user)) {
+            /*
+             * The assertion checked out and the site still wants another factor. The
+             * challenge is raised already, so this is a redirect rather than a refusal -
+             * the same shape a successful assertion returns, because from here on it is
+             * the same journey.
+             */
+            $challengeUrl = Arr::get((array)$user->get_error_data(), 'challenge_url');
+
+            if ($challengeUrl) {
+                wp_send_json_success(['redirect' => $challengeUrl]);
+            }
+
             wp_send_json_error(['message' => $user->get_error_message()], 401);
         }
 

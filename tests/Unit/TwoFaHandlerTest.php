@@ -958,6 +958,42 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertWpErrorWithCode($result, 'fls_2fa_required');
     }
 
+    /**
+     * Not every wp_authenticate() is a sign in. The "confirm your password" dialog in
+     * wp-admin re-checks the password of whoever is already here, and challenging
+     * somebody who has already answered gains nothing - it only refuses a screen they
+     * are entitled to.
+     */
+    public function testReCheckingThePasswordOfWhoeverIsAlreadySignedInIsNotRefused()
+    {
+        do_action('auth_cookie_valid', [], $this->user);
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertSame($this->user, $result);
+        $this->assertNull($this->pendingRowFor($this->user), 'and nothing is mailed for it');
+    }
+
+    /**
+     * An application password over XML-RPC comes through this chain too. It is the one
+     * credential built to skip interactive factors - whether a site allows them at all
+     * is `disable_app_login`, not this - and refusing it here would stop every
+     * application password on the site working.
+     */
+    public function testAnApplicationPasswordLoginIsNotRefused()
+    {
+        $this->handler->rememberAppPasswordAuth();
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertSame($this->user, $result);
+        $this->assertNull($this->pendingRowFor($this->user));
+    }
+
     /*
      * Picking the challenge up on the next page.
      */

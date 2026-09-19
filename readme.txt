@@ -312,9 +312,9 @@ It is not a malware scanner. It tells you which files no longer match the offici
 == Changelog ==
 
 = 3.0.3 - Date: Sep 20, 2026 =
-* Added Compiatibility with MainWP or Programmatically Authenticate Users
-* Improved User Facing Strings and Error Messages
-* Showing recovery help message after 50 seconds of inactivity on the two-factor setup screen
+* Added compatibility with MainWP and other plugins that sign users in programmatically. These sign ins are now recorded in the audit log as a programmatic login.
+* Improved user facing strings and error messages throughout.
+* The recovery help on the two-factor login screen now appears after 50 seconds.
 
 = 3.0.2 - Date: Sep 18, 2026 =
 * Fix: Requiring two-factor no longer locks anybody out of wp-admin, or breaks front-end forms and add-to-cart for logged-in members.

@@ -4,6 +4,7 @@ namespace FluentAuth\App\Services;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 
@@ -202,8 +203,17 @@ class AuthService
          * where every other login is weighed. Nothing else will ask on its behalf: what
          * a plugin does with wp_set_auth_cookie() is its own business - see
          * TwoFaHandler::raiseChallengeForDirectLogin() - and this is our own.
+         *
+         * It is handed where to put the visitor back afterwards, because social login
+         * carries that in a cookie rather than in $_REQUEST and it is otherwise lost
+         * across the redirect - answering the challenge would land a new member on the
+         * dashboard rather than the page they pressed the button on. Null where there is
+         * no such cookie, which leaves the challenge to read the request as it does for
+         * every other caller.
          */
-        $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+        $intendedRedirect = self::getIntentRedirect();
+
+        $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, $intendedRedirect ?: null);
 
         if ($challengeUrl) {
             return new \WP_Error(
@@ -212,6 +222,14 @@ class AuthService
                 ['challenge_url' => $challengeUrl]
             );
         }
+
+        /*
+         * Said before the cookie exists, because from the outside this is indistinguishable
+         * from a management plugin signing somebody in - see
+         * LoginSecurityHandler::noteDirectLogin(). The log should name the provider that
+         * vouched for them, not shrug and call it programmatic.
+         */
+        LoginSecurityHandler::noteOwnLogin($user->ID);
 
         wp_clear_auth_cookie();
         wp_set_current_user($user->ID, $user->user_login);

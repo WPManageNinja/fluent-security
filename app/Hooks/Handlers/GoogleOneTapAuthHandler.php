@@ -93,6 +93,21 @@ class GoogleOneTapAuthHandler
         $redirectUrl = $this->handleGoogleTokenConfirm($crednetial);
 
         if (is_wp_error($redirectUrl)) {
+            /*
+             * Not a failure: the account exists and Google vouched for it, but the site
+             * asks this user for a second factor and the challenge is already waiting.
+             * Sent as a redirect rather than as an error, because one_tap.js shows an
+             * error in an alert box - which would tell somebody to complete a step while
+             * giving them no way to reach it.
+             */
+            $challengeUrl = Arr::get((array)$redirectUrl->get_error_data(), 'challenge_url');
+
+            if ($challengeUrl) {
+                wp_send_json([
+                    'redirect_url' => $challengeUrl
+                ]);
+            }
+
             wp_send_json([
                 'message' => $redirectUrl->get_error_message()
             ], 422);

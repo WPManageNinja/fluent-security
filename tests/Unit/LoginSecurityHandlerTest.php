@@ -1013,7 +1013,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertSame('success', $row->status);
         $this->assertSame('direct_login', $row->media);
         $this->assertSame(Helper::getIp(), $row->ip);
-        $this->assertSame('Plugin sign-in', Helper::getLoginMediaLabel($row->media));
+        $this->assertSame('Programmatic login', Helper::getLoginMediaLabel($row->media));
     }
 
     /**
@@ -1024,12 +1024,89 @@ class LoginSecurityHandlerTest extends BaseTestCase
     {
         $user = $this->factory->user->create_and_get(['role' => 'administrator']);
 
+        // The front door: the `authenticate` chain hands back a user, then the cookie.
+        $this->handler->noteChainAuthenticated($user);
         $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
         $this->handler->logAuthSuccess($user->user_login, $user);
         $this->handler->logDirectLogins();
 
         $this->assertSame(1, $this->countRowsFor($user->ID));
         $this->assertSame('web', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * The case this whole path was written for. MainWP mints its own cookie and then
+     * fires `wp_login` by hand, which used to be enough to have it written down as a
+     * login form somebody had filled in. Nothing came through the `authenticate` chain,
+     * so it is named for what it is.
+     */
+    public function test_a_plugin_that_fires_wp_login_itself_is_still_a_programmatic_login()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('direct_login', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * And it collapses like any other, rather than leaving a row per sync because the
+     * dashboard happened to announce itself.
+     */
+    public function test_repeated_sign_ins_that_fire_wp_login_collapse_too()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        foreach (range(1, 3) as $ignored) {
+            LoginSecurityHandler::resetRequestState();
+            $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+            $this->handler->logAuthSuccess($user->user_login, $user);
+            $this->handler->logDirectLogins();
+        }
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame(3, (int)$this->lastRowFor($user->ID)->count);
+    }
+
+    /**
+     * Our own passwordless flows mint the cookie themselves and so look exactly like
+     * somebody else's plugin doing it. They own up first, and are then written down
+     * under the route they actually came in by - a Google sign in reads as Google, not
+     * as an unexplained programmatic login by a plugin the owner cannot name.
+     */
+    public function test_our_own_passwordless_login_is_not_blamed_on_another_plugin()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        Helper::setLoginMedia('google');
+        LoginSecurityHandler::noteOwnLogin($user->ID);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logAuthSuccess($user->user_login, $user);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(1, $this->countRowsFor($user->ID));
+        $this->assertSame('google', $this->lastRowFor($user->ID)->media);
+    }
+
+    /**
+     * The auto login after signup fires no `wp_login` at all, so the only thing that
+     * could speak for it is the declaration. Without one it left the owner a row saying
+     * another plugin had signed their new member in.
+     */
+    public function test_a_declared_login_that_fires_no_wp_login_leaves_no_programmatic_row()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        LoginSecurityHandler::noteOwnLogin($user->ID);
+
+        $this->handler->noteDirectLogin('cookie', 0, 0, $user->ID);
+        $this->handler->logDirectLogins();
+
+        $this->assertSame(0, $this->countRowsFor($user->ID));
     }
 
     /**

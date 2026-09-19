@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: FluentAuth - Auth Security Plugin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-19 21:25+0000\n"
+"POT-Creation-Date: 2026-09-19 22:22+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: \n"
@@ -710,7 +710,7 @@ msgstr ""
 msgid "%s: %s"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1384
+#: app/Hooks/Handlers/CustomAuthHandler.php:1391
 msgid "2FA Code"
 msgstr ""
 
@@ -718,43 +718,43 @@ msgstr ""
 msgid "2FA Enrollment"
 msgstr ""
 
-#: app/Services/AuthService.php:427
+#: app/Services/AuthService.php:445
 msgid ""
 "<strong>Error:</strong> That email address already has an account. Please "
 "sign in, or reset your password."
 msgstr ""
 
-#: app/Services/AuthService.php:404
+#: app/Services/AuthService.php:422
 msgid "<strong>Error</strong>: Please enter a username."
 msgstr ""
 
-#: app/Services/AuthService.php:420
+#: app/Services/AuthService.php:438
 msgid "<strong>Error</strong>: Please enter your email address."
 msgstr ""
 
-#: app/Services/AuthService.php:422
+#: app/Services/AuthService.php:440
 msgid "<strong>Error</strong>: That email address does not look right."
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:401
+#: app/Hooks/Handlers/LoginSecurityHandler.php:410
 msgid ""
 "<strong>Error</strong>: That username and password do not match. Please try "
 "again."
 msgstr ""
 
-#: app/Services/AuthService.php:409
+#: app/Services/AuthService.php:427
 msgid ""
 "<strong>Error</strong>: That username is already taken. Please choose "
 "another one."
 msgstr ""
 
-#: app/Services/AuthService.php:414
+#: app/Services/AuthService.php:432
 msgid ""
 "<strong>Error</strong>: That username is not available. Please choose "
 "another one."
 msgstr ""
 
-#: app/Services/AuthService.php:406
+#: app/Services/AuthService.php:424
 msgid ""
 "<strong>Error</strong>: That username uses characters that are not allowed. "
 "Please try another one."
@@ -766,7 +766,7 @@ msgid ""
 "correct."
 msgstr ""
 
-#: app/Services/AuthService.php:372
+#: app/Services/AuthService.php:390
 msgid ""
 "<strong>Error</strong>: We could not create your account. Please contact the "
 "site owner."
@@ -981,7 +981,7 @@ msgid "A verification code has been sent to %s. Please provide the code below:"
 msgstr ""
 
 #. %s: Email
-#: app/Hooks/Handlers/CustomAuthHandler.php:1377
+#: app/Hooks/Handlers/CustomAuthHandler.php:1384
 #, php-format
 msgid ""
 "A verification code has been sent to %s. Please provide the code below: "
@@ -1015,7 +1015,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1360
+#: app/Hooks/Handlers/CustomAuthHandler.php:1367
 msgid "Activate your account"
 msgstr ""
 
@@ -1301,7 +1301,7 @@ msgid ""
 "during the login process when Two-Factor Authentication (2FA) is enabled."
 msgstr ""
 
-#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:246
+#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:261
 msgid "An error occurred during the login process. Please try again."
 msgstr ""
 
@@ -1682,11 +1682,11 @@ msgstr ""
 msgid "Browser details"
 msgstr ""
 
-#: app/Helpers/Helper.php:360
+#: app/Helpers/Helper.php:361
 msgid "Bulk password reset finished"
 msgstr ""
 
-#: app/Helpers/Helper.php:359
+#: app/Helpers/Helper.php:360
 msgid "Bulk password reset started"
 msgstr ""
 
@@ -1938,7 +1938,7 @@ msgid ""
 "Comparing your premium and custom plugins and themes with your snapshot."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1399
+#: app/Hooks/Handlers/CustomAuthHandler.php:1406
 msgid "Complete Signup"
 msgstr ""
 
@@ -2738,7 +2738,7 @@ msgstr ""
 msgid "Expected"
 msgstr ""
 
-#: app/Helpers/Helper.php:350 app/Services/TransStrings.php:358
+#: app/Helpers/Helper.php:351 app/Services/TransStrings.php:358
 msgid "Facebook"
 msgstr ""
 
@@ -2794,7 +2794,7 @@ msgid ""
 "Jetpack."
 msgstr ""
 
-#: app/Helpers/Helper.php:361
+#: app/Helpers/Helper.php:362
 msgid "File deleted"
 msgstr ""
 
@@ -2806,11 +2806,11 @@ msgstr ""
 msgid "File monitoring"
 msgstr ""
 
-#: app/Helpers/Helper.php:362
+#: app/Helpers/Helper.php:363
 msgid "File quarantined"
 msgstr ""
 
-#: app/Helpers/Helper.php:363
+#: app/Helpers/Helper.php:364
 msgid "File restored"
 msgstr ""
 
@@ -3054,7 +3054,7 @@ msgstr ""
 msgid "Get the token"
 msgstr ""
 
-#: app/Helpers/Helper.php:349 app/Services/TransStrings.php:393
+#: app/Helpers/Helper.php:350 app/Services/TransStrings.php:393
 msgid "GitHub"
 msgstr ""
 
@@ -3093,7 +3093,7 @@ msgstr ""
 msgid "Good morning %s"
 msgstr ""
 
-#: app/Helpers/Helper.php:348 app/Services/TransStrings.php:402
+#: app/Helpers/Helper.php:349 app/Services/TransStrings.php:402
 msgid "Google"
 msgstr ""
 
@@ -3139,7 +3139,7 @@ msgstr ""
 #. %s: First Name
 #. %s: user's display name
 #. %s: User's Display Name
-#: app/Hooks/Handlers/CustomAuthHandler.php:1349
+#: app/Hooks/Handlers/CustomAuthHandler.php:1356
 #: app/Hooks/Handlers/MagicLoginHandler.php:287
 #: app/Services/TwoFa/EmailTwoFaMethod.php:298
 #, php-format
@@ -3638,7 +3638,7 @@ msgid "Log has been deleted"
 msgstr ""
 
 #: app/Services/TransStrings.php:472
-#: app/Hooks/Handlers/CustomAuthHandler.php:1227
+#: app/Hooks/Handlers/CustomAuthHandler.php:1234
 msgid "Log In"
 msgstr ""
 
@@ -3759,7 +3759,7 @@ msgstr ""
 msgid "Login/Signup Forms"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:843
+#: app/Hooks/Handlers/LoginSecurityHandler.php:909
 msgid "Logins from your network are not permitted on this site."
 msgstr ""
 
@@ -4708,7 +4708,7 @@ msgstr ""
 #: app/Hooks/Handlers/LoginCustomizerHandler.php:220
 #: app/Hooks/Handlers/CustomAuthHandler.php:459
 #: app/Hooks/Handlers/CustomAuthHandler.php:461
-#: app/Hooks/Handlers/CustomAuthHandler.php:1225
+#: app/Hooks/Handlers/CustomAuthHandler.php:1232
 msgid "Password"
 msgstr ""
 
@@ -4728,7 +4728,7 @@ msgstr ""
 msgid "Password Reset Request Email"
 msgstr ""
 
-#: app/Helpers/Helper.php:370
+#: app/Helpers/Helper.php:371
 msgid "Password reset requested"
 msgstr ""
 
@@ -4852,12 +4852,12 @@ msgstr ""
 msgid "Please choose a new password for %s"
 msgstr ""
 
-#: app/Services/AuthService.php:211
+#: app/Services/AuthService.php:221
 #: app/Hooks/Handlers/CustomAuthHandler.php:924
 msgid "Please complete the second step to finish signing in."
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:82
+#: app/Hooks/Handlers/LoginSecurityHandler.php:91
 msgid ""
 "Please contact an administrator of this site to have your address allowed."
 msgstr ""
@@ -4959,11 +4959,11 @@ msgstr ""
 msgid "Plugin"
 msgstr ""
 
-#: app/Helpers/Helper.php:367
+#: app/Helpers/Helper.php:368
 msgid "Plugin activated"
 msgstr ""
 
-#: app/Helpers/Helper.php:368
+#: app/Helpers/Helper.php:369
 msgid "Plugin deactivated"
 msgstr ""
 
@@ -4971,15 +4971,11 @@ msgstr ""
 msgid "Plugin installation failed. Please try again."
 msgstr ""
 
-#: app/Helpers/Helper.php:365
+#: app/Helpers/Helper.php:366
 msgid "Plugin reinstalled"
 msgstr ""
 
-#: app/Helpers/Helper.php:347
-msgid "Plugin sign-in"
-msgstr ""
-
-#: app/Helpers/Helper.php:369
+#: app/Helpers/Helper.php:370
 msgid "Plugin updated"
 msgstr ""
 
@@ -5005,6 +5001,10 @@ msgstr ""
 
 #: app/Services/SystemEmailService.php:72
 msgid "Previous Email Address"
+msgstr ""
+
+#: app/Helpers/Helper.php:348
+msgid "Programmatic login"
 msgstr ""
 
 #: app/Services/Onboarding.php:289
@@ -5255,7 +5255,7 @@ msgid "Relaxed"
 msgstr ""
 
 #: app/Services/TransStrings.php:686
-#: app/Hooks/Handlers/CustomAuthHandler.php:1226
+#: app/Hooks/Handlers/CustomAuthHandler.php:1233
 msgid "Remember Me"
 msgstr ""
 
@@ -5804,7 +5804,7 @@ msgstr ""
 msgid "Server Mode Settings"
 msgstr ""
 
-#: app/Helpers/Helper.php:358
+#: app/Helpers/Helper.php:359
 msgid "Sessions cleared"
 msgstr ""
 
@@ -6075,8 +6075,9 @@ msgstr ""
 msgid "Signed in %s ago"
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:721
-msgid "Signed in by a plugin, without a password or a login form."
+#: app/Hooks/Handlers/LoginSecurityHandler.php:787
+msgid ""
+"Signed in by another plugin or script, without a password or a login form."
 msgstr ""
 
 #: app/Hooks/Handlers/TwoFaBypassHandler.php:55
@@ -6333,7 +6334,7 @@ msgstr ""
 msgid "Sorry! we could not find your valid email from Facebook API"
 msgstr ""
 
-#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:162
+#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:177
 #: app/Hooks/Handlers/SocialAuthHandler.php:287
 msgid "Sorry! we could not find your valid email from Google API"
 msgstr ""
@@ -6569,7 +6570,7 @@ msgid ""
 "to enable enhanced security of your site"
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1350
+#: app/Hooks/Handlers/CustomAuthHandler.php:1357
 msgid ""
 "Thanks for signing up. Enter the code below on the registration page to "
 "finish setting up your account."
@@ -6582,12 +6583,12 @@ msgid ""
 "try the current code."
 msgstr ""
 
-#: app/Services/AuthService.php:448 app/Services/AuthService.php:465
+#: app/Services/AuthService.php:466 app/Services/AuthService.php:483
 msgid ""
 "That code does not match the one we emailed you. Please check and try again."
 msgstr ""
 
-#: app/Services/AuthService.php:453
+#: app/Services/AuthService.php:471
 msgid "That code has expired. Please ask for a new one."
 msgstr ""
 
@@ -6882,7 +6883,7 @@ msgstr ""
 msgid "The card the message sits on."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1354
+#: app/Hooks/Handlers/CustomAuthHandler.php:1361
 msgid ""
 "The code works for 10 minutes. If you did not ask for it, you can ignore "
 "this email."
@@ -7235,7 +7236,7 @@ msgstr ""
 msgid "Theme"
 msgstr ""
 
-#: app/Helpers/Helper.php:366
+#: app/Helpers/Helper.php:367
 msgid "Theme reinstalled"
 msgstr ""
 
@@ -7729,7 +7730,7 @@ msgid ""
 "still logged."
 msgstr ""
 
-#: app/Hooks/Handlers/PasskeyLoginHandler.php:289
+#: app/Hooks/Handlers/PasskeyLoginHandler.php:301
 msgid "This page has expired. Please reload it and try again."
 msgstr ""
 
@@ -7974,12 +7975,12 @@ msgid "Today"
 msgstr ""
 
 #. %d: minutes
-#: app/Hooks/Handlers/LoginSecurityHandler.php:477
+#: app/Hooks/Handlers/LoginSecurityHandler.php:486
 msgid ""
 "Too many attempts from your network. Please wait %d minutes and try again."
 msgstr ""
 
-#: app/Hooks/Handlers/LoginSecurityHandler.php:292
+#: app/Hooks/Handlers/LoginSecurityHandler.php:301
 msgid "Too many failed application password attempts"
 msgstr ""
 
@@ -7988,7 +7989,7 @@ msgstr ""
 msgid "Too many failed attempts. Try again in %s minutes."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1325
+#: app/Hooks/Handlers/CustomAuthHandler.php:1332
 msgid "Too many requests. Please try again later"
 msgstr ""
 
@@ -7998,7 +7999,7 @@ msgstr ""
 
 #. %d: munites
 #. %d: Minite
-#: app/Hooks/Handlers/LoginSecurityHandler.php:919
+#: app/Hooks/Handlers/LoginSecurityHandler.php:985
 #: app/Hooks/Handlers/MagicLoginHandler.php:208
 msgid "Too many tries. Please wait %d minutes and try again."
 msgstr ""
@@ -8353,7 +8354,7 @@ msgstr ""
 msgid "User Data"
 msgstr ""
 
-#: app/Services/AuthService.php:185
+#: app/Services/AuthService.php:186
 msgid "User not found"
 msgstr ""
 
@@ -8362,7 +8363,7 @@ msgstr ""
 msgid "User Profile Edit URL"
 msgstr ""
 
-#: app/Services/AuthService.php:44
+#: app/Services/AuthService.php:45
 msgid "User registration is disabled"
 msgstr ""
 
@@ -8392,7 +8393,7 @@ msgid "Username or Email"
 msgstr ""
 
 #: app/Services/TransStrings.php:992
-#: app/Hooks/Handlers/CustomAuthHandler.php:1224
+#: app/Hooks/Handlers/CustomAuthHandler.php:1231
 msgid "Username or Email Address"
 msgstr ""
 
@@ -8439,7 +8440,7 @@ msgid ""
 "safe."
 msgstr ""
 
-#: app/Hooks/Handlers/CustomAuthHandler.php:1380
+#: app/Hooks/Handlers/CustomAuthHandler.php:1387
 msgid "Verification Code"
 msgstr ""
 
@@ -8448,7 +8449,7 @@ msgid "Verification code"
 msgstr ""
 
 #. %s: Verification code
-#: app/Hooks/Handlers/CustomAuthHandler.php:1352
+#: app/Hooks/Handlers/CustomAuthHandler.php:1359
 #, php-format
 msgid "Verification Code: %s"
 msgstr ""
@@ -8827,7 +8828,7 @@ msgstr ""
 msgid "WordPress default"
 msgstr ""
 
-#: app/Helpers/Helper.php:364
+#: app/Helpers/Helper.php:365
 msgid "WordPress reinstalled"
 msgstr ""
 
@@ -8921,7 +8922,7 @@ msgid "You"
 msgstr ""
 
 #. %s: a line of PHP to add to wp-config.php
-#: app/Hooks/Handlers/LoginSecurityHandler.php:86
+#: app/Hooks/Handlers/LoginSecurityHandler.php:95
 #, php-format
 msgid ""
 "You administer this site, so if that address is your own you have locked "
@@ -8947,7 +8948,7 @@ msgstr ""
 msgid "You are not allowed to change this user"
 msgstr ""
 
-#: app/Services/AuthService.php:195
+#: app/Services/AuthService.php:196
 msgid "You are not allowed to login."
 msgstr ""
 
@@ -9211,7 +9212,7 @@ msgid ""
 "Google and try again"
 msgstr ""
 
-#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:157
+#: app/Hooks/Handlers/GoogleOneTapAuthHandler.php:172
 #: app/Hooks/Handlers/SocialAuthHandler.php:282
 msgid ""
 "Your Google email address does not match with your current account email "
@@ -9310,7 +9311,7 @@ msgid "Your recovery codes"
 msgstr ""
 
 #. %s: Site Name
-#: app/Hooks/Handlers/CustomAuthHandler.php:1344
+#: app/Hooks/Handlers/CustomAuthHandler.php:1351
 #, php-format
 msgid "Your registration verification code for %s"
 msgstr ""
@@ -9397,7 +9398,7 @@ msgid "Your subject and body below are sent instead of the WordPress default."
 msgstr ""
 
 #. %s: the IP address the visitor is connecting from
-#: app/Hooks/Handlers/LoginSecurityHandler.php:145
+#: app/Hooks/Handlers/LoginSecurityHandler.php:154
 #, php-format
 msgid ""
 "Your username and password are correct, but this account can only be used "
@@ -9406,7 +9407,7 @@ msgid ""
 msgstr ""
 
 #. %s: the IP address the visitor is connecting from
-#: app/Hooks/Handlers/LoginSecurityHandler.php:849
+#: app/Hooks/Handlers/LoginSecurityHandler.php:915
 #, php-format
 msgid ""
 "Your username and password are correct, but this site does not allow sign-"

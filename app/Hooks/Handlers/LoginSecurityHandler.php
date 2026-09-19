@@ -13,13 +13,15 @@ class LoginSecurityHandler
     private $failedLogged = false;
 
     /**
-     * Users already written to the log as a success in this request, by id. Shared by
-     * both loggers so a sign in is recorded once, whichever of them sees it first.
+     * Sign-ins this request can account for, by id: either the `authenticate` chain
+     * approved them, or one of our own passwordless flows said so before minting the
+     * cookie. A cookie minted for anybody else is somebody else's code - see
+     * noteDirectLogin().
      */
-    private static $loggedSuccesses = [];
+    private static $accountedLogins = [];
 
     /**
-     * Users handed an auth cookie in this request without a login form, by id.
+     * Users handed an auth cookie in this request that nothing accounted for, by id.
      * Resolved at shutdown - see noteDirectLogin().
      */
     private static $directLogins = [];
@@ -32,6 +34,13 @@ class LoginSecurityHandler
         add_filter('lostpassword_errors', [$this, 'maybeBlockPasswordReset'], 10, 2);
         add_action('wp_login_failed', [$this, 'logFailedAuth'], 10, 2);
         add_action('wp_login', [$this, 'logAuthSuccess'], 10, 2);
+
+        /*
+         * The last word on the `authenticate` chain, which is how a sign in says it came
+         * through the front door. Last, so that what is recorded is the verdict rather
+         * than some earlier callback's opinion of it.
+         */
+        add_filter('authenticate', [$this, 'noteChainAuthenticated'], PHP_INT_MAX, 1);
 
         /*
          * A sign in performed by code rather than by a form. Recorded, not refused -
@@ -568,7 +577,16 @@ class LoginSecurityHandler
             return;
         }
 
-        self::$loggedSuccesses[$user->ID] = true;
+        /*
+         * A cookie minted by code, and `wp_login` fired by hand afterwards. MainWP does
+         * exactly this, and taking the row here would record it as a login form nobody
+         * filled in. Left to logDirectLogins(), which names it for what it is, collapses
+         * the repeats and sends no mail - a dashboard signing in on a timer is the noise
+         * that whole path exists to keep out of the log.
+         */
+        if (isset(self::$directLogins[$user->ID])) {
+            return;
+        }
 
         $media = Helper::getLoginMedia();
 
@@ -610,9 +628,12 @@ class LoginSecurityHandler
      * sign in that performed them, which is precisely the question asked when something
      * looks wrong.
      *
-     * The decision is deferred to shutdown because core mints the cookie before firing
-     * `wp_login`: an ordinary sign in reaches both, and only the ones that never reach
-     * the second are written here.
+     * Whether it counts as somebody else's is settled here, where the two things that
+     * would account for it have both already happened: the `authenticate` chain runs
+     * before core mints a cookie, and our own passwordless flows call noteOwnLogin()
+     * before they mint theirs. The writing is deferred to shutdown so that a request
+     * minting the cookie more than once - which callers routinely do - still leaves one
+     * row, and so the log write stays off the path of the sign in itself.
      *
      * @param $cookie string
      * @param $expire int
@@ -636,11 +657,56 @@ class LoginSecurityHandler
             return;
         }
 
+        /*
+         * A sign in with an account of itself: the `authenticate` chain passed it, or one
+         * of our own passwordless flows owned up to it. Either way it is not somebody
+         * else's code, and logAuthSuccess() records it under the route it came in by.
+         */
+        if (isset(self::$accountedLogins[$userId])) {
+            return;
+        }
+
         if (empty(self::$directLogins)) {
             add_action('shutdown', [$this, 'logDirectLogins'], 1);
         }
 
         self::$directLogins[$userId] = true;
+    }
+
+    /**
+     * Records the verdict of the `authenticate` chain.
+     *
+     * Every login that comes through the front door - the form, the shortcode, a magic
+     * link, an answered second factor - ends here holding a WP_User. A login that does
+     * not is one that minted its own cookie, which is the whole distinction
+     * noteDirectLogin() is drawing.
+     *
+     * @param $user \WP_User|\WP_Error|null
+     * @return \WP_User|\WP_Error|null the same thing, unchanged
+     */
+    public function noteChainAuthenticated($user)
+    {
+        if ($user instanceof \WP_User) {
+            self::$accountedLogins[$user->ID] = true;
+        }
+
+        return $user;
+    }
+
+    /**
+     * Declares a sign in this plugin is performing itself.
+     *
+     * Our own passwordless flows - social, passkey, the auto login after signup - mint
+     * the cookie directly and so look exactly like somebody else's plugin doing it.
+     * They say so here, before the cookie exists, and are then logged under the route
+     * they actually came in by rather than as an anonymous "programmatic login".
+     *
+     * @param $userId int
+     * @return void
+     */
+    public static function noteOwnLogin($userId)
+    {
+        self::$accountedLogins[(int)$userId] = true;
     }
 
     /**
@@ -650,12 +716,12 @@ class LoginSecurityHandler
      */
     public static function resetRequestState()
     {
-        self::$loggedSuccesses = [];
+        self::$accountedLogins = [];
         self::$directLogins = [];
     }
 
     /**
-     * Writes the sign ins from noteDirectLogin() that `wp_login` never accounted for.
+     * Writes the sign ins from noteDirectLogin() that nothing else accounted for.
      *
      * Repeats collapse into one row. A dashboard that syncs every few minutes would
      * otherwise bury everything else in the log the owner actually reads, and one row
@@ -668,7 +734,7 @@ class LoginSecurityHandler
      */
     public function logDirectLogins()
     {
-        $userIds = array_diff_key(self::$directLogins, self::$loggedSuccesses);
+        $userIds = self::$directLogins;
 
         self::$directLogins = [];
 
@@ -718,7 +784,7 @@ class LoginSecurityHandler
                 'ip'          => $ip,
                 'browser'     => $browserDetection->getBrowser($agent)['browser_name'],
                 'device_os'   => $browserDetection->getOS($agent)['os_family'],
-                'description' => __('Signed in by a plugin, without a password or a login form.', 'fluent-security'),
+                'description' => __('Signed in by another plugin or script, without a password or a login form.', 'fluent-security'),
                 'media'       => 'direct_login',
                 'status'      => 'success',
                 'user_id'     => $user->ID,
