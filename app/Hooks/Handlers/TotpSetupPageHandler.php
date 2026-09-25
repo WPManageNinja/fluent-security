@@ -972,6 +972,7 @@ class TotpSetupPageHandler
             return home_url();
         }
 
-        return wp_validate_redirect(esc_url_raw(urldecode($requested)), home_url());
+        // Already decoded once by PHP. Decoding again unwraps any encoded value inside it.
+        return wp_validate_redirect(esc_url_raw(wp_unslash($requested)), home_url());
     }
 }
