@@ -49,13 +49,12 @@ class AuthService
         $createUserData = [
             'email'    => $userData['email'],
             'password' => wp_generate_password(8),
-            'username' => sanitize_user($userData['email'])
+            'username' => self::generateUsername($userData)
         ];
 
-        if (!empty($userData['username'])) {
-            if (username_exists($userData['username'])) {
-                $createUserData['username'] = sanitize_user($userData['username']);
-            }
+        $displayName = trim((string)Arr::get($userData, 'full_name'));
+        if (!$displayName) {
+            $displayName = trim(Arr::get($userData, 'first_name') . ' ' . Arr::get($userData, 'last_name'));
         }
 
         $defaultRole = get_option('default_role');
@@ -72,6 +71,7 @@ class AuthService
             'user_url'    => Arr::get($userData, 'user_url'),
             'full_name'   => Arr::get($userData, 'full_name'),
             'description' => Arr::get($userData, 'description'),
+            'display_name' => $displayName,
             '__validated' => true
         ]);
 
@@ -376,6 +376,12 @@ class AuthService
             }
         }
 
+        // Without this WordPress shows the username wherever the name is displayed
+        if (!empty($extraData['display_name'])) {
+            $data['display_name'] = sanitize_text_field($extraData['display_name']);
+            $data['nickname'] = $data['display_name'];
+        }
+
         if (!empty($extraData['description'])) {
             $data['description'] = sanitize_textarea_field($extraData['description']);
         }
@@ -418,6 +424,78 @@ class AuthService
         return $user_id;
     }
 
+
+    /**
+     * A username for an account created from a social login, never the email address.
+     *
+     * The login leaks into the author URL (user_nicename) and, until a display name is
+     * set, everywhere WordPress prints the user's name. So it is built from the provider's
+     * own handle, then the part of the email before the @, then the person's name, and
+     * numbered only when all of those are taken.
+     */
+    public static function generateUsername($userData)
+    {
+        $emailName = self::toUsername(Arr::get($userData, 'email'));
+
+        $candidates = array_values(array_unique(array_filter([
+            self::toUsername(Arr::get($userData, 'username')),
+            $emailName,
+            self::toUsername(Arr::get($userData, 'first_name') . Arr::get($userData, 'last_name')),
+            self::toUsername(Arr::get($userData, 'full_name')),
+        ])));
+
+        foreach ($candidates as $candidate) {
+            if (self::isUsernameAvailable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        // An address written entirely in a non-Latin script cleans down to nothing
+        $base = $emailName ?: ($candidates ? $candidates[0] : 'member');
+
+        $counter = 2;
+        while (!self::isUsernameAvailable($base . $counter)) {
+            $counter++;
+        }
+
+        return $base . $counter;
+    }
+
+    private static function toUsername($value)
+    {
+        $value = strtolower(trim((string)$value));
+
+        if (strpos($value, '@') !== false) {
+            $value = explode('@', $value)[0];
+        }
+
+        $value = preg_replace('/[^a-z0-9_]/', '', sanitize_user($value, true));
+
+        // user_nicename is capped at 50, and the counter needs room
+        return substr($value, 0, 40);
+    }
+
+    private static function isUsernameAvailable($username)
+    {
+        if (strlen($username) < 3) {
+            return false;
+        }
+
+        $reserved = [
+            'admin', 'administrator', 'root', 'system', 'sysadmin', 'superuser', 'webmaster',
+            'owner', 'staff', 'moderator', 'mod', 'support', 'help', 'helpdesk', 'info', 'contact',
+            'billing', 'sales', 'security', 'noreply', 'postmaster', 'hostmaster', 'abuse',
+            'wordpress', 'user', 'guest', 'test', 'demo', 'null', 'undefined'
+        ];
+
+        $illegal = array_map('strtolower', (array)apply_filters('illegal_user_logins', []));
+
+        if (in_array($username, $reserved, true) || in_array($username, $illegal, true)) {
+            return false;
+        }
+
+        return !username_exists($username);
+    }
 
     public static function checkUserRegDataErrors($user_login, $user_email, $extraArgs = [])
     {
