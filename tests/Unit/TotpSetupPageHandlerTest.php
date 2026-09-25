@@ -83,6 +83,28 @@ class TotpSetupPageHandlerTest extends BaseTestCase
         );
     }
 
+    /**
+     * "Not now" and "Continue" go back to where the user was heading. PHP decodes the
+     * query string once on the way in; decoding it again turned `%2F` into `/` and `+`
+     * into a space, so a destination carrying an encoded value arrived altered.
+     */
+    public function testTheDestinationSurvivesTheRoundTripUnchanged()
+    {
+        $destination = home_url('/members/?ref=a%2Fb+c&next=' . rawurlencode(home_url('/x/?y=1')));
+
+        parse_str((string)wp_parse_url(TotpSetupPageHandler::getUrl($destination, true), PHP_URL_QUERY), $query);
+        $_REQUEST = $query;
+
+        $method = new \ReflectionMethod($this->handler, 'getRedirectTo');
+        $method->setAccessible(true);
+
+        try {
+            $this->assertSame($destination, $method->invoke($this->handler));
+        } finally {
+            $_REQUEST = [];
+        }
+    }
+
     public function testConfirmingTheCodePairsTheApp()
     {
         $this->actAs($this->user);
