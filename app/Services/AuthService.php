@@ -159,7 +159,8 @@ class AuthService
             return '';
         }
 
-        $redirect = sanitize_url(urldecode(wp_unslash($_COOKIE['fs_intent_redirect'])));
+        // PHP has already decoded the cookie; decoding again would mangle encoded query values.
+        $redirect = sanitize_url(wp_unslash($_COOKIE['fs_intent_redirect']));
 
         if (!$redirect || !filter_var($redirect, FILTER_VALIDATE_URL)) {
             return '';

@@ -6,7 +6,9 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\CustomAuthHandler;
 use FluentAuth\App\Hooks\Handlers\MagicLoginHandler;
 use FluentAuth\App\Hooks\Handlers\PasskeyLoginHandler;
+use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\TwoFa\TwoFaService;
 
 /**
@@ -179,6 +181,119 @@ class LoginRedirectTest extends BaseTestCase
         });
 
         $this->assertSame(home_url('/account/'), $reply['redirect']);
+    }
+
+    /**
+     * The row's own destination is on the site; it is another plugin's filter that sends
+     * the reply off it, so only the final check can catch this.
+     */
+    public function test_the_two_factor_redirect_reply_is_clamped_after_the_filters()
+    {
+        $user = $this->makeUser('subscriber');
+        wp_set_current_user($user->ID);
+
+        $useTypes = TwoFaService::getAllUseTypes();
+
+        flsDb()->table('fls_login_hashes')->insert([
+            'login_hash'      => 'redirect-probe-hash-2',
+            'user_id'         => $user->ID,
+            'status'          => 'used',
+            'use_type'        => reset($useTypes),
+            'redirect_intend' => home_url('/account/'),
+            'created_at'      => current_time('mysql'),
+            'updated_at'      => current_time('mysql')
+        ]);
+
+        $_REQUEST['login_hash'] = 'redirect-probe-hash-2';
+        add_filter('login_redirect', [$this, 'sendOffSite'], 1000);
+
+        $reply = $this->captureJson(function () {
+            (new TwoFaHandler())->reportChallengeRedirect();
+        });
+
+        $this->assertSame(admin_url(), $reply['redirect']);
+    }
+
+    public function test_the_signup_reply_is_clamped_after_its_last_filter()
+    {
+        update_option('users_can_register', 1);
+        update_option('default_role', 'subscriber');
+        add_filter('fluent_auth/verify_signup_email', '__return_false');
+        $offSite = function ($response) {
+            $response['redirect'] = self::OFF_SITE;
+            return $response;
+        };
+        add_filter('fluent_auth/signup_complete_response', $offSite);
+
+        $_REQUEST['_fls_signup_nonce'] = wp_create_nonce('fluent_auth_signup_nonce');
+        $_REQUEST['first_name'] = 'Redirect';
+        $_REQUEST['username'] = 'redirect_signup';
+        $_REQUEST['email'] = 'redirect_signup@example.org';
+        $_REQUEST['password'] = 'secret-pass';
+
+        try {
+            $reply = $this->captureJson(function () {
+                (new CustomAuthHandler())->handleSignupAjax();
+            });
+        } finally {
+            remove_filter('fluent_auth/signup_complete_response', $offSite);
+            remove_all_filters('fluent_auth/verify_signup_email');
+            unset($_REQUEST['_fls_signup_nonce'], $_REQUEST['first_name'], $_REQUEST['username'], $_REQUEST['email'], $_REQUEST['password']);
+        }
+
+        $this->assertSame(admin_url(), $reply['redirect']);
+    }
+
+    // --------------------------------------------------- the social intent cookie
+
+    public function test_an_off_site_social_intent_is_dropped()
+    {
+        $_COOKIE['fs_intent_redirect'] = self::OFF_SITE;
+
+        try {
+            $this->assertSame('', AuthService::getIntentRedirect());
+        } finally {
+            unset($_COOKIE['fs_intent_redirect']);
+        }
+    }
+
+    /**
+     * PHP hands $_COOKIE over already decoded; a second decode turned `%2B` into `+` and
+     * split encoded parameters apart.
+     */
+    public function test_a_social_intent_keeps_its_encoded_query_intact()
+    {
+        $intended = home_url('/finish/?token=abc%2Bdef&next=%2Fa%3Fb%3D1');
+        $_COOKIE['fs_intent_redirect'] = $intended;
+
+        try {
+            $this->assertSame($intended, AuthService::getIntentRedirect());
+        } finally {
+            unset($_COOKIE['fs_intent_redirect']);
+        }
+    }
+
+    // ------------------------------------------------------ server mode child sites
+
+    public function test_a_connected_child_sites_callback_host_is_trusted()
+    {
+        update_option('__fls_child_sites', [
+            'abc' => [
+                'site_url'     => 'https://child.example.net',
+                'callback_url' => 'https://sso.child-cdn.example.com/callback'
+            ]
+        ]);
+
+        $handler = new ServerModeHandler();
+
+        try {
+            $callback = 'https://sso.child-cdn.example.com/callback?fluent_auth_token=x';
+            $this->assertSame($callback, $handler->trustChildSiteHosts(admin_url(), $callback));
+            $this->assertSame('https://child.example.net/x', $handler->trustChildSiteHosts(admin_url(), 'https://child.example.net/x'));
+            $this->assertSame(admin_url(), $handler->trustChildSiteHosts(admin_url(), self::OFF_SITE));
+        } finally {
+            delete_option('__fls_child_sites');
+        }
     }
 
     public function test_the_passkey_reply_is_clamped()

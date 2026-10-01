@@ -99,6 +99,21 @@ class LogsControllerTest extends BaseTestCase
     }
 
     /**
+     * Every column the table marks sortable - Logs.vue, not just the first three.
+     */
+    public function testSortsByEveryColumnTheTableOffers()
+    {
+        // Inserted against the sort order, so falling back to id would read upside down.
+        $this->log(['username' => 'high', 'ip' => '10.0.0.9', 'media' => 'web', 'browser' => 'Safari']);
+        $this->log(['username' => 'low', 'ip' => '10.0.0.1', 'media' => 'magic_login', 'browser' => 'Chrome']);
+
+        foreach (['ip', 'media', 'browser'] as $column) {
+            $this->assertEquals('high', $this->logs(['sortBy' => $column, 'sortType' => 'DESC'])['data'][0]->username, $column);
+            $this->assertEquals('low', $this->logs(['sortBy' => $column, 'sortType' => 'ASC'])['data'][0]->username, $column);
+        }
+    }
+
+    /**
      * Only the columns the table sorts on, in one of two directions. A column the screen
      * never offers sorts by id instead, and anything that is not ASC is DESC - neither
      * reaches the query as given.

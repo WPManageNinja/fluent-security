@@ -995,7 +995,6 @@ class CustomAuthHandler
                 $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
                 $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
                 $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
-                $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
                 $message = __('Successfully registered to the site.', 'fluent-security');
             }
         }
@@ -1015,6 +1014,11 @@ class CustomAuthHandler
          * @param array $response
          */
         $response = apply_filters('fluent_auth/signup_complete_response', $response, $user);
+
+        // login_helper.js navigates to this by script; it is checked after the last filter.
+        if (!empty($response['redirect'])) {
+            $response['redirect'] = Helper::getValidatedRedirectUrl($response['redirect'], admin_url());
+        }
 
         wp_send_json($response, 200);
     }

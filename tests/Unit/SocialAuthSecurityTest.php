@@ -404,7 +404,7 @@ class SocialAuthSecurityTest extends BaseTestCase
         Helper::resetStatics();
 
         $intended = home_url('/members/checkout/');
-        $_COOKIE['fs_intent_redirect'] = rawurlencode($intended);
+        $_COOKIE['fs_intent_redirect'] = $intended;
 
         $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
 
@@ -467,7 +467,7 @@ class SocialAuthSecurityTest extends BaseTestCase
         Helper::resetStatics();
 
         // Left behind by a social login nobody finished.
-        $_COOKIE['fs_intent_redirect'] = rawurlencode(home_url('/checkout/'));
+        $_COOKIE['fs_intent_redirect'] = home_url('/checkout/');
         $_REQUEST['redirect_to'] = home_url('/my-account/');
 
         $user = $this->factory->user->create_and_get(['role' => 'subscriber']);

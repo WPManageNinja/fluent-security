@@ -10,7 +10,7 @@ class LogsController
     {
         // The columns the logs table sorts on, and nothing else reaches ORDER BY.
         $orderByColumn = $request->get_param('sortBy');
-        if (!in_array($orderByColumn, ['id', 'created_at', 'username', 'status'], true)) {
+        if (!in_array($orderByColumn, ['id', 'created_at', 'username', 'status', 'media', 'ip', 'browser'], true)) {
             $orderByColumn = 'id';
         }
 
