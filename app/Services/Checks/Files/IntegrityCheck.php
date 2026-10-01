@@ -54,11 +54,17 @@ class IntegrityCheck extends Check
         $core = IntegrityHelper::getActiveCoreFindings();
         $extensions = IntegrityHelper::getActiveExtensionFindings();
         $suspicious = IntegrityHelper::getSuspiciousExtensions();
+        /*
+         * The folders the scan found at the root. Left out of this finding they were the one
+         * thing the alert email listed every day while this list said nothing needed
+         * attention - and leftovers from a host move are usually exactly that, a folder.
+         */
+        $folders = IntegrityHelper::getActiveCoreFolders();
         $truncated = $this->truncated();
 
         $files = count($core) + count($extensions) + $truncated;
 
-        if (!$files && !$suspicious) {
+        if (!$files && !$suspicious && !$folders) {
             return [new Finding([
                 'id'     => $this->id(),
                 'check'  => $this->id(),
@@ -69,18 +75,26 @@ class IntegrityCheck extends Check
             ])];
         }
 
+        /*
+         * A stray folder is not something a reinstall puts back, so a finding made only of
+         * folders goes to the scan screen, which lists them and lets each be marked expected.
+         */
+        $onlyFolders = !$files && !$suspicious;
+
         return [new Finding([
             'id'       => $this->id(),
             'check'    => $this->id(),
             'group'    => $this->group(),
             'state'    => Finding::STATE_OPEN,
             'severity' => Finding::SEVERITY_FIX,
-            'title'    => $this->title($files, count($suspicious)),
-            'why'      => __('Core files and plugins from the directory should match the official copy exactly. A file that differs was changed on this server, and if you did not change it, somebody else did. Put them back, then look at what cannot be put back.', 'fluent-security'),
-            'details'  => $this->details($core, $extensions, $suspicious, $truncated),
+            'title'    => $this->title($files, count($suspicious), count($folders)),
+            'why'      => $onlyFolders
+                ? __('WordPress does not put folders next to wp-admin and wp-includes. Leftovers from a host move or an old backup are the usual reason, and a folder nobody remembers is also where an attacker hides things. Delete what you do not need, and mark the rest as expected.', 'fluent-security')
+                : __('Core files and plugins from the directory should match the official copy exactly. A file that differs was changed on this server, and if you did not change it, somebody else did. Put them back, then look at what cannot be put back.', 'fluent-security'),
+            'details'  => $this->details($core, $extensions, $suspicious, $folders, $truncated),
             'action'   => 'navigate',
-            'label'    => __('Put files back', 'fluent-security'),
-            'route'    => 'security_recovery',
+            'label'    => $onlyFolders ? __('Review folders', 'fluent-security') : __('Put files back', 'fluent-security'),
+            'route'    => $onlyFolders ? 'security_scans' : 'security_recovery',
             'scored'   => true
         ])];
     }
@@ -129,10 +143,24 @@ class IntegrityCheck extends Check
     /**
      * @param int $files
      * @param int $suspicious
+     * @param int $folders
      * @return string
      */
-    protected function title($files, $suspicious)
+    protected function title($files, $suspicious, $folders = 0)
     {
+        if (!$files && !$suspicious) {
+            return sprintf(
+                /* translators: %s: number of folders */
+                _n(
+                    '%s folder in your WordPress root is not part of WordPress',
+                    '%s folders in your WordPress root are not part of WordPress',
+                    $folders,
+                    'fluent-security'
+                ),
+                number_format_i18n($folders)
+            );
+        }
+
         if (!$files) {
             return sprintf(
                 /* translators: %s: number of plugins or themes */
@@ -162,10 +190,11 @@ class IntegrityCheck extends Check
      * @param array $core
      * @param array $extensions
      * @param array $suspicious
+     * @param array $folders
      * @param int   $truncated
      * @return array
      */
-    protected function details($core, $extensions, $suspicious, $truncated)
+    protected function details($core, $extensions, $suspicious, $folders, $truncated)
     {
         $details = [];
 
@@ -176,6 +205,11 @@ class IntegrityCheck extends Check
                 $item['version'],
                 $item['reason']
             );
+        }
+
+        foreach ($folders as $folder) {
+            /* translators: %s: folder path, relative to the WordPress root */
+            $details[] = sprintf(__('%s (folder not part of WordPress)', 'fluent-security'), $folder);
         }
 
         $rows = [];

@@ -271,16 +271,33 @@ class SecurityScanController
         IntegrityHelper::saveSettings($settings);
 
         /*
-         * Tell the relay what this scan found. Does nothing on a site that is not connected or
-         * has the schedule off; see IntegrityHelper::reportScanIfConnected.
+         * Not reported from here. This is only the core phase - the plugins and themes are
+         * checked afterwards, one request each - so a report sent now carries the previous
+         * scan's extension findings, and told a site owner who had just deleted a file that it
+         * was still there. The screen reports once the whole scan is done; see reportScan().
          */
-        IntegrityHelper::reportScanIfConnected();
 
         return [
             'scan_results'  => $scanResults,
             'activeChanges' => $activeChanges,
             'hasIssues'     => !!array_filter($scanResults),
             'willAlert'     => !!array_filter($activeChanges)
+        ];
+    }
+
+    /*
+     * Tell the relay what the scan that has just finished found.
+     *
+     * Called by the screen after every phase has stored its results, so the report reads the
+     * same stored findings the findings list does. Does nothing on a site that is not
+     * connected or has the schedule off; see IntegrityHelper::reportScanIfConnected.
+     */
+    public static function reportScan(\WP_REST_Request $request)
+    {
+        IntegrityHelper::reportScanIfConnected();
+
+        return [
+            'reported' => true
         ];
     }
 

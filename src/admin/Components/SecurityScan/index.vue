@@ -277,6 +277,13 @@ export default {
                 /* Phase four: the snapshot, if this site has taken one. */
                 await this.compareBaseline();
 
+                /*
+                 * Reported last, once every phase has stored what it found - a report sent
+                 * after the core phase carried the previous scan's plugin findings. A failed
+                 * report is not a failed scan: the schedule sends the next one anyway.
+                 */
+                await this.$post('security-scan-settings/scan/report').catch(() => {});
+
                 this.finishScan(core);
             } catch (errors) {
                 this.$handleError(errors);
