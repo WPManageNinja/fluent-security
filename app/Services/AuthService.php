@@ -57,12 +57,8 @@ class AuthService
             $displayName = trim(Arr::get($userData, 'first_name') . ' ' . Arr::get($userData, 'last_name'));
         }
 
-        $defaultRole = get_option('default_role');
-        if (!$defaultRole || $defaultRole === 'administrator') {
-            $defaultRole = 'subscriber';
-        }
-
-        $setRole = apply_filters('fluent_auth/user_role', $defaultRole);
+        // registerNewUser() turns an administrator, or a role that does not exist, into a subscriber.
+        $setRole = apply_filters('fluent_auth/user_role', get_option('default_role'));
 
         $userId = self::registerNewUser($createUserData['username'], $createUserData['email'], $createUserData['password'], [
             'role'        => $setRole,
@@ -392,10 +388,17 @@ class AuthService
             $data['user_url'] = sanitize_url($extraData['user_url']);
         }
 
-        if (!empty($extraData['role'])) {
-            $data['role'] = $extraData['role'];
+        /*
+         * Every self-service signup ends here - the signup form, the customized login
+         * page, a social login - so this is the one place that refuses to make an
+         * administrator, whatever the default_role option or a filter says. A role is
+         * always set: left out, wp_insert_user() falls back to default_role by itself.
+         */
+        $role = !empty($extraData['role']) ? $extraData['role'] : get_option('default_role');
+        if (!is_string($role) || $role === 'administrator' || !get_role($role)) {
+            $role = 'subscriber';
         }
-
+        $data['role'] = $role;
 
         do_action('fluent_auth/before_creating_user', $data);
 
