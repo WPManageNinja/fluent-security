@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.3
+Stable tag: 3.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -310,6 +310,15 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.0.4 - Date: Oct 2, 2026 =
+* Security: Sign-in redirects now always stay on your site.
+* Hardening: Signups through FluentAuth never create an administrator account, even if WordPress's default role for new users is set to Administrator.
+* Change: Login and logout redirect settings only accept addresses on your site. An off-site address saved earlier is pointed out on the Login Redirects screen.
+* Improvement: New text files in the WordPress root (llms.txt, verification files, notes) are no longer reported by the security scan.
+* Fix: Accounts created through social login no longer use the email address as the username.
+* Fix: Security scan reports now match the final scan findings, including unexpected folders in the WordPress root.
+* Fix: The two-factor setup screen keeps the address it should return you to.
 
 = 3.0.3 - Date: Sep 20, 2026 =
 * Added compatibility with MainWP and other plugins that sign users in programmatically. These sign ins are now recorded in the audit log as a programmatic login, collapsed into one entry per hour, and do not send a login notification email.
