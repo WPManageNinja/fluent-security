@@ -27,16 +27,16 @@ class ServerModeHandler
 
             $locationSiteDomain = parse_url($location, PHP_URL_HOST);
 
+            /*
+             * The callback as well as the site: the sign in replies validate the URL
+             * maybeRemoteLoginRedirect() hands them, and the two are entered separately.
+             */
             foreach ($authSites as $authSite) {
-                $childSiteUrl = $authSite['site_url'];
-                if (!$childSiteUrl) {
-                    continue;
-                }
-
-                // child site domain
-                $childSiteDomain = parse_url($childSiteUrl, PHP_URL_HOST);
-                if ($locationSiteDomain === $childSiteDomain) {
-                    return $location;
+                foreach (['site_url', 'callback_url'] as $key) {
+                    $childUrl = isset($authSite[$key]) ? $authSite[$key] : '';
+                    if ($childUrl && $locationSiteDomain === parse_url($childUrl, PHP_URL_HOST)) {
+                        return $location;
+                    }
                 }
             }
 

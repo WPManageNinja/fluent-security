@@ -25,17 +25,7 @@ class MagicLoginHandler
                 $this->makeLogin($hash);
             }
 
-            if (isset($_GET['redirect_to']) && !wp_doing_ajax()) {
-                if (get_current_user_id()) {
-                    return;
-                }
-
-                $redirectTo = esc_url_raw($_REQUEST['redirect_to']);
-                if (filter_var($redirectTo, FILTER_VALIDATE_URL)) {
-                    // set cookie to redirect after login
-                    setcookie('_fls_redirect_to', $redirectTo, time() + 600, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
-                }
-            }
+            $this->rememberRedirect();
         }, 1);
 
         add_filter('login_form_bottom', [$this, 'maybeMagicFormOnLoginFunc']);
@@ -429,15 +419,48 @@ class MagicLoginHandler
     }
 
 
+    /**
+     * Keeps a logged-out visitor's `?redirect_to=` for ten minutes, so whichever way
+     * they sign in - see CustomAuthHandler::alterLoginRedirectUrl() - they land there.
+     *
+     * Only a destination on a host this site trusts is kept: anybody can send a link.
+     *
+     * @return void
+     */
+    public function rememberRedirect()
+    {
+        if (!isset($_GET['redirect_to']) || !is_string($_GET['redirect_to']) || wp_doing_ajax() || get_current_user_id()) {
+            return;
+        }
+
+        $redirectTo = Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($_GET['redirect_to'])), '');
+
+        if (!$redirectTo || headers_sent()) {
+            return;
+        }
+
+        setcookie('_fls_redirect_to', $redirectTo, [
+            'expires'  => time() + 600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+
     private function getMagicLoginUrl($user, $validity = 5, $baseUrl = false, $redirectIntend = '')
     {
         if (!$baseUrl) {
             $baseUrl = site_url('index.php');
         }
 
-        if (!$redirectIntend && isset($_GET['redirect_to'])) {
-            $redirectIntend = esc_url($_GET['redirect_to']);
+        if (!$redirectIntend && isset($_GET['redirect_to']) && is_string($_GET['redirect_to'])) {
+            $redirectIntend = esc_url_raw(wp_unslash($_GET['redirect_to']));
         }
+
+        // Stored now and followed later, so it has to be somewhere this site trusts.
+        $redirectIntend = $redirectIntend ? Helper::getValidatedRedirectUrl($redirectIntend, '') : '';
 
         $args = [
             'fls_al'         => $this->generateHash($user, $validity, $redirectIntend),
@@ -647,7 +670,7 @@ class MagicLoginHandler
 
     private function getLoginRedirect($user)
     {
-        $requested_redirect_to = isset($_REQUEST['redirect_to']) ? esc_url($_REQUEST['redirect_to']) : site_url();
+        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : site_url();
         return apply_filters('login_redirect', $requested_redirect_to, $requested_redirect_to, $user);
     }
 

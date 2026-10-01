@@ -151,13 +151,15 @@ class AuthService
      * The redirect the social flow stashed before handing off to the provider.
      *
      * Social login carries its intent in a cookie rather than $_REQUEST, so it has to
-     * be passed to the 2FA challenge explicitly or it is lost across the redirect.
+     * be passed to the 2FA challenge explicitly or it is lost across the redirect. The
+     * provider callbacks and One Tap read it here too, so there is one place that
+     * decides whether it is somewhere this site will send a browser.
      *
-     * @return string
+     * @return string a URL on a trusted host, or '' when there is none
      */
-    private static function getIntentRedirect()
+    public static function getIntentRedirect()
     {
-        if (empty($_COOKIE['fs_intent_redirect'])) {
+        if (empty($_COOKIE['fs_intent_redirect']) || !is_string($_COOKIE['fs_intent_redirect'])) {
             return '';
         }
 

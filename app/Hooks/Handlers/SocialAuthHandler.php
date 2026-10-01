@@ -224,17 +224,9 @@ class SocialAuthHandler
             return $user;
         }
 
-        $intentRedirectTo = '';
-        if (isset($_COOKIE['fs_intent_redirect'])) {
-
-            $cookieRedirect = urldecode($_COOKIE['fs_intent_redirect']);
-            // check if the url is valid
-            if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
-                $cookieRedirect = admin_url();
-            }
-
-            $redirect_to = sanitize_url($cookieRedirect);
-            $intentRedirectTo = $redirect_to;
+        $intentRedirectTo = AuthService::getIntentRedirect();
+        if ($intentRedirectTo) {
+            $redirect_to = $intentRedirectTo;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();
@@ -301,14 +293,9 @@ class SocialAuthHandler
             return $user;
         }
 
-        $intentRedirectTo = '';
-        if (isset($_COOKIE['fs_intent_redirect'])) {
-            $cookieRedirect = sanitize_url($_COOKIE['fs_intent_redirect']);
-            if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
-                $cookieRedirect = admin_url();
-            }
-            $redirect_to = $cookieRedirect;
-            $intentRedirectTo = $redirect_to;
+        $intentRedirectTo = AuthService::getIntentRedirect();
+        if ($intentRedirectTo) {
+            $redirect_to = $intentRedirectTo;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();
@@ -375,14 +362,9 @@ class SocialAuthHandler
             return $user;
         }
 
-        $intentRedirectTo = '';
-        if (isset($_COOKIE['fs_intent_redirect'])) {
-            $cookieRedirect = sanitize_url($_COOKIE['fs_intent_redirect']);
-            if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
-                $cookieRedirect = admin_url();
-            }
-            $redirect_to = $cookieRedirect;
-            $intentRedirectTo = $redirect_to;
+        $intentRedirectTo = AuthService::getIntentRedirect();
+        if ($intentRedirectTo) {
+            $redirect_to = $intentRedirectTo;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();

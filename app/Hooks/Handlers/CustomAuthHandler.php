@@ -26,6 +26,7 @@ class CustomAuthHandler
          */
         add_filter('login_redirect', array($this, 'alterLoginRedirectUrl'), 999, 3);
         add_filter('logout_redirect', array($this, 'alterLogoutRedirectUrl'), 999, 3);
+        add_filter('allowed_redirect_hosts', array($this, 'allowConfiguredRedirectHosts'));
 
         add_action('wp_ajax_nopriv_fluent_auth_login', array($this, 'handleLoginAjax'));
         add_action('wp_ajax_nopriv_fluent_auth_signup', array($this, 'handleSignupAjax'));
@@ -39,16 +40,18 @@ class CustomAuthHandler
             return $redirect_to;
         }
 
-        // check if we have value from cookie _fls_redirect_to
-        if (isset($_COOKIE['_fls_redirect_to']) && filter_var($_COOKIE['_fls_redirect_to'], FILTER_VALIDATE_URL)) {
-            $redirect_to = sanitize_url($_COOKIE['_fls_redirect_to']);
-            $validatedRedirectUrl = Helper::getValidatedRedirectUrl($redirect_to, admin_url());
-            unset($_COOKIE['_fls_redirect_to']);
-            setcookie('_fls_redirect_to', '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN);
-            if ($validatedRedirectUrl == $redirect_to) {
-                return $redirect_to;
-            }
+        /*
+         * Where a logged-out visitor was headed - see MagicLoginHandler::rememberRedirect().
+         * Anybody can put a link in front of them, so it only counts when it stays on a
+         * host this site trusts. Otherwise it is dropped and the usual rules decide.
+         */
+        if (!empty($_COOKIE['_fls_redirect_to']) && is_string($_COOKIE['_fls_redirect_to'])) {
+            $cookieRedirect = Helper::getValidatedRedirectUrl(sanitize_url(wp_unslash($_COOKIE['_fls_redirect_to'])), '');
+            self::forgetRedirect();
 
+            if ($cookieRedirect) {
+                return $cookieRedirect;
+            }
         }
 
         if (apply_filters('fluent_auth/respect_front_login_url', true) && strpos($redirect_to, '/wp-admin') === false) {
@@ -58,6 +61,66 @@ class CustomAuthHandler
         }
 
         return $redirect_to;
+    }
+
+    /**
+     * Drops the `_fls_redirect_to` cookie once it has been read.
+     *
+     * @return void
+     */
+    private static function forgetRedirect()
+    {
+        unset($_COOKIE['_fls_redirect_to']);
+
+        if (headers_sent()) {
+            return;
+        }
+
+        setcookie('_fls_redirect_to', '', [
+            'expires'  => time() - 3600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+
+    /**
+     * The hosts the site owner named in the login and logout redirect settings.
+     *
+     * They typed those addresses in themselves - another domain, a shop on a subdomain -
+     * so they pass wp_validate_redirect() the same as this site does, on every route in.
+     *
+     * @param $hosts array
+     * @return array
+     */
+    public function allowConfiguredRedirectHosts($hosts)
+    {
+        $settings = Helper::getAuthFormsSettings();
+
+        if (Arr::get($settings, 'login_redirects') != 'yes') {
+            return $hosts;
+        }
+
+        $urls = [
+            Arr::get($settings, 'default_login_redirect'),
+            Arr::get($settings, 'default_logout_redirect')
+        ];
+
+        foreach ((array)Arr::get($settings, 'redirect_rules', []) as $rule) {
+            $urls[] = Arr::get((array)$rule, 'login');
+            $urls[] = Arr::get((array)$rule, 'logout');
+        }
+
+        foreach ($urls as $url) {
+            $host = $url && is_string($url) ? wp_parse_url($url, PHP_URL_HOST) : '';
+            if ($host) {
+                $hosts[] = $host;
+            }
+        }
+
+        return array_values(array_unique($hosts));
     }
 
     public function alterLogoutRedirectUrl($redirect_to, $intentRedirectTo, $user)
@@ -748,7 +811,7 @@ class CustomAuthHandler
                 $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
             }
             wp_send_json([
-                'redirect' => $redirectUrl
+                'redirect' => Helper::getValidatedRedirectUrl($redirectUrl, admin_url())
             ], 200);
         }
 
@@ -786,8 +849,13 @@ class CustomAuthHandler
             $filteredRedirectUrl = $redirectUrl;
         }
 
+        /*
+         * login_helper.js assigns this straight to window.location, so this is where
+         * wp-login.php would have called wp_safe_redirect(): any plugin may have had a say
+         * in the filters above.
+         */
         wp_send_json([
-            'redirect' => $filteredRedirectUrl
+            'redirect' => Helper::getValidatedRedirectUrl($filteredRedirectUrl, admin_url())
         ], 200);
     }
 
@@ -927,6 +995,7 @@ class CustomAuthHandler
                 $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
                 $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
                 $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
+                $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
                 $message = __('Successfully registered to the site.', 'fluent-security');
             }
         }
