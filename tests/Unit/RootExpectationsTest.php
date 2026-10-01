@@ -404,4 +404,64 @@ class RootExpectationsTest extends BaseTestCase
         $this->assertArrayHasKey('includes/file.php', $grouped['wp-admin']);
         $this->assertArrayHasKey('pluggable.php', $grouped['wp-includes']);
     }
+
+    /* ------------------------------------------------------- text files in the root */
+
+    /**
+     * A new `.txt` beside WordPress is somebody's notes, a crawler file or a verification
+     * token - quiet - unless the root `.htaccess` makes `.txt` run, and then it is the
+     * other half of a web shell and is reported like any other new file.
+     */
+    public function test_a_new_text_file_in_the_root_is_quiet()
+    {
+        $this->assertTrue(RootExpectations::isQuietRootText('llms.txt', $this->root));
+        $this->assertTrue(RootExpectations::isQuietRootText('NOTES.TXT', $this->root));
+    }
+
+    public function test_only_the_root_and_only_text()
+    {
+        $this->assertFalse(RootExpectations::isQuietRootText('wp-admin/notes.txt', $this->root));
+        $this->assertFalse(RootExpectations::isQuietRootText('notes.txt.php', $this->root));
+        $this->assertFalse(RootExpectations::isQuietRootText('notes.php', $this->root));
+    }
+
+    /**
+     * @dataProvider htaccessThatRunsText
+     */
+    public function test_text_is_reported_when_the_root_htaccess_runs_it($htaccess)
+    {
+        $this->write('.htaccess', $htaccess);
+
+        $this->assertFalse(RootExpectations::isQuietRootText('llms.txt', $this->root));
+    }
+
+    public function htaccessThatRunsText()
+    {
+        return [
+            ["AddHandler application/x-httpd-php .txt\n"],
+            ["AddType application/x-httpd-php .php .txt\n"],
+            ["<FilesMatch \"\\.txt$\">\nSetHandler application/x-httpd-php\n</FilesMatch>\n"]
+        ];
+    }
+
+    /**
+     * An ordinary root `.htaccess` - WordPress's own rewrite block, or the handler line a
+     * cPanel host adds to pick a PHP version - leaves text files quiet.
+     *
+     * @dataProvider htaccessThatLeavesTextAlone
+     */
+    public function test_an_ordinary_root_htaccess_leaves_text_quiet($htaccess)
+    {
+        $this->write('.htaccess', $htaccess);
+
+        $this->assertTrue(RootExpectations::isQuietRootText('llms.txt', $this->root));
+    }
+
+    public function htaccessThatLeavesTextAlone()
+    {
+        return [
+            ["# BEGIN WordPress\nRewriteEngine On\nRewriteRule ^index\\.php$ - [L]\n# END WordPress\n"],
+            ["AddHandler application/x-httpd-ea-php81 .php .php8 .phtml\n"]
+        ];
+    }
 }

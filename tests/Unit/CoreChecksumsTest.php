@@ -489,4 +489,68 @@ class CoreChecksumsTest extends BaseTestCase
         $this->assertSame(422, $data['status']);
         $this->assertSame(ChecksumException::UNREACHABLE, $data['reason']);
     }
+
+    /* ------------------------------------------------------- text files in the root */
+
+    /**
+     * New `.txt` files in the root - llms.txt, a host's notes, a verification token with a
+     * name nobody predicted - are not findings. WordPress's own `license.txt` still is when
+     * it changes, because it is compared rather than silenced, and a `.txt` anywhere below
+     * the root is still a new file.
+     */
+    public function test_new_text_files_in_the_root_are_not_reported()
+    {
+        $this->serve(['en_US' => array_merge($this->package(), ['license.txt' => 'official-license'])]);
+
+        $probe = ABSPATH . 'wp-admin/fls-probe.txt';
+        file_put_contents($probe, 'x');
+
+        LocalStubChecker::$files = array_merge($this->localFiles('en-us-hash'), [
+            'llms.txt'               => 'whatever',
+            'hosting-notes.txt'      => 'whatever',
+            'license.txt'            => 'edited-license',
+            'wp-admin/fls-probe.txt' => 'whatever'
+        ]);
+
+        try {
+            $modified = (new LocalStubChecker())->getModifiedFiles();
+        } finally {
+            @unlink($probe);
+        }
+
+        $this->assertArrayNotHasKey('llms.txt', $modified);
+        $this->assertArrayNotHasKey('hosting-notes.txt', $modified);
+        $this->assertSame('modified', $modified['license.txt']['status']);
+        $this->assertSame('new', $modified['wp-admin/fls-probe.txt']['status']);
+    }
+
+    /**
+     * The one case where a text file in the root is a program: the root `.htaccess` hands
+     * `.txt` to PHP. Then it is reported like any other new file.
+     */
+    public function test_root_text_is_reported_when_the_htaccess_makes_it_run()
+    {
+        $this->serve(['en_US' => $this->package()]);
+
+        $htaccess = ABSPATH . '.htaccess';
+        $hadHtaccess = file_exists($htaccess);
+        $original = $hadHtaccess ? file_get_contents($htaccess) : null;
+        $probe = ABSPATH . 'fls-probe.txt';
+
+        file_put_contents($htaccess, "AddHandler application/x-httpd-php .txt\n");
+        file_put_contents($probe, '<?php // x');
+
+        LocalStubChecker::$files = array_merge($this->localFiles('en-us-hash'), [
+            'fls-probe.txt' => 'whatever'
+        ]);
+
+        try {
+            $modified = (new LocalStubChecker())->getModifiedFiles();
+        } finally {
+            @unlink($probe);
+            $hadHtaccess ? file_put_contents($htaccess, $original) : @unlink($htaccess);
+        }
+
+        $this->assertSame('new', $modified['fls-probe.txt']['status']);
+    }
 }

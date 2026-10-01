@@ -292,6 +292,51 @@ class RootExpectations
     }
 
     /**
+     * Whether a new file in the root is plain text the scan should not mention.
+     *
+     * Any `.txt` directly beside WordPress: llms.txt, a host's notes, a verification token
+     * with a name nobody predicted. Text does not run, so a new one is not an integrity
+     * finding - and the names multiply faster than GENERATED_PATTERNS could follow.
+     *
+     * Only new files. WordPress's own `license.txt` is in the checksums and is still compared,
+     * so a changed one is still reported; that is decided where new files are found, not here.
+     *
+     * The exception is the one way text does run: a root `.htaccess` that hands `.txt` to an
+     * interpreter. The root `.htaccess` is never reported itself (see NOISE_NAMES), so with
+     * both silent a shell named `.txt` would be invisible. When the file mentions `.txt`
+     * alongside any directive that can make something run, text is reported again - erring
+     * towards reporting, as htaccessEnablesExecution() does.
+     *
+     * @param string $file root-relative path, no leading slash
+     * @param string $rootDir the WordPress root
+     * @return bool
+     */
+    public static function isQuietRootText($file, $rootDir)
+    {
+        if (strpos($file, '/') !== false || !preg_match('/\.txt$/i', $file)) {
+            return false;
+        }
+
+        $htaccess = trailingslashit($rootDir) . '.htaccess';
+
+        if (!is_file($htaccess)) {
+            return true;
+        }
+
+        $contents = @file_get_contents($htaccess);
+
+        if ($contents === false) {
+            return false;
+        }
+
+        if (stripos($contents, 'txt') === false) {
+            return true;
+        }
+
+        return !self::htaccessEnablesExecution($htaccess);
+    }
+
+    /**
      * Whether an `.htaccess` asks the server to run something.
      *
      * Deliberately a keyword test rather than a parse. Apache's grammar is large and the

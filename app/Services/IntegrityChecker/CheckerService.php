@@ -78,7 +78,11 @@ class CheckerService
 
             $remoteHash = isset($remoteHashes[$file]) ? $remoteHashes[$file] : null;
             if (!$remoteHash) {
-                // the file is deleted
+                // A new text file in the root is not a finding - see RootExpectations.
+                if (RootExpectations::isQuietRootText($file, ABSPATH)) {
+                    continue;
+                }
+
                 $modifiedFiles[$file] = [
                     'status'      => 'new',
                     'modified_at' => gmdate('Y-m-d H:i:s', filemtime(ABSPATH . $file))
