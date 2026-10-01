@@ -26,7 +26,6 @@ class CustomAuthHandler
          */
         add_filter('login_redirect', array($this, 'alterLoginRedirectUrl'), 999, 3);
         add_filter('logout_redirect', array($this, 'alterLogoutRedirectUrl'), 999, 3);
-        add_filter('allowed_redirect_hosts', array($this, 'allowConfiguredRedirectHosts'));
 
         add_action('wp_ajax_nopriv_fluent_auth_login', array($this, 'handleLoginAjax'));
         add_action('wp_ajax_nopriv_fluent_auth_signup', array($this, 'handleSignupAjax'));
@@ -84,43 +83,6 @@ class CustomAuthHandler
             'httponly' => true,
             'samesite' => 'Lax'
         ]);
-    }
-
-    /**
-     * The hosts the site owner named in the login and logout redirect settings.
-     *
-     * They typed those addresses in themselves - another domain, a shop on a subdomain -
-     * so they pass wp_validate_redirect() the same as this site does, on every route in.
-     *
-     * @param $hosts array
-     * @return array
-     */
-    public function allowConfiguredRedirectHosts($hosts)
-    {
-        $settings = Helper::getAuthFormsSettings();
-
-        if (Arr::get($settings, 'login_redirects') != 'yes') {
-            return $hosts;
-        }
-
-        $urls = [
-            Arr::get($settings, 'default_login_redirect'),
-            Arr::get($settings, 'default_logout_redirect')
-        ];
-
-        foreach ((array)Arr::get($settings, 'redirect_rules', []) as $rule) {
-            $urls[] = Arr::get((array)$rule, 'login');
-            $urls[] = Arr::get((array)$rule, 'logout');
-        }
-
-        foreach ($urls as $url) {
-            $host = $url && is_string($url) ? wp_parse_url($url, PHP_URL_HOST) : '';
-            if ($host) {
-                $hosts[] = $host;
-            }
-        }
-
-        return array_values(array_unique($hosts));
     }
 
     public function alterLogoutRedirectUrl($redirect_to, $intentRedirectTo, $user)

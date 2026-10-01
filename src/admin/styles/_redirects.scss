@@ -247,3 +247,17 @@
         max-width: none;
     }
 }
+
+/*
+ * Saved addresses on another host. Above the cards rather than beside each field: they are
+ * never followed, so this is the first thing on the screen to fix.
+ */
+.fls_redirects_offsite {
+    @apply rounded-md;
+
+    margin-bottom: 16px;
+
+    p {
+        margin: 0 0 6px;
+    }
+}

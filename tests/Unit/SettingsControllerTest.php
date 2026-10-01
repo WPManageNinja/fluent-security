@@ -136,8 +136,8 @@ class SettingsControllerTest extends BaseTestCase
         update_option('__fls_auth_forms_settings', [
             'enabled'                 => 'yes',
             'login_redirects'         => 'yes',
-            'default_login_redirect'  => 'https://example.com/members/',
-            'default_logout_redirect' => 'https://example.com/bye/',
+            'default_login_redirect'  => home_url('/members/'),
+            'default_logout_redirect' => home_url('/bye/'),
             'redirect_rules'          => []
         ]);
 
@@ -145,7 +145,7 @@ class SettingsControllerTest extends BaseTestCase
         $request->set_param('redirect_settings', [
             'login_redirects'         => 'yes',
             'default_login_redirect'  => '',
-            'default_logout_redirect' => 'https://example.com/bye/'
+            'default_logout_redirect' => home_url('/bye/')
         ]);
 
         SettingsController::saveAuthFormSettings($request);
@@ -153,7 +153,7 @@ class SettingsControllerTest extends BaseTestCase
         $saved = get_option('__fls_auth_forms_settings');
 
         $this->assertSame('', $saved['default_login_redirect']);
-        $this->assertSame('https://example.com/bye/', $saved['default_logout_redirect']);
+        $this->assertSame(home_url('/bye/'), $saved['default_logout_redirect']);
     }
 
     public function testSaveAuthFormSettingsKeepsRulesWithoutConditions()
@@ -176,6 +176,122 @@ class SettingsControllerTest extends BaseTestCase
         $this->assertCount(1, $saved['redirect_rules']);
         $this->assertSame('/members/', $saved['redirect_rules'][0]['login']);
         $this->assertSame([], $saved['redirect_rules'][0]['conditions']);
+    }
+
+    // ------------------------------------------- redirects must stay on this site
+
+    /**
+     * Every sign-in reply, and core's own wp_safe_redirect(), refuses an off-site address,
+     * so one saved here would silently land people in wp-admin. Refused at the door instead,
+     * naming the field, and nothing is written.
+     */
+    public function testAnOffSiteRedirectIsRefusedOnSave()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                => 'yes',
+            'login_redirects'        => 'yes',
+            'default_login_redirect' => home_url('/members/')
+        ]);
+
+        $result = $this->saveRedirects([
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => 'https://elsewhere.example.net/welcome/',
+            'default_logout_redirect' => home_url('/bye/'),
+            'redirect_rules'          => [
+                ['login' => '/fine/', 'logout' => 'https://elsewhere.example.net/bye/']
+            ]
+        ]);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+
+        $problems = $result->get_error_data()['invalid_redirects'];
+        $this->assertCount(2, $problems);
+        $this->assertStringContainsString('After signing in', $problems[0]);
+        $this->assertStringContainsString('elsewhere.example.net/welcome/', $problems[0]);
+        $this->assertStringContainsString('Rule 1', $problems[1]);
+        $this->assertStringContainsString('after signing out', $problems[1]);
+
+        $this->assertSame(home_url('/members/'), get_option('__fls_auth_forms_settings')['default_login_redirect']);
+    }
+
+    public function testOnSiteAndRelativeRedirectsSave()
+    {
+        $result = $this->saveRedirects([
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => home_url('/members/'),
+            'default_logout_redirect' => '/goodbye/',
+            'redirect_rules'          => [
+                ['login' => admin_url('profile.php'), 'logout' => '']
+            ]
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('/goodbye/', get_option('__fls_auth_forms_settings')['default_logout_redirect']);
+    }
+
+    /**
+     * The developer's route to another host - a shop on a subdomain - is core's own
+     * filter, and the check honours it like every other redirect on the site.
+     */
+    public function testAHostAllowedThroughCoreSaves()
+    {
+        $allow = function ($hosts) {
+            $hosts[] = 'shop.example.org';
+            return $hosts;
+        };
+        add_filter('allowed_redirect_hosts', $allow);
+
+        try {
+            $result = $this->saveRedirects([
+                'login_redirects'        => 'yes',
+                'default_login_redirect' => 'https://shop.example.org/account/'
+            ]);
+        } finally {
+            remove_filter('allowed_redirect_hosts', $allow);
+        }
+
+        $this->assertIsArray($result);
+    }
+
+    /**
+     * An address saved before the rule existed is not followed any more, so the screen
+     * says so when it opens rather than leaving the owner to find out by signing in.
+     */
+    public function testTheScreenFlagsAnOffSiteAddressSavedBefore()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                 => 'yes',
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => home_url('/members/'),
+            'default_logout_redirect' => 'https://elsewhere.example.net/bye/'
+        ]);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+
+        $result = SettingsController::getAuthFormSettings(new \WP_REST_Request());
+
+        $this->assertCount(1, $result['invalid_redirects']);
+        $this->assertStringContainsString('After signing out', $result['invalid_redirects'][0]);
+    }
+
+    public function testNothingIsFlaggedWhenEveryAddressIsOnSite()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                => 'yes',
+            'login_redirects'        => 'yes',
+            'default_login_redirect' => home_url('/members/')
+        ]);
+
+        $result = SettingsController::getAuthFormSettings(new \WP_REST_Request());
+
+        $this->assertSame([], $result['invalid_redirects']);
+    }
+
+    private function saveRedirects($redirectSettings)
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', $redirectSettings);
+
+        return SettingsController::saveAuthFormSettings($request);
     }
 
     public function testGetAuthCustomizerSetting()

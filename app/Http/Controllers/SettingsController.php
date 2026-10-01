@@ -277,8 +277,54 @@ class SettingsController
             'settings'          => $settings,
             'roles'             => Helper::getUserRoles(true),
             'user_capabilities' => Helper::getWpPermissions(true),
-            'destinations'      => self::getRedirectDestinations()
+            'destinations'      => self::getRedirectDestinations(),
+            'invalid_redirects' => self::getInvalidRedirects($settings)
         ];
+    }
+
+    /**
+     * The saved redirect addresses that are not on this site, as sentences for the screen.
+     *
+     * Every sign-in reply checks its destination the way wp_safe_redirect() does, so an
+     * address on another host is never followed - people land in wp-admin instead. Saving
+     * one is refused, and one saved before that rule existed is pointed out when the
+     * screen opens. A developer who needs another host adds it to core's
+     * `allowed_redirect_hosts`, which this check honours.
+     *
+     * @param $settings array
+     * @return string[]
+     */
+    private static function getInvalidRedirects($settings)
+    {
+        $problems = [];
+
+        $isOffSite = function ($url) {
+            return $url && is_string($url) && !wp_validate_redirect($url, '');
+        };
+
+        if ($isOffSite($url = Arr::get($settings, 'default_login_redirect'))) {
+            /* translators: %s: the address that was entered */
+            $problems[] = sprintf(__('After signing in: %s is not on this site.', 'fluent-security'), $url);
+        }
+
+        if ($isOffSite($url = Arr::get($settings, 'default_logout_redirect'))) {
+            /* translators: %s: the address that was entered */
+            $problems[] = sprintf(__('After signing out: %s is not on this site.', 'fluent-security'), $url);
+        }
+
+        foreach (array_values((array)Arr::get($settings, 'redirect_rules', [])) as $index => $rule) {
+            if ($isOffSite($url = Arr::get((array)$rule, 'login'))) {
+                /* translators: 1: rule number, 2: the address that was entered */
+                $problems[] = sprintf(__('Rule %1$d, after signing in: %2$s is not on this site.', 'fluent-security'), $index + 1, $url);
+            }
+
+            if ($isOffSite($url = Arr::get((array)$rule, 'logout'))) {
+                /* translators: 1: rule number, 2: the address that was entered */
+                $problems[] = sprintf(__('Rule %1$d, after signing out: %2$s is not on this site.', 'fluent-security'), $index + 1, $url);
+            }
+        }
+
+        return $problems;
     }
 
     /**
@@ -378,6 +424,14 @@ class SettingsController
             }
 
             $oldSettings['redirect_rules'] = $sanitizedRules;
+
+            $problems = self::getInvalidRedirects($oldSettings);
+            if ($problems) {
+                return new \WP_Error('invalid_redirect', __('Redirects have to stay on this site. Use an address on this site, or a path such as /members/.', 'fluent-security'), [
+                    'status'            => 422,
+                    'invalid_redirects' => $problems
+                ]);
+            }
 
         } else {
             $oldSettings['enabled'] = sanitize_text_field($settings['enabled']);

@@ -126,17 +126,17 @@ class LoginRedirectTest extends BaseTestCase
     }
 
     /**
-     * The site owner typed this address into the login redirect settings themselves, so
-     * its host is one they trust - another domain, a shop on a subdomain.
+     * The settings screen refuses an off-site address now, but one saved before that is
+     * still in the option. It is not trusted for having been typed in there.
      */
-    public function test_a_login_redirect_the_owner_configured_may_leave_the_site()
+    public function test_an_off_site_address_saved_in_the_settings_is_not_followed()
     {
-        $this->setLoginRedirect('https://shop.example.org/welcome/');
+        $this->setLoginRedirect('https://shop.example.net/welcome/');
         $this->makeUser('subscriber', 'redirect_probe');
 
         $reply = $this->loginReply('redirect_probe');
 
-        $this->assertSame('https://shop.example.org/welcome/', $reply['redirect']);
+        $this->assertSame(admin_url(), $reply['redirect']);
     }
 
     public function test_a_host_allowed_through_core_filter_is_respected()
