@@ -16,12 +16,9 @@ use FluentAuth\App\Services\TwoFa\TwoFaService;
  *
  * The AJAX flows answer with a URL that login_helper.js assigns straight to
  * window.location, so nothing like wp_safe_redirect() stands between the reply and the
- * navigation. Any of them handing back an off-site address is an open redirect at the
- * one moment the visitor most trusts the page - they have just typed their password.
- *
- * The path that was open: a logged-out visit to any URL carrying `?redirect_to=` stores
- * it in the `_fls_redirect_to` cookie, and the `login_redirect` filter used to keep that
- * value whenever it failed validation.
+ * navigation. So every reply checks its destination after the last filter that could
+ * change it, and the `_fls_redirect_to` cookie - which remembers a logged-out visitor's
+ * `?redirect_to=` - only counts when it points somewhere this site trusts.
  */
 class LoginRedirectTest extends BaseTestCase
 {

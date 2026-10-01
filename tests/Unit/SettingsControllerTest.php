@@ -273,6 +273,31 @@ class SettingsControllerTest extends BaseTestCase
         $this->assertStringContainsString('After signing out', $result['invalid_redirects'][0]);
     }
 
+    /**
+     * The named choices on the screen - dashboard, home page, profile, login page - are
+     * stored as the URL they stand for, so they meet the same check as a typed address.
+     */
+    public function testEveryNamedDestinationTheScreenOffersSaves()
+    {
+        $destinations = SettingsController::getAuthFormSettings(new \WP_REST_Request())['destinations'];
+
+        $rules = [];
+        foreach ($destinations['login'] as $login) {
+            $rules[] = ['login' => $login['url'], 'logout' => ''];
+        }
+        foreach ($destinations['logout'] as $logout) {
+            $rules[] = ['login' => '', 'logout' => $logout['url']];
+        }
+
+        $result = $this->saveRedirects([
+            'login_redirects' => 'yes',
+            'redirect_rules'  => $rules
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertCount(count($rules), get_option('__fls_auth_forms_settings')['redirect_rules']);
+    }
+
     public function testNothingIsFlaggedWhenEveryAddressIsOnSite()
     {
         update_option('__fls_auth_forms_settings', [
