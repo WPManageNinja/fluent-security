@@ -94,4 +94,68 @@ class ScanReportPayloadTest extends BaseTestCase
 
         $this->assertSame('[]', json_encode($checker->getActiveModifiedFolders()));
     }
+
+    /*
+     * The email and the findings list must say the same thing. Whatever the site has marked
+     * as expected on the scan screen - a file, a folder, a whole plugin - stays out of the
+     * report, read from the same stored scan the list reads.
+     */
+    public function testAReportLeavesOutEverythingTheSiteHasAccepted()
+    {
+        update_option('__fls_integrity_core_results', [
+            'version'    => '6.9.4',
+            'files'      => [
+                'wp-includes/pluggable.php' => ['status' => 'modified', 'modified_at' => ''],
+                'wp-includes/accepted.php'  => ['status' => 'modified', 'modified_at' => '']
+            ],
+            'folders'    => ['/old-site', '/accepted'],
+            'truncated'  => 0,
+            'checked_at' => current_time('mysql')
+        ], false);
+
+        IntegrityHelper::saveExtensionResults([
+            'plugin:demo/demo.php'   => [
+                'type' => 'plugin', 'key' => 'demo/demo.php', 'name' => 'Demo', 'version' => '1.0.0',
+                'rel_path' => 'wp-content/plugins/demo', 'verifiable' => true, 'reason' => '',
+                'files' => ['demo.php' => ['status' => 'modified'], 'ok.php' => ['status' => 'new']]
+            ],
+            'plugin:beta/beta.php'   => [
+                'type' => 'plugin', 'key' => 'beta/beta.php', 'name' => 'Beta', 'version' => '2.0.0-rc1',
+                'rel_path' => 'wp-content/plugins/beta', 'verifiable' => false,
+                'reason' => 'version_not_published', 'files' => []
+            ]
+        ]);
+
+        IntegrityHelper::updateIgnoreLists([
+            'files'   => ['/wp-includes/accepted.php', '/wp-content/plugins/demo/ok.php'],
+            'folders' => ['/accepted', '/wp-content/plugins/beta']
+        ]);
+
+        IntegrityHelper::saveSettings(array_merge(IntegrityHelper::getSettings(), [
+            'status' => 'active', 'api_id' => 'site_x', 'api_key' => 'fask_x', 'auto_scan' => 'yes'
+        ]));
+
+        $sent = null;
+        $capture = function ($preempt, $args, $url) use (&$sent) {
+            if (strpos($url, '/reports') !== false) {
+                $sent = $args['body'];
+            }
+
+            return ['response' => ['code' => 200, 'message' => ''], 'body' => json_encode(['status' => 'success']), 'headers' => []];
+        };
+
+        add_filter('pre_http_request', $capture, 10, 3);
+        IntegrityHelper::sendStoredReport();
+        remove_filter('pre_http_request', $capture, 10);
+
+        $this->assertNotNull($sent);
+        $payload = is_string($sent) ? json_decode($sent, true) : $sent;
+
+        $this->assertSame(
+            ['wp-includes/pluggable.php', 'wp-content/plugins/demo/demo.php'],
+            array_keys($payload['modified_files'])
+        );
+        $this->assertSame(['/old-site'], $payload['modified_folders']);
+        $this->assertSame([], $payload['unpublished_versions']);
+    }
 }

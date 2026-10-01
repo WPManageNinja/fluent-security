@@ -114,12 +114,51 @@ class IntegrityCheckTest extends BaseTestCase
         $this->assertStringContainsString('400 more files', end($details));
     }
 
-    protected function coreResults($files)
+    /*
+     * The alert email has always listed unexpected root folders. This list did not, so a
+     * site could be told nothing needed attention here and emailed the same folders daily.
+     */
+    public function test_reports_unexpected_root_folders_and_points_at_the_scan_screen()
+    {
+        update_option('__fls_integrity_core_results', $this->coreResults([], ['/old-site', '/accepted']), false);
+        IntegrityHelper::updateIgnoreLists(['files' => [], 'folders' => ['/accepted']]);
+
+        $finding = (new IntegrityCheck())->run()[0];
+
+        $this->assertSame(Finding::STATE_OPEN, $finding->state());
+        $this->assertStringStartsWith('1 folder in your WordPress root', $finding->get('title'), 'The accepted folder is not counted');
+        $this->assertSame('security_scans', $finding->get('route'), 'A reinstall cannot put a folder back');
+        $this->assertSame(['/old-site (folder not part of WordPress)'], $finding->get('details'));
+    }
+
+    public function test_passes_once_every_root_folder_is_accepted()
+    {
+        update_option('__fls_integrity_core_results', $this->coreResults([], ['/old-site']), false);
+        IntegrityHelper::updateIgnoreLists(['files' => [], 'folders' => ['/old-site']]);
+
+        $this->assertSame(Finding::STATE_PASSED, (new IntegrityCheck())->run()[0]->state());
+    }
+
+    public function test_folders_beside_changed_files_still_point_at_recovery()
+    {
+        update_option('__fls_integrity_core_results', $this->coreResults(
+            ['wp-includes/pluggable.php' => ['status' => 'modified']],
+            ['/old-site']
+        ), false);
+
+        $finding = (new IntegrityCheck())->run()[0];
+
+        $this->assertStringStartsWith('1 file differs', $finding->get('title'));
+        $this->assertSame('security_recovery', $finding->get('route'));
+        $this->assertContains('/old-site (folder not part of WordPress)', $finding->get('details'));
+    }
+
+    protected function coreResults($files, $folders = [])
     {
         return [
             'version'    => '6.9.4',
             'files'      => $files,
-            'folders'    => [],
+            'folders'    => $folders,
             'total'      => count($files),
             'truncated'  => 0,
             'checked_at' => current_time('mysql')

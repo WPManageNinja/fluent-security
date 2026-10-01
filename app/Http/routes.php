@@ -109,6 +109,7 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('security-scan-settings/scan', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'scanSite'], $permissions)
     ->get('security-scan-settings/scan/targets', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'getScanTargets'], $permissions)
     ->post('security-scan-settings/scan/extension', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'scanExtension'], $permissions)
+    ->post('security-scan-settings/scan/report', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'reportScan'], $permissions)
     ->post('security-scan-settings/scan/toggle-ignore', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'toggleIgnore'], $permissions)
     ->get('security-scan-settings/mu-plugins', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'getMuPlugins'], $permissions)
     ->post('security-scan-settings/mu-plugins/baseline', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'baselineMuPlugins'], $permissions)
