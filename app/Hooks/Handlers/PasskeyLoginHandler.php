@@ -324,6 +324,9 @@ class PasskeyLoginHandler
          * where a user lands - a membership plugin, a role based landing page - keeps
          * deciding it when they arrive by passkey.
          */
-        return apply_filters('login_redirect', $redirect, $requested, $user);
+        $redirect = apply_filters('login_redirect', $redirect, $requested, $user);
+
+        // And again after the filter, which any plugin may have had a say in.
+        return Helper::getValidatedRedirectUrl($redirect, $fallback);
     }
 }

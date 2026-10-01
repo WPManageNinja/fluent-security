@@ -88,6 +88,54 @@ class LogsControllerTest extends BaseTestCase
         $this->assertEquals('newer', $result['data'][0]->username);
     }
 
+    public function testSortsByAColumnTheTableOffers()
+    {
+        $this->log(['username' => 'bob']);
+        $this->log(['username' => 'alice']);
+
+        $result = $this->logs(['sortBy' => 'username', 'sortType' => 'ASC']);
+
+        $this->assertEquals('alice', $result['data'][0]->username);
+    }
+
+    /**
+     * Every column the table marks sortable - Logs.vue, not just the first three.
+     */
+    public function testSortsByEveryColumnTheTableOffers()
+    {
+        // Inserted against the sort order, so falling back to id would read upside down.
+        $this->log(['username' => 'high', 'ip' => '10.0.0.9', 'media' => 'web', 'browser' => 'Safari']);
+        $this->log(['username' => 'low', 'ip' => '10.0.0.1', 'media' => 'magic_login', 'browser' => 'Chrome']);
+
+        foreach (['ip', 'media', 'browser'] as $column) {
+            $this->assertEquals('high', $this->logs(['sortBy' => $column, 'sortType' => 'DESC'])['data'][0]->username, $column);
+            $this->assertEquals('low', $this->logs(['sortBy' => $column, 'sortType' => 'ASC'])['data'][0]->username, $column);
+        }
+    }
+
+    /**
+     * Only the columns the table sorts on, in one of two directions. A column the screen
+     * never offers sorts by id instead, and anything that is not ASC is DESC - neither
+     * reaches the query as given.
+     */
+    public function testAnUnknownSortNeverReachesTheQuery()
+    {
+        $this->log(['username' => 'first']);
+        $this->log(['username' => 'second']);
+
+        foreach ([
+            [['sortBy' => 'agent', 'sortType' => 'DESC'], 'second'],
+            [['sortBy' => 'agent', 'sortType' => 'ASC'], 'first'],
+            [['sortBy' => 'id ASC, username', 'sortType' => 'DESC'], 'second'],
+            [['sortBy' => 'username', 'sortType' => 'id'], 'second']
+        ] as list($params, $top)) {
+            $result = $this->logs($params);
+
+            $this->assertEquals(2, $result['total'], wp_json_encode($params));
+            $this->assertEquals($top, $result['data'][0]->username, wp_json_encode($params));
+        }
+    }
+
     public function testFiltersByStatus()
     {
         $this->log(['status' => 'failed']);

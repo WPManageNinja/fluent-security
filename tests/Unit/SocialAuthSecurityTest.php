@@ -351,6 +351,43 @@ class SocialAuthSecurityTest extends BaseTestCase
     }
 
     /**
+     * one_tap.js navigates to `redirect_url` by script, so nothing like wp_safe_redirect()
+     * stands between another plugin's `login_redirect` filter and the browser.
+     */
+    public function testAOneTapReplyNeverPointsOffSite()
+    {
+        update_option('__fls_social_auth_settings', array_merge(
+            (array)get_option('__fls_social_auth_settings'),
+            ['enabled' => 'yes', 'google_one_tap' => 'yes']
+        ));
+        update_option('users_can_register', 1);
+        update_option('default_role', 'subscriber');
+        Helper::resetStatics();
+
+        $offSite = function () {
+            return 'https://evil.example/phish';
+        };
+        add_filter('login_redirect', $offSite, 99999999);
+
+        $stub = $this->withGoogleSaying([
+            'aud'            => '1234567890-test.apps.googleusercontent.com',
+            'email'          => 'one.tap.redirect@example.org',
+            'email_verified' => 'true',
+            'name'           => 'One Tap Redirect'
+        ]);
+
+        try {
+            $reply = $this->oneTapReplyFor('an-id-token');
+        } finally {
+            remove_filter('pre_http_request', $stub, 10);
+            remove_filter('login_redirect', $offSite, 99999999);
+        }
+
+        $this->assertArrayHasKey('redirect_url', $reply);
+        $this->assertSame(admin_url(), $reply['redirect_url']);
+    }
+
+    /**
      * Social login carries where the visitor was going in the `fs_intent_redirect`
      * cookie rather than in $_REQUEST, so the challenge has to be handed it explicitly.
      * getSocialTwoFaRedirect() does, and makeLogin() - the path a brand new account
@@ -367,7 +404,7 @@ class SocialAuthSecurityTest extends BaseTestCase
         Helper::resetStatics();
 
         $intended = home_url('/members/checkout/');
-        $_COOKIE['fs_intent_redirect'] = rawurlencode($intended);
+        $_COOKIE['fs_intent_redirect'] = $intended;
 
         $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
 
@@ -430,7 +467,7 @@ class SocialAuthSecurityTest extends BaseTestCase
         Helper::resetStatics();
 
         // Left behind by a social login nobody finished.
-        $_COOKIE['fs_intent_redirect'] = rawurlencode(home_url('/checkout/'));
+        $_COOKIE['fs_intent_redirect'] = home_url('/checkout/');
         $_REQUEST['redirect_to'] = home_url('/my-account/');
 
         $user = $this->factory->user->create_and_get(['role' => 'subscriber']);

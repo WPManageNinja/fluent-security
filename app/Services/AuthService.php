@@ -57,12 +57,8 @@ class AuthService
             $displayName = trim(Arr::get($userData, 'first_name') . ' ' . Arr::get($userData, 'last_name'));
         }
 
-        $defaultRole = get_option('default_role');
-        if (!$defaultRole || $defaultRole === 'administrator') {
-            $defaultRole = 'subscriber';
-        }
-
-        $setRole = apply_filters('fluent_auth/user_role', $defaultRole);
+        // registerNewUser() turns an administrator, or a role that does not exist, into a subscriber.
+        $setRole = apply_filters('fluent_auth/user_role', get_option('default_role'));
 
         $userId = self::registerNewUser($createUserData['username'], $createUserData['email'], $createUserData['password'], [
             'role'        => $setRole,
@@ -151,17 +147,20 @@ class AuthService
      * The redirect the social flow stashed before handing off to the provider.
      *
      * Social login carries its intent in a cookie rather than $_REQUEST, so it has to
-     * be passed to the 2FA challenge explicitly or it is lost across the redirect.
+     * be passed to the 2FA challenge explicitly or it is lost across the redirect. The
+     * provider callbacks and One Tap read it here too, so there is one place that
+     * decides whether it is somewhere this site will send a browser.
      *
-     * @return string
+     * @return string a URL on a trusted host, or '' when there is none
      */
-    private static function getIntentRedirect()
+    public static function getIntentRedirect()
     {
-        if (empty($_COOKIE['fs_intent_redirect'])) {
+        if (empty($_COOKIE['fs_intent_redirect']) || !is_string($_COOKIE['fs_intent_redirect'])) {
             return '';
         }
 
-        $redirect = sanitize_url(urldecode(wp_unslash($_COOKIE['fs_intent_redirect'])));
+        // PHP has already decoded the cookie; decoding again would mangle encoded query values.
+        $redirect = sanitize_url(wp_unslash($_COOKIE['fs_intent_redirect']));
 
         if (!$redirect || !filter_var($redirect, FILTER_VALIDATE_URL)) {
             return '';
@@ -390,10 +389,17 @@ class AuthService
             $data['user_url'] = sanitize_url($extraData['user_url']);
         }
 
-        if (!empty($extraData['role'])) {
-            $data['role'] = $extraData['role'];
+        /*
+         * Every self-service signup ends here - the signup form, the customized login
+         * page, a social login - so this is the one place that refuses to make an
+         * administrator, whatever the default_role option or a filter says. A role is
+         * always set: left out, wp_insert_user() falls back to default_role by itself.
+         */
+        $role = !empty($extraData['role']) ? $extraData['role'] : get_option('default_role');
+        if (!is_string($role) || $role === 'administrator' || !get_role($role)) {
+            $role = 'subscriber';
         }
-
+        $data['role'] = $role;
 
         do_action('fluent_auth/before_creating_user', $data);
 

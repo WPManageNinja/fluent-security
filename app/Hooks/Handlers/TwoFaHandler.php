@@ -179,7 +179,7 @@ class TwoFaHandler
         }
 
         wp_send_json([
-            'redirect' => $redirectTo
+            'redirect' => Helper::getValidatedRedirectUrl($redirectTo, admin_url())
         ]);
     }
 
@@ -515,6 +515,9 @@ class TwoFaHandler
                 $this->clearPendingCookie();
 
                 $redirectTo = apply_filters('login_redirect', $redirectTo, $logHash->redirect_intend, $user);
+
+                // The browser is sent here by script, with nothing like wp_safe_redirect() in between.
+                $redirectTo = Helper::getValidatedRedirectUrl($redirectTo, admin_url());
 
                 /*
                  * The method gets the last word on the reply. Almost all of them want

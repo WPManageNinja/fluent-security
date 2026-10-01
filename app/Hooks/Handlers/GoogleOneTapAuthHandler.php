@@ -190,16 +190,9 @@ class GoogleOneTapAuthHandler
             return $user;
         }
 
-        $intentRedirectTo = '';
-        if (isset($_COOKIE['fs_intent_redirect'])) {
-            $cookieRedirect = sanitize_url(urldecode(wp_unslash($_COOKIE['fs_intent_redirect'])));
-
-            if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
-                $cookieRedirect = admin_url();
-            }
-
-            // Same reasoning as getRequestedRedirect(): must be a URL on this site.
-            $redirect_to = Helper::getValidatedRedirectUrl($cookieRedirect, admin_url());
+        $intentRedirectTo = AuthService::getIntentRedirect();
+        if ($intentRedirectTo) {
+            $redirect_to = $intentRedirectTo;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();
@@ -214,7 +207,10 @@ class GoogleOneTapAuthHandler
 
         update_user_meta($user->ID, '_fls_login_google', $userData['email']);
 
-        return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
+        $redirect_to = apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
+
+        // one_tap.js navigates to this by script, so it gets the check wp_safe_redirect() would.
+        return Helper::getValidatedRedirectUrl($redirect_to, admin_url());
     }
 
     public function initGooglePopupAuth($args = [])

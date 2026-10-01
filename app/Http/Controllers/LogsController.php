@@ -8,8 +8,13 @@ class LogsController
 {
     public static function getLogs(\WP_REST_Request $request)
     {
-        $orderByColumn = sanitize_sql_orderby($request->get_param('sortBy')) ?: 'id';
-        $orderBy = sanitize_sql_orderby($request->get_param('sortType')) ?: 'DESC';
+        // The columns the logs table sorts on, and nothing else reaches ORDER BY.
+        $orderByColumn = $request->get_param('sortBy');
+        if (!in_array($orderByColumn, ['id', 'created_at', 'username', 'status', 'media', 'ip', 'browser'], true)) {
+            $orderByColumn = 'id';
+        }
+
+        $orderBy = strtoupper((string)$request->get_param('sortType')) === 'ASC' ? 'ASC' : 'DESC';
 
         $query = flsDb()->table('fls_auth_logs')->orderBy($orderByColumn, $orderBy);
 

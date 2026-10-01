@@ -1141,6 +1141,28 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertSame($error, $result);
     }
 
+    /**
+     * login_helper.js navigates to the reply by script, so a plugin's login_redirect
+     * filter sending it off-site has to be caught here, as wp_safe_redirect() would.
+     */
+    public function testACorrectCodeNeverRepliesWithAnOffSiteRedirect()
+    {
+        $issued = $this->issueCode();
+
+        $offSite = function () {
+            return 'https://evil.example/phish';
+        };
+        add_filter('login_redirect', $offSite, 99999);
+
+        try {
+            $response = $this->verify($issued['code'], $issued['hash']);
+        } finally {
+            remove_filter('login_redirect', $offSite, 99999);
+        }
+
+        $this->assertSame(admin_url(), $response['redirect']);
+    }
+
     public function testACorrectCodeIsAccepted()
     {
         $issued = $this->issueCode();

@@ -26,6 +26,12 @@ export default {
             settings: false,
             saving: false,
             errors: false,
+            /*
+             * Saved addresses that are not on this site. Those are never followed - every
+             * sign-in reply checks where it sends people - so a site that saved one before
+             * the save refused them is told here, when the screen opens.
+             */
+            invalidRedirects: [],
             roles: {},
             user_capabilities: {},
             destinations: {login: [], logout: []},
@@ -60,6 +66,7 @@ export default {
                         .map(rule => this.prepareRule(rule));
 
                     this.settings = settings;
+                    this.invalidRedirects = response.invalid_redirects || [];
                 })
                 .catch(errors => {
                     this.$handleError(errors);
@@ -113,6 +120,7 @@ export default {
             }
 
             this.errors = false;
+            this.invalidRedirects = [];
             this.saving = true;
 
             this.$post('auth-forms-settings', {
@@ -129,7 +137,12 @@ export default {
                 })
                 .catch(errors => {
                     this.$handleError(errors);
-                    this.errors = errors.data;
+
+                    if (errors.data && errors.data.invalid_redirects) {
+                        this.invalidRedirects = errors.data.invalid_redirects;
+                    } else {
+                        this.errors = errors.data;
+                    }
                 })
                 .finally(() => {
                     this.saving = false;
@@ -160,6 +173,13 @@ export default {
                 </SettingsCard>
 
                 <template v-if="enabled">
+                    <div class="fls_errors fls_redirects_offsite" v-if="invalidRedirects.length">
+                        <p>{{ $t('These addresses are not on this site, so nobody is sent to them. People land on the dashboard instead. Change them to an address on this site, or a path such as /members/.') }}</p>
+                        <ul>
+                            <li v-for="(problem, problemIndex) in invalidRedirects" :key="problemIndex">{{ problem }}</li>
+                        </ul>
+                    </div>
+
                     <SettingsCard :title="$t('Everyone')"
                                   :description="$t('Where people go unless a rule below says otherwise.')">
                         <SettingRow :label="$t('After signing in')"
