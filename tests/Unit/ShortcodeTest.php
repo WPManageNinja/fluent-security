@@ -214,6 +214,84 @@ class ShortcodeTest extends BaseTestCase
         $this->assertStringContainsString('fs_auth_btn', $html);
     }
 
+    /**
+     * The signup form's social buttons carry the shortcode's redirect_to, as the login
+     * form's do. The attribute arrives as the third argument of the
+     * `fluent_auth/after_registration_form_close` filter, so the handler has to ask for it.
+     */
+    public function test_the_signup_social_buttons_carry_the_shortcodes_redirect()
+    {
+        update_option('users_can_register', 1);
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        $html = do_shortcode('[fluent_auth_signup redirect_to="https://example.org/welcome/?step=2"]');
+
+        $this->assertSame('https://example.org/welcome/?step=2', $this->socialIntentIn($html));
+    }
+
+    /**
+     * Without one they default to admin_url(), as every other sign-in path does, so the
+     * Login Redirects settings still decide. wp_login_url() read as a deliberate front-end
+     * destination, which skipped those settings and left a signed-in user on the login form.
+     */
+    public function test_the_signup_social_buttons_default_to_the_admin_url()
+    {
+        update_option('users_can_register', 1);
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        $this->assertSame(admin_url(), $this->socialIntentIn(do_shortcode('[fluent_auth_signup]')));
+    }
+
+    public function test_the_signup_social_buttons_follow_the_social_redirect_filter()
+    {
+        update_option('users_can_register', 1);
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        add_filter('fluent_auth/social_redirect_to', function () {
+            return 'https://example.org/members/';
+        });
+
+        $this->assertSame('https://example.org/members/', $this->socialIntentIn(do_shortcode('[fluent_auth_signup]')));
+    }
+
+    /**
+     * As on the login buttons, the filter decides last - it is how LoginBridge sends an
+     * adopted screen's sign-ins where that plugin wants them.
+     */
+    public function test_the_social_redirect_filter_outranks_the_shortcodes_redirect()
+    {
+        update_option('users_can_register', 1);
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        add_filter('fluent_auth/social_redirect_to', function () {
+            return 'https://example.org/members/';
+        });
+
+        $html = do_shortcode('[fluent_auth_signup redirect_to="https://example.org/welcome/"]');
+
+        $this->assertSame('https://example.org/members/', $this->socialIntentIn($html));
+    }
+
+    /**
+     * Fluent Support's own signup form passes its attributes the same way - a portal URL
+     * by default - and its social buttons should take people there.
+     */
+    public function test_fluent_supports_signup_form_passes_its_redirect_to_the_buttons()
+    {
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        $html = apply_filters('fluent_support/before_registration_form_close', '', [], [
+            'redirect_to' => 'https://example.org/support-portal/'
+        ]);
+
+        $this->assertSame('https://example.org/support-portal/', $this->socialIntentIn($html));
+    }
+
     public function test_the_social_buttons_shortcode_is_empty_when_social_login_is_off()
     {
         (new SocialAuthHandler())->register();
@@ -483,6 +561,20 @@ class ShortcodeTest extends BaseTestCase
         $this->assertIsArray($decoded, $id . ' island is not valid JSON');
 
         return $decoded;
+    }
+
+    /**
+     * @return string|null the intent_redirect_to the Google button sends the browser off with
+     */
+    private function socialIntentIn($html)
+    {
+        if (!preg_match('/href="([^"]*fs_auth=google[^"]*)"/', $html, $match)) {
+            return null;
+        }
+
+        parse_str((string)parse_url(html_entity_decode($match[1]), PHP_URL_QUERY), $query);
+
+        return isset($query['intent_redirect_to']) ? $query['intent_redirect_to'] : null;
     }
 
     private function enableSocialAuth($overrides = [])

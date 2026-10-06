@@ -23,7 +23,7 @@ class SocialAuthHandler
 
         add_filter('login_form_bottom', [$this, 'maybePushToCustomForm']);
 
-        add_filter('fluent_support/before_registration_form_close', [$this, 'maybePushRegistrationField']);
+        add_filter('fluent_support/before_registration_form_close', [$this, 'maybePushRegistrationField'], 10, 3);
         add_filter('fluent_auth/after_registration_form_close', [$this, 'maybePushRegistrationField'], 10, 3);
     }
 
@@ -502,9 +502,8 @@ class SocialAuthHandler
 
     private function initSignupButtonLoads($selector = 'fm_signup_with_wrap', $display = 'block', $redirect = '')
     {
-        if (!$redirect) {
-            $redirect = apply_filters('fluent_auth/social_redirect_to', admin_url());
-        }
+        // The filter has the last word, as it does for the login buttons.
+        $redirect = apply_filters('fluent_auth/social_redirect_to', $redirect ?: admin_url());
 
         $buttons = $this->getSocialAuthButtons($redirect, __('Signup with', 'fluent-security'));
 
