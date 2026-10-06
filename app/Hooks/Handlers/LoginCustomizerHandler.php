@@ -206,7 +206,7 @@ class LoginCustomizerHandler
         $policyUrl = apply_filters('fluent_auth/signup_policy_url', $policyUrl);
 
         // We will add the custom fields here
-        $fullName = Arr::get($_POST, 'user_full_name', '');
+        $fullName = wp_unslash(Arr::get($_POST, 'user_full_name', ''));
         $password = Arr::get($_POST, 'user_password', '');
         $confirmPassword = Arr::get($_POST, 'user_confirm_password', '');
         $agreeTerms = Arr::get($_POST, 'agree_terms', '');
@@ -420,17 +420,8 @@ class LoginCustomizerHandler
             $errors->add('user_full_name', __('Please enter your full name.', 'fluent-security'));
         }
 
-        $fullName = Arr::get($data, 'user_full_name', '');
-
-        // check if the name is valid
-        // Consider if there has any special characters like +, -, *, /, etc
-        // only check the +,-,*,$,/,=,%,!,@,#,^,&,*,(,),_,{,},[,],:,;,',",<,>,?,|,`,~,,
-        if (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $fullName)) {
-            $errors->add('user_full_name', __('Please provide a full name.', 'fluent-security'));
-        }
-
-        // check if there has any http or https
-        if (preg_match('/http|https/', $fullName)) {
+        // Any characters a name has are fine; a link is what a spam signup puts here.
+        if (stripos((string)Arr::get($data, 'user_full_name', ''), 'http') !== false) {
             $errors->add('user_full_name', __('Please provide a valid name.', 'fluent-security'));
         }
 
