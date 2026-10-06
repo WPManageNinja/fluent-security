@@ -1,6 +1,7 @@
 <script type="text/babel">
 import isEmpty from 'lodash/isEmpty';
 import icons from './icons';
+import BaselinePanel from './_BaselinePanel.vue';
 
 /*
  * The right-hand column: how scanning is set up on this site.
@@ -11,6 +12,9 @@ import icons from './icons';
  */
 export default {
     name: 'ScannerWidgets',
+    components: {
+        BaselinePanel
+    },
     props: {
         settings: {
             type: Object,
@@ -24,8 +28,18 @@ export default {
         coverage: {
             type: Object,
             default: null
+        },
+        /* The site's own record of what the directory cannot vouch for. Owned by the screen. */
+        baseline: {
+            type: Object,
+            default: () => ({exists: false, units: 0, files: 0, changed: 0, taken_at: '', coverable: 0})
+        },
+        baselineBusy: {
+            type: Boolean,
+            default: false
         }
     },
+    emits: ['snapshot', 'clear-baseline'],
     data() {
         return {
             icons,
@@ -55,8 +69,57 @@ export default {
         isScheduled() {
             return this.settings.status === 'active' && this.settings.auto_scan === 'yes';
         },
+        /*
+         * Disowned from the alerts dashboard, and still holding a working key - one click puts
+         * it back. The only rejection this component ever draws.
+         *
+         * The other two, `revoked` and `legacy`, both set status to `unregistered` (see
+         * IntegrityHelper::markRelayRejected), and this component is rendered only for
+         * active/self/disabled. They are RegisterPromt.vue's to say, and it says them. Branches
+         * for them lived here too and could never run.
+         */
+        relayDisabled() {
+            return this.settings.relay_rejection === 'disabled';
+        },
+        /*
+         * Why the relay refused, in the most specific words available.
+         *
+         * Three sources, in order. A reason we have a sentence for wins, because ours is
+         * translated and the relay's is English whatever the site's language. Failing that,
+         * the relay's own message - it knows things this build cannot, and a cause added
+         * over there should reach the reader without waiting for a plugin release. Failing
+         * both, null, and the generic paragraph stands as it always has.
+         *
+         * Interpolated as text, never v-html: this string arrives over the network.
+         */
+        relayReason() {
+            const known = {
+                superseded: '__relay_reason_superseded__',
+                removed: '__relay_reason_removed__'
+            };
+
+            const key = known[this.settings.relay_rejection_reason];
+
+            if (key) {
+                return this.$t(key);
+            }
+
+            return this.settings.relay_rejection_note || null;
+        },
+        /*
+         * One map, so the picker and the row that reports the choice cannot drift into naming
+         * the same interval two different ways.
+         */
+        intervalLabels() {
+            return {
+                hourly: this.$t('Every hour'),
+                six_hourly: this.$t('Every 6 hours'),
+                twelve_hourly: this.$t('Every 12 hours'),
+                daily: this.$t('Every day')
+            };
+        },
         intervalLabel() {
-            return this.settings.scan_interval === 'hourly' ? this.$t('Every hour') : this.$t('Daily');
+            return this.intervalLabels[this.settings.scan_interval] || this.intervalLabels.daily;
         },
         lastScan() {
             if (!this.settings.last_checked_human) {
@@ -67,6 +130,19 @@ export default {
         }
     },
     methods: {
+        /*
+         * Always opened on what is actually saved. The picker is reachable twice over now, and
+         * a second visit that still showed the first visit's abandoned choice would be offering
+         * to save something nobody asked for.
+         */
+        startEditingSchedule() {
+            this.scheduling.scan_interval = this.settings.scan_interval;
+            this.editingSchedule = true;
+        },
+        cancelEditingSchedule() {
+            this.scheduling.scan_interval = this.settings.scan_interval;
+            this.editingSchedule = false;
+        },
         saveSchedulingSettings() {
             this.saving = true;
             this.scheduling.auto_scan = 'yes';
@@ -105,16 +181,68 @@ export default {
                     this.saving = false;
                 });
         },
+        /*
+         * Disconnecting, which is a good deal more than the link used to admit.
+         *
+         * It tells the relay to stop accepting this site and then clears the credentials here,
+         * and the key is the only copy - there is no reconnecting afterwards, only registering
+         * again and confirming a new key by email. It was a bare link reading "please click
+         * here" at the end of a sentence about changing an email address, with no confirmation
+         * at all, next to a reset of the ignore list that asks for one.
+         */
         resetApi() {
+            this.$confirm(this.$t('__disconnect_confirm__'), {
+                type: 'warning',
+                showCancelButton: true,
+                cancelButtonText: this.$t('Cancel'),
+                confirmButtonText: this.$t('Yes, disconnect')
+            }).then(() => {
+                this.saving = true;
+
+                this.$post('security-scan-settings/scan/reset-api')
+                    .then(response => {
+                        this.$notify.success(response.message);
+                        window.location.reload();
+                    })
+                    .catch(errors => {
+                        this.$handleError(errors);
+                    })
+                    .finally(() => {
+                        this.saving = false;
+                    });
+            }).catch(() => {
+                // Dismissed - nothing to do.
+            });
+        },
+        /*
+         * The owner re-enabled this site on the dashboard; find out whether they actually did.
+         *
+         * The server posts a report as the probe rather than taking the click at its word - a
+         * still-disabled site answers with the same refusal, and the panel goes back to saying
+         * so instead of showing a connection that is not there.
+         */
+        resumeReporting() {
             this.saving = true;
 
-            this.$post('security-scan-settings/scan/reset-api')
+            this.$post('security-scan-settings/scan/resume-reporting')
                 .then(response => {
                     this.$notify.success(response.message);
                     window.location.reload();
                 })
                 .catch(errors => {
                     this.$handleError(errors);
+
+                    /*
+                     * A refusal still moves this site: still-disabled puts it back where it
+                     * was, and an unreachable relay leaves it reporting but unconfirmed. Take
+                     * the state the server reports rather than reloading, which would throw
+                     * away the message explaining why.
+                     */
+                    const settings = errors && errors.data && errors.data.settings;
+
+                    if (settings) {
+                        Object.assign(this.settings, settings);
+                    }
                 })
                 .finally(() => {
                     this.saving = false;
@@ -153,8 +281,35 @@ export default {
         <div class="fls_aside_block">
             <h3>{{ $t('Scheduled Scanning') }}</h3>
 
-            <!-- Running on a schedule: what it does, and how to stop it. -->
-            <template v-if="isScheduled">
+            <!--
+                Choosing the interval. Reached from either state - switching scheduling on for
+                the first time, and changing how often it runs afterwards - so the form is one
+                block rather than a copy inside each.
+            -->
+            <template v-if="editingSchedule">
+                <el-form label-position="top">
+                    <el-form-item :label="$t('How often')">
+                        <el-select v-model="scheduling.scan_interval"
+                                   :placeholder="$t('Choose how often')">
+                            <el-option v-for="(label, value) in intervalLabels"
+                                       :key="value" :label="label" :value="value"/>
+                        </el-select>
+                    </el-form-item>
+                </el-form>
+
+                <div class="fls_scan_aside_actions">
+                    <el-button type="primary" size="small" :disabled="saving"
+                               @click="saveSchedulingSettings">
+                        {{ $t('Save') }}
+                    </el-button>
+                    <el-button size="small" @click="cancelEditingSchedule">
+                        {{ $t('Cancel') }}
+                    </el-button>
+                </div>
+            </template>
+
+            <!-- Running on a schedule: what it does, how often, and how to stop it. -->
+            <template v-else-if="isScheduled">
                 <ul class="fls_scan_facts">
                     <li>
                         <span class="fls_scan_fact_label">{{ $t('Runs') }}</span>
@@ -169,6 +324,9 @@ export default {
                 <p class="fls_note">{{ $t('__autoscan_active_desc__') }}</p>
 
                 <div class="fls_scan_aside_actions">
+                    <el-button size="small" @click="startEditingSchedule">
+                        {{ $t('Change interval') }}
+                    </el-button>
                     <el-button size="small" :disabled="saving" @click="disableSchedule">
                         {{ $t('Turn off') }}
                     </el-button>
@@ -179,31 +337,21 @@ export default {
             <template v-else-if="settings.status === 'active'">
                 <p>{{ $t('__autoscan_promo__') }}</p>
 
-                <template v-if="editingSchedule">
-                    <el-form label-position="top">
-                        <el-form-item :label="$t('Scanning Interval')">
-                            <el-select v-model="scheduling.scan_interval"
-                                       :placeholder="$t('Select Interval')">
-                                <el-option :label="$t('Every Hour')" value="hourly"/>
-                                <el-option :label="$t('Daily')" value="daily"/>
-                            </el-select>
-                        </el-form-item>
-                    </el-form>
+                <div class="fls_scan_aside_actions">
+                    <el-button type="primary" size="small" @click="startEditingSchedule">
+                        {{ $t('Turn on scheduled scans') }}
+                    </el-button>
+                </div>
+            </template>
 
-                    <div class="fls_scan_aside_actions">
-                        <el-button type="primary" size="small" :disabled="saving"
-                                   @click="saveSchedulingSettings">
-                            {{ $t('Save') }}
-                        </el-button>
-                        <el-button size="small" @click="editingSchedule = false">
-                            {{ $t('Cancel') }}
-                        </el-button>
-                    </div>
-                </template>
+            <!-- Switched off on the dashboard. The key still works, so this is one click away. -->
+            <template v-else-if="relayDisabled">
+                <p v-if="relayReason" class="fls_relay_notice">{{ relayReason }}</p>
+                <p class="fls_relay_notice">{{ $t('__relay_disabled_desc__') }}</p>
 
-                <div v-else class="fls_scan_aside_actions">
-                    <el-button type="primary" size="small" @click="editingSchedule = true">
-                        {{ $t('Enable Auto Scanning') }}
+                <div class="fls_scan_aside_actions">
+                    <el-button type="primary" size="small" :disabled="saving" @click="resumeReporting">
+                        {{ $t('Resume alerts') }}
                     </el-button>
                 </div>
             </template>
@@ -211,13 +359,13 @@ export default {
             <!-- Scanning without the service: no key, so no alerts to send. -->
             <template v-else>
                 <p>
-                    {{ $t('Please get a free API key to enable Scheduled Scanning and get notified when FluentAuth detects file changes.') }}
+                    {{ $t('Connect this site with a free key to scan on a schedule and get an email when a file changes.') }}
                 </p>
 
                 <div class="fls_scan_aside_actions">
                     <el-button type="primary" size="small"
                                @click="$router.push({name: 'security_scan_register'})">
-                        {{ $t('Setup Auto Scanning') }}
+                        {{ $t('Set up scheduled scans') }}
                     </el-button>
                 </div>
             </template>
@@ -241,9 +389,19 @@ export default {
                 </li>
             </ul>
 
+            <!--
+                Said here because the scheduled scan has nowhere else to say it. It runs
+                unattended, so a site whose host blocks outgoing requests to wordpress.org
+                stops being scanned and looks exactly like a site with nothing to report.
+                Text, never v-html: the sentence is written by ChecksumException.
+            -->
+            <p v-if="settings.last_scan_error" class="fls_note is_warning">
+                {{ settings.last_scan_error }}
+            </p>
+
             <p v-if="settings.status === 'active'" class="fls_note">
-                {{ $t('If you want to change the notification email address or disable scanning service,') }}
-                <a href="#" @click.prevent="resetApi()">{{ $t('please click here') }}</a>.
+                {{ $t('__disconnect_note__') }}
+                <a href="#" @click.prevent="resetApi()">{{ $t('Disconnect this site') }}</a>.
             </p>
         </div>
 
@@ -257,7 +415,7 @@ export default {
 
             <ul class="fls_scan_facts">
                 <li>
-                    <span class="fls_scan_fact_label">{{ $t('Verified') }}</span>
+                    <span class="fls_scan_fact_label">{{ $t('Checked') }}</span>
                     <span class="fls_scan_fact_value">{{ coverageLabel }}</span>
                 </li>
                 <li v-if="coverage.with_issues">
@@ -268,7 +426,7 @@ export default {
                 </li>
                 <!-- Its own line, above the coverage note: a finding, not a gap. -->
                 <li v-if="coverage.suspicious">
-                    <span class="fls_scan_fact_label">{{ $t('Unpublished versions') }}</span>
+                    <span class="fls_scan_fact_label">{{ $t('Versions not on WordPress.org') }}</span>
                     <span class="fls_scan_fact_value">
                         <span class="fls_tag is_blocked">{{ coverage.suspicious }}</span>
                     </span>
@@ -276,9 +434,18 @@ export default {
             </ul>
 
             <p v-if="coverage.unverifiable" class="fls_note">
-                {{ $_n('%s item is not from the WordPress.org directory, so there are no official checksums to compare it against.', '%s items are not from the WordPress.org directory, so there are no official checksums to compare them against.', coverage.unverifiable) }}
+                {{ $_n('%s item is not from WordPress.org, so there is no official copy to compare it with.', '%s items are not from WordPress.org, so there is no official copy to compare them with.', coverage.unverifiable) }}
             </p>
         </div>
+
+        <!--
+            Directly under the coverage it completes: the panel above says what cannot be
+            checked against WordPress.org, and this is the only other thing there is to check
+            those against - the site's own record of them.
+        -->
+        <baseline-panel :baseline="baseline" :busy="baselineBusy"
+                        @snapshot="$emit('snapshot', $event)"
+                        @clear="$emit('clear-baseline')"/>
 
         <div v-if="hasIgnores" class="fls_aside_block">
             <h3>

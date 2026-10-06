@@ -26,6 +26,7 @@ class WPSystemEmailHandler
         add_filter('email_change_email', [$this, 'maybeAlterEmailChangedEmailToUser'], 99, 3);
 
         add_filter('wp_new_user_notification_email_admin', [$this, 'maybeAlterUserRegistrationEmailToAdmin'], 99, 3);
+        add_filter('wp_password_change_notification_email', [$this, 'maybeAlterPasswordChangeEmailToAdmin'], 99, 3);
 
         add_action('fluent_auth/after_creating_user', [$this, 'maybeSendCustomizedEmailOnFluentAuthSignup'], 10, 1);
 
@@ -44,6 +45,17 @@ class WPSystemEmailHandler
             }
             return $status;
         }, 100, 2);
+
+        /*
+         * Core has no wp_send_* filter for the admin's password change notice,
+         * so the only way to silence it is to take the action off.
+         */
+        add_action('init', function () {
+            $setting = SystemEmailService::getEmailSettingsByType('password_change_to_admin');
+            if ($setting && Arr::get($setting, 'status', '') === 'disabled') {
+                remove_action('after_password_reset', 'wp_password_change_notification');
+            }
+        }, 9);
 
         /*
          * If we want to disable the email to admin when a new user is registered
@@ -187,6 +199,32 @@ class WPSystemEmailHandler
         return $defaults;
     }
 
+    public function maybeAlterPasswordChangeEmailToAdmin($defaults, $userObj, $blogname)
+    {
+        $setting = SystemEmailService::getEmailSettingsByType('password_change_to_admin');
+
+        if (!$setting || Arr::get($setting, 'status', '') !== 'active') {
+            return $defaults;
+        }
+
+        // Let's change these now
+        $email = Arr::get($setting, 'email', []);
+
+        $subject = $this->parseCode(Arr::get($email, 'subject', $defaults['subject']), $userObj);
+
+        /*
+         * Core runs this subject through sprintf() with the site title afterwards,
+         * so any percent sign the admin typed has to survive as a literal.
+         */
+        $defaults['subject'] = str_replace('%', '%%', $subject);
+
+        $defaults['message'] = $this->withHtmlTemplate($this->parseCode(Arr::get($email, 'body', $defaults['message']), $userObj), null, $userObj);
+
+        $defaults['headers'] = $this->getEmailHeaders($defaults['headers']);
+
+        return $defaults;
+    }
+
     public function alterEmailChangeNotificationEmailSubjectHeader($atts)
     {
         if (!$this->tempEmailSubjectForEmailChange) {
@@ -253,34 +291,6 @@ class WPSystemEmailHandler
 
     protected function getEmailHeaders($defaulHeaders = [])
     {
-        if (!is_array($defaulHeaders) || !$defaulHeaders) {
-            $defaulHeaders = [];
-        }
-
-        $defaulHeaders[] = 'Content-Type: text/html; charset=UTF-8';
-
-        $templateSettings = Arr::get(SystemEmailService::getGlobalSettings(), 'template_settings', []);
-
-
-        if (!empty($templateSettings['from_email'])) {
-            $fromName = Arr::get($templateSettings, 'from_name', '');
-            if ($fromName) {
-                $defaulHeaders[] = 'From: ' . $fromName . ' <' . $templateSettings['from_email'] . '>';
-            } else {
-                $defaulHeaders[] = 'From: <' . $templateSettings['from_email'] . '>';
-            }
-        }
-
-        if (!empty($templateSettings['reply_to_email'])) {
-            $replyToName = Arr::get($templateSettings, 'reply_to_name', '');
-            if ($replyToName) {
-                $defaulHeaders[] = 'Reply-To: ' . $replyToName . ' <' . $templateSettings['reply_to_email'] . '>';
-            } else {
-                $defaulHeaders[] = 'Reply-To: <' . $templateSettings['reply_to_email'] . '>';
-            }
-        }
-
-        return $defaulHeaders;
-
+        return SystemEmailService::getEmailHeaders($defaulHeaders);
     }
 }

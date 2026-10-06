@@ -16,7 +16,6 @@ class DashboardControllerTest extends BaseTestCase
 
         update_option('__fls_auth_settings', [
             'disable_xmlrpc'          => 'no',
-            'disable_app_login'       => 'no',
             'disable_users_rest'      => 'no',
             'login_try_limit'         => 5,
             'login_try_timing'        => 30,
@@ -70,7 +69,7 @@ class DashboardControllerTest extends BaseTestCase
     {
         $result = $this->dashboard();
 
-        foreach (['range', 'stats', 'chart', 'recent', 'top_ips', 'methods', 'checklist', 'protection'] as $key) {
+        foreach (['range', 'stats', 'chart', 'recent', 'top_ips', 'methods', 'protection'] as $key) {
             $this->assertArrayHasKey($key, $result);
         }
 
@@ -109,10 +108,96 @@ class DashboardControllerTest extends BaseTestCase
         $this->assertEquals('0', $stats['success']);
     }
 
+    public function testRecentActivityUsesTheSelectedRange()
+    {
+        foreach (['failed', 'blocked', 'success'] as $status) {
+            $this->log(['status' => $status, 'username' => 'older', 'created_at' => gmdate('Y-m-d H:i:s', strtotime('-100 days'))]);
+            $this->log(['status' => $status, 'username' => 'current']);
+        }
+
+        $recent = $this->dashboard('-7 days')['recent'];
+        $this->assertCount(2, $recent['threats']);
+        $this->assertCount(1, $recent['successes']);
+        foreach (array_merge($recent['threats'], $recent['successes']) as $row) {
+            $this->assertEquals('current', $row['username']);
+        }
+        $this->assertCount(4, $this->dashboard('all_time')['recent']['threats']);
+    }
+
+    public function testAuthenticatorStatusDoesNotInferEnabledFromEnrollment()
+    {
+        $userId = $this->factory->user->create();
+        TotpTwoFaMethod::activate($userId, 'ABCDEFGHIJKLMNOP');
+        $protection = $this->dashboard()['protection'];
+        $this->assertEquals(1, $protection['two_fa']['enrolled']);
+        $this->assertFalse($protection['two_fa_enabled']);
+
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'yes';
+        update_option('__fls_auth_settings', $settings);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->assertTrue($this->dashboard()['protection']['two_fa_enabled']);
+    }
+
+    /**
+     * The denominator on the dashboard tile is the people who could enrol, not everybody
+     * with an account - and it is the same number the 2FA Enrollment screen shows.
+     *
+     * The two used to compute it separately and disagreed: a shop with three administrators
+     * and thirty-two customers read "0 of 3" on one screen and "0 of 35" on the other. Only
+     * the first describes whether the policy has landed; customers are not offered a second
+     * factor, so none of them were ever going to appear on the top of the fraction.
+     */
+    public function testTheTwoFaTileCountsOnlyPeopleWhoCouldEnrol()
+    {
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['administrator'];
+        update_option('__fls_auth_settings', $settings);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+
+        $this->factory->user->create(['role' => 'administrator']);
+
+        foreach (range(1, 6) as $i) {
+            $this->factory->user->create(['role' => 'subscriber']);
+        }
+
+        $total = $this->dashboard()['protection']['two_fa']['total'];
+
+        $this->assertSame(
+            \FluentAuth\App\Http\Controllers\TwoFaController::countEligibleUsers(),
+            $total,
+            'the dashboard and the enrollment screen read the same number'
+        );
+
+        $everyone = (int)(new \WP_User_Query(['number' => 1, 'fields' => 'ID']))->get_total();
+
+        $this->assertLessThan($everyone, $total, 'the six subscribers are not counted');
+    }
+
+    /**
+     * Nobody is offered a second factor, so there is nobody to count - rather than every
+     * account on the site sitting under a zero.
+     */
+    public function testTheTwoFaTileCountsNobodyWhenNoRoleIsOfferedAFactor()
+    {
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'no';
+        $settings['totp_2fa_roles'] = [];
+        $settings['passkey_2fa'] = 'no';
+        $settings['passkey_2fa_roles'] = [];
+        update_option('__fls_auth_settings', $settings);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+
+        $this->factory->user->create(['role' => 'subscriber']);
+
+        $this->assertSame(0, $this->dashboard()['protection']['two_fa']['total']);
+    }
+
     public function testTwoFaTileCountsEnrolledUsers()
     {
         $userId = $this->factory->user->create();
-        update_user_meta($userId, TotpTwoFaMethod::META_SECRET, 'ABCDEFGHIJKLMNOP');
+        TotpTwoFaMethod::activate($userId, 'ABCDEFGHIJKLMNOP');
 
         $tile = null;
 
@@ -237,42 +322,18 @@ class DashboardControllerTest extends BaseTestCase
     }
 
     /**
-     * The states, the scoring and the evidence behind each item belong to SecurityChecks and
-     * are tested there. All this needs to know is that the dashboard carries them.
+     * The dashboard used to assemble its own checklist, and the aside used to render it. Both
+     * are gone: the aside fetches the security screen's list from the endpoint that screen
+     * uses, so there is one answer to "what is wrong with this site" rather than one per
+     * screen. Two such lists do not merely duplicate each other - they eventually disagree,
+     * and a security tool that contradicts itself has spent the only thing it has.
+     *
+     * Asserted as an absence because putting it back is the mistake worth catching. What the
+     * list contains is covered by SecurityChecksTest and SecurityFindingsTest.
      */
-    public function testChecklistReflectsTheSettings()
+    public function testDoesNotAssembleASecondListOfWhatIsWrongWithTheSite()
     {
-        $before = $this->dashboard()['checklist'];
-
-        $settings = get_option('__fls_auth_settings');
-        $settings['disable_xmlrpc'] = 'yes';
-        $settings['totp_2fa'] = 'yes';
-        update_option('__fls_auth_settings', $settings);
-
-        \FluentAuth\App\Helpers\Helper::resetStatics();
-
-        $after = $this->dashboard()['checklist'];
-
-        $this->assertEquals($before['done'] + 2, $after['done']);
-
-        $states = [];
-
-        foreach ($after['items'] as $item) {
-            $states[$item['key']] = $item['state'];
-        }
-
-        $this->assertEquals('done', $states['disable_xmlrpc']);
-        $this->assertEquals('done', $states['two_fa']);
-    }
-
-    public function testChecklistItemsPointAtSomewhereToGo()
-    {
-        foreach ($this->dashboard()['checklist']['items'] as $item) {
-            $this->assertNotEmpty($item['route'], $item['key']);
-            $this->assertNotEmpty($item['title'], $item['key']);
-            $this->assertContains($item['state'], ['done', 'todo', 'in_use'], $item['key']);
-            $this->assertContains($item['action'], ['enable', 'navigate'], $item['key']);
-        }
+        $this->assertArrayNotHasKey('checklist', $this->dashboard());
     }
 
     public function testApplySecurityCheckEndpointTurnsOnAProtection()
@@ -311,6 +372,64 @@ class DashboardControllerTest extends BaseTestCase
         $this->assertFalse($protection['scan']['is_ok']);
         $this->assertNotEmpty($protection['scan']['last_checked']);
         $this->assertArrayHasKey('enrolled', $protection['two_fa']);
+    }
+
+    /**
+     * The schedule the dashboard reports has to be the one the cron would actually run.
+     *
+     * `auto_scan` alone is not it: the cron declines unless the site is also connected, so a
+     * site left with the flag set after being disconnected would otherwise be shown a daily
+     * schedule that never runs.
+     *
+     * @dataProvider scheduleProvider
+     */
+    public function testProtectionReportsTheScheduleTheCronWouldRun($settings, $scheduled, $interval)
+    {
+        update_option('__fls_integrity_settings', $settings);
+
+        $scan = $this->dashboard()['protection']['scan'];
+
+        $this->assertSame($scheduled, $scan['scheduled']);
+        $this->assertSame($interval, $scan['interval']);
+    }
+
+    public function scheduleProvider()
+    {
+        return [
+            'connected and daily'   => [['status' => 'active', 'auto_scan' => 'yes', 'scan_interval' => 'daily'], true, 'daily'],
+            'connected and hourly'  => [['status' => 'active', 'auto_scan' => 'yes', 'scan_interval' => 'hourly'], true, 'hourly'],
+            'connected, switched off' => [['status' => 'active', 'auto_scan' => 'no', 'scan_interval' => 'daily'], false, 'daily'],
+            'never set up'          => [['status' => 'unregistered', 'auto_scan' => 'no'], false, 'daily'],
+            /* The flag survives being disowned; the cron still would not run. */
+            'disowned but flagged'  => [['status' => 'disabled', 'auto_scan' => 'yes', 'scan_interval' => 'hourly'], false, 'hourly'],
+            'an unknown interval falls back to daily' => [['status' => 'active', 'auto_scan' => 'yes', 'scan_interval' => 'weekly'], true, 'daily'],
+        ];
+    }
+
+    public function testProtectionSaysWhenTheRelayDisownedTheSite()
+    {
+        update_option('__fls_integrity_settings', [
+            'status'          => 'disabled',
+            'auto_scan'       => 'yes',
+            'relay_rejection' => 'disabled'
+        ]);
+
+        $scan = $this->dashboard()['protection']['scan'];
+
+        $this->assertEquals('disabled', $scan['disconnected']);
+        $this->assertFalse($scan['scheduled']);
+        $this->assertFalse($scan['registered']);
+    }
+
+    public function testProtectionMarksAScanServiceTheSiteRunsItself()
+    {
+        update_option('__fls_integrity_settings', ['status' => 'self', 'auto_scan' => 'no']);
+
+        $scan = $this->dashboard()['protection']['scan'];
+
+        $this->assertTrue($scan['self_managed']);
+        $this->assertFalse($scan['scheduled']);
+        $this->assertSame('', $scan['disconnected']);
     }
 
     public function testRecentListsAreCappedAndNewestFirst()

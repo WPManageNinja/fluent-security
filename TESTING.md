@@ -33,18 +33,12 @@ This comprehensive testing suite provides 100% code coverage for the FluentAuth 
 
    If you don't want to set up the full WordPress test environment, the tests will still work with mocked functions.
 
-3. **Make Test Runner Executable**
-   ```bash
-   chmod +x run-tests.php
-   ```
-
 ## Running Tests
 
 ### Run All Tests
 
 ```bash
-# Using the custom test runner
-php run-tests.php
+composer test
 
 # Or using PHPUnit directly
 ./tests/vendor/bin/phpunit

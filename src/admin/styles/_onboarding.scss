@@ -1,0 +1,1504 @@
+/* Security setup: choices first, with a supporting live preview. */
+
+.fframe_app.is-bare {
+    padding-top: 0;
+}
+
+.fls_onb {
+    @apply flex flex-col;
+
+    min-height: calc(100vh - 32px);
+    background: var(--fls-body-bg);
+}
+
+/* --------------------------------------------------------------------- header */
+
+/* 56px, the height of the app bar it stands in for. */
+.fls_onb_bar {
+    @apply grid items-center gap-6 bg-surface px-6 border-0 border-b border-solid border-hairline;
+
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: 68px;
+    position: sticky;
+    top: 32px;
+    z-index: 20;
+}
+
+.fls_onb_bar_brand {
+    @apply flex items-center gap-2.5;
+
+    min-width: 0;
+
+    img {
+        height: 20px;
+        width: auto;
+    }
+
+    /*
+     * The wordmark is one near-black colour on transparent, so on dark it is recoloured
+     * rather than loaded twice - the same treatment the app bar gives it in _layout.scss.
+     */
+    .fluent_theme_dark & img {
+        filter: brightness(0) invert(.96);
+    }
+
+    span {
+        @apply text-xs font-medium text-ink-mid;
+    }
+}
+
+.fls_onb_bar_end {
+    @apply flex justify-end;
+
+    min-width: 0;
+}
+
+.fls_onb_leave.el-button,
+.fls_onb_leave_foot.el-button {
+    @apply text-xs text-ink-light;
+
+    &:hover,
+    &:focus {
+        @apply text-ink bg-transparent;
+    }
+}
+
+/* ----------------------------------------------------------------- step rail */
+
+.fls_onb_rail {
+    @apply flex items-center m-0 p-0 list-none;
+
+    gap: 2px;
+}
+
+.fls_onb_rail_item {
+    @apply flex items-center;
+
+    /* The hairline carries the sense of a sequence, so it is drawn between the steps
+       rather than around each one. */
+    & + .fls_onb_rail_item::before {
+        content: "";
+        width: 12px;
+        height: 1px;
+        background: var(--fls-border-strong);
+        flex-shrink: 0;
+    }
+}
+
+.fls_onb_rail_hit {
+    @apply flex items-center rounded-full border-0 bg-transparent text-ink-light;
+
+    gap: 6px;
+    padding: 4px 10px 4px 5px;
+    font: inherit;
+    white-space: nowrap;
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+}
+
+button.fls_onb_rail_hit {
+    cursor: pointer;
+
+    &:hover {
+        @apply bg-accent-wash text-ink;
+    }
+}
+
+.fls_onb_rail_mark {
+    @apply flex items-center justify-center flex-none rounded-full border border-solid border-hairline-strong;
+
+    width: 19px;
+    height: 19px;
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+
+    .dashicons {
+        font-size: 13px;
+        width: 13px;
+        height: 13px;
+    }
+}
+
+.fls_onb_rail_label {
+    @apply text-xs font-normal;
+}
+
+.fls_onb_rail_item.is-done {
+    .fls_onb_rail_mark {
+        @apply bg-ok-bg text-ok-fg;
+
+        border-color: var(--fls-success-line);
+    }
+
+    .fls_onb_rail_label {
+        @apply text-ink-mid;
+    }
+}
+
+.fls_onb_rail_item.is-current {
+    .fls_onb_rail_hit {
+        @apply bg-accent-wash;
+    }
+
+    .fls_onb_rail_mark {
+        @apply bg-accent text-accent-on;
+
+        border-color: var(--fls-accent);
+    }
+
+    .fls_onb_rail_label {
+        @apply font-medium;
+
+        color: var(--fls-heading);
+    }
+}
+
+/* ----------------------------------------------------------------- the split */
+
+.fls_onb_body {
+    @apply grid items-start flex-1;
+
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 64px;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 48px 40px 64px;
+    box-sizing: border-box;
+}
+
+.fls_onb_loading {
+    @apply w-full;
+
+    padding: 60px 24px;
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+/* ------------------------------------------------------------------- the stage */
+
+.fls_onb_stage {
+    @apply flex flex-col;
+
+    position: sticky;
+    top: 124px;
+    padding: 28px;
+    min-width: 0;
+    border-radius: 12px;
+    background: var(--fls-surface-sunk);
+    border: 1px solid var(--fls-border);
+}
+
+.fls_onb_stage_inner {
+    @apply flex flex-col w-full;
+
+    gap: 12px;
+    max-width: 620px;
+}
+
+.fls_onb_stage_foot {
+    @apply text-xs text-ink-light m-0;
+}
+
+/*
+ * The login page, in a frame that reads as a browser without pretending to be one.
+ *
+ * The frame takes its width from the scale rather than filling the column. A fixed scale
+ * inside a fluid frame leaves the scaled page short of the right edge by whatever the two
+ * disagree by, which at narrow widths was most of the frame - so the frame is sized to
+ * what it holds and centred in whatever space the column has.
+ */
+.fls_onb_screen {
+    --fls-onb-w: 1020px;
+    --fls-onb-h: 700px;
+    --fls-onb-s: .56;
+
+    @apply bg-surface border border-solid border-hairline rounded overflow-hidden;
+
+    width: calc(var(--fls-onb-w) * var(--fls-onb-s));
+    max-width: 100%;
+    margin: 0 auto;
+    box-shadow: var(--fls-shadow-lift);
+    transition: opacity .18s ease;
+
+    &.is-off {
+        opacity: .82;
+    }
+}
+
+.fls_onb_chrome {
+    @apply flex items-center bg-surface-sunk border-0 border-b border-solid border-hairline;
+
+    gap: 5px;
+    height: 30px;
+    padding: 0 12px;
+}
+
+.fls_onb_dot {
+    @apply flex-none rounded-full;
+
+    width: 7px;
+    height: 7px;
+    background: var(--fls-border-strong);
+}
+
+.fls_onb_url {
+    @apply bg-surface border border-solid border-hairline rounded-xs text-ink-light truncate;
+
+    margin-left: 8px;
+    padding: 1px 9px;
+    font-size: 10px;
+    max-width: 100%;
+}
+
+/*
+ * The preview is the customizer's canvas, which is built to fill a screen. Rather than
+ * reflow it at a size it was never designed for - which would show a layout no visitor
+ * will ever see - it is rendered at full size and scaled down, the way a thumbnail of a
+ * page is. `--fls-onb-s` is the only thing that changes between breakpoints.
+ */
+.fls_onb_screen_body {
+    @apply w-full overflow-hidden relative;
+
+    height: calc(var(--fls-onb-h) * var(--fls-onb-s));
+
+    /*
+     * The canvas and its override have to be the same rule. Setting the height here and
+     * neutralising the customizer's `min-height` in a second block meant a percentage
+     * height resolving against this already-scaled box, which left the login page ending
+     * two thirds of the way down its own frame.
+     */
+    > * {
+        width: var(--fls-onb-w);
+        height: var(--fls-onb-h);
+        min-height: 0;
+        border-radius: 0;
+        transform: scale(var(--fls-onb-s));
+        transform-origin: top left;
+    }
+
+    /* Long states - a lockout notice above a full form - must not clip at either end. */
+    .fcom_auth_wrap {
+        overflow: hidden;
+    }
+
+    .fcom_auth_content {
+        padding-top: 28px;
+        padding-bottom: 28px;
+    }
+}
+
+/* ------------------------------------------------------- stock wp-login page */
+
+/*
+ * WordPress's own login page, for a site with the customizer off. The values are
+ * wp-admin/css/login.css read across by hand - the grey ground, the 320px column, the
+ * white box with its hairline and shadow, the 24px inputs and the blue button - so the
+ * drawing is recognisably the page a visitor gets. Colours are fixed rather than tokens:
+ * this page is light whatever the admin's theme is, and it should look it.
+ */
+.fls_onb_wp {
+    @apply flex justify-center;
+
+    color-scheme: light;
+    background: #f0f0f1;
+    color: #3c434a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+
+    p {
+        margin: 0;
+    }
+}
+
+.fls_onb_wp_login {
+    width: 320px;
+    padding-top: 44px;
+}
+
+.fls_onb_wp_logo {
+    @apply flex justify-center;
+
+    margin: 0 0 25px;
+    line-height: 0;
+}
+
+.fls_onb_wp_form {
+    margin: 0 0 24px;
+    padding: 26px 24px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+
+    label {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+}
+
+/* An input as a box rather than a control: the whole page is a picture. */
+.fls_onb_wp_input {
+    @apply block;
+
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    margin: 0 0 16px;
+    padding: 0 8px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+    color: #8c8f94;
+    font-size: 24px;
+    line-height: 38px;
+    letter-spacing: 2px;
+}
+
+.fls_onb_wp_check {
+    @apply flex items-center;
+
+    gap: 6px;
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.fls_onb_wp_box {
+    @apply inline-block flex-none;
+
+    width: 16px;
+    height: 16px;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.fls_onb_wp_passmail {
+    margin: 0 0 16px;
+    font-size: 12px;
+}
+
+.fls_onb_wp_submit {
+    @apply flex justify-end;
+}
+
+.fls_onb_wp_button {
+    @apply inline-block;
+
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid #2271b1;
+    border-radius: 3px;
+    background: #2271b1;
+    color: #fff;
+    font-size: 13px;
+    line-height: 30px;
+}
+
+.fls_onb_wp_nav,
+.fls_onb_wp_back {
+    padding: 0 24px;
+    color: #50575e;
+    font-size: 13px;
+}
+
+.fls_onb_wp_back {
+    margin-top: 16px;
+}
+
+/*
+ * A notice on the stock page is WordPress's own: a white strip above the form with a
+ * coloured edge, not the wizard's tinted card. Same element, restyled where it lands.
+ */
+.fls_onb_wp .fls_onb_note {
+    margin: 0 0 20px;
+    padding: 12px;
+    border-radius: 0;
+    background: #fff;
+    color: #3c434a;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+    font-size: 13px;
+
+    &.is-info {
+        border-left-color: #3858e9;
+    }
+
+    &.is-blocked {
+        border-left-color: #d63638;
+    }
+}
+
+/*
+ * A message the login page itself would show. Drawn at the preview's own scale, which is
+ * why these sizes are larger than anything else on this screen: they are shrunk by the
+ * transform above along with the page around them.
+ */
+.fls_onb_note {
+    margin: 0 0 20px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border-left: 4px solid;
+    font-size: 14px;
+    line-height: 1.5;
+
+    &.is-info {
+        @apply bg-ok-bg text-ok-fg;
+
+        border-left-color: var(--fls-success-fg);
+    }
+
+    &.is-blocked {
+        @apply bg-danger-bg text-danger-fg;
+
+        border-left-color: var(--fls-danger-fg);
+    }
+}
+
+/* ---------------------------------------------------------- connection preview */
+
+.fls_onb_conn {
+    @apply flex flex-col bg-surface border border-solid border-hairline rounded;
+
+    gap: 8px;
+    padding: 24px 26px 22px;
+    box-shadow: var(--fls-shadow-card);
+    border-top: 2px solid var(--fls-border-strong);
+
+    &.is-ok {
+        border-top-color: var(--fls-success-fg);
+    }
+
+    &.is-warning {
+        border-top-color: var(--fls-warning-fg);
+    }
+}
+
+/* The one number this screen exists to show, at the size the dashboard gives a figure. */
+.fls_onb_conn_ip {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 28px;
+    color: var(--fls-heading);
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+}
+
+.fls_onb_conn_verdict {
+    @apply text-xs text-ink-mid m-0;
+
+    max-width: 48ch;
+    line-height: 1.5;
+}
+
+.fls_onb_conn_evidence {
+    @apply flex flex-col border-0 border-t border-solid border-hairline;
+
+    gap: 8px;
+    margin: 10px 0 0;
+    padding-top: 14px;
+}
+
+.fls_onb_conn_row {
+    @apply grid items-baseline;
+
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 10px;
+
+    dt {
+        @apply text-xs text-ink-light m-0;
+    }
+
+    dd {
+        @apply text-xs text-ink m-0;
+
+        min-width: 0;
+    }
+}
+
+.fls_onb_conn_flag {
+    @apply inline-block rounded-xs bg-caution-bg text-caution-fg;
+
+    margin-left: 6px;
+    padding: 1px 7px;
+    font-size: 11px;
+    line-height: 16px;
+}
+
+.fls_onb_conn_header {
+    @apply flex flex-col;
+
+    gap: 1px;
+    margin-bottom: 6px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    b {
+        @apply text-ink;
+
+        font-family: Menlo, Consolas, monospace;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    em {
+        @apply text-ink-light;
+
+        font-style: normal;
+        font-size: 11px;
+        word-break: break-all;
+    }
+}
+
+/* --------------------------------------------------------------- email preview */
+
+.fls_onb_mail {
+    @apply bg-surface border border-solid border-hairline rounded overflow-hidden;
+
+    box-shadow: var(--fls-shadow-lift);
+    transition: opacity .18s ease;
+
+    &.is-off {
+        opacity: .5;
+    }
+}
+
+.fls_onb_mail_head {
+    @apply bg-surface-sunk border-0 border-b border-solid border-hairline;
+
+    padding: 18px 22px 16px;
+}
+
+.fls_onb_mail_subject {
+    @apply text-sm font-medium m-0;
+
+    color: var(--fls-heading);
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.fls_onb_mail_meta {
+    @apply flex flex-wrap m-0;
+
+    gap: 3px 24px;
+
+    div {
+        @apply flex items-baseline;
+
+        gap: 6px;
+    }
+
+    dt {
+        @apply text-xs text-ink-light m-0;
+    }
+
+    dd {
+        @apply text-xs text-ink m-0;
+    }
+}
+
+.fls_onb_mail_body {
+    padding: 18px 22px 20px;
+
+    > p {
+        @apply text-xs text-ink m-0;
+
+        margin-bottom: 14px;
+        line-height: 1.6;
+    }
+}
+
+.fls_onb_mail_facts {
+    @apply grid bg-surface-sunk border border-solid border-hairline rounded-sm m-0;
+
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px 18px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+
+    div {
+        @apply flex flex-col;
+
+        gap: 1px;
+        min-width: 0;
+    }
+
+    dt {
+        @apply text-ink-light m-0;
+
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    dd {
+        @apply text-xs text-ink m-0;
+
+        word-break: break-word;
+    }
+}
+
+.fls_onb_mail_tail {
+    @apply text-xs text-ink-mid m-0;
+
+    line-height: 1.5;
+}
+
+.fls_onb_mail_off {
+    @apply bg-quiet-bg text-quiet-fg text-xs font-medium text-center m-0;
+
+    padding: 10px 22px;
+}
+
+/* -------------------------------------------------------------- the question */
+
+.fls_onb_ask {
+    @apply flex justify-start;
+
+    padding: 0;
+    min-width: 0;
+}
+
+.fls_onb_ask_inner {
+    @apply flex flex-col w-full;
+
+    max-width: 560px;
+    animation: fls-onb-enter .22s ease-out;
+}
+
+.fls_onb_headline {
+    margin: 0 0 10px;
+    font-size: clamp(24px, 2.3vw, 30px);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -.025em;
+    color: var(--fls-heading);
+    text-wrap: balance;
+}
+
+.fls_onb_why {
+    @apply text-sm text-ink-mid m-0;
+
+    margin-bottom: 28px;
+    line-height: 1.65;
+    max-width: 58ch;
+}
+
+.fls_onb_fields {
+    @apply flex flex-col;
+
+    gap: 20px;
+}
+
+/* ------------------------------------------------------------------ controls */
+
+/*
+ * The toggles are the settings screen's own `SettingToggle`, not a copy of it, so a switch
+ * means the same thing and looks the same in both places. These rules only give the group
+ * the frame it needs here - one framed row per answer, where a settings card would have
+ * supplied the frame around the whole stack.
+ */
+.fls_onb_opts {
+    @apply flex flex-col;
+
+    gap: 8px;
+
+    /* The line above the group belongs to it, so it sits closer than the group gap. */
+    .fls_onb_hint + & {
+        margin-top: -12px;
+    }
+}
+
+.fls_onb_opt {
+    @apply border border-solid border-hairline rounded bg-surface;
+
+    padding: 14px 16px;
+    transition: border-color .15s ease, background-color .15s ease;
+
+    &:hover {
+        border-color: var(--fls-border-strong);
+    }
+
+    &.is-on {
+        border-color: var(--fls-accent);
+        background: var(--fls-accent-wash);
+    }
+
+    /* The frame supplies the padding and the measure. */
+    .fls_row_label {
+        max-width: none;
+    }
+}
+
+/*
+ * Two answers that exclude one another, as cards rather than radios: the sentence under
+ * each is the actual content of the choice, and a radio label is the wrong place for one.
+ */
+.fls_onb_choices {
+    @apply grid;
+
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 8px;
+}
+
+.fls_onb_choice,
+.fls_onb_preset {
+    @apply flex flex-col text-left bg-surface border border-solid border-hairline rounded cursor-pointer;
+
+    gap: 4px;
+    padding: 14px 16px;
+    font: inherit;
+    transition: border-color .15s ease, background-color .15s ease;
+
+    &:hover {
+        border-color: var(--fls-border-strong);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+
+    &.is-picked {
+        border-color: var(--fls-accent);
+        background: var(--fls-accent-wash);
+        box-shadow: inset 0 0 0 1px var(--fls-accent);
+    }
+}
+
+.fls_onb_choice_title,
+.fls_onb_preset_title {
+    @apply text-sm font-medium;
+
+    color: var(--fls-heading);
+}
+
+.fls_onb_choice_note,
+.fls_onb_preset_note {
+    @apply text-xs text-ink-light;
+
+    line-height: 1.5;
+}
+
+.fls_onb_presets {
+    @apply grid;
+
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+/*
+ * The badge gets a row of its own in every card, not only the one that has it. Inline
+ * beside the title it wrapped on the recommended card alone, which pushed that card's
+ * value and note half a line below its neighbours' - three cards that no longer read as
+ * one object.
+ */
+.fls_onb_preset_head {
+    @apply flex items-center;
+
+    min-height: 20px;
+
+    .fls_tag {
+        visibility: hidden;
+    }
+}
+
+.fls_onb_preset.has-tag .fls_onb_preset_head .fls_tag {
+    visibility: visible;
+}
+
+.fls_onb_preset_val {
+    @apply text-xs font-medium text-ink-mid;
+
+    font-variant-numeric: tabular-nums;
+}
+
+.fls_onb_roles,
+.fls_onb_field {
+    @apply flex flex-col;
+
+    gap: 6px;
+}
+
+.fls_onb_role_row {
+    @apply flex flex-wrap;
+
+    gap: 6px;
+}
+
+.fls_onb_role {
+    @apply rounded-full border border-solid border-hairline-strong bg-surface text-ink-mid text-xs cursor-pointer;
+
+    padding: 5px 12px;
+    font-family: inherit;
+    transition: all .15s ease;
+
+    &:hover {
+        @apply text-ink;
+
+        border-color: var(--fls-text-light);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: 1px;
+    }
+
+    &.is-picked {
+        @apply bg-accent text-accent-on font-medium;
+
+        border-color: var(--fls-accent);
+    }
+}
+
+.fls_onb_label {
+    @apply text-sm font-medium m-0;
+
+    color: var(--fls-heading);
+}
+
+.fls_onb_hint {
+    @apply text-xs text-ink-light m-0;
+
+    line-height: 1.5;
+    max-width: 58ch;
+}
+
+.fls_onb_aside {
+    @apply text-xs text-ink-mid m-0;
+
+    a {
+        @apply text-ink-link;
+
+        text-underline-offset: 2px;
+    }
+}
+
+.fls_onb_reveal {
+    @apply flex flex-col bg-surface-sunk border border-solid border-hairline rounded-sm;
+
+    gap: 6px;
+    padding: 16px;
+
+    .fls_onb_label:not(:first-child) {
+        margin-top: 6px;
+    }
+}
+
+.fls_onb_pair {
+    @apply grid;
+
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+}
+
+.fls_onb_pair_item {
+    @apply flex flex-col;
+
+    gap: 6px;
+    min-width: 0;
+}
+
+/* The line that stops somebody worrying they are about to break their own access. */
+.fls_onb_reassure {
+    @apply bg-surface-sunk text-xs text-ink-mid rounded-sm m-0;
+
+    padding: 11px 14px;
+    border-left: 3px solid var(--fls-border-strong);
+    line-height: 1.55;
+}
+
+.fls_onb_flag {
+    @apply bg-caution-bg text-caution-fg border border-solid rounded-sm text-xs;
+
+    padding: 11px 14px;
+    border-color: var(--fls-warning-line);
+    line-height: 1.55;
+}
+
+.fls_onb_locked {
+    @apply bg-quiet-bg text-quiet-fg rounded-sm text-xs;
+
+    padding: 11px 14px;
+    line-height: 1.55;
+}
+
+/* -------------------------------------------------------------------- actions */
+
+.fls_onb_actions {
+    @apply flex items-center border-0 border-t border-solid border-hairline;
+
+    gap: 8px;
+    margin-top: 28px;
+    padding-top: 20px;
+}
+
+.fls_onb_next.el-button {
+    min-width: 160px;
+    margin-left: auto;
+}
+
+.fls_onb_back.el-button {
+    @apply text-ink-mid;
+
+    &:hover {
+        @apply bg-transparent;
+
+        color: var(--fls-heading);
+    }
+}
+
+/* ------------------------------------------------------------------ the ending */
+
+.fls_onb_done {
+    @apply flex justify-center;
+
+    padding: 56px 24px 80px;
+}
+
+.fls_onb_done_inner {
+    @apply w-full;
+
+    max-width: 620px;
+}
+
+.fls_onb_done_title {
+    margin: 0 0 8px;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 28px;
+    color: var(--fls-heading);
+    text-wrap: balance;
+}
+
+.fls_onb_done_lead {
+    @apply text-sm text-ink-mid m-0;
+
+    margin-bottom: 28px;
+    line-height: 1.65;
+    max-width: 60ch;
+}
+
+.fls_onb_done_list {
+    @apply flex flex-col m-0 p-0 list-none border border-solid border-hairline rounded overflow-hidden;
+
+    gap: 1px;
+    margin-bottom: 28px;
+    background: var(--fls-border);
+
+    li {
+        @apply grid items-start bg-surface text-xs text-ink m-0;
+
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px 16px;
+        line-height: 1.5;
+    }
+
+    .dashicons {
+        @apply text-ok-fg;
+
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        margin-top: 1px;
+    }
+}
+
+.fls_onb_done_next {
+    @apply bg-surface border border-solid border-hairline rounded;
+
+    padding: 20px 22px;
+    margin-bottom: 26px;
+}
+
+.fls_onb_done_next_title {
+    @apply text-sm font-medium m-0;
+
+    color: var(--fls-heading);
+    margin-bottom: 12px;
+}
+
+.fls_onb_done_next_list {
+    @apply flex flex-col m-0 p-0 list-none;
+
+    gap: 12px;
+
+    li {
+        @apply flex flex-col m-0;
+
+        gap: 1px;
+    }
+
+    /*
+     * Underlined at rest, not only on hover. The link colour in this app is a near-black
+     * that sits a shade off the heading beside it, so without a rule these read as bold
+     * text and the only things to do next on the screen look like labels.
+     */
+    a {
+        @apply text-xs font-medium text-ink-link;
+
+        text-decoration: underline;
+        text-decoration-color: var(--fls-border-strong);
+        text-underline-offset: 3px;
+
+        &:hover {
+            text-decoration-color: currentColor;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--fls-accent);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+    }
+
+    span {
+        @apply text-xs text-ink-light;
+    }
+}
+
+.fls_onb_done_actions {
+    @apply flex flex-wrap;
+
+    gap: 8px;
+
+    .el-button {
+        text-decoration: none;
+    }
+}
+
+/* Progress has its own row so labels never compete with the wordmark. */
+.fls_onb_progress {
+    padding: 22px 24px;
+    background: var(--fls-surface);
+    border-bottom: 1px solid var(--fls-border);
+}
+
+.fls_onb_rail {
+    justify-content: center;
+    gap: 8px;
+}
+
+.fls_onb_rail_mark {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+}
+
+.fls_onb_rail_hit {
+    padding: 6px 10px 6px 6px;
+}
+
+.fls_onb_rail_hit:disabled {
+    cursor: wait;
+}
+
+.fls_onb_rail_label {
+    color: var(--fls-text-mid);
+}
+
+.fls_onb {
+    background: var(--fls-surface);
+}
+
+.fls_onb .fls_eyebrow {
+    color: var(--fls-text-mid);
+    margin: 0 0 16px;
+}
+
+.fls_onb .fls_onb_stage .fls_eyebrow {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--fls-heading);
+}
+
+.fls_onb_detected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin: 0;
+    color: var(--fls-text-mid);
+    font-size: 13px;
+}
+
+.fls_onb_detected strong {
+    color: var(--fls-heading);
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+
+.fls_onb_preview_label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--fls-text-mid);
+    font-size: 12px;
+    margin-bottom: 22px;
+}
+
+.fls_onb_preview_label .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.fls_onb_preview_hint, .fls_onb_save_note {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--fls-text-mid);
+    margin: 16px 0 0;
+}
+
+.fls_onb_save_note {
+    text-align: right;
+}
+
+.fls_onb_hint, .fls_onb_choice_note, .fls_onb_preset_note, .fls_onb_conn_row dt, .fls_onb_stage_foot {
+    color: var(--fls-text-mid);
+}
+
+.fls_onb_actions .el-button {
+    min-height: 42px;
+}
+
+.fls_onb_actions .el-button > span, .fls_onb_leave > span {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.fls_onb_opt, .fls_onb_choice, .fls_onb_preset {
+    border-radius: 8px;
+}
+
+/*
+ * The option card is the frame here, so the row inside it draws neither padding nor the
+ * rule it would draw in a settings card.
+ */
+.fls_onb_opt .fls_row {
+    padding: 0;
+    border-bottom: 0;
+}
+
+.fls_onb_opt .fls_row_label p {
+    color: var(--fls-text-mid);
+}
+
+/*
+ * In a settings card the reveal is indented off a rule, to show it hangs from the switch
+ * above it. Inside an option card there is nothing to hang from - the card is already the
+ * grouping - so it is just the next line.
+ */
+.fls_onb_opt .fls_row_below {
+    padding-left: 0;
+    margin-top: 4px;
+    border-left: 0;
+}
+
+.fls_onb_opt.is-on {
+    background: var(--fls-surface-sunk);
+    border-color: var(--fls-border-strong);
+}
+
+.fls_onb_choice:active, .fls_onb_preset:active {
+    transform: translateY(1px);
+}
+
+.fls_onb_reveal {
+    animation: fls-onb-enter .18s ease-out;
+}
+
+.fls_onb h1:focus {
+    outline: none;
+}
+
+.fls_onb_load_error, .fls_onb_review {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 44px 28px 64px;
+    box-sizing: border-box;
+}
+
+.fls_onb_review {
+    animation: fls-onb-enter .22s ease-out;
+}
+
+.fls_onb_review_list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--fls-border);
+}
+
+.fls_onb_review_list > li {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 16px;
+    margin: 0;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--fls-border);
+}
+
+.fls_onb_review_list h2 {
+    font-size: 14px;
+    color: var(--fls-heading);
+    margin: 2px 0 6px;
+    font-weight: 600;
+}
+
+.fls_onb_review_list p {
+    font-size: 13px;
+    color: var(--fls-text-mid);
+    margin: 3px 0;
+    overflow-wrap: anywhere;
+}
+
+.fls_onb_review_number {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    background: var(--fls-accent-wash);
+    color: var(--fls-heading);
+    border-radius: 50%;
+    font-size: 12px;
+}
+
+.fls_onb_review .fls_onb_actions {
+    border-top: 0;
+    margin-top: 0;
+}
+
+.fls_onb_done_inner {
+    max-width: 680px;
+    animation: fls-onb-enter .22s ease-out;
+}
+
+.fls_onb_done_symbol {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    background: var(--fls-success-bg);
+    color: var(--fls-success-fg);
+    border-radius: 50%;
+    margin-bottom: 22px;
+}
+
+.fls_onb_done_symbol .dashicons {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+}
+
+.fls_onb_done_next {
+    border: 0;
+    border-radius: 0;
+    border-top: 1px solid var(--fls-border);
+    padding: 24px 0 0;
+}
+
+.fls_onb_done_next_list span {
+    color: var(--fls-text-mid);
+}
+
+
+@keyframes fls-onb-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+}
+
+@media (max-width: 1200px) {
+    .fls_onb_body {
+        gap: 32px;
+        padding: 36px 28px 56px;
+    }
+
+    .fls_onb_stage {
+        padding: 20px;
+    }
+
+    .fls_onb_preset {
+        padding: 12px;
+    }
+
+    .fls_onb_rail {
+        gap: 2px;
+    }
+
+    .fls_onb_rail_item + .fls_onb_rail_item::before {
+        width: 8px;
+    }
+
+}
+@media (max-width: 900px) {
+    .fls_onb_body {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 720px;
+    }
+
+    .fls_onb_ask_inner {
+        max-width: none;
+    }
+
+    .fls_onb_stage {
+        position: static;
+    }
+
+    .fls_onb_stage_inner {
+        max-width: 100%;
+    }
+
+    .fls_onb_rail_label {
+        display: none;
+    }
+
+    .fls_onb_rail_item.is-current .fls_onb_rail_label {
+        display: inline;
+    }
+
+}
+@media (max-width: 782px) {
+    .fls_onb_bar {
+        top: 46px;
+    }
+
+    .fls_onb {
+        min-height: calc(100vh - 46px);
+    }
+
+}
+@media (max-width: 600px) {
+    .fls_onb_bar {
+        position: static;
+        padding: 0 16px;
+        height: 60px;
+        gap: 8px;
+    }
+
+    .fls_onb_bar_brand span {
+        display: none;
+    }
+
+    .fls_onb_progress {
+        padding: 14px 8px;
+    }
+
+    .fls_onb_rail {
+        gap: 0;
+        justify-content: space-between;
+    }
+
+    .fls_onb_rail_hit {
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .fls_onb_rail_item + .fls_onb_rail_item::before {
+        display: none;
+    }
+
+    .fls_onb_rail_item.is-current .fls_onb_rail_label {
+        display: none;
+    }
+
+    .fls_onb_body {
+        padding: 28px 20px 40px;
+        gap: 28px;
+    }
+
+    .fls_onb_presets {
+        grid-template-columns: 1fr;
+    }
+
+    .fls_onb_preset {
+        position: relative;
+        padding: 14px;
+        gap: 5px;
+    }
+
+    .fls_onb_preset_head {
+        display: none;
+    }
+
+    .fls_onb_preset.has-tag .fls_onb_preset_head {
+        display: flex;
+        position: absolute;
+        top: 14px;
+        right: 14px;
+    }
+
+    .fls_onb_conn_row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+    }
+
+    .fls_onb_choices {
+        grid-template-columns: 1fr;
+    }
+
+    .fls_onb_stage {
+        padding: 16px;
+    }
+
+    .fls_onb_conn {
+        padding: 18px;
+    }
+
+    .fls_onb_save_note {
+        text-align: left;
+    }
+
+    .fls_onb_review {
+        padding: 28px 20px 40px;
+    }
+
+    .fls_onb_review_list > li {
+        gap: 10px;
+    }
+
+}
+@media (prefers-reduced-motion: reduce) {
+    .fls_onb *, .fls_onb *::before, .fls_onb *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+
+}
+
+
+/*
+ * A row this site already satisfies before setup started. Said under the toggle rather
+ * than as a badge on its title, because it is a remark about the site rather than a
+ * status of the setting.
+ */
+.fls_onb_opt p.fls_onb_already {
+    @apply text-ok-fg;
+
+    margin-top: 5px;
+    font-weight: 500;
+}

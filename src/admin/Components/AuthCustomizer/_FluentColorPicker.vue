@@ -6,8 +6,9 @@
             {{ label }}
         </label>
 
+        <!-- Focusable so the explanation can be reached without a pointer. -->
         <el-tooltip v-if="help_msg" :content="help_msg" placement="right">
-            <el-icon class="fcom_tip">
+            <el-icon class="fcom_tip" tabindex="0" role="button" :aria-label="help_msg">
                 <InfoFilled/>
             </el-icon>
         </el-tooltip>

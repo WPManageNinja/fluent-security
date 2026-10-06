@@ -109,6 +109,216 @@ class SettingsControllerTest extends BaseTestCase
         $this->assertArrayHasKey('message', $result);
     }
 
+    public function testGetAuthFormSettingsOffersDestinations()
+    {
+        $request = new \WP_REST_Request();
+
+        $result = SettingsController::getAuthFormSettings($request);
+
+        $this->assertArrayHasKey('destinations', $result);
+        $this->assertNotEmpty($result['destinations']['login']);
+        $this->assertNotEmpty($result['destinations']['logout']);
+
+        foreach ($result['destinations'] as $group) {
+            foreach ($group as $destination) {
+                $this->assertArrayHasKey('label', $destination);
+                $this->assertArrayHasKey('url', $destination);
+            }
+        }
+    }
+
+    /*
+     * Clearing a destination used to be impossible: an empty value was skipped rather than
+     * written, so the screen saved successfully and came back with the old address in it.
+     */
+    public function testSaveAuthFormSettingsClearsAnEmptiedDefault()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                 => 'yes',
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => home_url('/members/'),
+            'default_logout_redirect' => home_url('/bye/'),
+            'redirect_rules'          => []
+        ]);
+
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', [
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => '',
+            'default_logout_redirect' => home_url('/bye/')
+        ]);
+
+        SettingsController::saveAuthFormSettings($request);
+
+        $saved = get_option('__fls_auth_forms_settings');
+
+        $this->assertSame('', $saved['default_login_redirect']);
+        $this->assertSame(home_url('/bye/'), $saved['default_logout_redirect']);
+    }
+
+    public function testSaveAuthFormSettingsKeepsRulesWithoutConditions()
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', [
+            'login_redirects' => 'yes',
+            'redirect_rules'  => [
+                [
+                    'login'  => '/members/',
+                    'logout' => ''
+                ]
+            ]
+        ]);
+
+        SettingsController::saveAuthFormSettings($request);
+
+        $saved = get_option('__fls_auth_forms_settings');
+
+        $this->assertCount(1, $saved['redirect_rules']);
+        $this->assertSame('/members/', $saved['redirect_rules'][0]['login']);
+        $this->assertSame([], $saved['redirect_rules'][0]['conditions']);
+    }
+
+    // ------------------------------------------- redirects must stay on this site
+
+    /**
+     * Every sign-in reply, and core's own wp_safe_redirect(), refuses an off-site address,
+     * so one saved here would silently land people in wp-admin. Refused at the door instead,
+     * naming the field, and nothing is written.
+     */
+    public function testAnOffSiteRedirectIsRefusedOnSave()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                => 'yes',
+            'login_redirects'        => 'yes',
+            'default_login_redirect' => home_url('/members/')
+        ]);
+
+        $result = $this->saveRedirects([
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => 'https://elsewhere.example.net/welcome/',
+            'default_logout_redirect' => home_url('/bye/'),
+            'redirect_rules'          => [
+                ['login' => '/fine/', 'logout' => 'https://elsewhere.example.net/bye/']
+            ]
+        ]);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+
+        $problems = $result->get_error_data()['invalid_redirects'];
+        $this->assertCount(2, $problems);
+        $this->assertStringContainsString('After signing in', $problems[0]);
+        $this->assertStringContainsString('elsewhere.example.net/welcome/', $problems[0]);
+        $this->assertStringContainsString('Rule 1', $problems[1]);
+        $this->assertStringContainsString('after signing out', $problems[1]);
+
+        $this->assertSame(home_url('/members/'), get_option('__fls_auth_forms_settings')['default_login_redirect']);
+    }
+
+    public function testOnSiteAndRelativeRedirectsSave()
+    {
+        $result = $this->saveRedirects([
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => home_url('/members/'),
+            'default_logout_redirect' => '/goodbye/',
+            'redirect_rules'          => [
+                ['login' => admin_url('profile.php'), 'logout' => '']
+            ]
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('/goodbye/', get_option('__fls_auth_forms_settings')['default_logout_redirect']);
+    }
+
+    /**
+     * The developer's route to another host - a shop on a subdomain - is core's own
+     * filter, and the check honours it like every other redirect on the site.
+     */
+    public function testAHostAllowedThroughCoreSaves()
+    {
+        $allow = function ($hosts) {
+            $hosts[] = 'shop.example.org';
+            return $hosts;
+        };
+        add_filter('allowed_redirect_hosts', $allow);
+
+        try {
+            $result = $this->saveRedirects([
+                'login_redirects'        => 'yes',
+                'default_login_redirect' => 'https://shop.example.org/account/'
+            ]);
+        } finally {
+            remove_filter('allowed_redirect_hosts', $allow);
+        }
+
+        $this->assertIsArray($result);
+    }
+
+    /**
+     * An address saved before the rule existed is not followed any more, so the screen
+     * says so when it opens rather than leaving the owner to find out by signing in.
+     */
+    public function testTheScreenFlagsAnOffSiteAddressSavedBefore()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                 => 'yes',
+            'login_redirects'         => 'yes',
+            'default_login_redirect'  => home_url('/members/'),
+            'default_logout_redirect' => 'https://elsewhere.example.net/bye/'
+        ]);
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+
+        $result = SettingsController::getAuthFormSettings(new \WP_REST_Request());
+
+        $this->assertCount(1, $result['invalid_redirects']);
+        $this->assertStringContainsString('After signing out', $result['invalid_redirects'][0]);
+    }
+
+    /**
+     * The named choices on the screen - dashboard, home page, profile, login page - are
+     * stored as the URL they stand for, so they meet the same check as a typed address.
+     */
+    public function testEveryNamedDestinationTheScreenOffersSaves()
+    {
+        $destinations = SettingsController::getAuthFormSettings(new \WP_REST_Request())['destinations'];
+
+        $rules = [];
+        foreach ($destinations['login'] as $login) {
+            $rules[] = ['login' => $login['url'], 'logout' => ''];
+        }
+        foreach ($destinations['logout'] as $logout) {
+            $rules[] = ['login' => '', 'logout' => $logout['url']];
+        }
+
+        $result = $this->saveRedirects([
+            'login_redirects' => 'yes',
+            'redirect_rules'  => $rules
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertCount(count($rules), get_option('__fls_auth_forms_settings')['redirect_rules']);
+    }
+
+    public function testNothingIsFlaggedWhenEveryAddressIsOnSite()
+    {
+        update_option('__fls_auth_forms_settings', [
+            'enabled'                => 'yes',
+            'login_redirects'        => 'yes',
+            'default_login_redirect' => home_url('/members/')
+        ]);
+
+        $result = SettingsController::getAuthFormSettings(new \WP_REST_Request());
+
+        $this->assertSame([], $result['invalid_redirects']);
+    }
+
+    private function saveRedirects($redirectSettings)
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('redirect_settings', $redirectSettings);
+
+        return SettingsController::saveAuthFormSettings($request);
+    }
+
     public function testGetAuthCustomizerSetting()
     {
         $request = new \WP_REST_Request();
@@ -206,6 +416,36 @@ class SettingsControllerTest extends BaseTestCase
         $request->set_param('settings', $payload);
 
         return SettingsController::updateSettings($request);
+    }
+
+    private function saveWithDigest($frequency)
+    {
+        $request = new \WP_REST_Request();
+        $request->set_param('settings', [
+            'login_try_limit'  => 5,
+            'login_try_timing' => 30,
+            'email2fa'         => 'no',
+            'email2fa_roles'   => [],
+            'digest_summary'   => $frequency,
+        ]);
+
+        return SettingsController::updateSettings($request);
+    }
+
+    public function testChangingTheDigestFrequencyStartsAFreshWindow()
+    {
+        $this->saveWithDigest('daily');
+        update_option('_fls_last_digest_sent', '2026-09-09 08:00:00', false);
+
+        // Saving again with the same frequency keeps the window.
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->saveWithDigest('daily');
+        $this->assertSame('2026-09-09 08:00:00', get_option('_fls_last_digest_sent'));
+
+        // A different one would otherwise be gated by a daily send a few days ago.
+        \FluentAuth\App\Helpers\Helper::resetStatics();
+        $this->saveWithDigest('mon');
+        $this->assertFalse(get_option('_fls_last_digest_sent'));
     }
 
     public function testChoosingRolesTurnsTheRestrictionOn()

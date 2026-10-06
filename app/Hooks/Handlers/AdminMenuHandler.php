@@ -3,7 +3,12 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\Onboarding;
+use FluentAuth\App\Services\Optin;
 use FluentAuth\App\Services\TransStrings;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
+use FluentAuth\App\Services\TwoFa\TwoFaBypass;
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 class AdminMenuHandler
 {
@@ -75,6 +80,19 @@ class AdminMenuHandler
             120
         );
 
+        /*
+         * The same four destinations the app bar carries, in the same order and under the
+         * same names - see the menuItems list in App.vue. WordPress's menu and the app's
+         * own bar are two views of one navigation, and a person who learns either one has
+         * learned the other.
+         *
+         * They used to disagree: this listed Login/Signup Forms, Login Redirects and
+         * Customize WP Emails as siblings of Settings, at paths (#/auth-shortcodes,
+         * #/login-redirects, #/custom-wp-emails) that stopped existing when those screens
+         * moved under /settings. Each one opened the app to a blank pane. The screens are
+         * still there, in the Settings sidebar, which is the one place a setting is looked
+         * for; routes.js keeps the old paths alive as redirects for anything bookmarked.
+         */
         add_submenu_page(
             'fluent-auth',
             __('Dashboard', 'fluent-security'),
@@ -93,48 +111,25 @@ class AdminMenuHandler
             array($this, 'render')
         );
 
+        /*
+         * Lands on Findings rather than on the file scan. The two are tabs of one screen now,
+         * and Findings is the one that answers "is anything wrong" without being asked to run.
+         */
         add_submenu_page(
             'fluent-auth',
-            __('Security Settings', 'fluent-security'),
-            __('Security Settings', 'fluent-security'),
+            __('Security', 'fluent-security'),
+            __('Security', 'fluent-security'),
+            $permission,
+            'fluent-auth#/security',
+            array($this, 'render')
+        );
+
+        add_submenu_page(
+            'fluent-auth',
+            __('Settings', 'fluent-security'),
+            __('Settings', 'fluent-security'),
             $permission,
             'fluent-auth#/settings',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Login/Signup Forms', 'fluent-security'),
-            __('Login/Signup Forms', 'fluent-security'),
-            $permission,
-            'fluent-auth#/auth-shortcodes',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Login Redirects', 'fluent-security'),
-            __('Login Redirects', 'fluent-security'),
-            $permission,
-            'fluent-auth#/login-redirects',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Customize WP Emails', 'fluent-security'),
-            __('Customize WP Emails', 'fluent-security'),
-            $permission,
-            'fluent-auth#/custom-wp-emails',
-            array($this, 'render')
-        );
-
-        add_submenu_page(
-            'fluent-auth',
-            __('Security Scans', 'fluent-security'),
-            __('Security Scans', 'fluent-security'),
-            $permission,
-            'fluent-auth#/security-scans',
             array($this, 'render')
         );
     }
@@ -183,11 +178,14 @@ class AdminMenuHandler
                 'namespace' => 'fluent-auth',
                 'version'   => '1'
             ],
-            'auth_statuses'   => [
-                'failed'  => __('Failed', 'fluent-security'),
-                'blocked' => __('Blocked', 'fluent-security'),
-                'success' => __('Successful', 'fluent-security')
-            ],
+            /*
+             * What word to print for a row's status. Every status the log is written
+             * with is in here - two of them were not, which left those rows with a raw
+             * slug where the status word should be.
+             */
+            'auth_statuses'   => Helper::getLogStatuses(),
+            // The views bar: what each one is called, what it queries, and where the rule goes.
+            'auth_log_views'  => self::getLogViews(),
             'auth_settings'   => Helper::getAuthSettings(),
             // What "apply recommended" writes, and what the dashboard checklist scores against.
             'recommended_settings' => Helper::getRecommendedSettings(),
@@ -198,16 +196,79 @@ class AdminMenuHandler
              * address you can put in a welcome email or a member menu.
              */
             'totp_setup_url'  => TotpSetupPageHandler::getUrl(),
+            /*
+             * Where an administrator sets up their own second factor. The profile screen
+             * rather than the address above, because it is the fuller of the two - passkey,
+             * authenticator app and recovery codes on one card - and anyone reading the
+             * admin app can reach it. Same place TwoFaReminderHandler's notice points.
+             */
+            'profile_2fa_url' => admin_url('profile.php#fls-two-factor'),
+            /*
+             * Browsers refuse WebAuthn outside a secure context, so on a plain http site
+             * the switch would turn on a feature that cannot work. The screen says so
+             * rather than letting an administrator discover it from a user's report.
+             */
+            'passkey_supported' => RelyingParty::isSupported(),
             // Used as the example in the redirect URL fields, so the example is real.
             'site_url'        => site_url('/'),
+            /*
+             * Whether this administrator may see the enrollment list at all.
+             *
+             * The app's own permission is filterable (fluent_auth/app_permission), so the
+             * capability that opens these screens is not necessarily one that carries any
+             * right over other people's accounts. Every other screen here is about the
+             * site; that one is a list of users, their email addresses and what guards
+             * their accounts, so it asks for the capability WordPress uses for exactly
+             * that question rather than riding on the app's.
+             */
+            'can_list_users'  => current_user_can('list_users'),
             'me'              => [
                 'id'        => $currentUser->ID,
                 'full_name' => $fullName,
                 'email'     => $currentUser->user_email,
                 // The dashboard greets whoever is reading it, so it needs their face.
-                'avatar'    => get_avatar_url($currentUser->ID, ['size' => 96])
+                'avatar'    => get_avatar_url($currentUser->ID, ['size' => 96]),
+                /*
+                 * These two are what let the settings screen notice that a requirement
+                 * about to be saved covers the person saving it. Without them, the one
+                 * setting on the page that can lock the reader out of their own site was
+                 * saved as quietly as the log retention period - and the first they heard
+                 * of it was the next request being refused.
+                 *
+                 * Roles rather than a precomputed "will this lock me out", because the
+                 * answer depends on values the reader has not saved yet.
+                 */
+                'roles'      => array_values($currentUser->roles),
+                /*
+                 * Whether they already hold a passkey or an authenticator app, so someone
+                 * who is protected is not warned about a requirement they already meet.
+                 * hasDeviceFactor() rather than isSatisfiedBy(), which reads the saved
+                 * level - the level being edited is one of the things in question.
+                 */
+                'has_device_factor' => DeviceRequirement::hasDeviceFactor($currentUser),
+                /*
+                 * FLUENT_AUTH_DISABLE_TWO_FA lifts the requirement for this account, so
+                 * saving one does not lock them out and warning them that it will would be
+                 * a dialog on every unrelated save - the settings screens share one Save.
+                 * Read here rather than inferred from has_device_factor, because they are
+                 * different facts: one is a credential, the other is a line in
+                 * wp-config.php.
+                 */
+                'two_fa_bypassed'   => TwoFaBypass::isActiveFor($currentUser)
             ],
-            'is_onboarding'   => true,
+            /*
+             * Whether this site still has a first run waiting for it. The app redirects
+             * into the wizard on this, so the question is asked in one place and answered
+             * in one place - a site that has finished setup, deliberately left it, or was
+             * configured long before the wizard existed never sees it.
+             */
+            'is_onboarding'   => Onboarding::isRequired(),
+            /*
+             * Whether the mailing list signup still needs asking. One flag for both places
+             * that ask - the wizard's last screen and the dashboard aside - so answering it
+             * on either closes it on the other without a reload. See Optin::isRequired().
+             */
+            'optin_required'  => Optin::isRequired(),
             'i18n'            => TransStrings::getStrings(),
             'suggestedColors' => ['#000000', '#abb8c3', '#ffffff', '#f78da7', '#ff6900', '#fcb900', '#7bdcb5', '#00d084', '#8ed1fc', '#0693e3', '#9b51e0'],
             'has_fluent_smtp' => defined('FLUENTMAIL_PLUGIN_FILE'),
@@ -215,6 +276,22 @@ class AdminMenuHandler
         ]));
 
         echo '<div id="fluent_auth_app"><h3 style="text-align: center; margin-top: 100px;">Loading Settings..</h3></div>';
+    }
+
+    /**
+     * The views bar as the screen wants it: a list in order, each carrying its own key.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function getLogViews()
+    {
+        $views = [];
+
+        foreach (Helper::getLogViews() as $key => $view) {
+            $views[] = array_merge(['key' => $key], $view);
+        }
+
+        return $views;
     }
 
     private function getMenuIcon()

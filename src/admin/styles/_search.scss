@@ -1,0 +1,252 @@
+/*
+ * The search box in the app bar, and the palette it opens.
+ *
+ * The trigger is filled and the controls beside it are not, which is FluentCart's
+ * arrangement and the right one: a switch you flip occasionally can be a bare glyph, but a
+ * box you type into has to look like somewhere to type. The `/` printed on it is the whole
+ * documentation for the shortcut.
+ */
+
+.fls_search_trigger {
+    @apply flex items-center flex-none cursor-pointer text-ink-mid;
+
+    gap: 8px;
+    height: 36px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--fls-surface-sunk);
+    transition: background-color .15s ease, color .15s ease;
+
+    svg {
+        display: block;
+    }
+
+    kbd {
+        @apply flex items-center justify-center font-medium text-ink-light;
+
+        min-width: 18px;
+        height: 18px;
+        padding: 0 4px;
+        font-family: inherit;
+        font-size: 11px;
+        line-height: 1;
+        border-radius: 4px;
+        background: var(--fls-surface);
+        border: 1px solid var(--fls-border);
+    }
+
+    &:hover {
+        @apply text-ink;
+
+        background: var(--fls-surface-raised);
+    }
+
+    &:focus {
+        box-shadow: none;
+        outline: none;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--fls-accent);
+        outline-offset: -1px;
+    }
+}
+
+/*
+ * The bar runs out of room for the tabs before it runs out of room for this, and nothing
+ * at this width has a keyboard to press it on anyway.
+ */
+@media (max-width: 782px) {
+    .fls_search_trigger kbd {
+        display: none;
+    }
+}
+
+/* ------------------------------------------------------------------ palette */
+
+/*
+ * Teleported to <body>, so none of this can be nested under the trigger above.
+ *
+ * It sits high on the screen rather than centred: what you are reading is the list, which
+ * grows downwards, and a box centred on its own height moves the input you are typing into
+ * every time the list gets shorter.
+ */
+.fls_search_dialog.el-dialog {
+    @apply bg-surface;
+
+    width: 560px;
+    max-width: calc(100vw - 32px);
+    margin-top: 12vh;
+    padding: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--fls-shadow-lift);
+
+    .el-dialog__header {
+        @apply border-0 border-b border-solid border-hairline;
+
+        padding: 0;
+        margin: 0;
+    }
+
+    .el-dialog__body {
+        padding: 8px;
+    }
+
+    .el-dialog__footer {
+        @apply border-0 border-t border-solid border-hairline;
+
+        padding: 10px 16px;
+        text-align: left;
+    }
+
+    /*
+     * The query line: a magnifier, and a field that does not look like one.
+     *
+     * Nested under the dialog rather than written on its own, and the input named by its
+     * `type`, purely for weight: wp-admin paints every text input in its content area, and
+     * the dark theme repaints them again at `body.toplevel_page_fluent-auth` (see
+     * _theme.scss), which a single class cannot outrank. The box that produced was visible
+     * only in dark - light's happened to be the same white as the dialog.
+     */
+    .fls_search_field {
+        @apply flex items-center text-ink-light;
+
+        gap: 10px;
+        padding: 0 16px;
+        height: 52px;
+
+        svg {
+            @apply flex-none;
+
+            display: block;
+        }
+
+        input[type="text"] {
+            @apply flex-1 text-ink;
+
+            min-width: 0;
+            height: auto;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            font-size: 15px;
+            line-height: 1.4;
+            box-shadow: none;
+
+            &:focus {
+                box-shadow: none;
+                outline: none;
+            }
+
+            &::placeholder {
+                color: var(--fls-text-light);
+            }
+        }
+    }
+}
+
+.fls_search_results {
+    /*
+     * Tall enough for seven or eight rows, which is more than any one group holds, so a
+     * query that narrows to one group never scrolls. Everything scrolls rather than the
+     * dialog growing: the list is the only thing in here that changes height.
+     */
+    max-height: 320px;
+    overflow-y: auto;
+
+    .fls_search_group + .fls_search_group {
+        margin-top: 10px;
+    }
+
+    .fls_search_group_label {
+        @apply text-xs font-medium text-ink-light;
+
+        padding: 0 12px;
+        margin-bottom: 4px;
+    }
+
+    ul {
+        @apply m-0 p-0 list-none;
+    }
+
+    li {
+        @apply m-0;
+    }
+
+    button {
+        @apply flex flex-col w-full text-left cursor-pointer;
+
+        gap: 2px;
+        padding: 7px 12px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+
+        &:focus {
+            box-shadow: none;
+            outline: none;
+        }
+
+        /*
+         * One highlight for both the pointer and the arrow keys - moving the mouse moves
+         * `selected` rather than painting a second kind of hover, so Enter always opens the
+         * row that looks open.
+         *
+         * The same wash as the live tab in the app bar, which is the other place in the app
+         * where a neutral fill means "this is the one".
+         */
+        &.is_selected {
+            background: var(--fls-accent-wash);
+        }
+    }
+
+    .fls_search_title {
+        @apply text-sm text-ink;
+
+        line-height: 20px;
+    }
+
+    .fls_search_sub {
+        @apply text-xs text-ink-light;
+
+        line-height: 16px;
+    }
+}
+
+.fls_search_empty {
+    @apply text-sm text-ink-mid;
+
+    margin: 0;
+    padding: 22px 12px 26px;
+    text-align: center;
+}
+
+.fls_search_keys {
+    @apply flex flex-wrap items-center m-0 p-0 list-none;
+
+    gap: 16px;
+
+    li {
+        @apply flex items-center m-0 text-xs text-ink-light;
+
+        gap: 5px;
+    }
+
+    kbd {
+        @apply flex items-center justify-center text-ink-mid;
+
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        font-family: inherit;
+        font-size: 11px;
+        line-height: 1;
+        border-radius: 4px;
+        background: var(--fls-surface-sunk);
+        border: 1px solid var(--fls-border);
+    }
+}

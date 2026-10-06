@@ -235,7 +235,7 @@ class TwoFaFactorTest extends BaseTestCase
     }
 
     /**
-     * verify2FaEmailCode() terminates through wp_send_json(); capture what it emitted.
+     * verifyChallenge() terminates through wp_send_json(); capture what it emitted.
      */
     private function verify($code, $hash)
     {
@@ -247,7 +247,7 @@ class TwoFaFactorTest extends BaseTestCase
 
         ob_start();
         try {
-            $this->handler->verify2FaEmailCode();
+            $this->handler->verifyChallenge();
         } catch (\WPDieException $e) {
             // expected: wp_send_json() ends the request
         }

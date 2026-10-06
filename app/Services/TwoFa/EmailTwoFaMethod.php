@@ -53,6 +53,11 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         return AuthFactor::EMAIL;
     }
 
+    public function getHandoffText()
+    {
+        return __('We have emailed you a login code.', 'fluent-security');
+    }
+
     public function getLoginMedia()
     {
         return 'two_factor_email';
@@ -71,6 +76,11 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
      *
      * @return bool
      */
+    public function isSwitchedOn()
+    {
+        return Helper::getSetting('email2fa') === 'yes';
+    }
+
     public static function isEnabledForAnyRole()
     {
         if (Helper::getSetting('email2fa') !== 'yes') {
@@ -130,12 +140,9 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
     {
         $code = Arr::get($challenge, 'secret');
 
-        $autoLoginUrl = add_query_arg([
-            'fls_2fa'    => 'email',
-            'login_hash' => Arr::get($context, 'login_hash'),
-            'action'     => 'fls_2fa_email',
-            'auto_code'  => $code
-        ], wp_login_url());
+        $autoLoginUrl = TwoFaService::getChallengeUrl(Arr::get($context, 'login_hash'), [
+            'auto_code' => $code
+        ]);
 
         $data = Arr::get($context, 'row', []);
         $data['two_fa_code'] = $code;
@@ -165,7 +172,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         if (!$code) {
             return new \WP_Error(
                 'invalid_code',
-                __('Please provide a valid login code', 'fluent-security')
+                __('Please enter your login code.', 'fluent-security')
             );
         }
 
@@ -188,8 +195,8 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
             <input type="hidden" name="login_hash" value="<?php echo esc_attr(Arr::get($data, 'login_hash')); ?>"/>
             <input type="hidden" name="redirect_to" value="<?php echo esc_attr($redirectTo); ?>"/>
             <div class="user-pass-wrap">
-                <p style="margin-bottom: 20px;"><?php esc_html_e('Please check your email inbox and get the 2 factor Authentication code and Provide here to login', 'fluent-security'); ?></p>
-                <label for="login_passcode"><?php esc_html_e('Two-Factor Authentication Code', 'fluent-security'); ?></label>
+                <p style="margin-bottom: 20px;"><?php esc_html_e('Check your email for your login code, then type it in below.', 'fluent-security'); ?></p>
+                <label for="login_passcode"><?php esc_html_e('Login code', 'fluent-security'); ?></label>
                 <div class="wp-pwd">
                     <input style="font-size: 14px;" placeholder="<?php esc_html_e('Login Code', 'fluent-security'); ?>"
                            type="number"
@@ -227,10 +234,46 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         $limit = (int)apply_filters('fluent_auth/2fa_code_request_limit', $limit, $user);
         $minutes = (int)apply_filters('fluent_auth/2fa_code_request_timing', $minutes, $user);
 
+        /*
+         * A floor of its own, because these two settings are about something else.
+         *
+         * They configure the login attempt limit, and a site is entitled to turn that off -
+         * behind a WAF, or on a login page nobody else can reach. But this function was
+         * reading them as though they also meant "how many emails may we send", so switching
+         * the attempt limit off switched off the only thing standing between somebody
+         * holding a password and an unbounded number of code emails into that person's
+         * inbox. Each password submission raises one, and the headless paths raise them too.
+         *
+         * So the settings can only make this tighter, never absent: whichever gate is
+         * reached first stops the send.
+         */
+        $floorLimit = (int)apply_filters('fluent_auth/2fa_code_request_floor_limit', 10, $user);
+        $floorMinutes = (int)apply_filters('fluent_auth/2fa_code_request_floor_timing', 15, $user);
+
+        if (!$minutes || !$limit) {
+            $minutes = $floorMinutes;
+            $limit = $floorLimit;
+        } elseif ($floorMinutes > 0 && $floorLimit > 0 && $this->overFloor($user, $floorLimit, $floorMinutes)) {
+            return true;
+        }
+
         if (!$minutes || !$limit) {
             return false;
         }
 
+        return $this->overFloor($user, $limit, $minutes);
+    }
+
+    /**
+     * How many codes this account has been sent inside a window.
+     *
+     * @param $user \WP_User
+     * @param $limit int
+     * @param $minutes int
+     * @return bool
+     */
+    private function overFloor($user, $limit, $minutes)
+    {
         $count = flsDb()->table('fls_login_hashes')
             ->where('user_id', $user->ID)
             ->whereIn('use_type', [$this->getKey(), $this->getChallengeKey()])
@@ -247,14 +290,14 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         if (empty($emailData['subject']) || empty($emailData['body'])) {
             $blogName = html_entity_decode(get_bloginfo('name'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-            /* translators: %1$1s: Site Name, %2$d: verification code */
-            $emailSubject = sprintf(__('Your Login code for %1$1s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
+            /* translators: %1$s: Site Name, %2$d: login code */
+            $emailSubject = sprintf(__('Your login code for %1$s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
 
             $emailLines = [
                 /* translators: %s: User's Display Name  */
                 sprintf(__('Hello %s,', 'fluent-security'), $user->display_name),
                 /* translators: %s: Site Name  */
-                sprintf(__('Someone requested to login to %s and here is the Login code that you can use in the login form', 'fluent-security'), $blogName),
+                sprintf(__('Someone asked to sign in to %s. Here is the code to type into the login form:', 'fluent-security'), $blogName),
                 '<b>' . __('Your Login Code: ', 'fluent-security') . '</b>',
                 '<p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">' . $data['two_fa_code'] . '</p>',
                 /* translators: %d: Minute  */
@@ -267,7 +310,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
 
             if ($autoLoginUrl) {
                 $emailLines[] = ' ';
-                $emailLines[] = __('You can also login by clicking the following button', 'fluent-security');
+                $emailLines[] = __('Or you can sign in by tapping the button below.', 'fluent-security');
                 $callToAction = [
                     /* translators: %s: Site Name  */
                     'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), $blogName),
@@ -305,9 +348,12 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
             ];
         }
 
-        return \wp_mail($user->user_email, $emailData['subject'], $emailData['body'], array(
-            'Content-Type: text/html; charset=UTF-8'
-        ));
+        return \wp_mail(
+            $user->user_email,
+            $emailData['subject'],
+            $emailData['body'],
+            SystemEmailService::getEmailHeaders()
+        );
     }
 
     private function getCustomizedEmailSubjectBody($data, $user, $autoLoginUrl = false)

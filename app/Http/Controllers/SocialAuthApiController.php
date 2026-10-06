@@ -16,22 +16,49 @@ class SocialAuthApiController
             'settings'  => Helper::getSocialAuthSettings('view'),
             'auth_info' => [
                 'github'   => [
-                    'is_available' => true,
-                    'app_redirect' => GithubAuthService::getAppRedirect(),
-                    'doc_url'      => 'https://fluentauth.com/docs/github-auth-connection'
+                    'is_available'        => true,
+                    'app_redirect'        => GithubAuthService::getAppRedirect(),
+                    'has_wp_config_keys'  => self::hasWpConfigKeys('github'),
+                    'doc_url'             => 'https://fluentauth.com/docs/github-auth-connection'
                 ],
                 'google'   => [
-                    'is_available' => true,
-                    'app_redirect' => GoogleAuthService::getAppRedirect(),
-                    'doc_url'      => 'https://fluentauth.com/docs/google-auth-connection'
+                    'is_available'        => true,
+                    'app_redirect'        => GoogleAuthService::getAppRedirect(),
+                    'has_wp_config_keys'  => self::hasWpConfigKeys('google'),
+                    'doc_url'             => 'https://fluentauth.com/docs/google-auth-connection'
                 ],
                 'facebook' => [
-                    'is_available' => true,
-                    'app_redirect' => FacebookAuthService::getAppRedirect(),
-                    'doc_url'      => 'https://fluentauth.com/docs/facebook-auth-connection'
+                    'is_available'        => true,
+                    'app_redirect'        => FacebookAuthService::getAppRedirect(),
+                    'has_wp_config_keys'  => self::hasWpConfigKeys('facebook'),
+                    'doc_url'             => 'https://fluentauth.com/docs/facebook-auth-connection'
                 ]
             ]
         ];
+    }
+
+    /**
+     * Whether this provider's credentials are sitting in wp-config.php.
+     *
+     * Only PHP can see a constant, so the screen is told whether the pair is there
+     * rather than left to guess. It answers for the constants themselves whatever the
+     * saved storage choice is - the radio can be moved without saving, and the answer
+     * for where it now points should not depend on where it used to.
+     *
+     * Whether the client ID and secret are in the database is not reported: those are
+     * in the form the screen is already holding, so it reads them there.
+     */
+    private static function hasWpConfigKeys($provider)
+    {
+        $prefix = 'FLUENT_AUTH_' . strtoupper($provider);
+
+        foreach (['_CLIENT_ID', '_CLIENT_SECRET'] as $suffix) {
+            if (!defined($prefix . $suffix) || !constant($prefix . $suffix)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static function saveSettings(\WP_REST_Request $request)

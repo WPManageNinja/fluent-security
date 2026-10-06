@@ -64,6 +64,23 @@ class GoogleOneTapAuthHandler
 
     public function handleGoogleOneTapLogin()
     {
+        /*
+         * Asked first, because nothing else on this path asks.
+         *
+         * Every other entry point in this class is gated - the shortcode, the button, the
+         * script that draws it - but the endpoint they all post to was not, and it does not
+         * need any of them: it needs a Google ID token and the site's client id, and
+         * Helper::getSocialAuthSettings() hands back the client id whether or not the
+         * feature is switched on. So turning social login off removed the button and left
+         * the door, and an administrator switching it off during an incident would have had
+         * no idea. On a site with open registration that door also creates accounts.
+         */
+        if (!$this->isOnetapEnabled()) {
+            wp_send_json([
+                'message' => __('One tap sign-in is not available on this site.', 'fluent-security')
+            ], 422);
+        }
+
         if (is_user_logged_in()) {
             wp_send_json([
                 'message'      => __('You are already logged in.', 'fluent-security'),
@@ -76,6 +93,21 @@ class GoogleOneTapAuthHandler
         $redirectUrl = $this->handleGoogleTokenConfirm($crednetial);
 
         if (is_wp_error($redirectUrl)) {
+            /*
+             * Not a failure: the account exists and Google vouched for it, but the site
+             * asks this user for a second factor and the challenge is already waiting.
+             * Sent as a redirect rather than as an error, because one_tap.js shows an
+             * error in an alert box - which would tell somebody to complete a step while
+             * giving them no way to reach it.
+             */
+            $challengeUrl = Arr::get((array)$redirectUrl->get_error_data(), 'challenge_url');
+
+            if ($challengeUrl) {
+                wp_send_json([
+                    'redirect_url' => $challengeUrl
+                ]);
+            }
+
             wp_send_json([
                 'message' => $redirectUrl->get_error_message()
             ], 422);
@@ -158,16 +190,9 @@ class GoogleOneTapAuthHandler
             return $user;
         }
 
-        $intentRedirectTo = '';
-        if (isset($_COOKIE['fs_intent_redirect'])) {
-            $cookieRedirect = sanitize_url(urldecode(wp_unslash($_COOKIE['fs_intent_redirect'])));
-
-            if (!filter_var($cookieRedirect, FILTER_VALIDATE_URL)) {
-                $cookieRedirect = admin_url();
-            }
-
-            // Same reasoning as getRequestedRedirect(): must be a URL on this site.
-            $redirect_to = Helper::getValidatedRedirectUrl($cookieRedirect, admin_url());
+        $intentRedirectTo = AuthService::getIntentRedirect();
+        if ($intentRedirectTo) {
+            $redirect_to = $intentRedirectTo;
         } else {
             if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
                 $redirect_to = user_admin_url();
@@ -182,7 +207,10 @@ class GoogleOneTapAuthHandler
 
         update_user_meta($user->ID, '_fls_login_google', $userData['email']);
 
-        return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
+        $redirect_to = apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
+
+        // one_tap.js navigates to this by script, so it gets the check wp_safe_redirect() would.
+        return Helper::getValidatedRedirectUrl($redirect_to, admin_url());
     }
 
     public function initGooglePopupAuth($args = [])

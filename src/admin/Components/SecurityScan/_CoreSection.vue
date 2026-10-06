@@ -32,10 +32,10 @@ export default {
             default: false
         },
         /*
-         * Whether any scan has ever run. Core's per-file findings are not stored the way an
-         * extension's are, so arriving on this screen after a scan leaves this row with a
-         * verdict it cannot show - which is different from never having been checked, and
-         * should not be worded as though it were.
+         * Whether any scan has ever run. Only reached when a scan has run but its findings
+         * could not be read back - the stored results having been cleared, say. That is
+         * different from never having been checked and should not be worded as though it
+         * were, so the row asks for a re-scan rather than claiming nothing has happened.
          */
         everScanned: {
             type: Boolean,
@@ -123,7 +123,7 @@ export default {
         statusLabel() {
             const labels = {
                 checking: this.$t('Checking…'),
-                pending: this.everScanned ? this.$t('Re-scan to see details') : this.$t('Not checked yet'),
+                pending: this.everScanned ? this.$t('Run a scan to see details') : this.$t('Not checked yet'),
                 clean: this.$t('No changes')
             };
 
@@ -191,7 +191,7 @@ export default {
         <div v-if="open" class="fls_scan_detail">
             <template v-if="extraFolders.length">
                 <!-- A description, not a path, so not set in the monospace the paths use. -->
-                <p class="fls_scan_detail_head is_prose">{{ $t('Extra Folders in Root') }}</p>
+                <p class="fls_scan_detail_head is_prose">{{ $t('Folders WordPress did not put here') }}</p>
                 <folder-lists :ignored-files="ignores.folders" root-path="/" :files="extraFolders"/>
             </template>
 

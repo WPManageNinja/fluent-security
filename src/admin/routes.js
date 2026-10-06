@@ -7,15 +7,18 @@ import EnrolledUsers from './Components/TwoFa/EnrolledUsers.vue';
 import IpRulesSettings from './Components/Settings/Pages/IpRules.vue';
 
 import AuthShortcodes from './Components/AuthShortcodes.vue';
-import LoginRedirects from './Components/LoginRedirects.vue';
+import LoginRedirects from './Components/Redirects/LoginRedirects.vue';
 import SocialAuthSettings from './Components/SocialAuthSettings.vue';
 import CustomWpEmails from './Components/CustomWpEmails/AllEmails.vue';
 import EditWpEmail from './Components/CustomWpEmails/EditWpEmail.vue';
 import TemplateSettings from './Components/CustomWpEmails/TemplateSettings.vue';
+import SecurityFindings from './Components/Security/Findings.vue';
+import SecurityRecovery from './Components/Security/Recovery.vue';
 import SecurityScans from './Components/SecurityScan/index.vue';
 import RegisterPromt from './Components/SecurityScan/RegisterPromt.vue';
 import AuthCustomizer from './Components/AuthCustomizer/AuthCustomizer.vue';
 import ServerMode from './Components/ServerMode/ServerMode.vue';
+import OnboardingWizard from './Components/Onboarding/Wizard.vue';
 
 /*
  * Everything configurable is a child of /settings, so the sidebar is the one place to
@@ -32,7 +35,18 @@ const settingsChildren = [
         path: 'two-factor-enrollment',
         name: 'settings_two_fa_enrollment',
         component: EnrolledUsers,
-        meta: {title: 'Two-Factor Enrollment'}
+        meta: {title: 'Two-Factor Enrollment'},
+        /*
+         * Hidden from the sidebar for anybody who cannot list users, and refused here too -
+         * the sidebar is a menu, not a lock, and this address is one somebody can type. The
+         * endpoints behind it ask for the same capability, so this only saves the screen
+         * from rendering a page of failed requests.
+         */
+        beforeEnter: (to, from, next) => {
+            const vars = window.fluentAuthAdmin || {};
+
+            next(vars.can_list_users ? undefined : {name: 'settings_general'});
+        }
     },
     {
         path: 'ip-rules',
@@ -91,6 +105,22 @@ const settingsChildren = [
 ];
 
 export var routes = [
+    /*
+     * The first run. Outside the app shell rather than inside it - like the login page
+     * designer, it covers the whole screen and draws its own header, and for the same
+     * reason: a wizard shown under the app's own navigation is a wizard offering to be
+     * abandoned by every link in the bar before the first question is answered.
+     */
+    {
+        path: '/onboarding',
+        name: 'onboarding',
+        component: OnboardingWizard,
+        meta: {
+            active: 'onboarding',
+            title: 'Setup',
+            bare: true
+        }
+    },
     {
         path: '/',
         name: 'dashboard',
@@ -106,7 +136,37 @@ export var routes = [
         component: Logs,
         meta: {
             active: 'logs',
-            title: 'Auth Logs'
+            title: 'Activity Log'
+        }
+    },
+    /*
+     * Security is one destination with three views of the same subject: what needs doing,
+     * what is being watched, and what to do if the worst has happened. They share `active`,
+     * which is what puts them in one section bar under a single Security tab - see
+     * Bits/subNav.js, which is also where the labels live.
+     *
+     * The names and paths are all older than the labels and none of them match: Monitoring
+     * is still `security_scans` at `/security-scans`, and Been Hacked? is still
+     * `security_recovery` at `/security/recovery`. The names are what findings point at (see
+     * IntegrityCheck and the rest of app/Services/Checks) and the paths are what a year of
+     * bookmarks point at; neither is worth breaking to make a route agree with a menu.
+     */
+    {
+        path: '/security',
+        name: 'security_findings',
+        component: SecurityFindings,
+        meta: {
+            active: 'security',
+            title: 'Findings'
+        }
+    },
+    {
+        path: '/security/recovery',
+        name: 'security_recovery',
+        component: SecurityRecovery,
+        meta: {
+            active: 'security',
+            title: 'Been Hacked?'
         }
     },
     {
@@ -114,8 +174,8 @@ export var routes = [
         name: 'security_scans',
         component: SecurityScans,
         meta: {
-            active: 'security_scans',
-            title: 'Security Scans'
+            active: 'security',
+            title: 'Monitoring'
         }
     },
     {
@@ -123,8 +183,8 @@ export var routes = [
         name: 'security_scan_register',
         component: RegisterPromt,
         meta: {
-            active: 'security_scans',
-            title: 'Security Scans'
+            active: 'security',
+            title: 'Monitoring'
         }
     },
     /*
@@ -143,6 +203,15 @@ export var routes = [
             title: 'Login Page Design'
         }
     },
+    /*
+     * Where the WordPress submenu used to point, before these screens moved under
+     * /settings. They were top-level paths for long enough to be bookmarked and to be
+     * linked from the admin menu itself, so they stay as redirects rather than as a
+     * blank pane. See AdminMenuHandler::addMenu().
+     */
+    {path: '/auth-shortcodes', redirect: {name: 'settings_auth_forms'}},
+    {path: '/login-redirects', redirect: {name: 'settings_redirects'}},
+    {path: '/custom-wp-emails', redirect: {name: 'settings_emails'}},
     {
         path: '/settings',
         component: SettingsLayout,
@@ -150,5 +219,13 @@ export var routes = [
             ...route,
             meta: {...route.meta, active: 'settings'}
         }))
+    },
+    /*
+     * An unknown path is an old link of some kind, and the dashboard is a better answer
+     * to one than an app shell with nothing inside it.
+     */
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: {name: 'dashboard'}
     }
 ];

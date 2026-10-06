@@ -41,6 +41,86 @@ abstract class BaseTwoFaMethod
     abstract public function isAvailableForUser($user);
 
     /**
+     * Whether the site has switched this method on at all.
+     *
+     * The site-level half of isAvailableForUser(), with no user and no role list in it.
+     * It answers one question: could this method satisfy a requirement on this site, for
+     * anybody? DeviceRequirement::isEnforceable() is the only caller, and what it decides
+     * is whether "these roles must hold a second factor" means anything on a site where
+     * every method is off.
+     *
+     * Defaults to true, and the direction of the default is deliberate. A method
+     * registered through `fluent_auth/2fa_methods` that has not been taught this question
+     * is counted as available, so the worst a third party can do by not implementing it is
+     * leave a requirement enforced. Defaulting the other way would let an unrecognised
+     * method silently switch somebody's second-factor policy off, which is not a failure a
+     * security plugin gets to choose.
+     *
+     * @return bool
+     */
+    public function isSwitchedOn()
+    {
+        return true;
+    }
+
+    /**
+     * Whether site code has vetoed this method for this particular user.
+     *
+     * The per-user half of isAllowedForUser(), split out so the requirement can ask it
+     * without asking the whole question - isAllowedForUser() calls back into
+     * DeviceRequirement, and the requirement cannot depend on its own answer.
+     *
+     * It matters because a veto is a real way to have nothing left: with the app the only
+     * method on and `fluent_auth/totp_enabled` returning false for somebody, the
+     * requirement would otherwise stand over a method that user can never be offered.
+     *
+     * @param $user \WP_User
+     * @return bool
+     */
+    public function isPermittedForUser($user)
+    {
+        return true;
+    }
+
+    /**
+     * Whether a role required to hold a factor is given this method automatically.
+     *
+     * The two device methods are: an owner who says "editors must hold a second factor"
+     * has already said editors may set one up, so their own role lists are not consulted
+     * for those users. An emailed code is not granted by anything - it reaches the roles
+     * on its own list and nobody else - so it answers false and
+     * DeviceRequirement::canBeSatisfiedBy() reads its list instead.
+     *
+     * Kept separate from isAllowedForUser() because that method calls back into
+     * DeviceRequirement, and the requirement cannot ask a question whose answer depends
+     * on the requirement.
+     *
+     * @return bool
+     */
+    public function isGrantedByRequirement()
+    {
+        return false;
+    }
+
+    /**
+     * Whether this user has registered this method, whether or not it can be asked of
+     * them right now.
+     *
+     * The same answer as isAvailableForUser() for every method but one, and that one is
+     * why this exists: a lone passkey is enrolled and not available, because there is
+     * nothing behind it to fall back on. A screen offering the user that fallback has to
+     * be able to see the credential that needs it - measuring enrollment with
+     * availability is what left such an account with no way out of the state it was in.
+     *
+     * @param $user \WP_User|int
+     * @return bool
+     */
+    public function isEnrolledForUser($user)
+    {
+        return $this->isAvailableForUser($user);
+    }
+
+    /**
      * The use_type recorded when the challenge was raised because the account is under
      * attack rather than because the method is switched on. Methods that need no
      * separate marker just reuse their own key.
@@ -123,6 +203,25 @@ abstract class BaseTwoFaMethod
     abstract public function verifyProof($user, $logHash, $request);
 
     /**
+     * The JSON a completed sign in answers with.
+     *
+     * Almost every method wants exactly one thing here - where to go next - and takes
+     * this as it stands. It exists for the one that has something to say before the
+     * browser leaves the page: enrollment finishes by handing over recovery codes, and
+     * those are shown once or never, so redirecting straight past them would lose the
+     * only copy the user will ever be offered.
+     *
+     * @param $response array
+     * @param $user \WP_User
+     * @param $logHash object
+     * @return array
+     */
+    public function getSuccessResponse($response, $user, $logHash)
+    {
+        return $response;
+    }
+
+    /**
      * Recorded on the auth log so an admin can see which factor was actually used.
      *
      * @return string
@@ -130,5 +229,17 @@ abstract class BaseTwoFaMethod
     public function getLoginMedia()
     {
         return 'two_factor_' . $this->getKey();
+    }
+
+    /**
+     * One sentence telling a user, from inside somebody else's login form, what has just
+     * happened and what they hold that answers it. The link to the form is added by the
+     * caller.
+     *
+     * @return string
+     */
+    public function getHandoffText()
+    {
+        return __('One more step is needed to finish signing in.', 'fluent-security');
     }
 }

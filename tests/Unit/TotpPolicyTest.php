@@ -3,7 +3,7 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Helper;
-use FluentAuth\App\Hooks\Handlers\TotpEnforcementHandler;
+use FluentAuth\App\Hooks\Handlers\TwoFaReminderHandler;
 use FluentAuth\App\Hooks\Handlers\TotpSetupPageHandler;
 use FluentAuth\App\Services\TwoFa\TotpProvider;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
@@ -91,11 +91,23 @@ class TotpPolicyTest extends BaseTestCase
      * allow list offers nothing to anybody - so it cannot be the one shape of that
      * mistake the policy waves through.
      */
-    public function testARoleCannotBeRequiredWhileNoRoleIsAllowed()
+    /**
+     * The old rule was that a role could not be required unless it was also allowed,
+     * because requiring something the setup screen refused to offer was a lockout. That
+     * is now handled the other way round: requiring a factor grants the methods that
+     * satisfy it, so the two lists can no longer disagree and the requirement is what it
+     * says it is.
+     */
+    public function testRequiringARoleAllowsItEvenWithAnEmptyAllowList()
     {
         $this->policy('yes', [], ['administrator']);
 
-        $this->assertFalse(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(
+            TotpTwoFaMethod::isAllowedForUser($this->admin),
+            'A policy that demands a factor has to offer the means to get one.'
+        );
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
     }
 
     /**
@@ -103,21 +115,44 @@ class TotpPolicyTest extends BaseTestCase
      * option write can still produce it - and demanding something the profile screen
      * refuses to offer is a locked out user, not a secured one.
      */
-    public function testARoleCannotBeRequiredWithoutBeingAllowed()
+    public function testARequiredRoleIsOfferedTheMethodEvenIfTheAllowListNamesOthers()
     {
         $this->policy('yes', ['editor'], ['administrator']);
 
-        $this->assertFalse(
-            TotpTwoFaMethod::isRequiredForUser($this->admin),
-            'A role that cannot set one up must never be told it has to.'
-        );
+        $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isAllowedForUser($this->admin));
     }
 
-    public function testTurningTheMethodOffCancelsTheRequirement()
+    /**
+     * The master switch governs the method for everybody, requirement included.
+     *
+     * A site with every method switched off has no second factor at all - so a
+     * requirement standing over it is not a hidden policy, it is nothing. This is the
+     * rule that keeps the settings screen honest: a method that reads off is off.
+     */
+    public function testTurningTheMethodOffCancelsTheRequirementItWasTheOnlyWayToMeet()
     {
         $this->policy('no', [], ['administrator']);
 
         $this->assertFalse(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->admin));
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
+    }
+
+    /**
+     * Switched on, though, and the requirement reaches past the allow list - otherwise
+     * the two could disagree, and the disagreement is a user who must hold a factor and
+     * has no way to get one.
+     */
+    public function testTheRequirementStillReachesPastTheAllowListWhileTheMethodIsOn()
+    {
+        $this->policy('yes', [], ['administrator']);
+
+        $this->assertTrue(TotpTwoFaMethod::isRequiredForUser($this->admin));
+        $this->assertTrue(TotpTwoFaMethod::isAllowedForUser($this->admin));
+
+        // ...and still off for everybody who was not required.
+        $this->assertFalse(TotpTwoFaMethod::isAllowedForUser($this->subscriber));
     }
 
     /**
@@ -149,131 +184,84 @@ class TotpPolicyTest extends BaseTestCase
     }
 
     /* ---------------------------------------------------------------------
-     * Enforcement
+     * The reminder
      * ------------------------------------------------------------------ */
 
-    public function testAnUnenrolledRequiredUserIsGated()
+    /**
+     * What used to be an enforcement gate here is a notice now, and the notice is the
+     * whole of what this plugin does to a session that predates the requirement. See
+     * TwoFaReminderHandler for what was removed and why: the gate redirected users out
+     * of every admin page and refused admin-ajax and REST wholesale, which broke
+     * ordinary site traffic for the sake of a window that closes at the next sign-in.
+     *
+     * The requirement itself is unchanged - it is applied during login, by
+     * EnrollmentTwoFaMethod, before a cookie exists.
+     */
+    public function testAnUnenrolledRequiredUserIsReminded()
     {
         $this->policy('yes', ['administrator'], ['administrator']);
         wp_set_current_user($this->admin->ID);
 
-        $this->assertTrue((new TotpEnforcementHandler())->needsEnrollment());
+        $this->assertTrue((new TwoFaReminderHandler())->owesDeviceFactor());
     }
 
-    public function testEnrollingClearsTheGate()
+    public function testEnrollingStopsTheReminder()
     {
         $this->policy('yes', ['administrator'], ['administrator']);
         wp_set_current_user($this->admin->ID);
 
         TotpTwoFaMethod::activate($this->admin, TotpProvider::generateSecret());
 
-        $this->assertFalse((new TotpEnforcementHandler())->needsEnrollment());
+        $this->assertFalse((new TwoFaReminderHandler())->owesDeviceFactor());
     }
 
-    public function testAUserWhoseRoleIsNotRequiredIsNeverGated()
+    public function testAUserWhoseRoleIsNotRequiredIsNeverReminded()
     {
         $this->policy('yes', ['administrator'], ['administrator']);
         wp_set_current_user($this->subscriber->ID);
 
-        $this->assertFalse((new TotpEnforcementHandler())->needsEnrollment());
+        $this->assertFalse((new TwoFaReminderHandler())->owesDeviceFactor());
     }
 
-    public function testLoggedOutRequestsAreNeverGated()
+    public function testLoggedOutRequestsAreNeverReminded()
     {
         $this->policy('yes', ['administrator'], ['administrator']);
         wp_set_current_user(0);
 
-        $this->assertFalse((new TotpEnforcementHandler())->needsEnrollment());
+        $this->assertFalse((new TwoFaReminderHandler())->owesDeviceFactor());
     }
 
     /**
-     * A redirect sent in reply to an ajax call breaks the caller instead of reaching
-     * anybody, so the gate has to stay out of the way of them.
+     * The notice points at the profile screen, which is where a passkey, an authenticator
+     * app and recovery codes all live on one card. Anybody reading an admin notice is
+     * already in wp-admin, so there is no reason to send them to the standalone page.
      */
-    public function testAjaxRequestsAreNotRedirected()
+    public function testTheNoticeSendsPeopleToTheirProfile()
     {
         $this->policy('yes', ['administrator'], ['administrator']);
         wp_set_current_user($this->admin->ID);
 
-        add_filter('wp_doing_ajax', '__return_true');
+        ob_start();
+        (new TwoFaReminderHandler())->renderNotice();
+        $html = ob_get_clean();
 
-        $this->assertFalse((new TotpEnforcementHandler())->needsEnrollment());
-
-        remove_filter('wp_doing_ajax', '__return_true');
+        $this->assertStringContainsString('profile.php', $html);
+        $this->assertStringContainsString('notice', $html);
     }
 
     /**
-     * The gate shuts the admin area, so it cannot send people into the admin area to
-     * get past it. On a site that keeps a role out of wp-admin altogether, a redirect
-     * to their profile is a redirect straight back out again with nothing set up.
+     * Nothing is drawn for somebody who owes nothing - a warning on every admin screen of
+     * a site that is already set up is just noise.
      */
-    public function testTheGateSendsPeopleToTheStandaloneSetupScreen()
+    public function testNothingIsDrawnForSomebodyWhoOwesNothing()
     {
         $this->policy('yes', ['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
+        wp_set_current_user($this->subscriber->ID);
 
-        $location = $this->captureRedirect(function () {
-            (new TotpEnforcementHandler())->maybeForceEnrollment();
-        });
+        ob_start();
+        (new TwoFaReminderHandler())->renderNotice();
 
-        $this->assertStringContainsString('wp-login.php', (string)parse_url($location, PHP_URL_PATH));
-        $this->assertStringNotContainsString('profile.php', $location);
-
-        parse_str((string)parse_url($location, PHP_URL_QUERY), $query);
-
-        $this->assertSame(TotpSetupPageHandler::LOGIN_ACTION, $query['action']);
-        $this->assertSame(
-            admin_url(),
-            urldecode($query['redirect_to']),
-            'They were trying to use the admin area, so that is where finishing should return them.'
-        );
+        $this->assertSame('', trim(ob_get_clean()));
     }
 
-    public function testSomebodyAlreadyEnrollingOnTheirProfileIsLeftThere()
-    {
-        global $pagenow;
-
-        $this->policy('yes', ['administrator'], ['administrator']);
-        wp_set_current_user($this->admin->ID);
-
-        $was = $pagenow;
-        $pagenow = 'profile.php';
-
-        $location = $this->captureRedirect(function () {
-            (new TotpEnforcementHandler())->maybeForceEnrollment();
-        });
-
-        $pagenow = $was;
-
-        $this->assertNull($location, 'Pulling somebody off the form mid-enrollment loses the pending secret.');
-    }
-
-    /**
-     * maybeForceEnrollment() ends in exit(), so the redirect is intercepted at the
-     * filter and unwound before it gets there.
-     *
-     * @param $callback callable
-     * @return string|null where it tried to send the user, or null if it did not
-     */
-    private function captureRedirect($callback)
-    {
-        $captured = null;
-
-        $catch = function ($location) use (&$captured) {
-            $captured = $location;
-            throw new \RuntimeException('redirected');
-        };
-
-        add_filter('wp_redirect', $catch);
-
-        try {
-            $callback();
-        } catch (\RuntimeException $e) {
-            // Expected: this is how the exit() below the redirect is escaped.
-        } finally {
-            remove_filter('wp_redirect', $catch);
-        }
-
-        return $captured;
-    }
 }

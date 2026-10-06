@@ -5,11 +5,21 @@ namespace FluentAuth\App\Hooks\Handlers;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\AuthService;
+use FluentAuth\App\Services\LoginAssets;
+use FluentAuth\App\Services\LoginBridge;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
+use FluentAuth\App\Services\SystemEmailService;
 
 class CustomAuthHandler
 {
-
-    protected $loaded = false;
+    /**
+     * The field types the signup form can render. A field of any other type given to
+     * `fluent_auth/registration_form_fields` is left out of the form.
+     *
+     * Public so a plugin adding fields can ask before it relies on one: releases before
+     * this constant existed render text, email and password only.
+     */
+    const SIGNUP_FIELD_TYPES = ['text', 'email', 'password', 'select'];
 
     public function register()
     {
@@ -37,16 +47,18 @@ class CustomAuthHandler
             return $redirect_to;
         }
 
-        // check if we have value from cookie _fls_redirect_to
-        if (isset($_COOKIE['_fls_redirect_to']) && filter_var($_COOKIE['_fls_redirect_to'], FILTER_VALIDATE_URL)) {
-            $redirect_to = sanitize_url($_COOKIE['_fls_redirect_to']);
-            $validatedRedirectUrl = Helper::getValidatedRedirectUrl($redirect_to, admin_url());
-            unset($_COOKIE['_fls_redirect_to']);
-            setcookie('_fls_redirect_to', '', time() - 3600, COOKIEPATH, COOKIE_DOMAIN);
-            if ($validatedRedirectUrl == $redirect_to) {
-                return $redirect_to;
-            }
+        /*
+         * Where a logged-out visitor was headed - see MagicLoginHandler::rememberRedirect().
+         * Anybody can put a link in front of them, so it only counts when it stays on a
+         * host this site trusts. Otherwise it is dropped and the usual rules decide.
+         */
+        if (!empty($_COOKIE['_fls_redirect_to']) && is_string($_COOKIE['_fls_redirect_to'])) {
+            $cookieRedirect = Helper::getValidatedRedirectUrl(sanitize_url(wp_unslash($_COOKIE['_fls_redirect_to'])), '');
+            self::forgetRedirect();
 
+            if ($cookieRedirect) {
+                return $cookieRedirect;
+            }
         }
 
         if (apply_filters('fluent_auth/respect_front_login_url', true) && strpos($redirect_to, '/wp-admin') === false) {
@@ -56,6 +68,29 @@ class CustomAuthHandler
         }
 
         return $redirect_to;
+    }
+
+    /**
+     * Drops the `_fls_redirect_to` cookie once it has been read.
+     *
+     * @return void
+     */
+    private static function forgetRedirect()
+    {
+        unset($_COOKIE['_fls_redirect_to']);
+
+        if (headers_sent()) {
+            return;
+        }
+
+        setcookie('_fls_redirect_to', '', [
+            'expires'  => time() - 3600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
     }
 
     public function alterLogoutRedirectUrl($redirect_to, $intentRedirectTo, $user)
@@ -207,6 +242,7 @@ class CustomAuthHandler
 
         $registrationForm .= '<input type="hidden" name="__redirect_to" value="' . esc_url($attributes['redirect_to']) . '">';
         $registrationForm .= '<input type="hidden" name="_fls_signup_nonce" value="' . wp_create_nonce('fluent_auth_signup_nonce') . '">';
+        $registrationForm .= LoginBridge::markerFields();
         $registrationForm .= '<button type="submit" id="fls_submit">' . $this->submitBtnLoadingSvg() . '<span>' . __('Signup', 'fluent-security') . '</span></button>';
 
         $registrationForm .= '</div></form>';
@@ -268,6 +304,7 @@ class CustomAuthHandler
 
         $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . esc_attr($attributes['redirect_to']) . '">';
         $resetPasswordForm .= '<input type="hidden" name="_fls_reset_pass_nonce" value="' . wp_create_nonce('fluent_auth_reset_pass_nonce') . '">';
+        $resetPasswordForm .= LoginBridge::markerFields();
         $resetPasswordForm .= '<button type="submit" id="fls_reset_pass">' . $this->submitBtnLoadingSvg() . '<span>' . __('Reset Password', 'fluent-security') . '</span></button>';
 
         $resetPasswordForm .= '</form>';
@@ -401,11 +438,42 @@ class CustomAuthHandler
             }
 
             $html .= '<div class="fs_input_wrap"><input ' . $atts . '/></div>';
+        } else if ($fieldType === 'select') {
+            $html .= '<div class="fs_input_wrap">' . $this->renderSelect($fieldName, $field) . '</div>';
         } else {
             return '';
         }
 
         return $html . '</div>';
+    }
+
+    /**
+     * A select takes `options` as value => label. The placeholder, if any, becomes an
+     * empty first option, so a required select cannot be submitted untouched.
+     *
+     * @param $fieldName string
+     * @param $field array
+     * @return string
+     */
+    private function renderSelect($fieldName, $field)
+    {
+        $atts = 'id="' . esc_attr(Arr::get($field, 'id')) . '" name="' . esc_attr($fieldName) . '"';
+
+        if (Arr::get($field, 'required')) {
+            $atts .= ' required';
+        }
+
+        $options = '';
+
+        if ($placeholder = Arr::get($field, 'placeholder')) {
+            $options .= '<option value="" disabled selected>' . esc_html($placeholder) . '</option>';
+        }
+
+        foreach ((array)Arr::get($field, 'options', []) as $value => $label) {
+            $options .= '<option value="' . esc_attr($value) . '">' . esc_html($label) . '</option>';
+        }
+
+        return '<select ' . $atts . '>' . $options . '</select>';
     }
 
     /**
@@ -557,31 +625,36 @@ class CustomAuthHandler
         }
     }
 
+    /**
+     * @param $hide string kept for the signature this is hooked with; the wrapper's
+     *                     hidden state is a class on the markup, not something the
+     *                     script has ever read.
+     * @return void
+     */
     public function loadAssets($hide = '')
     {
-        if ($this->loaded) {
-            return false;
-        }
-
-        wp_enqueue_script('fluent_auth_login_helper', FLUENT_AUTH_PLUGIN_URL . 'dist/public/login_helper.js', [], FLUENT_AUTH_VERSION);
-        wp_localize_script('fluent_auth_login_helper', 'fluentAuthPublic', [
-            'hide'              => $hide,
-            'redirect_fallback' => site_url(),
-            'fls_login_nonce'   => wp_create_nonce('fsecurity_login_nonce'),
-            'ajax_url'          => admin_url('admin-ajax.php'),
-            'i18n'              => [
-                'Username_or_Email' => __('Username or Email', 'fluent-security'),
-                'Password'          => __('Password', 'fluent-security')
-            ]
-        ]);
-
-        $this->loaded = true;
+        LoginAssets::enqueue();
     }
 
+    /**
+     * Whether the front end auth forms may render and their endpoints answer.
+     *
+     * Two ways to yes. The setting is the site's own - it governs whether an editor may
+     * put `[fluent_auth_login]` on a page. A claim from LoginBridge is a plugin saying
+     * this request belongs to an auth screen it has handed us, which is a different
+     * question and was never the setting's to answer: read as one, it left
+     * FluentCommunity's portal rendering a login form of its own while the rest of
+     * FluentAuth went on decorating and gating it.
+     *
+     * @return bool
+     */
     public function isEnabled()
     {
         $settings = Helper::getAuthFormsSettings();
-        return Arr::get($settings, 'enabled') === 'yes';
+
+        $enabled = Arr::get($settings, 'enabled') === 'yes' || LoginBridge::claimed();
+
+        return (bool)apply_filters('fluent_auth/auth_forms_enabled', $enabled);
     }
 
     /**
@@ -608,7 +681,7 @@ class CustomAuthHandler
         $caps = array_filter(array_keys(array_filter($caps)));
 
         foreach ($rules as $rule) {
-            $result = $this->isConditionsMatched($rule['conditions'], $user, $caps);
+            $result = $this->isConditionsMatched((array)Arr::get($rule, 'conditions', []), $user, $caps);
             if ($result && !empty($rule['login'])) {
                 return $rule['login'];
             }
@@ -640,7 +713,7 @@ class CustomAuthHandler
         $caps = array_filter(array_keys(array_filter($caps)));
 
         foreach ($rules as $rule) {
-            $result = $this->isConditionsMatched($rule['conditions'], $user, $caps);
+            $result = $this->isConditionsMatched((array)Arr::get($rule, 'conditions', []), $user, $caps);
             if ($result && !empty($rule['logout'])) {
                 return $rule['logout'];
             }
@@ -660,14 +733,19 @@ class CustomAuthHandler
         $isMatched = false;
 
         foreach ($conditions as $condition) {
-            if (!$condition['values']) {
+            // A condition with nothing picked is skipped rather than failing the rule -
+            // and rules saved before the screen always sent one have no `values` at all.
+            $values = (array)Arr::get($condition, 'values', []);
+
+            if (!$values) {
                 continue;
             }
-            $key = $condition['condition'];
+
+            $key = Arr::get($condition, 'condition');
             if ($key == 'user_role') {
-                $isMatched = (bool)array_intersect((array)$condition['values'], (array)$user->roles);
+                $isMatched = (bool)array_intersect($values, (array)$user->roles);
             } else if ($key == 'user_capability') {
-                $isMatched = (bool)array_intersect((array)$condition['values'], (array)$caps);
+                $isMatched = (bool)array_intersect($values, (array)$caps);
             }
 
             if (!$isMatched) {
@@ -712,7 +790,7 @@ class CustomAuthHandler
 
         if (empty($data['pwd']) || empty($data['log'])) {
             wp_send_json([
-                'message' => __('Email and Password is required', 'fluent-security')
+                'message' => __('Please enter your email address and password.', 'fluent-security')
             ], 422);
         }
 
@@ -734,7 +812,7 @@ class CustomAuthHandler
                 $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
             }
             wp_send_json([
-                'redirect' => $redirectUrl
+                'redirect' => Helper::getValidatedRedirectUrl($redirectUrl, admin_url())
             ], 200);
         }
 
@@ -747,12 +825,12 @@ class CustomAuthHandler
         }
 
         if (!$user) {
-            $user = new \WP_Error('authentication_failed', __('<strong>Error</strong>: Invalid username, email address or incorrect password.', 'fluent-security'));
+            $user = new \WP_Error('authentication_failed', __('<strong>Error</strong>: That username, email address or password is not correct.', 'fluent-security'));
 
             do_action('wp_login_failed', $email, $user);
 
             wp_send_json([
-                'message' => __('Email or Password is not valid. Please try again', 'fluent-security')
+                'message' => __('That email address and password do not match. Please try again.', 'fluent-security')
             ], 422);
         }
 
@@ -772,8 +850,13 @@ class CustomAuthHandler
             $filteredRedirectUrl = $redirectUrl;
         }
 
+        /*
+         * login_helper.js assigns this straight to window.location, so this is where
+         * wp-login.php would have called wp_safe_redirect(): any plugin may have had a say
+         * in the filters above.
+         */
         wp_send_json([
-            'redirect' => $filteredRedirectUrl
+            'redirect' => Helper::getValidatedRedirectUrl($filteredRedirectUrl, admin_url())
         ], 200);
     }
 
@@ -789,7 +872,7 @@ class CustomAuthHandler
 
         if (!wp_verify_nonce(Arr::get($_REQUEST, '_fls_signup_nonce'), 'fluent_auth_signup_nonce')) {
             wp_send_json([
-                'message' => __('Security verification failed. Please try again', 'fluent-security')
+                'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ], 422);
         }
 
@@ -813,7 +896,7 @@ class CustomAuthHandler
 
         if ($errors) {
             wp_send_json([
-                'message' => __('Form validation failed. Please provide the correct data', 'fluent-security'),
+                'message' => __('Some of the details are not right. Please check the form and try again.', 'fluent-security'),
                 'errors'  => $errors
             ], 422);
         }
@@ -873,6 +956,9 @@ class CustomAuthHandler
                         'message' => $isTokenValidated->get_error_message()
                     ], 422);
                 }
+
+                // The mailbox has just been proven; the sign in that follows may rely on it.
+                Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
             }
         }
 
@@ -895,16 +981,23 @@ class CustomAuthHandler
 
         $user = get_user_by('ID', $userId);
         $isAutoLogin = apply_filters('fluent_auth/auto_login_after_signup', true, $user);
-        $message = __('Registration has been completed. Please login now', 'fluent-security');
+        $message = __('Your account has been created. You can sign in now.', 'fluent-security');
 
         $redirectUrl = false;
         if ($isAutoLogin) {
-            $this->login($userId);
-            $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
-            $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
-            $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
-            $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
-            $message = __('Successfully registered to the site.', 'fluent-security');
+            $challengeUrl = $this->login($userId);
+
+            if ($challengeUrl) {
+                // Registered and signed in as far as the site allows - one step to go.
+                $redirectUrl = $challengeUrl;
+                $message = __('Please complete the second step to finish signing in.', 'fluent-security');
+            } else {
+                $redirectUrl = Arr::get($formData, 'redirect_to', admin_url());
+                $redirectUrl = Helper::getValidatedRedirectUrl($redirectUrl, admin_url());
+                $redirectUrl = apply_filters('login_redirect', $redirectUrl, false, $user);
+                $redirectUrl = apply_filters('fluent_auth/login_redirect_url', $redirectUrl, $user, $formData);
+                $message = __('Successfully registered to the site.', 'fluent-security');
+            }
         }
 
         $response = [
@@ -923,6 +1016,11 @@ class CustomAuthHandler
          */
         $response = apply_filters('fluent_auth/signup_complete_response', $response, $user);
 
+        // login_helper.js navigates to this by script; it is checked after the last filter.
+        if (!empty($response['redirect'])) {
+            $response['redirect'] = Helper::getValidatedRedirectUrl($response['redirect'], admin_url());
+        }
+
         wp_send_json($response, 200);
     }
 
@@ -939,7 +1037,7 @@ class CustomAuthHandler
         if (!wp_verify_nonce(Arr::get($_REQUEST, '_fls_reset_pass_nonce'), 'fluent_auth_reset_pass_nonce')) {
 
             wp_send_json([
-                'message' => __('Security verification failed. Please try again', 'fluent-security')
+                'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ], 422);
 
         }
@@ -1036,7 +1134,7 @@ class CustomAuthHandler
 
         /* translators: %s: User's first name */
         $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) . '</p>' .
-            '<p>' . __('Someone has requested a new password for the following account on WordPress:', 'fluent-security') . '</p>' .
+            '<p>' . __('Someone asked to reset the password for this account:', 'fluent-security') . '</p>' .
             /* translators: %s: User's Login */
             '<p>' . \sprintf(__('Username: %s', 'fluent-security'), $user_login) . '</p>' .
             \sprintf('<p>%s</p>', $resetLink) .
@@ -1064,7 +1162,7 @@ class CustomAuthHandler
             'to'      => $user_data->user_email,
             'subject' => $mailSubject,
             'message' => $message,
-            'headers' => array('Content-Type: text/html; charset=UTF-8')
+            'headers' => SystemEmailService::getEmailHeaders()
         );
 
         $notification_email = apply_filters('retrieve_password_notification_email', $defaults, $resetKey, $user_login, $user_data);
@@ -1099,6 +1197,15 @@ class CustomAuthHandler
                     $errors[$fieldName] = sprintf(__('Provided %s is not a valid email', 'fluent-security'), esc_html(strtolower($field['label'])));
                 }
             }
+
+            if ($field['type'] === 'select' && !empty($data[$fieldName])) {
+                $value = $data[$fieldName];
+                $options = (array)Arr::get($field, 'options', []);
+                if (!is_scalar($value) || !array_key_exists((string)$value, $options)) {
+                    /* translators: %s: Form Field Label */
+                    $errors[$fieldName] = sprintf(__('Please select a valid %s', 'fluent-security'), esc_html(strtolower($field['label'])));
+                }
+            }
         }
 
         if (isset($fields['password']) && apply_filters('fluent_auth/validate_password_length', true)) {
@@ -1111,6 +1218,10 @@ class CustomAuthHandler
         return $errors;
     }
 
+    /**
+     * @param $userId int
+     * @return string|false the URL of a second factor still owed, if there is one
+     */
     public function login($userId)
     {
         /*
@@ -1121,9 +1232,42 @@ class CustomAuthHandler
          */
         do_action('fluent_auth/before_logging_in_user', $userId);
 
+        /*
+         * A brand new account can still owe a factor - the site may require one of every
+         * account - and this path mints the cookie itself, so nothing on the
+         * `authenticate` chain will ask on its behalf. See
+         * TwoFaHandler::raiseChallengeForDirectLogin().
+         */
+        $user = get_user_by('ID', $userId);
+
+        if ($user) {
+            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+
+            if ($challengeUrl) {
+                return $challengeUrl;
+            }
+        }
+
+        /*
+         * Ours, and said so before the cookie exists. Without this the account the site
+         * just created reads in the log as an unexplained programmatic sign in by some
+         * other plugin - see LoginSecurityHandler::noteDirectLogin().
+         */
+        LoginSecurityHandler::noteOwnLogin($userId);
+
         wp_clear_auth_cookie();
         wp_set_current_user($userId);
         wp_set_auth_cookie($userId, true, is_ssl());
+
+        /*
+         * The same announcement AuthService::makeLogin() makes, and for the same reason:
+         * this is a completed sign in, and `wp_login` is how WordPress says so. Without
+         * it the account the site had just created appeared in nobody's audit log - the
+         * one hook that writes the success row never heard about it.
+         */
+        if ($user) {
+            do_action('wp_login', $user->user_login, $user);
+        }
 
         /*
          * Action after login
@@ -1132,13 +1276,50 @@ class CustomAuthHandler
          * @param integer $userId
          */
         do_action('fluent_auth/after_logging_in_user', $userId);
+
+        return false;
+    }
+
+    /**
+     * The address being viewed, with the host taken from the site rather than the request.
+     *
+     * @return string
+     */
+    protected static function currentUrl()
+    {
+        $host = wp_parse_url(home_url(), PHP_URL_HOST);
+
+        if (!$host) {
+            return home_url('/');
+        }
+
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+
+        if (strpos($uri, '/') !== 0) {
+            $uri = '/' . $uri;
+        }
+
+        return set_url_scheme('http://' . $host . $uri);
     }
 
     protected function nativeLoginForm($args = array())
     {
         $defaults = array(
             'echo'           => true,
-            'redirect'       => (is_ssl() ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'],
+            /*
+             * The host comes from the site's own address, not from the Host header, which
+             * is the client's to set. Core's wp_login_form() reads HTTP_HOST here; on a
+             * site that does not pin the header at the web server that puts whatever was
+             * sent into the form's redirect_to. wp_safe_redirect() refuses it later, so
+             * the visitor lands somewhere harmless either way - but the form should not be
+             * quoting a stranger's hostname back at them in the first place.
+             *
+             * Assembled rather than passed to home_url(), which would prepend the path of
+             * an install in a subdirectory to a REQUEST_URI that already carries it.
+             */
+            'redirect'       => self::currentUrl(),
             'form_id'        => 'loginform',
             'label_username' => __('Username or Email Address', 'fluent-security'),
             'label_password' => __('Password', 'fluent-security'),
@@ -1155,7 +1336,7 @@ class CustomAuthHandler
 
         $args = wp_parse_args($args, apply_filters('login_form_defaults', $defaults));
 
-        $login_form_top = apply_filters('login_form_top', '', $args);
+        $login_form_top = apply_filters('login_form_top', '', $args) . LoginBridge::markerFields();
 
         $login_form_middle = apply_filters('login_form_middle', '', $args);
 
@@ -1266,11 +1447,11 @@ class CustomAuthHandler
 
         /* translators: %s: First Name */
         $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), Arr::get($formData, 'first_name')) . '</p>' .
-            $pStart . __('Thank you for registering with us! To complete the setup of your account, please enter the verification code below on the registration page.', 'fluent-security') . '</p>' .
+            $pStart . __('Thanks for signing up. Enter the code below on the registration page to finish setting up your account.', 'fluent-security') . '</p>' .
             /* translators: %s: Verification code */
             $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
             '<br />' .
-            $pStart . __('This code is valid for 10 minutes and is meant to ensure the security of your account. If you did not initiate this request, please ignore this email.', 'fluent-security') . '</p>';
+            $pStart . __('The code works for 10 minutes. If you did not ask for it, you can ignore this email.', 'fluent-security') . '</p>';
 
         $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData);
 
@@ -1281,7 +1462,7 @@ class CustomAuthHandler
         ];
 
         $message = Helper::loadView('notification', $data);
-        $headers = array('Content-Type: text/html; charset=UTF-8');
+        $headers = SystemEmailService::getEmailHeaders();
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
 

@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\SmartCodeParser;
 use FluentAuth\App\Services\SystemEmailService;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
@@ -24,17 +25,7 @@ class MagicLoginHandler
                 $this->makeLogin($hash);
             }
 
-            if (isset($_GET['redirect_to']) && !wp_doing_ajax()) {
-                if (get_current_user_id()) {
-                    return;
-                }
-
-                $redirectTo = esc_url_raw($_REQUEST['redirect_to']);
-                if (filter_var($redirectTo, FILTER_VALIDATE_URL)) {
-                    // set cookie to redirect after login
-                    setcookie('_fls_redirect_to', $redirectTo, time() + 600, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
-                }
-            }
+            $this->rememberRedirect();
         }, 1);
 
         add_filter('login_form_bottom', [$this, 'maybeMagicFormOnLoginFunc']);
@@ -149,15 +140,13 @@ class MagicLoginHandler
             return;
         }
 
-        wp_enqueue_script('fls_magic_url', FLUENT_AUTH_PLUGIN_URL . 'dist/public/fls_login.js', [], FLUENT_AUTH_VERSION, true);
-
-        wp_localize_script('fls_magic_url', 'fls_magic_login_vars', [
-            'ajaxurl'      => admin_url('admin-ajax.php'),
-            'success_icon' => FLUENT_AUTH_PLUGIN_URL . 'dist/images/success.png',
-            'empty_text'   => __('Please provide username / email to get magic login link', 'fluent-security'),
-            'wait_text'    => __('Please Wait...', 'fluent-security'),
-            'is_primary'   => Helper::getSetting('magic_link_primary') === 'yes'
-        ]);
+        /*
+         * The magic form's behaviour moved into login_helper.js, so that it and the
+         * passkey button - which both move themselves into the login form - run in a
+         * known order rather than in whichever order the browser parsed two files.
+         * LoginAssets carries the settings this used to localise of its own.
+         */
+        LoginAssets::enqueue();
 
         $this->assetLoaded = true;
     }
@@ -171,12 +160,27 @@ class MagicLoginHandler
     {
         if (!$this->isEnabled()) {
             wp_send_json([
-                'message' => __('Login via URL is not activated', 'fluent-security')
+                'message' => __('Sign-in links are switched off on this site.', 'fluent-security')
             ], 422);
         }
 
-        $loginLimit = Helper::getSetting('login_try_limit', 5);
-        $timingMinutes = Helper::getSetting('login_try_timing', 30);
+        /*
+         * Zero means the site turned the login attempt limit off, not that no link may ever
+         * be sent. Read literally - which is what `>= $loginLimit` did with a zero - it
+         * refused every request on such a site, so magic login simply stopped working the
+         * moment somebody relaxed an unrelated setting.
+         *
+         * A bound of this endpoint's own stands in, because the thing being limited here is
+         * not guessing: every request that gets through sends an email to somebody else's
+         * address, and that has to have a ceiling whatever the attempt limit says.
+         */
+        $loginLimit = (int)Helper::getSetting('login_try_limit', 5);
+        $timingMinutes = (int)Helper::getSetting('login_try_timing', 30);
+
+        if ($loginLimit < 1 || $timingMinutes < 1) {
+            $loginLimit = (int)apply_filters('fluent_auth/magic_login_floor_limit', 10);
+            $timingMinutes = (int)apply_filters('fluent_auth/magic_login_floor_timing', 30);
+        }
 
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $timingMinutes * 60);
 
@@ -191,7 +195,7 @@ class MagicLoginHandler
         if ($existingCount >= $loginLimit) {
             wp_send_json([
                 /* translators: %d: Minite  */
-                'message' => sprintf(__('You are trying too much. Please try after %d minutes', 'fluent-security'), $timingMinutes)
+                'message' => sprintf(__('Too many tries. Please wait %d minutes and try again.', 'fluent-security'), $timingMinutes)
             ], 422);
         }
 
@@ -201,7 +205,7 @@ class MagicLoginHandler
         // Verify the nonce now
         if (!wp_verify_nonce($nonce, 'fls_magic_logon_nonce')) {
             wp_send_json(array(
-                'message' => __('Nonce Verification failed. Please try again', 'fluent-security')
+                'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ), 422);
         }
 
@@ -218,16 +222,37 @@ class MagicLoginHandler
         $canUseMagicLogin = apply_filters('fluent_auth/magic_login_can_use', $this->canUseMagic($user), $user);
 
         if (!$canUseMagicLogin) {
+            /*
+             * An account that exists and an account that does not have to answer the same,
+             * or this form is a way to ask the site whether a given address has an account -
+             * which is the question the login form was hardened against answering, a few
+             * files away, by replacing core's "invalid username" with a message that does
+             * not say which half was wrong.
+             *
+             * It was also the cheaper question to ask. The allowance counted above is
+             * measured in rows, and a row is only written once a user has been found, so
+             * probing for addresses that do not exist cost nothing and was unlimited. The
+             * attempt is recorded first, so a probe is spent from the same budget as a real
+             * request.
+             *
+             * A site that would rather say no out loud can still do it through the filter;
+             * what changed is the default, and that it no longer says no by accident.
+             */
+            $this->recordMagicProbe();
 
-            $error_message = apply_filters(
-                'fluent_auth/magic_login_error_message',
-                __('Sorry, You can not login via magic url. Please use regular login form', 'fluent-security'),
-                $user
-            );
+            if ($user) {
+                $error_message = apply_filters(
+                    'fluent_auth/magic_login_error_message',
+                    __('Your account cannot use sign-in links. Please use the normal login form.', 'fluent-security'),
+                    $user
+                );
 
-            wp_send_json(array(
-                'message' => $error_message
-            ), 422);
+                wp_send_json(array(
+                    'message' => $error_message
+                ), 422);
+            }
+
+            wp_send_json($this->sentConfirmation($username), 200);
         }
 
         // Now we have a valid user and let's send the email
@@ -235,8 +260,12 @@ class MagicLoginHandler
 
         if (!empty($_REQUEST['redirect_to']) && filter_var($_REQUEST['redirect_to'], FILTER_VALIDATE_URL)) {
             $redirect_to = sanitize_url($_REQUEST['redirect_to']);
+        } else if (!empty($_COOKIE['_fls_redirect_to']) && is_string($_COOKIE['_fls_redirect_to'])) {
+            // Remembered by rememberRedirect(). Stored so it travels with the link to whichever device opens it.
+            $redirect_to = sanitize_url(wp_unslash($_COOKIE['_fls_redirect_to']));
         } else {
-            $redirect_to = $this->getLoginRedirect($user);
+            // Nothing asked for; login_redirect decides when the link is redeemed.
+            $redirect_to = '';
         }
 
         $loginUrl = esc_url($this->getMagicLoginUrl($user, $validity, false, $redirect_to));
@@ -290,21 +319,74 @@ class MagicLoginHandler
             $emailData['body'] = $emailBody;
         }
 
-        $result = \wp_mail($user->user_email, $emailData['subject'], $emailData['body'], array(
-            'Content-Type: text/html; charset=UTF-8'
-        ));
+        $result = \wp_mail(
+            $user->user_email,
+            $emailData['subject'],
+            $emailData['body'],
+            SystemEmailService::getEmailHeaders()
+        );
 
+        $confirmation = $this->sentConfirmation($username);
+        $confirmation['result'] = $result;
+
+        wp_send_json($confirmation, 200);
+    }
+
+    /**
+     * What this form says once it has finished, whoever was typed into it.
+     *
+     * The address is echoed back as it was typed rather than read off the account. In the
+     * ordinary case they are the same string; where they are not - somebody whose username
+     * happens to look like an email address, signing in with it - reading it off the account
+     * would print an address the person at the keyboard had not supplied.
+     *
+     * @param string $username whatever was typed
+     * @return array
+     */
+    private function sentConfirmation($username)
+    {
         $message = __('We just emailed a login link to your registered email. Click the link to sign in.', 'fluent-security');
+
         if (is_email($username)) {
             /* translators: %s: User Email  */
-            $message = sprintf(__('We just emailed a magic link to %s. Click the link to sign in.', 'fluent-security'), $user->user_email);
+            $message = sprintf(__('We just emailed a magic link to %s. Click the link to sign in.', 'fluent-security'), $username);
         }
 
-        wp_send_json([
+        return [
             'heading' => __('Check your inbox', 'fluent-security'),
-            'result'  => $result,
+            'result'  => true,
             'message' => $message
-        ], 200);
+        ];
+    }
+
+    /**
+     * Spend one from the address's allowance without sending anything.
+     *
+     * The allowance is counted in rows of this table, so a request that never reaches the
+     * point of writing one is a request that never counted. This writes the row that a
+     * refused attempt would otherwise not leave behind.
+     *
+     * Deliberately not redeemable: no user, a status nothing looks for, and a validity that
+     * has already passed. It exists to be counted.
+     *
+     * @return void
+     */
+    private function recordMagicProbe()
+    {
+        $now = date('Y-m-d H:i:s', current_time('timestamp'));
+
+        flsDb()->table('fls_login_hashes')->insert([
+            'login_hash'  => 'probe-' . wp_generate_password(32, false),
+            'user_id'     => 0,
+            'use_limit'   => 0,
+            'used_count'  => 0,
+            'status'      => 'probe',
+            'use_type'    => 'magic_login',
+            'ip_address'  => Helper::getIp(),
+            'valid_till'  => $now,
+            'created_at'  => $now,
+            'updated_at'  => $now
+        ]);
     }
 
     private function getCustomizedEmailSubjectBody($user, $autoLoginUrl = '')
@@ -341,15 +423,48 @@ class MagicLoginHandler
     }
 
 
+    /**
+     * Keeps a logged-out visitor's `?redirect_to=` for ten minutes, so whichever way
+     * they sign in - see CustomAuthHandler::alterLoginRedirectUrl() - they land there.
+     *
+     * Only a destination on a host this site trusts is kept: anybody can send a link.
+     *
+     * @return void
+     */
+    public function rememberRedirect()
+    {
+        if (!isset($_GET['redirect_to']) || !is_string($_GET['redirect_to']) || wp_doing_ajax() || get_current_user_id()) {
+            return;
+        }
+
+        $redirectTo = Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($_GET['redirect_to'])), '');
+
+        if (!$redirectTo || headers_sent()) {
+            return;
+        }
+
+        setcookie('_fls_redirect_to', $redirectTo, [
+            'expires'  => time() + 600,
+            'path'     => COOKIEPATH,
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    }
+
     private function getMagicLoginUrl($user, $validity = 5, $baseUrl = false, $redirectIntend = '')
     {
         if (!$baseUrl) {
-            $baseUrl = site_url('index.php');
+            $baseUrl = site_url('/');
         }
 
-        if (!$redirectIntend && isset($_GET['redirect_to'])) {
-            $redirectIntend = esc_url($_GET['redirect_to']);
+        if (!$redirectIntend && isset($_GET['redirect_to']) && is_string($_GET['redirect_to'])) {
+            $redirectIntend = esc_url_raw(wp_unslash($_GET['redirect_to']));
         }
+
+        // Stored now and followed later, so it has to be somewhere this site trusts.
+        $redirectIntend = $redirectIntend ? Helper::getValidatedRedirectUrl($redirectIntend, '') : '';
 
         $args = [
             'fls_al'         => $this->generateHash($user, $validity, $redirectIntend),
@@ -365,7 +480,16 @@ class MagicLoginHandler
             return false;
         }
 
-        $string = md5($user->ID . '-' . wp_generate_uuid4() . mt_rand(1, 99999999));
+        /*
+         * Straight from the CSPRNG rather than md5 over a uuid and mt_rand().
+         *
+         * On a current WordPress the old line was fine - wp_generate_uuid4() routes through
+         * random_int() there - but this plugin supports back to 5.0, where it was plain
+         * mt_rand(), and mt_rand() supplied the rest of the input too. That makes the
+         * strength of a sign-in token depend on which WordPress the site happens to run,
+         * which is not a thing anybody should have to know to answer "is this safe".
+         */
+        $string = bin2hex(random_bytes(32));
         $hash = wp_hash_password($string);
 
         $data = array(
@@ -451,6 +575,35 @@ class MagicLoginHandler
             return false;
         }
 
+        /*
+         * Claimed before it is used, not after.
+         *
+         * The row was read as `issued` here and only written back as `used` once the sign-in
+         * had finished, which leaves a window: two requests carrying the same link both read
+         * it as unspent and both go on to sign in. "Can only be used once" is what the email
+         * promises and what the row's status is for, so the claim has to be the thing that
+         * decides, and it has to be one statement.
+         *
+         * Written through $wpdb rather than the query builder because this needs the number
+         * of rows the UPDATE actually matched, and the builder's update() returns nothing.
+         * Nobody wins the race twice: whoever matched the row proceeds, everyone else is
+         * told the link is spent.
+         */
+        global $wpdb;
+
+        $claimed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET status = 'used', success_ip_address = %s, updated_at = %s
+             WHERE id = %d AND status = 'issued'",
+            Helper::getIp(),
+            current_time('mysql'),
+            $row->id
+        ));
+
+        if (!$claimed) {
+            return false;
+        }
+
         Helper::setLoginMedia('magic_login');
 
         // The link came from their inbox, so the attempt limit must not block it.
@@ -465,13 +618,30 @@ class MagicLoginHandler
          */
         Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
 
+        /*
+         * Wordfence Login Security asks for a reCAPTCHA token on every sign-in that passes
+         * through `authenticate`, and a link opened from an inbox never loaded the page that
+         * would have produced one. Waived for this one call only, after the link has been
+         * claimed: keyed on the request instead, `?fls_al=anything` on wp-login.php would
+         * turn the CAPTCHA off for ordinary password guessing.
+         */
+        $noCaptcha = function () {
+            return false;
+        };
+
+        add_filter('wordfence_ls_require_captcha', $noCaptcha);
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
-        $user = wp_signon(array(
-                'user_login'    => $user->user_login,
-                'user_password' => ''
-            )
-        );
-        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
+
+        try {
+            $user = wp_signon(array(
+                    'user_login'    => $user->user_login,
+                    'user_password' => ''
+                )
+            );
+        } finally {
+            remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
+            remove_filter('wordfence_ls_require_captcha', $noCaptcha);
+        }
 
         Helper::setTokenVerifiedLogin(false);
 
@@ -494,10 +664,13 @@ class MagicLoginHandler
                 if (!wp_doing_ajax()) {
                     if (isset($_GET['force_redirect']) && $_GET['force_redirect'] == 'yes') {
                         if ($row->redirect_intend) {
-                            wp_safe_redirect($row->redirect_intend);
+                            // The same filter a password sign-in gets, applied to where they asked to go.
+                            $redirectTo = apply_filters('login_redirect', $row->redirect_intend, $row->redirect_intend, $user);
                         } else {
-                            wp_safe_redirect($this->getLoginRedirect($user));
+                            $redirectTo = $this->getLoginRedirect($user);
                         }
+
+                        wp_safe_redirect($redirectTo);
                         exit();
                     }
                 }
@@ -521,7 +694,7 @@ class MagicLoginHandler
 
     private function getLoginRedirect($user)
     {
-        $requested_redirect_to = isset($_REQUEST['redirect_to']) ? esc_url($_REQUEST['redirect_to']) : site_url();
+        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : site_url();
         return apply_filters('login_redirect', $requested_redirect_to, $requested_redirect_to, $user);
     }
 

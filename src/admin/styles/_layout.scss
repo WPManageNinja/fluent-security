@@ -1,107 +1,59 @@
 /*
- * The application shell: top bar, settings sidebar, settings header and form rows.
+ * The application shell: the bar across the top, and the page under it.
  *
- * Structure and measurements follow FluentCart so the two plugins feel like one
- * product. The positioning is not copied literally - FluentCart pins its sidebar to a
- * fixed offset that matches its own header - this uses a flex row and a sticky column,
- * which survives the plugin being rendered inside whatever wp-admin gives it.
- */
-
-/* --------------------------------------------------------------- wp-admin fit */
-
-/*
- * wp-admin reserves a 65px strip under the content for its footer. That strip is where
- * a pinned sidebar comes unstuck: the column it sits in ends 65px before the document
- * does, so at the very bottom of a long page the sidebar slides up by exactly that
- * much. FluentCart never sees this because it covers the footer with a full-screen
- * pane; reclaiming the strip gets the same result without taking over the screen.
+ * Measurements follow FluentCart so the two plugins feel like one product. The positioning
+ * is not copied literally - FluentCart pins its chrome to a fixed offset that matches its
+ * own header - this uses flow and sticky columns, which survive the plugin being rendered
+ * inside whatever wp-admin gives it.
  *
- * Deliberately unscoped - it has to reach wp-admin's own elements - but narrowed to
- * this plugin's screen by the body class WordPress puts there.
+ * The settings screen is a shell of its own and lives in _settings.scss.
  */
-body.toplevel_page_fluent-auth {
-    /*
-     * FluentCart's page background, copied from its `--body-bg` rather than approximated
-     * - wp-admin's own grey is #f0f0f1, a warmer and flatter one, and the difference is
-     * plain when the two plugins sit next to each other in the same menu. Scoped to this
-     * screen so no other plugin's pages change colour.
-     */
-    background-color: var(--fls-body-bg);
-
-    #wpbody-content {
-        padding-bottom: 0;
-    }
-
-    #wpfooter {
-        display: none;
-    }
-}
-
-/* ---------------------------------------------------------------- box model */
-
-/*
- * Tailwind's preflight normally sets this, but preflight is off here because it would
- * restyle the whole of wp-admin. Without it these elements inherit wp-admin's
- * content-box, which makes every `min-h-*` and `h-*` utility add its padding on top of
- * the height instead of inside it - a 36px nav link with 8px padding rendered at 52px.
- * Scoped to the app root, so nothing outside it changes.
- */
-#fluent_auth_app {
-    /* How wide the settings column is allowed to get, cards and header alike. */
-    --fls-content-width: 1040px;
-
-    &,
-    *,
-    *::before,
-    *::after {
-        box-sizing: border-box;
-    }
-}
-
-/* ------------------------------------------------------------------- focus */
-
-/*
- * wp-admin draws a blue ring on any focused link, which on a nav is left behind after
- * every click and reads as a second selection. Keyboard users still need it, so it is
- * moved to :focus-visible and recoloured, rather than removed.
- */
-#fluent_auth_app {
-    .fls_app_bar a,
-    .fls_settings_nav a {
-        &:focus {
-            box-shadow: none;
-            outline: none;
-        }
-
-        &:focus-visible {
-            outline: 2px solid var(--fls-accent);
-            outline-offset: -1px;
-        }
-    }
-}
 
 /* ------------------------------------------------------------------ app bar */
 
 /*
- * The bar is out of flow, so the page below it needs the space kept clear by hand.
- * Settings does not use it - its pane is pinned too - but every other screen flows here.
+ * The bar is out of flow, so the page below it needs the space kept clear by hand. A
+ * destination with sections is two bars deep rather than one, and anything that has to sit
+ * clear of the chrome - the padding here, every sticky column below - measures itself off
+ * these two names instead of counting the bars itself.
+ *
+ * `--fls-chrome` is how tall the pinned chrome is; `--fls-chrome-bottom` is how far its
+ * underside is from the top of the viewport, which is that plus wp-admin's own bar.
+ *
+ * Settings does not use the padding - its pane is pinned too - but every other screen
+ * flows here.
  */
 .fframe_app {
-    padding-top: 56px;
+    --fls-chrome: 56px;
+    --fls-chrome-bottom: calc(32px + var(--fls-chrome));
+
+    padding-top: var(--fls-chrome);
+
+    &.has-subnav {
+        --fls-chrome: 104px;
+    }
 }
 
+/*
+ * Logo at one end, the actions at the other, the menu between them - FluentCart's own
+ * arrangement, and the reason its menu reads as centred without being centred: three items
+ * spread across the bar put the middle one near the middle. Centring it outright would
+ * instead make it move whenever a screen adds a button to the right-hand end.
+ *
+ * 30px either side is the page gutter below, so the wordmark starts where the page does.
+ */
 .fls_app_bar {
-    @apply flex items-center gap-6 bg-surface px-6 border-0 border-b border-solid border-hairline;
+    @apply flex items-center justify-between gap-6 px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 56px;
 
     /*
      * Pinned rather than sticky. The settings pane below is pinned as well, which leaves
      * this bar's container only as tall as the bar itself - and a sticky element whose
-     * container is its own height has no range to stick over, so it would scroll away
-     * the moment wp-admin's menu made the page scroll. `--fls-shell-left` is the width
-     * of that menu, measured at runtime (see App.vue) rather than hard-coded, so folding
-     * the menu or dropping to a narrow screen moves the bar with it.
+     * container is its own height has no range to stick over, so it would scroll away the
+     * moment wp-admin's menu made the page scroll. `--fls-shell-left` is the width of that
+     * menu, measured at runtime (see App.vue) rather than hard-coded, so folding the menu
+     * or dropping to a narrow screen moves the bar with it.
      */
     position: fixed;
     top: 32px;
@@ -134,7 +86,7 @@ body.toplevel_page_fluent-auth {
     }
 
     .fls_app_nav {
-        @apply flex items-center gap-1 m-0 p-0 list-none flex-1;
+        @apply flex items-center gap-1 m-0 p-0 list-none;
 
         li {
             @apply m-0;
@@ -161,6 +113,80 @@ body.toplevel_page_fluent-auth {
 
     .fls_app_bar_toggle {
         display: none;
+    }
+}
+
+/* -------------------------------------------------------------- section bar */
+
+/*
+ * The sections of one destination, in a bar of their own under the app bar.
+ *
+ * Underlines rather than pills or a segmented control: these are views of one subject, not
+ * settings, so the section that is on should read as the page you are on rather than as a
+ * choice you have made. It is chrome, so it is pinned with the bar above it rather than
+ * scrolling away with the page it labels - and for the same reason it repeats that bar's
+ * left offset and its hairline.
+ */
+.fls_sub_bar {
+    @apply flex items-stretch px-7.5 bg-surface border-0 border-b border-solid border-hairline;
+
+    height: 48px;
+    position: fixed;
+    top: 88px;
+    left: var(--fls-shell-left, 160px);
+    right: 0;
+    /* Under the bar above it, so a menu opened up there is not cut off by this one. */
+    z-index: 1999;
+    overflow-x: auto;
+
+    .fls_sub_nav {
+        @apply flex items-stretch m-0 p-0 list-none;
+
+        gap: 28px;
+
+        li {
+            @apply flex m-0;
+        }
+
+        a {
+            @apply flex items-center text-sm font-medium no-underline text-ink-mid whitespace-nowrap;
+
+            gap: 6px;
+            /* Over the bar's own rule, so the live section joins the two. */
+            margin-bottom: -1px;
+            border-bottom: 2px solid transparent;
+            transition: color .15s ease, border-color .15s ease;
+
+            &:hover {
+                @apply text-ink;
+            }
+
+            &:focus {
+                box-shadow: none;
+                outline: none;
+            }
+
+            &:focus-visible {
+                outline: 2px solid var(--fls-accent);
+                outline-offset: -4px;
+            }
+
+            &.is_active {
+                color: var(--fls-heading);
+                border-bottom-color: var(--fls-accent);
+            }
+        }
+    }
+
+    .fls_sub_nav_count {
+        @apply inline-flex items-center justify-center rounded-full text-xs font-medium;
+
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        line-height: 18px;
+        background: var(--fls-danger-bg);
+        color: var(--fls-danger-fg);
     }
 }
 
@@ -228,13 +254,12 @@ body.toplevel_page_fluent-auth {
 
 /*
  * The layout the dashboard and the security scans screen share: what is happening on the
- * left, what is configured on the right. It lives here rather than with either of them
- * because it belongs to neither.
+ * left, what is configured on the right.
  *
  * The measurements are FluentCart's own, read off its rendered dashboard: a 1350px column
- * centred in the page, split into a fluid main column and a 380px aside with a 24px
- * gutter. 28px lands the first row of content the same distance below the app bar as
- * FluentCart's lands below its own header, and 30px either side is its page gutter.
+ * centred in the page, split into a fluid main column and a 380px aside with a 24px gutter.
+ * 28px lands the first row of content the same distance below the app bar as FluentCart's
+ * lands below its own header, and 30px either side is its page gutter.
  */
 .fls_page {
     padding: 28px 30px;
@@ -256,28 +281,34 @@ body.toplevel_page_fluent-auth {
 }
 
 /*
- * FluentCart's aside is a full-height scrolling column of its own. Here the page scrolls
- * as one - the app bar is the only pinned thing on these screens - so the aside sticks
- * below that bar instead and scrolls internally only if it is taller than what is left of
- * the viewport. 88px is the admin bar plus the app bar; 116px is that plus the bottom gap.
+ * FluentCart's aside is a full-height scrolling column of its own. Here the page scrolls as
+ * one - the bars are the only pinned things on these screens - and so does the aside.
+ *
+ * It used to stick below the bars and scroll inside itself once it outgrew the viewport,
+ * which is a scrollbar within a scrollbar: the wheel stops working where the pointer happens
+ * to be, and the part left below the fold is reachable only by finding and dragging a second
+ * bar. On the Monitoring screen it outgrows the viewport in the ordinary case rather than the
+ * extreme one - the snapshot panel alone takes it past a 900px window - so it was the normal
+ * state and not an edge. Pinning it without the inner scroll is not the alternative: an
+ * element taller than the viewport pins at the top and its bottom becomes unreachable
+ * altogether.
+ *
+ * `align-self: start` is what keeps it from being stretched to the main column's height by
+ * the grid, which is the whole reason it needed a height of its own before.
  */
 .fls_page_aside {
     @apply bg-surface rounded;
 
     grid-area: aside;
+    align-self: start;
     min-width: 0;
     padding: 20px;
-    position: sticky;
-    top: 88px;
-    max-height: calc(100vh - 116px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
 }
 
 /*
  * What the screen is, and what you can do to it. Used by the auth log, the security scans
- * screen and anything else that owns its page rather than sitting inside the settings
- * shell - which draws its own header bar instead.
+ * screen and anything else that owns its page rather than sitting inside the settings shell
+ * - which draws its own header bar instead.
  */
 .fls_page_head {
     @apply flex flex-wrap items-center justify-between;
@@ -344,621 +375,64 @@ body.toplevel_page_fluent-auth {
 
         margin: 0 0 12px;
         line-height: 1.6;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
     }
 
-    > p:last-child {
-        margin-bottom: 0;
+    /*
+     * A paragraph that follows something needs room above it.
+     *
+     * The zero top margin above is for the usual case, a paragraph directly under the heading,
+     * which is already spaced by the heading's own margin. A sentence explaining the block sits
+     * after the facts list instead, and with no margin of its own it ran straight on from the
+     * last row at the list's 10px rhythm - reading as one more fact rather than as prose about
+     * all of them.
+     *
+     * The heading is excluded rather than the list named, so this holds for whatever a block
+     * puts a paragraph after.
+     */
+    > :not(h3) + p {
+        margin-top: 14px;
     }
 }
 
+/* ------------------------------------------------------------- narrow screens */
+
 /*
- * The aside is a column beside the content, not a panel that belongs anywhere in
- * particular, so below the width where two columns fit it goes back to being a block at
- * the end of the page rather than trying to stay stuck to anything.
+ * A page whose aside is not rendered should not keep its column.
+ *
+ * The grid reserves the aside track whether or not anything fills it, so a screen that drops
+ * the aside for one of its states - the scans screen before a site has chosen how to scan -
+ * left its content sitting in the left two thirds with the reserved column empty beside it.
+ * Centred within its own column and visibly off-centre on the page, which is the kind of
+ * wrong that is easier to see than to name.
+ *
+ * Written as a condition on the grid rather than a class the screen remembers to pass, so it
+ * holds for whatever renders its aside conditionally next. Where :has() is not supported this
+ * simply does not apply and the layout is what it was before.
+ */
+.fls_page_inner:not(:has(> .fls_page_aside)) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main";
+}
+
+/*
+ * The aside is a column beside the content, not a panel that belongs anywhere in particular,
+ * so below the width where two columns fit it becomes a block at the end of the page. It
+ * needs nothing else said about it here: it scrolls with the page at every width.
  */
 @media (max-width: 1180px) {
     .fls_page_inner {
         grid-template-columns: minmax(0, 1fr);
         grid-template-areas: "main" "aside";
     }
-
-    .fls_page_aside {
-        position: static;
-        max-height: none;
-        overflow: visible;
-    }
-}
-
-@media (max-width: 782px) {
-    .fls_page {
-        padding: 20px 12px;
-    }
-}
-
-/* ------------------------------------------------------- settings shell */
-
-/*
- * The settings screen is a pinned pane rather than part of the page, so the sidebar and
- * the header stay where they are and only the settings themselves move. The page is
- * deliberately still scrollable: wp-admin's own menu is often taller than the viewport,
- * and locking the body would put the bottom of it out of reach. Taking this pane out of
- * flow means the page scrolls over exactly that much and no more.
- */
-.fls_settings {
-    @apply flex items-stretch;
-
-    position: fixed;
-    top: 88px;
-    left: var(--fls-shell-left, 160px);
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
-    z-index: 20;
-}
-
-.fls_settings_nav {
-    @apply bg-surface flex-shrink-0 flex flex-col border-0 border-r border-solid border-hairline;
-
-    width: 260px;
-    height: 100%;
-
-    .fls_settings_nav_title {
-        @apply flex items-center gap-2 flex-shrink-0 text-base font-medium text-ink px-5 border-0 border-b border-solid border-hairline;
-
-        min-height: 52px;
-        margin: 0;
-    }
-
-    > ul {
-        @apply list-none m-0 p-4 flex-1;
-
-        overflow-y: auto;
-        overscroll-behavior: contain;
-
-        /* Out of the way until the pointer is over the list, so it reads as one panel. */
-        &::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        &::-webkit-scrollbar-thumb {
-            @apply bg-transparent rounded;
-        }
-
-        &:hover::-webkit-scrollbar-thumb {
-            @apply bg-hairline-strong;
-        }
-    }
-
-    li {
-        @apply mb-1.5 last:mb-0;
-    }
-
-    a {
-        @apply relative flex items-center gap-2.5 rounded px-2.5 py-2 text-sm font-medium no-underline text-ink-mid;
-
-        min-height: 36px;
-        white-space: nowrap;
-        transition: background-color .15s ease, color .15s ease;
-
-        &:hover {
-            @apply bg-accent-wash text-ink;
-        }
-
-        .fls_nav_icon {
-            @apply flex-shrink-0 opacity-70;
-
-            width: 18px;
-            height: 18px;
-        }
-
-        .fls_nav_chevron {
-            @apply absolute opacity-0;
-
-            right: 16px;
-            top: 50%;
-            width: 10px;
-            height: 10px;
-            transform: translateY(-50%);
-            transition: opacity .2s ease, right .2s ease;
-        }
-    }
-
-    .is-active > a {
-        @apply bg-accent-wash text-ink;
-
-        .fls_nav_chevron {
-            @apply opacity-100;
-
-            right: 12px;
-        }
-    }
-
-    /* Children hang off a hairline, the way a tree reads. */
-    .fls_settings_subnav {
-        @apply relative m-0 p-0 list-none;
-
-        padding-left: 26px;
-        margin: 4px 0;
-
-        &::before {
-            content: '';
-            @apply absolute bg-surface-raised rounded;
-
-            left: 18px;
-            top: 50%;
-            width: 2px;
-            height: calc(100% - 16px);
-            transform: translateY(-50%);
-        }
-
-        a {
-            @apply bg-transparent text-ink-mid;
-
-            &::before {
-                content: '';
-                @apply absolute bg-accent rounded;
-
-                left: -8px;
-                top: 8px;
-                width: 0;
-                height: calc(100% - 16px);
-                transition: width .1s ease;
-            }
-
-            &.router-link-exact-active,
-            &.is-current {
-                @apply bg-transparent font-medium text-ink;
-
-                &::before {
-                    width: 2px;
-                }
-            }
-        }
-    }
-}
-
-/* The one part of the screen that scrolls. */
-.fls_settings_body {
-    @apply flex-1;
-
-    min-width: 0;
-    height: 100%;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
-/* ------------------------------------------------------ settings header */
-
-.fls_settings_header {
-    @apply flex items-center bg-surface px-7 border-0 border-b border-solid border-hairline;
-
-    min-height: 52px;
-
-    /* Sticky against the pane that scrolls, which starts at its own top edge. */
-    position: sticky;
-    top: 0;
-    z-index: 9;
-
-    h1 {
-        @apply text-base font-medium text-ink m-0;
-
-        line-height: 24px;
-    }
-
-    .fls_settings_header_desc {
-        @apply text-xs text-ink-light m-0;
-
-        margin-top: 2px;
-    }
-
-    .fls_settings_header_actions {
-        @apply flex items-center gap-2 flex-shrink-0;
-    }
-
-    /*
-     * The bar spans the pane, so the title sits at the pane's left edge and Save at its
-     * right - the two pushed as far apart as the bar goes. It is a bar for the whole
-     * screen rather than a caption on the column below it, so it is not capped to match.
-     */
-    .fls_settings_header_inner {
-        @apply flex items-center justify-between gap-4 w-full;
-    }
 }
 
 /*
- * A settings form does not get better for being wider - the text inside it is capped
- * well before this, so past a point the cards only add empty space to the right of their
- * own content. FluentCart leaves this uncapped and grows to the viewport; this does not.
- *
- * The leftover width is split either side rather than all dumped to the right, so the
- * column sits in the middle of the pane.
- */
-.fls_settings_content {
-    @apply p-7 mx-auto;
-
-    max-width: var(--fls-content-width);
-}
-
-/*
- * Keeps a scrolled-to section clear of the sticky header above it. Measured from the top
- * of the scrolling pane, so it is the header's own height plus a gap - not the distance
- * from the top of the window.
- */
-.fls_section {
-    scroll-margin-top: 64px;
-}
-
-/* ---------------------------------------------------------- setting card */
-
-.fls_card {
-    @apply bg-surface rounded border border-solid border-hairline;
-
-    margin-bottom: 20px;
-
-    &:last-child {
-        margin-bottom: 0;
-    }
-
-    .fls_card_head {
-        @apply flex items-start justify-between gap-4 px-6 border-0 border-b border-solid border-hairline;
-
-        padding-top: 16px;
-        padding-bottom: 16px;
-
-        h2 {
-            @apply text-sm font-medium text-ink m-0;
-        }
-
-        p {
-            @apply text-xs text-ink-light m-0;
-
-            margin-top: 4px;
-        }
-
-        .fls_card_head_actions {
-            @apply flex items-center gap-2 flex-shrink-0;
-        }
-    }
-
-    .fls_card_body {
-        @apply px-6;
-
-        padding-top: 4px;
-        padding-bottom: 4px;
-    }
-}
-
-/* ------------------------------------------------------------- small parts */
-
-/* Something to copy out: a block for several lines, inline for one value. */
-.fls_code,
-.fls_code_inline {
-    @apply bg-surface-sunk text-ink border border-solid border-hairline rounded;
-
-    font-family: Menlo, Consolas, monospace;
-    font-size: 12px;
-    user-select: all;
-}
-
-.fls_code {
-    @apply block m-0 p-3;
-
-    line-height: 1.7;
-    white-space: pre;
-    overflow-x: auto;
-}
-
-.fls_code_inline {
-    @apply inline-block;
-
-    padding: 3px 8px;
-    word-break: break-all;
-}
-
-.fls_note {
-    @apply text-xs text-ink-light;
-
-    margin: 16px 0;
-}
-
-/*
- * A status, as a word. Shared by the dashboard's log lists, the logs table and the
- * enrollment table, which is why it lives here rather than with any one of them.
- *
- * The logs table used to tint the whole row instead - a pink row for blocked, yellow for
- * failed. Three coloured bands across a full-width table is a lot of colour for a fact that
- * fits in one word, and it left no way to colour anything else in the row.
- *
- * The auth statuses come straight off the log row's `status`, so those three keep their
- * own names; the rest are named after the colour they carry, for the tables whose statuses
- * are not log statuses.
- */
-.fls_tag {
-    @apply inline-block flex-none rounded-xs text-xs font-medium;
-
-    padding: 1px 7px;
-    line-height: 18px;
-    white-space: nowrap;
-
-    &.is_blocked {
-        @apply bg-danger-bg text-danger-fg;
-    }
-
-    &.is_failed,
-    &.is_warning {
-        @apply bg-caution-bg text-caution-fg;
-    }
-
-    &.is_success {
-        @apply bg-ok-bg text-ok-fg;
-    }
-
-    /* Nothing is wrong and nothing has happened - it should not draw the eye either way. */
-    &.is_neutral {
-        @apply bg-surface-raised text-ink-mid;
-    }
-}
-
-/* A table sits flush inside its card - the card already draws the frame. */
-.fls_table {
-    margin-top: 4px;
-    margin-bottom: 4px;
-}
-
-.fls_pager {
-    @apply flex justify-end;
-
-    margin-top: 16px;
-}
-
-/* --------------------------------------------------------- rules table */
-
-/*
- * The IP allow and block lists: a row of fields per entry rather than a form per entry,
- * because the whole value of these lists is being able to read down them and see what is
- * exempt and why.
- */
-.fls_rules_table {
-    @apply w-full;
-
-    border-collapse: collapse;
-    margin: 4px 0 8px;
-
-    th {
-        @apply text-xs font-medium text-ink-mid text-left border-0 border-b border-solid border-hairline;
-
-        padding: 0 8px 8px;
-
-        &:first-child {
-            padding-left: 0;
-        }
-    }
-
-    td {
-        @apply align-top;
-
-        padding: 10px 8px;
-
-        &:first-child {
-            padding-left: 0;
-        }
-    }
-
-    /* The address is the row's subject, the note beside it is prose - so it gets more room. */
-    th:nth-child(1),
-    td:nth-child(1) {
-        width: 32%;
-    }
-
-    th:nth-child(3),
-    td:nth-child(3) {
-        width: 180px;
-    }
-
-    .fls_rules_remove {
-        width: 44px;
-        text-align: right;
-        padding-right: 0;
-    }
-
-    /* Still listed, still editable, simply not in force - so it is dimmed, not hidden. */
-    tr.is_expired {
-        .el-input__wrapper {
-            opacity: .65;
-        }
-    }
-}
-
-/*
- * Sits below the rows, separated by the same hairline the header uses, so the button reads
- * as the end of the list rather than another row in it.
- */
-.fls_rules_add {
-    @apply border-0 border-t border-solid border-hairline;
-
-    padding-top: 12px;
-    margin-top: 4px;
-}
-
-.fls_rules_flag {
-    @apply inline-block text-xs text-ink-light;
-
-    margin-top: 4px;
-
-    &.is_warning {
-        @apply text-caution-fg;
-    }
-
-    &.is_danger {
-        @apply text-danger-fg;
-    }
-}
-
-/* Alerts inside a settings card sit in the flow of the card, not against its edge. */
-.fls_row_alert.el-alert {
-    margin: 4px 0 12px;
-
-    a {
-        @apply font-medium;
-
-        color: inherit;
-    }
-}
-
-/* -------------------------------------------------------- setting toggle */
-
-/*
- * On/off settings put the switch beside the name it belongs to. The explanation hangs
- * underneath, indented to the width of the switch so the text lines up as one column
- * down the card and the switches make a second, narrower one.
- */
-.fls_toggle {
-    @apply border-0 border-b border-solid border-hairline;
-
-    padding-top: 10px;
-    padding-bottom: 10px;
-
-    &:last-child {
-        @apply border-b-0;
-    }
-
-    .fls_toggle_main {
-        @apply flex items-center gap-3;
-    }
-
-    .fls_toggle_title {
-        @apply text-sm font-medium text-ink cursor-pointer select-none;
-    }
-
-    /* Only shown when the setting is not what it ought to be, so it reads as a flag. */
-    .fls_toggle_tag {
-        @apply text-xs font-normal text-caution-fg bg-caution-bg rounded;
-
-        margin-left: 8px;
-        padding: 1px 7px;
-        white-space: nowrap;
-    }
-
-    .fls_toggle_body {
-        /* The switch (40px) plus the gap beside it, so this starts under the title. */
-        padding-left: 52px;
-        max-width: 772px;
-
-        p {
-            @apply text-xs text-ink-light m-0;
-
-            margin-top: 3px;
-            line-height: 1.5;
-        }
-
-        .fls_toggle_hint {
-            font-style: italic;
-        }
-    }
-
-    &.is-disabled .fls_toggle_title {
-        @apply text-ink-light cursor-not-allowed;
-    }
-}
-
-/* ----------------------------------------------------------- setting row */
-
-/*
- * Label and explanation on the left, the control pinned to the right.
- *
- * The two columns used to be the other way round: the text was pinned at 300px and the
- * control took everything left over. A switch is 44px wide, so most of a row was empty
- * while the sentence explaining it wrapped over four lines - the widest thing on the
- * page was given to the narrowest thing on it. Now the text takes the width and the
- * control is only as wide as it needs to be, which halves the height of a typical row.
- */
-.fls_row {
-    @apply flex items-start gap-6 border-0 border-b border-solid border-hairline;
-
-    padding-top: 12px;
-    padding-bottom: 12px;
-
-    &:last-child {
-        @apply border-b-0;
-    }
-
-    .fls_row_label {
-        flex: 1 1 auto;
-
-        /* Stops a description running to a line too long to read comfortably. */
-        max-width: 720px;
-
-        /* Lets it wrap rather than force the row wider than the card. */
-        min-width: 0;
-
-        label,
-        .fls_row_title {
-            @apply block text-sm font-medium text-ink m-0;
-        }
-
-        p {
-            @apply text-xs text-ink-light m-0;
-
-            margin-top: 3px;
-            line-height: 1.5;
-        }
-    }
-
-    .fls_row_hint {
-        @apply text-xs text-ink-light;
-
-        margin-top: 5px !important;
-        font-style: italic;
-    }
-
-    .fls_row_control {
-        flex: 0 0 auto;
-
-        /* Holds every control against the same right edge, so they read as one column. */
-        margin-left: auto;
-
-        .el-input,
-        .el-select,
-        .el-textarea {
-            width: 300px;
-        }
-
-        .el-form-item {
-            margin-bottom: 0;
-        }
-
-        > p {
-            @apply text-xs text-ink-light;
-
-            margin: 6px 0 0;
-        }
-    }
-
-    /* For controls that need the whole width: a table, an editor, a group of cards. */
-    &.fls_row_stacked {
-        @apply block;
-
-        .fls_row_label {
-            max-width: none;
-            margin-bottom: 8px;
-        }
-
-        .fls_row_control {
-            margin-left: 0;
-
-            .el-input,
-            .el-select,
-            .el-textarea {
-                width: 100%;
-            }
-        }
-    }
-}
-
-/*
- * Narrow screens get the ordinary page back. A pane pinned to the viewport needs room
- * either side of it to be worth the trade, and wp-admin moves its own menu off-canvas
- * down here anyway, so there is nothing left to pin against.
+ * wp-admin moves its own menu off-canvas down here, so there is nothing left to pin
+ * against and the bar goes back into the flow of the page.
  */
 @media (max-width: 960px) {
     .fframe_app {
@@ -971,74 +445,38 @@ body.toplevel_page_fluent-auth {
         right: auto;
     }
 
-    .fls_settings {
-        @apply block;
-
-        position: static;
-        overflow: visible;
-    }
-
-    .fls_settings_nav {
-        width: 100%;
-        height: auto;
-        @apply border-r-0 border-b;
-
-        > ul {
-            overflow-y: visible;
-        }
-    }
-
-    .fls_settings_body {
-        height: auto;
-        overflow: visible;
-    }
-
-    /* Back to sticking against the page, below the admin bar and the app bar. */
-    .fls_settings_header {
+    .fls_sub_bar {
+        position: sticky;
         top: 88px;
+        left: auto;
+        right: auto;
+    }
+}
+
+@media (max-width: 782px) {
+    .fls_page {
+        padding: 20px 12px;
     }
 
-    .fls_section {
-        scroll-margin-top: 152px;
+    /* Kept level with the page gutter it sits above. */
+    .fls_app_bar,
+    .fls_sub_bar {
+        @apply px-3;
     }
 
     /*
-     * The row is a single flex line now rather than a wrapping one, so narrow screens
-     * need it stacked outright - left as it was, the control had nowhere to wrap to and
-     * pushed itself off the right edge of the page.
+     * Down here the tabs no longer fit beside the logo and the controls, and something has
+     * to give. It is the tabs that scroll, the way the section bar below already does -
+     * left to itself the row simply pushes the controls at the right-hand end off the
+     * screen, where there is no scrolling to reach them because the bar is what overflows,
+     * not the page.
      */
-    .fls_row {
-        display: block;
+    .fls_app_bar {
+        @apply gap-3;
 
-        .fls_row_label {
-            max-width: none;
-            margin-bottom: 8px;
+        .fls_app_nav {
+            min-width: 0;
+            overflow-x: auto;
         }
-
-        .fls_row_control {
-            margin-left: 0;
-
-            .el-input,
-            .el-select,
-            .el-textarea {
-                width: 100%;
-            }
-        }
-    }
-}
-
-/* The two-factor method cards and the proxy panel sit inside a section card now,
-   so they no longer draw a heading or a panel background of their own. */
-.fls_2fa_methods,
-.fls_proxy {
-    padding-top: 16px;
-    padding-bottom: 16px;
-}
-
-.fls_proxy_headline {
-    margin: 0 0 8px !important;
-
-    .fls_proxy_state {
-        margin-left: 0;
     }
 }

@@ -18,35 +18,46 @@ class ServerModeHandler
             return $vars;
         });
 
-        add_filter('fluent_auth/validated_redirect', function ($validated, $location) {
-            // check if the location is a child site
-            $authSites = get_option('__fls_child_sites', []);
-            if (empty($authSites)) {
-                return $validated;
-            }
-
-            $locationSiteDomain = parse_url($location, PHP_URL_HOST);
-
-            foreach ($authSites as $authSite) {
-                $childSiteUrl = $authSite['site_url'];
-                if (!$childSiteUrl) {
-                    continue;
-                }
-
-                // child site domain
-                $childSiteDomain = parse_url($childSiteUrl, PHP_URL_HOST);
-                if ($locationSiteDomain === $childSiteDomain) {
-                    return $location;
-                }
-            }
-
-            return $validated;
-        }, 99, 2);
+        add_filter('fluent_auth/validated_redirect', [$this, 'trustChildSiteHosts'], 99, 2);
 
         add_action('init', [$this, 'maybeRemoteLoginInit'], 1);
 
         add_filter('login_redirect', [$this, 'maybeRemoteLoginRedirect'], 9999999, 3);
 
+    }
+
+    /**
+     * A connected child site is somewhere this site may send a browser.
+     *
+     * The callback as well as the site: the sign in replies validate the URL
+     * maybeRemoteLoginRedirect() hands them, and the two are entered separately.
+     *
+     * @param $validated string
+     * @param $location string
+     * @return string
+     */
+    public function trustChildSiteHosts($validated, $location)
+    {
+        $authSites = get_option('__fls_child_sites', []);
+        if (empty($authSites) || !is_string($location)) {
+            return $validated;
+        }
+
+        $locationSiteDomain = parse_url($location, PHP_URL_HOST);
+        if (!$locationSiteDomain) {
+            return $validated;
+        }
+
+        foreach ((array)$authSites as $authSite) {
+            foreach (['site_url', 'callback_url'] as $key) {
+                $childUrl = isset($authSite[$key]) ? $authSite[$key] : '';
+                if ($childUrl && $locationSiteDomain === parse_url($childUrl, PHP_URL_HOST)) {
+                    return $location;
+                }
+            }
+        }
+
+        return $validated;
     }
 
     public function maybeRemoteLoginInit()
@@ -72,6 +83,16 @@ class ServerModeHandler
     {
         $token = wp_generate_password(32, false) . '___' . $userId;
         update_user_meta($userId, '__flsc_temp_token', $token);
+        /*
+         * When it was minted, kept beside it rather than inside it: the child site sends the
+         * token back exactly as it received it, so its shape is a protocol both ends agree
+         * on and not somewhere to add a field.
+         *
+         * Without this the token had no expiry at all. It is spent on redemption, so one
+         * that is never redeemed - a redirect somebody closed, a callback that failed - sat
+         * in user meta indefinitely, still good. See SettingsController::validateChildSiteToken.
+         */
+        update_user_meta($userId, '__flsc_temp_token_at', time());
         $tokenData = [
             'fluent_auth_token' => $token
         ];

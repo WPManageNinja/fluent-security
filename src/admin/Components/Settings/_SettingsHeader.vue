@@ -48,7 +48,13 @@ export default {
             <div class="fls_settings_header_actions">
                 <slot name="actions"/>
 
-                <el-button v-if="showSave" type="primary" size="small" :loading="saving"
+                <!--
+                    Large rather than small: this is the one control that commits the whole
+                    screen, and at 24px it sat on the bar looking like a table's row action.
+                    Anything a page puts in the actions slot beside it matches the size, and
+                    the secondary ones there are borderless so only Save reads as a button.
+                -->
+                <el-button v-if="showSave" type="primary" size="large" :loading="saving"
                            :disabled="disabled" @click="$emit('save')">
                     {{ saveText || $t('Save') }}
                 </el-button>

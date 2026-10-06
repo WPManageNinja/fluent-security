@@ -320,4 +320,121 @@ class AuthServiceTest extends BaseTestCase
 
         $this->assertNotInstanceOf(\WP_Error::class, $result);
     }
+
+    private function socialSignup($userData)
+    {
+        wp_set_current_user(0);
+        update_option('users_can_register', '1');
+        update_option('default_role', 'subscriber');
+
+        $result = AuthService::doUserAuth($userData, 'google');
+        $this->assertNotInstanceOf(\WP_Error::class, $result);
+
+        return get_user_by('email', $userData['email']);
+    }
+
+    public function testSocialSignupNeverUsesTheEmailAsUsername()
+    {
+        $user = $this->socialSignup([
+            'email'     => 'jane.doe+news@example.com',
+            'full_name' => 'Jane Doe',
+            'username'  => 'jane.doe+news'
+        ]);
+
+        $this->assertSame('janedoenews', $user->user_login);
+        $this->assertStringNotContainsString('example', $user->user_nicename);
+    }
+
+    public function testSocialSignupSetsTheProviderNameAsDisplayName()
+    {
+        $user = $this->socialSignup([
+            'email'     => 'kim@example.com',
+            'full_name' => 'Kim Lee',
+        ]);
+
+        $this->assertSame('Kim Lee', $user->display_name);
+        $this->assertSame('Kim Lee', $user->nickname);
+        $this->assertSame('Kim', $user->first_name);
+        $this->assertSame('Lee', $user->last_name);
+    }
+
+    public function testSocialSignupWithoutANameShowsTheUsernameNotTheEmail()
+    {
+        $user = $this->socialSignup(['email' => 'noname@example.com']);
+
+        $this->assertSame('noname', $user->display_name);
+    }
+
+    public function testTheProviderHandleWinsWhenItIsFree()
+    {
+        $user = $this->socialSignup([
+            'email'    => 'someone@example.com',
+            'username' => 'octocat'
+        ]);
+
+        $this->assertSame('octocat', $user->user_login);
+    }
+
+    /*
+     * The old code used the provider's handle only when it was already taken, so a
+     * site with a "john" user refused every john@... social signup outright.
+     */
+    public function testATakenHandleFallsBackInsteadOfFailingSignup()
+    {
+        $this->factory->user->create(['user_login' => 'john', 'user_email' => 'john@site.test']);
+
+        $user = $this->socialSignup([
+            'email'     => 'john@gmail.com',
+            'full_name' => 'John Smith',
+            'username'  => 'john'
+        ]);
+
+        $this->assertSame('johnsmith', $user->user_login);
+    }
+
+    public function testNumbersTheEmailNameWhenEveryCandidateIsTaken()
+    {
+        $this->factory->user->create(['user_login' => 'sam', 'user_email' => 'sam@site.test']);
+        $this->factory->user->create(['user_login' => 'sam2', 'user_email' => 'sam2@site.test']);
+
+        $this->assertSame('sam3', AuthService::generateUsername(['email' => 'sam@gmail.com']));
+    }
+
+    public function testReservedNamesAreNeverHandedOut()
+    {
+        $this->assertSame('admin2', AuthService::generateUsername(['email' => 'admin@example.com']));
+        $this->assertSame('janesmith', AuthService::generateUsername([
+            'email'     => 'support@example.com',
+            'full_name' => 'Jane Smith'
+        ]));
+    }
+
+    public function testCoreIllegalUserLoginsAreRespected()
+    {
+        $filter = function () {
+            return ['Blocked'];
+        };
+        add_filter('illegal_user_logins', $filter);
+
+        $username = AuthService::generateUsername(['email' => 'blocked@example.com']);
+
+        remove_filter('illegal_user_logins', $filter);
+
+        $this->assertSame('blocked2', $username);
+    }
+
+    public function testAnEmailThatCleansToNothingStillGetsAUsername()
+    {
+        $this->assertSame('member2', AuthService::generateUsername(['email' => 'пользователь@example.com']));
+
+        $this->assertSame('ivanpetrov', AuthService::generateUsername([
+            'email'     => 'пользователь@example.com',
+            'full_name' => 'Ivan Petrov'
+        ]));
+    }
+
+    public function testShortEmailNamesAreNumberedUp()
+    {
+        $this->assertSame('jo2', AuthService::generateUsername(['email' => 'jo@example.com']));
+    }
 }

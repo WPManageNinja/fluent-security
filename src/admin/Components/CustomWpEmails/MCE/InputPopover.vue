@@ -16,6 +16,11 @@
                                 :data-item_index="item_index"
                                 :key="item_index"
                                 :class="(activeIndex == item_index) ? 'active_item_selected' : ''"
+                                role="tab"
+                                tabindex="0"
+                                :aria-selected="activeIndex == item_index ? 'true' : 'false'"
+                                @keydown.enter.prevent="activeIndex = item_index"
+                                @keydown.space.prevent="activeIndex = item_index"
                                 @click="activeIndex = item_index">
                                 {{ item.title }}
                             </li>
@@ -29,7 +34,12 @@
                         <div v-for="(item,current_index) in data" :key="current_index">
                             <ul v-show="activeIndex == current_index"
                                 :class="'el_pop_body_item_'+current_index">
-                                <li @click="insertShortcode(code)" v-for="(label,code) in item.shortcodes" :key="code">
+                                <li v-for="(label,code) in item.shortcodes" :key="code"
+                                        role="button"
+                                        tabindex="0"
+                                        @keydown.enter.prevent="insertShortcode(code)"
+                                        @keydown.space.prevent="insertShortcode(code)"
+                                        @click="insertShortcode(code)">
                                     {{ label }}<span>{{ code }}</span>
                                 </li>
                             </ul>

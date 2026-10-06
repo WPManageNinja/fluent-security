@@ -41,7 +41,7 @@ export default {
                     target: '.content_wrap',
                     colors: [
                         {key: 'content_bg', label: 'Background', hint: 'The card the message sits on.'},
-                        {key: 'content_color', label: 'Text', hint: 'Body copy.'}
+                        {key: 'content_color', label: 'Text', hint: 'The message text.'}
                     ]
                 },
                 {
@@ -52,12 +52,12 @@ export default {
                      * written inline in that email's own body, so it is changed per
                      * email under Content, not here.
                      */
-                    title: 'Quoted blocks',
+                    title: 'Detail boxes',
                     target: 'blockquote',
-                    note: 'The indented boxes holding details like a username or a link.',
+                    note: 'The shaded boxes that hold details like a username or a link.',
                     colors: [
-                        {key: 'highlight_bg', label: 'Background', hint: 'Behind the quoted block.'},
-                        {key: 'highlight_color', label: 'Text', hint: 'Inside it.'}
+                        {key: 'highlight_bg', label: 'Background', hint: 'Behind the box.'},
+                        {key: 'highlight_color', label: 'Text', hint: 'Text inside the box.'}
                     ]
                 }
             ]
@@ -160,11 +160,11 @@ export default {
 
 <template>
     <div>
-        <SettingsHeader :heading="$t('Email Template Design')"
-                        :description="$t('How every system email looks, and who it comes from.')"
+        <SettingsHeader :heading="$t('Email Design')"
+                        :description="$t('The look and sender of every email you have set to Your own. Emails left at the default are not affected.')"
                         :saving="saving" :disabled="!settings" @save="saveSettings()">
             <template #actions>
-                <el-button size="small" @click="$router.push({name: 'settings_emails'})">
+                <el-button link size="large" @click="$router.push({name: 'settings_emails'})">
                     {{ $t('Back to emails') }}
                 </el-button>
             </template>
@@ -175,7 +175,7 @@ export default {
 
             <el-form v-else label-position="top">
                 <SettingsCard :title="$t('Design')"
-                              :description="$t('Applied to every system email at once. The preview updates as you pick.')">
+                              :description="$t('One set of colours for every email you have set to Your own. The preview updates as you pick.')">
                     <template #actions>
                         <el-button size="small" :disabled="isDefault" @click="setDefaultColors()">
                             {{ $t('Reset colours') }}
@@ -185,7 +185,7 @@ export default {
                     <div class="fls_design">
                         <div class="fls_design_controls">
                             <div v-for="group in groups" :key="group.title" class="fls_swatch_group">
-                                <h3>{{ $t(group.title) }}</h3>
+                                <h3 class="fls_eyebrow">{{ $t(group.title) }}</h3>
                                 <p v-if="group.note" class="fls_swatch_group_note">{{ $t(group.note) }}</p>
 
                                 <div v-for="color in group.colors" :key="color.key" class="fls_swatch"
@@ -204,7 +204,7 @@ export default {
 
                         <!-- Stays in view while the colours beside it are changed. -->
                         <div class="fls_design_preview">
-                            <span class="fls_design_preview_label">{{ $t('Preview') }}</span>
+                            <span class="fls_eyebrow">{{ $t('Preview') }}</span>
                             <emailbody-container v-if="defaultContent" ref="preview"
                                                  :style_config="settings" :content="defaultContent"/>
                         </div>
@@ -212,170 +212,32 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard :title="$t('Footer')"
-                              :description="$t('Appears at the bottom of every system email.')">
+                              :description="$t('Shown under the message in every email set to Your own. Leave it empty for no footer.')">
                     <SettingRow stacked :label="$t('Footer text')">
                         <WPEditor :height="80" v-model="settings.footer_text"/>
                     </SettingRow>
                 </SettingsCard>
 
                 <SettingsCard :title="$t('Sender')"
-                              :description="$t('Leave these empty to keep whatever WordPress or your mail plugin already uses.')">
+                              :description="$t('Used on the WordPress emails you have set to Your own. Leave these empty to keep whatever WordPress or your mail plugin already sends from.')">
                     <SettingRow :label="$t('From address')">
                         <el-input v-model="settings.from_email" :placeholder="$t('Enter email address')"/>
                     </SettingRow>
 
                     <SettingRow :label="$t('From name')">
-                        <el-input type="text" v-model="settings.from_name" :placeholder="$t('Enter from name')"/>
+                        <el-input type="text" v-model="settings.from_name" :placeholder="$t('Your site or company name')"/>
                     </SettingRow>
 
                     <SettingRow :label="$t('Reply-to address')"
-                                :description="$t('Where a reply goes, if that is not the sending address.')">
-                        <el-input v-model="settings.reply_to_email" :placeholder="$t('Enter reply email address')"/>
+                                :description="$t('Where replies land when someone answers the email.')">
+                        <el-input v-model="settings.reply_to_email" :placeholder="$t('Enter reply-to address')"/>
                     </SettingRow>
 
                     <SettingRow :label="$t('Reply-to name')">
-                        <el-input type="text" v-model="settings.reply_to_name" :placeholder="$t('Enter reply to name')"/>
+                        <el-input type="text" v-model="settings.reply_to_name" :placeholder="$t('Enter reply-to name')"/>
                     </SettingRow>
                 </SettingsCard>
             </el-form>
         </div>
     </div>
 </template>
-
-<style lang="scss">
-/*
- * Colours on the left, the thing they colour on the right. They were stacked before, one
- * full-width row per colour, which pushed the preview a screen and a half below the
- * controls - so the one moment the preview matters, while a colour is being chosen, was
- * the one moment it could not be seen.
- */
-.fls_design {
-    display: flex;
-    align-items: flex-start;
-    gap: 32px;
-    padding: 20px 0;
-
-    .fls_design_controls {
-        flex: 0 0 300px;
-        max-width: 300px;
-    }
-
-    /*
-     * Deliberately not sticky. The preview is the taller of the two columns, so it is
-     * what gives the row its height - which leaves a sticky preview no range to travel
-     * and makes the rule inert. Sizing it to the viewport instead means the controls and
-     * the preview are on screen together without scrolling at all, which is the thing
-     * that actually matters while a colour is being chosen.
-     */
-    .fls_design_preview {
-        flex: 1 1 auto;
-        min-width: 0;
-    }
-
-    .fls_design_preview_label {
-        display: block;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--fls-text-light);
-        margin-bottom: 8px;
-    }
-}
-
-.fls_swatch_group {
-    margin-bottom: 20px;
-
-    &:last-child {
-        margin-bottom: 0;
-    }
-
-    h3 {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--fls-text-light);
-        font-weight: 600;
-        margin: 0 0 6px;
-    }
-
-    .fls_swatch_group_note {
-        font-size: 11px;
-        color: var(--fls-text-light);
-        line-height: 1.4;
-        margin: -2px 0 6px;
-    }
-}
-
-.fls_swatch {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 0;
-
-    .fls_swatch_text {
-        flex: 1 1 auto;
-        min-width: 0;
-    }
-
-    .fls_swatch_label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        line-height: 1.3;
-    }
-
-    .fls_swatch_hint {
-        display: block;
-        font-size: 11px;
-        color: var(--fls-text-light);
-        line-height: 1.3;
-    }
-
-    .fls_swatch_value {
-        flex: 0 0 auto;
-        font-size: 11px;
-        color: var(--fls-text-light);
-        text-transform: uppercase;
-        background: none;
-        padding: 0;
-    }
-
-    .el-color-picker__trigger {
-        border-radius: 4px;
-    }
-}
-
-.fls_email_frame iframe {
-    width: 100%;
-
-    /*
-     * Tall enough to show the shape of the email, short enough that the card still fits
-     * a laptop screen alongside the controls. The middle term is the viewport less the
-     * admin bar, app bar, settings header and this card's own framing.
-     */
-    height: clamp(380px, calc(100vh - 330px), 620px);
-    border-radius: 4px;
-    border: 1px solid var(--el-border-color-lighter, var(--fls-border));
-    /*
-     * White in both themes, deliberately. This is a preview of an email as its recipient
-     * will see it, and their inbox is not running this plugin's dark theme.
-     */
-    background: #fff;
-    display: block;
-}
-
-@media (max-width: 1100px) {
-    .fls_design {
-        display: block;
-
-        .fls_design_controls {
-            max-width: none;
-            margin-bottom: 24px;
-        }
-
-        .fls_design_preview {
-            position: static;
-        }
-    }
-}
-</style>

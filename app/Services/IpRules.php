@@ -8,6 +8,11 @@ use FluentAuth\App\Helpers\Helper;
 /**
  * Addresses that are never locked out, and addresses that are never let in.
  *
+ * Each list is a plain set of addresses and ranges - no labels, no expiry dates, nothing
+ * per entry to fill in. The screen is two text boxes, one address to a line, because the
+ * question being answered ("which addresses?") is a list, and anything else on the row is
+ * something to think about before you can answer it.
+ *
  * The two lists are not mirror images, and the asymmetry is the whole design:
  *
  * - The block list refuses a login outright. Getting it wrong shuts somebody out, which
@@ -49,11 +54,6 @@ class IpRules
     const MIN_ALLOW_PREFIX_V6 = 32;
 
     /**
-     * Both lists, normalised, with everything a screen needs to explain them.
-     *
-     * @return array
-     */
-    /**
      * Roles that may only sign in from an allow list address.
      *
      * @return array
@@ -67,6 +67,26 @@ class IpRules
         }
 
         return array_values((array)Arr::get($stored, 'restricted_roles', []));
+    }
+
+    /**
+     * Whether the wp-config.php escape hatch is in force.
+     *
+     * The way back into a site whose own owner is on the block list, or whose allow list
+     * no longer contains anywhere they can reach it from. A constant rather than a setting
+     * for the reason the trusted proxies have one: it cannot be reached by whoever is
+     * locked out, and it cannot be flipped by whoever locked them out.
+     *
+     * It stands down every address rule that can refuse a sign-in - the block list and the
+     * role restriction alike. It deliberately does *not* stand down the allow list, which
+     * only ever exempts: switching that off would make a locked out site stricter, which is
+     * the opposite of what somebody editing wp-config.php to get back in is asking for.
+     *
+     * @return bool
+     */
+    public static function isRestrictionDisabled()
+    {
+        return defined('FLUENT_AUTH_DISABLE_IP_RESTRICTION') && FLUENT_AUTH_DISABLE_IP_RESTRICTION;
     }
 
     /**
@@ -91,12 +111,7 @@ class IpRules
             return false;
         }
 
-        /*
-         * The way back in when the list is wrong and nobody can log in to fix it. A
-         * constant rather than a setting, for the same reason the trusted proxies have one:
-         * it cannot be reached by whoever is locked out, or by whoever locked them out.
-         */
-        if (defined('FLUENT_AUTH_DISABLE_IP_RESTRICTION') && FLUENT_AUTH_DISABLE_IP_RESTRICTION) {
+        if (self::isRestrictionDisabled()) {
             return false;
         }
 
@@ -111,51 +126,58 @@ class IpRules
             return false;
         }
 
-        $entries = self::activeEntries('allow');
+        $entries = self::getList('allow');
 
-        // No addresses left to permit - every entry expired, say - is not "refuse everyone".
+        // No addresses left to permit is not "refuse everyone".
         if (!$entries) {
             return false;
         }
 
-        return !self::matchingEntry(Helper::getIp(), $entries);
+        return !self::matchingRule(Helper::getIp(), $entries);
     }
 
+    /**
+     * Both lists, as addresses.
+     *
+     * @return array
+     */
     public static function get()
+    {
+        return [
+            'allow' => self::getList('allow'),
+            'block' => self::getList('block')
+        ];
+    }
+
+    /**
+     * One stored list, normalised to a plain array of addresses.
+     *
+     * Reads the shape these lists used to have as well - a row per entry, carrying a label
+     * and an expiry date - so an install that has not saved since keeps working, and its
+     * first save quietly rewrites it. Nothing reads the label or the expiry any more.
+     *
+     * @param string $type
+     * @return array
+     */
+    private static function getList($type)
     {
         $stored = get_option(self::OPTION, []);
 
         if (!is_array($stored)) {
-            $stored = [];
+            return [];
         }
 
-        $currentIp = Helper::getIp();
+        $entries = [];
 
-        $rules = [];
+        foreach (Arr::get($stored, $type, []) as $entry) {
+            $ip = is_array($entry) ? (string)Arr::get($entry, 'ip', '') : (string)$entry;
 
-        foreach (['allow', 'block'] as $type) {
-            $rules[$type] = [];
-
-            foreach (Arr::get($stored, $type, []) as $entry) {
-                if (empty($entry['ip'])) {
-                    continue;
-                }
-
-                $expiresAt = (string)Arr::get($entry, 'expires_at', '');
-
-                $rules[$type][] = [
-                    'ip'         => (string)$entry['ip'],
-                    'label'      => (string)Arr::get($entry, 'label', ''),
-                    'expires_at' => $expiresAt,
-                    'created_at' => (string)Arr::get($entry, 'created_at', ''),
-                    'is_expired' => self::hasExpired($expiresAt),
-                    // So the screen can point out the row that covers whoever is reading it.
-                    'is_current' => Helper::ipInRange($currentIp, (string)$entry['ip'])
-                ];
+            if ($ip !== '') {
+                $entries[] = $ip;
             }
         }
 
-        return $rules;
+        return array_values(array_unique($entries));
     }
 
     /**
@@ -166,16 +188,29 @@ class IpRules
     public static function getState()
     {
         return [
-            'rules'            => self::get(),
-            'restricted_roles' => self::getRestrictedRoles(),
-            'roles'            => Helper::getUserRoles(),
-            'current_ip'       => Helper::getIp(),
+            'rules'             => self::get(),
+            'restricted_roles'  => self::getRestrictedRoles(),
+            'roles'             => Helper::getUserRoles(),
+            'current_ip'        => Helper::getIp(),
+            /*
+             * Worked out here rather than in the browser: deciding whether an address falls
+             * inside a range is the one thing on this screen with an answer, and a second
+             * implementation of CIDR matching in JavaScript is a second one to get wrong.
+             */
+            'current_ip_listed' => (bool)self::matchingRule(Helper::getIp(), self::getList('allow')),
             /*
              * Reported even when both lists are empty: it is the reason the allow list will
              * not work, and finding that out after adding an entry is finding it out late.
              */
-            'allow_paused'     => ProxyDetection::isAmbiguous(),
-            'max_entries'      => self::MAX_ENTRIES
+            'allow_paused'      => ProxyDetection::isAmbiguous(),
+            /*
+             * Said on the screen that edits the lists, because a list that is not being
+             * applied looks exactly like one that is. Somebody who used the constant to get
+             * back in needs to be told it is still there before they wonder why their block
+             * list stopped working.
+             */
+            'restrictions_off'  => self::isRestrictionDisabled(),
+            'max_entries'       => self::MAX_ENTRIES
         ];
     }
 
@@ -194,17 +229,13 @@ class IpRules
         $clean = [];
 
         foreach (['allow', 'block'] as $type) {
-            $entries = Arr::get($input, $type, []);
-
-            if (!is_array($entries)) {
-                $entries = [];
-            }
+            $entries = self::readInput(Arr::get($input, $type, []));
 
             if (count($entries) > self::MAX_ENTRIES) {
                 return new \WP_Error(
                     'too_many',
                     sprintf(
-                        /* translators: %d: the maximum number of entries per list */
+                    /* translators: %d: the maximum number of entries per list */
                         __('A list can hold at most %d addresses.', 'fluent-security'),
                         self::MAX_ENTRIES
                     ),
@@ -213,43 +244,22 @@ class IpRules
             }
 
             $clean[$type] = [];
-            $seen = [];
 
             foreach ($entries as $entry) {
-                $ip = self::validateIp(Arr::get($entry, 'ip', ''), $type);
+                $ip = self::validateIp($entry, $type);
 
                 if (is_wp_error($ip)) {
                     return $ip;
                 }
 
-                // Silently dropping a duplicate would look like the entry failed to save.
-                if (isset($seen[$ip])) {
-                    return new \WP_Error(
-                        'duplicate',
-                        sprintf(
-                            /* translators: %s: an IP address or CIDR range */
-                            __('%s is already on this list.', 'fluent-security'),
-                            $ip
-                        ),
-                        ['status' => 422]
-                    );
+                /*
+                 * The same address twice is a typo in a text box, not a decision - and the
+                 * box is redrawn from what was stored, so collapsing them is visible rather
+                 * than silent.
+                 */
+                if (!in_array($ip, $clean[$type], true)) {
+                    $clean[$type][] = $ip;
                 }
-
-                $seen[$ip] = true;
-
-                $expiresAt = self::validateExpiry(Arr::get($entry, 'expires_at', ''));
-
-                if (is_wp_error($expiresAt)) {
-                    return $expiresAt;
-                }
-
-                $clean[$type][] = [
-                    'ip'         => $ip,
-                    'label'      => sanitize_text_field((string)Arr::get($entry, 'label', '')),
-                    'expires_at' => $expiresAt,
-                    'created_at' => sanitize_text_field((string)Arr::get($entry, 'created_at', ''))
-                        ?: current_time('mysql')
-                ];
             }
         }
 
@@ -257,15 +267,15 @@ class IpRules
          * Checked after both lists are otherwise valid, so the message is about the one
          * mistake that actually locks the administrator out of their own site.
          */
-        $selfBlock = self::matchingEntry(Helper::getIp(), $clean['block']);
+        $selfBlock = self::matchingRule(Helper::getIp(), $clean['block']);
 
         if ($selfBlock) {
             return new \WP_Error(
                 'self_block',
                 sprintf(
-                    /* translators: %1$s: an IP address or CIDR range, %2$s: the current visitor's IP address */
+                /* translators: %1$s: an IP address or CIDR range, %2$s: the current visitor's IP address */
                     __('%1$s covers your own address (%2$s), so saving it would lock you out.', 'fluent-security'),
-                    $selfBlock['ip'],
+                    $selfBlock,
                     Helper::getIp()
                 ),
                 ['status' => 422]
@@ -280,12 +290,12 @@ class IpRules
          */
         $dropped = [];
 
-        $clean['block'] = array_values(array_filter($clean['block'], function ($entry) use ($clean, &$dropped) {
-            if (!self::coveredByAny($entry['ip'], $clean['allow'])) {
+        $clean['block'] = array_values(array_filter($clean['block'], function ($ip) use ($clean, &$dropped) {
+            if (!self::coveredByAny($ip, $clean['allow'])) {
                 return true;
             }
 
-            $dropped[] = $entry['ip'];
+            $dropped[] = $ip;
 
             return false;
         }));
@@ -301,6 +311,42 @@ class IpRules
         update_option(self::OPTION, $clean, false);
 
         return self::getState() + ['dropped_blocks' => $dropped];
+    }
+
+    /**
+     * Whatever the caller sent for one list, as an array of one address per element.
+     *
+     * Takes the text box's own contents as well as an array, because a list typed one to a
+     * line is what the screen has and turning it into an array on the way out only means
+     * the server has to trust that it happened. Blank lines are what a trailing newline
+     * looks like, so they are dropped rather than reported as an empty address.
+     *
+     * @param mixed $value
+     * @return array
+     */
+    private static function readInput($value)
+    {
+        if (is_string($value)) {
+            $value = preg_split('/[\r\n,]+/', $value);
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $entries = [];
+
+        foreach ($value as $entry) {
+            // The shape these lists used to have, in case an old screen is still open.
+            $entry = is_array($entry) ? (string)Arr::get($entry, 'ip', '') : (string)$entry;
+            $entry = trim($entry);
+
+            if ($entry !== '') {
+                $entries[] = $entry;
+            }
+        }
+
+        return $entries;
     }
 
     /**
@@ -327,11 +373,7 @@ class IpRules
             return [];
         }
 
-        $active = array_values(array_filter($allowEntries, function ($entry) {
-            return !self::hasExpired(Arr::get($entry, 'expires_at', ''));
-        }));
-
-        if (!$active) {
+        if (!$allowEntries) {
             return new \WP_Error(
                 'no_allowed_addresses',
                 __('Add at least one address to the allow list before restricting a role to it.', 'fluent-security'),
@@ -347,11 +389,11 @@ class IpRules
             );
         }
 
-        if (!self::matchingEntry(Helper::getIp(), $active)) {
+        if (!self::matchingRule(Helper::getIp(), $allowEntries)) {
             return new \WP_Error(
                 'would_lock_you_out',
                 sprintf(
-                    /* translators: %s: the current visitor's IP address */
+                /* translators: %s: the current visitor's IP address */
                     __('Your own address (%s) is not on the allow list, so this would lock you out immediately. Add it first.', 'fluent-security'),
                     Helper::getIp()
                 ),
@@ -376,7 +418,7 @@ class IpRules
     {
         $base = strpos($ip, '/') === false ? $ip : substr($ip, 0, strpos($ip, '/'));
 
-        return (bool)self::matchingEntry($base, $entries);
+        return (bool)self::matchingRule($base, $entries);
     }
 
     /**
@@ -389,10 +431,9 @@ class IpRules
      *
      * @param string $type
      * @param string $ip
-     * @param string $label
      * @return array|\WP_Error
      */
-    public static function add($type, $ip, $label = '')
+    public static function add($type, $ip)
     {
         if (!in_array($type, ['allow', 'block'], true)) {
             return new \WP_Error(
@@ -402,16 +443,21 @@ class IpRules
             );
         }
 
-        $stored = get_option(self::OPTION, []);
+        /*
+         * Validated here rather than left to save(), so the checks below compare a
+         * normalised address against the lists - and so an empty one is refused instead of
+         * being dropped as a blank line and reported as added.
+         */
+        $ip = self::validateIp($ip, $type);
 
-        if (!is_array($stored)) {
-            $stored = [];
+        if (is_wp_error($ip)) {
+            return $ip;
         }
 
         $input = [
-            'allow'            => Arr::get($stored, 'allow', []),
-            'block'            => Arr::get($stored, 'block', []),
-            'restricted_roles' => Arr::get($stored, 'restricted_roles', [])
+            'allow'            => self::getList('allow'),
+            'block'            => self::getList('block'),
+            'restricted_roles' => self::getRestrictedRoles()
         ];
 
         // Already there, by an exact entry or a range that covers it: nothing to do.
@@ -419,7 +465,7 @@ class IpRules
             return new \WP_Error(
                 'already_listed',
                 sprintf(
-                    /* translators: %s: an IP address */
+                /* translators: %s: an IP address */
                     __('%s is already covered by this list.', 'fluent-security'),
                     $ip
                 ),
@@ -437,7 +483,7 @@ class IpRules
             return new \WP_Error(
                 'allow_list_conflict',
                 sprintf(
-                    /* translators: %s: an IP address */
+                /* translators: %s: an IP address */
                     __('%s is on the allow list, so it cannot be blocked. Take it off the allow list first.', 'fluent-security'),
                     $ip
                 ),
@@ -445,10 +491,7 @@ class IpRules
             );
         }
 
-        $input[$type][] = [
-            'ip'    => $ip,
-            'label' => $label
-        ];
+        $input[$type][] = $ip;
 
         return self::save($input);
     }
@@ -461,7 +504,42 @@ class IpRules
      */
     public static function isBlocked($ip)
     {
-        return (bool)self::matchingEntry($ip, self::activeEntries('block'));
+        return (bool)self::blockingRule($ip);
+    }
+
+    /**
+     * The block list entry refusing this address, if any.
+     *
+     * Returned rather than a bare true so the refusal can name the rule that caused it -
+     * in the log, and to whoever is being refused. "Blocked by 45.148.0.0/16" is something
+     * an administrator can act on; "blocked" is something they open a ticket about.
+     *
+     * @param string $ip
+     * @return string
+     */
+    public static function blockingRule($ip)
+    {
+        if (self::isRestrictionDisabled()) {
+            return '';
+        }
+
+        return self::matchingRule($ip, self::getList('block'));
+    }
+
+    /**
+     * Whether this address has a block list entry, whether or not it is being enforced.
+     *
+     * The question a screen asks before offering a "block this" button, which is not the
+     * same question the login asks. While the wp-config.php escape hatch is in force
+     * nothing is refused, but the list is still there and still what the administrator is
+     * about to edit - offering to add a row that is already in it would just fail.
+     *
+     * @param string $ip
+     * @return bool
+     */
+    public static function isOnBlockList($ip)
+    {
+        return (bool)self::matchingRule($ip, self::getList('block'));
     }
 
     /**
@@ -474,94 +552,32 @@ class IpRules
             return false;
         }
 
-        return (bool)self::matchingEntry($ip, self::activeEntries('allow'));
+        return (bool)self::matchingRule($ip, self::getList('allow'));
     }
 
     /**
-     * The entries on a list that are in force right now.
+     * The first entry covering this address, or an empty string.
      *
-     * @param string $type
-     * @return array
-     */
-    private static function activeEntries($type)
-    {
-        $stored = get_option(self::OPTION, []);
-
-        if (!is_array($stored)) {
-            return [];
-        }
-
-        $active = [];
-
-        foreach (Arr::get($stored, $type, []) as $entry) {
-            if (empty($entry['ip']) || self::hasExpired(Arr::get($entry, 'expires_at', ''))) {
-                continue;
-            }
-
-            $active[] = $entry;
-        }
-
-        return $active;
-    }
-
-    /**
      * @param string $ip
      * @param array $entries
-     * @return array|null
+     * @return string
      */
-    private static function matchingEntry($ip, $entries)
+    private static function matchingRule($ip, $entries)
     {
         if (!$ip) {
-            return null;
-        }
-
-        foreach ($entries as $entry) {
-            if (Helper::ipInRange($ip, (string)$entry['ip'])) {
-                return $entry;
-            }
-        }
-
-        return null;
-    }
-
-    /* -------------------------------------------------------------- validation */
-
-    /**
-     * @param string $expiresAt
-     * @return bool
-     */
-    private static function hasExpired($expiresAt)
-    {
-        if (!$expiresAt) {
-            return false;
-        }
-
-        // Compared as dates, so an entry lasts to the end of the day it expires on.
-        return $expiresAt < date('Y-m-d', current_time('timestamp'));
-    }
-
-    /**
-     * @param string $value
-     * @return string|\WP_Error
-     */
-    private static function validateExpiry($value)
-    {
-        $value = trim(sanitize_text_field((string)$value));
-
-        if (!$value) {
             return '';
         }
 
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) || !strtotime($value)) {
-            return new \WP_Error(
-                'invalid_date',
-                __('An expiry date has to look like 2026-08-31.', 'fluent-security'),
-                ['status' => 422]
-            );
+        foreach ($entries as $entry) {
+            if (Helper::ipInRange($ip, (string)$entry)) {
+                return (string)$entry;
+            }
         }
 
-        return $value;
+        return '';
     }
+
+    /* -------------------------------------------------------------- validation */
 
     /**
      * @param string $value
@@ -583,7 +599,7 @@ class IpRules
         $invalid = new \WP_Error(
             'invalid_ip',
             sprintf(
-                /* translators: %s: whatever was typed into the address field */
+            /* translators: %s: whatever was typed into the address field */
                 __('"%s" is not an IP address or a range like 203.0.113.0/24.', 'fluent-security'),
                 $value
             ),
@@ -620,7 +636,7 @@ class IpRules
                 return new \WP_Error(
                     'range_too_broad',
                     sprintf(
-                        /* translators: %1$s: the range that was entered, %2$d: the narrowest allowed prefix */
+                    /* translators: %1$s: the range that was entered, %2$d: the narrowest allowed prefix */
                         __('%1$s covers too much of the internet to exempt. Use /%2$d or narrower.', 'fluent-security'),
                         $value,
                         $minBits

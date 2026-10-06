@@ -2,11 +2,13 @@
 
 namespace FluentAuth\App\Http\Controllers;
 
+use FluentAuth\App\Services\TwoFa\RivalTwoFa;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 use FluentAuth\App\Services\IpRules;
 use FluentAuth\App\Services\SecurityChecks;
+use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
 
 /**
@@ -39,12 +41,24 @@ class DashboardController
             'stats'      => self::getStats($range),
             'chart'      => self::getChart($range),
             'recent'     => [
-                'threats'   => self::getRecentLogs(['failed', 'blocked']),
-                'successes' => self::getRecentLogs(['success'])
+                'threats'   => self::getRecentLogs(['failed', 'blocked'], $range),
+                'successes' => self::getRecentLogs(['success'], $range)
             ],
             'top_ips'    => self::getTopIps($range),
+            /*
+             * Another plugin finishing this site's logins. Null on almost every site; when it
+             * is not, sign-ins are failing and this is the screen people land on. The settings
+             * page says the same thing beside the switches it concerns - see
+             * RivalTwoFa::notice().
+             */
+            'two_fa_conflict' => RivalTwoFa::notice(),
             'methods'    => self::getLoginMethods($range),
-            'checklist'  => SecurityChecks::get(),
+            /*
+             * The checklist used to be assembled here. The aside now fetches it from the same
+             * endpoint the security screen uses - see _SecurityAside.vue - so there is one
+             * answer to "what is wrong with this site" rather than one per screen, and the
+             * dashboard's own figures are not held up behind the checks that produce it.
+             */
             'protection' => self::getProtection()
         ];
     }
@@ -322,12 +336,14 @@ class DashboardController
 
     /**
      * @param array $statuses
+     * @param array $range
      * @return array
      */
-    private static function getRecentLogs($statuses)
+    private static function getRecentLogs($statuses, $range)
     {
         $logs = flsDb()->table('fls_auth_logs')
             ->whereIn('status', $statuses)
+            ->whereBetween('created_at', $range['from'], $range['to'])
             ->orderBy('id', 'DESC')
             ->limit(self::LIST_LIMIT)
             ->get();
@@ -390,7 +406,7 @@ class DashboardController
                 'usernames' => (int)$row->usernames,
                 'last_seen' => self::timeAgo($row->last_seen, $wpTimestamp),
                 // So the card can offer to block an address, or say that it already is.
-                'is_blocked' => IpRules::isBlocked($row->ip)
+                'is_blocked' => IpRules::isOnBlockList($row->ip)
             ];
         }
 
@@ -452,6 +468,15 @@ class DashboardController
 
         return [
             'two_fa'    => $twoFa,
+            /*
+             * Both device methods, because the count beside this reads both -
+             * TwoFaController::countEnrolledUsers() counts an authenticator app or a
+             * passkey. Asking only about `totp_2fa` made a site running passkeys alone
+             * report "Off" over a row of people who had enrolled, which is the one
+             * combination this tile exists to describe.
+             */
+            'two_fa_enabled' => Arr::get($settings, 'totp_2fa') === 'yes'
+                || PasskeyTwoFaMethod::isEnabledForAnyRole(),
             'scan'      => [
                 'registered'   => in_array(Arr::get($scan, 'status'), ['active', 'self'], true),
                 /*
@@ -461,7 +486,24 @@ class DashboardController
                  */
                 'is_ok'        => Arr::get($scan, 'is_ok') !== 'no'
                     && !IntegrityHelper::hasExtensionIssues(),
-                'last_checked' => self::timeAgo(Arr::get($scan, 'last_checked'), current_time('timestamp'))
+                'last_checked' => self::timeAgo(Arr::get($scan, 'last_checked'), current_time('timestamp')),
+                /*
+                 * Whether anything is scheduled, said apart from when the last scan ran.
+                 *
+                 * A connected site with the schedule switched off reports nothing at all, and
+                 * a row that only says "last scan: 3 days ago" cannot tell that apart from a
+                 * schedule that is running and simply has not come round yet.
+                 *
+                 * Both halves of the condition the cron actually guards on, so this cannot
+                 * claim a schedule the cron would decline to run - see BasicTasksHandler.
+                 */
+                'scheduled'    => Arr::get($scan, 'auto_scan') === 'yes'
+                    && Arr::get($scan, 'status') === 'active',
+                'interval'     => IntegrityHelper::normaliseScanInterval(Arr::get($scan, 'scan_interval')),
+                /* Scanning without the alerts service: there is no schedule to have here. */
+                'self_managed' => Arr::get($scan, 'status') === 'self',
+                /* '', 'disabled' or 'revoked' - see IntegrityHelper::markRelayRejected. */
+                'disconnected' => (string)Arr::get($scan, 'relay_rejection', '')
             ],
             'retention' => (int)Arr::get($settings, 'auto_delete_logs_day', 0),
             'digest'    => Arr::get($settings, 'digest_summary', '')
@@ -497,25 +539,16 @@ class DashboardController
      */
     private static function getTwoFaCounts()
     {
-        $enrolled = new \WP_User_Query([
-            'number'     => 1,
-            'fields'     => 'ID',
-            'meta_query' => [
-                [
-                    'key'     => TotpTwoFaMethod::META_SECRET,
-                    'compare' => 'EXISTS'
-                ]
-            ]
-        ]);
-
-        $all = new \WP_User_Query([
-            'number' => 1,
-            'fields' => 'ID'
-        ]);
-
         return [
-            'enrolled' => (int)$enrolled->get_total(),
-            'total'    => (int)$all->get_total()
+            'enrolled' => TwoFaController::countEnrolledUsers(),
+            /*
+             * The people who could enrol, not everybody with an account - see
+             * TwoFaController::countEligibleUsers(). This used to be an unfiltered user
+             * count, which on any site with customers or subscribers made the tile read
+             * far worse than the truth: nobody in those roles is offered a second factor,
+             * so none of them were ever going to appear in the numerator.
+             */
+            'total'    => TwoFaController::countEligibleUsers()
         ];
     }
 }

@@ -165,7 +165,7 @@ class SmartCodeParser
 
         if ($valueKey == 'password_reset_url' || $valueKey == 'password_set_url') {
             if (defined('FLUENTAUTH_PREVIEWING_EMAIL')) {
-                return '#pasword_reset_link_will_be_inserted_on_real_email';
+                return '#password_reset_link_will_be_inserted_on_real_email';
             }
 
             if (!empty($wpUser->_password_reset_key_)) {
@@ -221,6 +221,22 @@ class SmartCodeParser
 
         $valueKeys = explode('.', $valueKey);
         if (count($valueKeys) == 1) {
+            /*
+             * Named properties only. `$wpUser->get()` will hand back any column on the row,
+             * and two of them are credentials: `user_pass` is the password hash and
+             * `user_activation_key` is the live password-reset token. A smart code resolving
+             * to either would carry it into an email - sent in plain text, through however
+             * many relays, and kept in the recipient's mailbox for ever.
+             *
+             * Nothing here is a feature anybody would miss. The properties people write
+             * these templates for are the name, the address and the login, and a template
+             * author who wants a column not on this list can add it through the filter,
+             * which is a decision somebody makes rather than one they make by accident.
+             */
+            if (!in_array($valueKey, self::allowedUserProperties(), true)) {
+                return $defaultValue;
+            }
+
             $value = $wpUser->get($valueKey);
             if (!$value) {
                 return $defaultValue;
@@ -236,6 +252,10 @@ class SmartCodeParser
         $customProperty = $valueKeys[1];
 
         if ($customKey == 'meta') {
+            if (!self::isReadableMeta($customProperty)) {
+                return $defaultValue;
+            }
+
             $metaValue = get_user_meta($wpUser->ID, $customProperty, true);
             if (!$metaValue) {
                 return $defaultValue;
@@ -249,5 +269,74 @@ class SmartCodeParser
         }
 
         return $defaultValue;
+    }
+
+    /**
+     * The user columns a template may print.
+     *
+     * @return array<int, string>
+     */
+    private static function allowedUserProperties()
+    {
+        return (array)apply_filters('fluent_auth/smartcode_user_properties', [
+            'ID',
+            'user_login',
+            'user_email',
+            'user_nicename',
+            'user_url',
+            'user_registered',
+            'display_name',
+            'nickname',
+            'first_name',
+            'last_name',
+            'description',
+            'locale'
+        ]);
+    }
+
+    /**
+     * Whether a meta key may be printed into an email.
+     *
+     * A deny list rather than an allow list, because meta is where every plugin on the site
+     * keeps its own fields and the useful ones cannot be enumerated in advance - the whole
+     * reason `{{user.meta.*}}` exists is to reach fields this plugin has never heard of.
+     *
+     * What it refuses is the shape of a key that holds a secret rather than a detail. The
+     * underscore prefix is WordPress's own mark for meta that is not the user's to see, and
+     * is what `is_protected_meta()` reads; the named entries are the ones that carry a
+     * credential under an unprefixed name - session tokens, the capabilities array, and this
+     * plugin's own single-use child-site token.
+     *
+     * @param string $key
+     * @return bool
+     */
+    private static function isReadableMeta($key)
+    {
+        global $wpdb;
+
+        $key = (string)$key;
+
+        if ($key === '' || strpos($key, '_') === 0) {
+            return false;
+        }
+
+        $denied = [
+            'session_tokens',
+            'user_pass',
+            'user_activation_key',
+            $wpdb->get_blog_prefix() . 'capabilities',
+            $wpdb->get_blog_prefix() . 'user_level'
+        ];
+
+        if (in_array(strtolower($key), array_map('strtolower', $denied), true)) {
+            return false;
+        }
+
+        /* This plugin's own keys - the child-site login token lives under one of these. */
+        if (strpos($key, '__fls') === 0 || strpos($key, 'fls_') === 0) {
+            return false;
+        }
+
+        return !(bool)apply_filters('fluent_auth/smartcode_meta_is_private', false, $key);
     }
 }

@@ -5,27 +5,23 @@ namespace FluentAuth\App\Services;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 /**
  * The security checklist on the dashboard, and the one-click way to satisfy an item.
  *
- * A check is not a yes-or-no. The first version of this list was, and it marked a site
- * down for not blocking application passwords - a setting the plugin recommends leaving
- * alone, because blocking it breaks every integration on a site that uses it. A list that
- * scolds you for a deliberate configuration teaches you to ignore the list.
+ * A check is `done` or `todo`, and separately it is scored or not. Only the protections
+ * this plugin recommends for every site count towards the score, so the score is reachable
+ * - the rest are shown below it as things to weigh up. What "recommended" means comes from
+ * Helper::getRecommendedSettings() rather than from anything written here, so the checklist
+ * and the "apply recommended" button cannot disagree.
  *
- * So a check has a state:
- *
- * - `done`    the protection is on.
- * - `todo`    it is off, and turning it on is what this plugin recommends.
- * - `in_use`  it is off, and something on this site is relying on that. Reported as a fact
- *             with the evidence for it, never as a failing, and never one-click fixable.
- *
- * And a check is either scored or not. Only the ones this plugin recommends for every site
- * count towards the score, so the score is reachable - the rest are shown below it as
- * things to weigh up. What "recommended" means comes from Helper::getRecommendedSettings()
- * rather than from anything written here, so the checklist and the "apply recommended"
- * button cannot disagree.
+ * The rule this list is built to obey: nothing on it may scold a site for a configuration
+ * somebody chose on purpose. An early version marked sites down for not blocking
+ * application passwords - a thing plenty of sites legitimately depend on - and a list that
+ * does that teaches people to ignore the list. Which is why a recommendation that does not
+ * suit every site either goes unscored, goes in as advice, or does not go on the list at
+ * all.
  */
 class SecurityChecks
 {
@@ -60,6 +56,28 @@ class SecurityChecks
     }
 
     /**
+     * One check, evaluated against the current settings.
+     *
+     * For callers that need a single item's title, reasoning and state without walking the
+     * whole list - the setup wizard shows the checklist's own words under the toggle that
+     * satisfies a check, so that a site is never given one explanation there and a
+     * different one here.
+     *
+     * @param string $key
+     * @return array|null
+     */
+    public static function find($key)
+    {
+        $definitions = self::definitions();
+
+        if (!isset($definitions[$key])) {
+            return null;
+        }
+
+        return self::evaluate($key, $definitions[$key], Helper::getAuthSettings());
+    }
+
+    /**
      * Turns on the protection a single check asks for.
      *
      * Takes the name of a check, not a setting and a value: the caller says which
@@ -89,24 +107,6 @@ class SecurityChecks
             return new \WP_Error(
                 'already_done',
                 __('This is already turned on.', 'fluent-security'),
-                ['status' => 422]
-            );
-        }
-
-        /*
-         * Ordered before the "can this be turned on from here" check, and not folded into
-         * it, because a check in use reports itself as navigate-only - so testing that first
-         * would refuse for the right reason while giving the wrong one, and the reason is
-         * the entire value of this guard: it is what tells the caller what would break.
-         *
-         * The evidence is re-read here rather than taken from the request. Between the
-         * dashboard loading and this being clicked somebody may have created an application
-         * password, and the point of the check is not to cut off what they just set up.
-         */
-        if ($item['state'] === 'in_use') {
-            return new \WP_Error(
-                'in_use',
-                $item['note'] ?: __('Something on this site is relying on this.', 'fluent-security'),
                 ['status' => 422]
             );
         }
@@ -157,17 +157,25 @@ class SecurityChecks
         $item = [
             'key'     => $key,
             'title'   => $definition['title'],
+            /*
+             * One line on why it matters, for the finding row on the security screen. The
+             * checklist on the dashboard never had room for it and did without; a reader who
+             * has to decide whether to press the button needs it.
+             */
+            'why'     => Arr::get($definition, 'why', ''),
+            'group'   => Arr::get($definition, 'group', 'login'),
             'scored'  => $definition['scored'],
+            /*
+             * Sound practice rather than a protection every site should have on. Carried
+             * separately from `scored` because they answer different questions: an unscored
+             * check is one the score cannot reach, advice is one nothing is wrong about.
+             */
+            'advice'  => !empty($definition['advice']),
             'state'   => $done ? 'done' : 'todo',
             'action'  => $definition['settings'] ? 'enable' : 'navigate',
-            'note'    => '',
             'route'   => $definition['route'],
             'section' => Arr::get($definition, 'section', '')
         ];
-
-        if (isset($definition['evidence'])) {
-            $item = call_user_func($definition['evidence'], $item);
-        }
 
         return $item;
     }
@@ -180,23 +188,66 @@ class SecurityChecks
         return [
             'two_fa'             => [
                 'title'    => __('Two-factor authentication', 'fluent-security'),
+                'why'      => __('Lets people add a code from an app or their email to their sign-in. A stolen password alone is then not enough to get in.', 'fluent-security'),
+                'group'    => 'login',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'two_fa',
+                /*
+                 * What the button writes, and `passkey_2fa` is deliberately not in it even
+                 * though `done` below counts it. apply() writes every key in this list, so
+                 * adding it here would have the one-click button switch passkeys on - which
+                 * getRecommendedSettings() does not do, leaving this button and "Apply
+                 * recommended" disagreeing about what a well-configured site looks like. It
+                 * would also store the switch on over plain http, where no passkey can be
+                 * created, so the site would be told it had gained a factor nobody can register.
+                 * Counting a setting and turning it on are different questions.
+                 */
                 'settings' => ['totp_2fa', 'email2fa', 'email2fa_roles', 'totp_2fa_roles'],
                 /*
-                 * Either factor counts. Turning them on only lets people set one up - the
+                 * Any factor counts. Turning them on only lets people set one up - the
                  * roles that must have one are left alone on purpose, because imposing
                  * that from a one-click button is how an administrator locks themselves out.
+                 *
+                 * Passkeys count, and their absence here was a straightforward bug: a site
+                 * running passkeys and nothing else was told it had no second factor and
+                 * docked the points for it, while the plugin's own enforcement was happily
+                 * accepting one as meeting a requirement. The strongest method the plugin
+                 * offers is not the one to leave out of the tally.
+                 *
+                 * The switch is not enough on its own, though, which is why this asks
+                 * RelyingParty::isSupported() as well: over plain http no passkey can be
+                 * created whatever the setting says, and ticking this off for one would
+                 * score a site as having a second factor that nobody on it can register.
+                 * That is the same question PasskeyTwoFaMethod::isSwitchedOn() asks, and
+                 * the passkey card on the settings screen says so in as many words.
                  */
                 'done'     => function ($settings) {
-                    return Arr::get($settings, 'totp_2fa') === 'yes'
+                    $passkeyOn = Arr::get($settings, 'passkey_2fa') === 'yes'
+                        && RelyingParty::isSupported();
+
+                    return $passkeyOn
+                        || Arr::get($settings, 'totp_2fa') === 'yes'
                         || Arr::get($settings, 'email2fa') === 'yes';
                 }
             ],
+            /*
+             * Advice, and unscored with it. Login alerts are worth having on the accounts that
+             * can do damage, and worth not having on the ones that sign in all day - a mailbox
+             * that fills up with sign-ins nobody reads is worse than no alerts at all, because
+             * the one that mattered arrives in a folder somebody set up a filter for.
+             *
+             * Which is a judgement about how a particular site is staffed, not a protection
+             * every site should have on. So it is offered rather than counted, and the roles
+             * this recommends are the high-privilege ones only - see
+             * Helper::getRecommendedSettings().
+             */
             'notifications'      => [
-                'title'    => __('Alert admins about logins', 'fluent-security'),
-                'scored'   => true,
+                'title'    => __('Get an email when an administrator signs in', 'fluent-security'),
+                'why'      => __('If someone else signs in to an administrator account, you find out the same day. Keep it to roles that sign in rarely, so the emails stay worth reading.', 'fluent-security'),
+                'group'    => 'login',
+                'scored'   => false,
+                'advice'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'notifications',
                 'settings' => ['notification_user_roles', 'notification_email'],
@@ -206,7 +257,9 @@ class SecurityChecks
                 }
             ],
             'disable_xmlrpc'     => [
-                'title'    => __('Block XML-RPC requests', 'fluent-security'),
+                'title'    => __('Block the old remote sign-in route (XML-RPC)', 'fluent-security'),
+                'why'      => __('Few sites still use it, and it is a favourite way to try thousands of passwords at once. Skip this if you rely on the WordPress mobile app or Jetpack.', 'fluent-security'),
+                'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -216,7 +269,9 @@ class SecurityChecks
                 }
             ],
             'disable_users_rest' => [
-                'title'    => __('Hide the public user list', 'fluent-security'),
+                'title'    => __('Hide usernames from the public', 'fluent-security'),
+                'why'      => __('Right now anyone can look up the usernames on your site. A username is half of every login.', 'fluent-security'),
+                'group'    => 'config',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -227,6 +282,8 @@ class SecurityChecks
             ],
             'secure_signup_form' => [
                 'title'    => __('Verify email addresses on signup', 'fluent-security'),
+                'why'      => __('Without it, anyone can register accounts in bulk with addresses they do not own.', 'fluent-security'),
+                'group'    => 'login',
                 'scored'   => true,
                 'route'    => 'settings_general',
                 'section'  => 'core',
@@ -236,24 +293,6 @@ class SecurityChecks
                 }
             ],
 
-            /*
-             * Not scored, because there is no answer that is right for every site - see
-             * Helper::getRecommendedSettings(). What makes it worth showing anyway is that
-             * the answer for *this* site can be looked up rather than guessed at.
-             */
-            'disable_app_login'  => [
-                'title'    => __('Block application passwords', 'fluent-security'),
-                'scored'   => false,
-                'route'    => 'settings_general',
-                'section'  => 'core',
-                'settings' => ['disable_app_login'],
-                'done'     => function ($settings) {
-                    return Arr::get($settings, 'disable_app_login') === 'yes';
-                },
-                'evidence' => function ($item) {
-                    return self::appPasswordEvidence($item);
-                }
-            ],
             'integrity_scan'     => [
                 /*
                  * No settings to write: file monitoring is a service that has to be set up
@@ -261,7 +300,9 @@ class SecurityChecks
                  * that. It is out of the score for the same reason - most sites would sit
                  * at four out of five forever through no fault of their configuration.
                  */
-                'title'    => __('Watch core files for changes', 'fluent-security'),
+                'title'    => __('Watch your WordPress files for changes', 'fluent-security'),
+                'why'      => __('This is the only check that can tell you a file was edited after somebody got in.', 'fluent-security'),
+                'group'    => 'files',
                 'scored'   => false,
                 'route'    => 'security_scans',
                 'settings' => [],
@@ -273,72 +314,5 @@ class SecurityChecks
                 }
             ]
         ];
-    }
-
-    /**
-     * Whether anything on this site signs in with an application password.
-     *
-     * Read from the passwords themselves rather than from the auth log: a successful REST
-     * login does not go through the login form and leaves no entry, so the log can only
-     * ever prove that nothing has failed. A password that exists is a thing somebody
-     * created for something, which is the fact worth knowing before blocking the lot.
-     *
-     * @param array $item
-     * @return array
-     */
-    private static function appPasswordEvidence($item)
-    {
-        if ($item['state'] === 'done') {
-            $item['note'] = __('Blocked. Nothing can sign in over the REST API with one.', 'fluent-security');
-
-            return $item;
-        }
-
-        $users = self::usersWithAppPasswords();
-
-        if ($users) {
-            $item['state'] = 'in_use';
-            $item['action'] = 'navigate';
-            $item['route'] = 'settings_two_fa_enrollment';
-            $item['note'] = sprintf(
-                /* translators: %s: number of users */
-                _n(
-                    'In use: %s user has an application password. Blocking these would cut off whatever it was made for.',
-                    'In use: %s users have application passwords. Blocking these would cut off whatever they were made for.',
-                    $users,
-                    'fluent-security'
-                ),
-                number_format_i18n($users)
-            );
-
-            return $item;
-        }
-
-        $item['note'] = __('Nobody has one, so blocking them costs this site nothing.', 'fluent-security');
-
-        return $item;
-    }
-
-    /**
-     * @return int
-     */
-    private static function usersWithAppPasswords()
-    {
-        if (!class_exists('\WP_Application_Passwords')) {
-            return 0;
-        }
-
-        $query = new \WP_User_Query([
-            'number'     => 1,
-            'fields'     => 'ID',
-            'meta_query' => [
-                [
-                    'key'     => \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS,
-                    'compare' => 'EXISTS'
-                ]
-            ]
-        ]);
-
-        return (int)$query->get_total();
     }
 }

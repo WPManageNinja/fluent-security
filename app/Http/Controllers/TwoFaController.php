@@ -4,7 +4,12 @@ namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\FactorMigration;
+use FluentAuth\App\Services\TwoFa\FactorStore;
+use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
+use FluentAuth\App\Services\TwoFa\WebAuthn\PasskeyStore;
 
 /**
  * Who has a second factor, and the way back in when a device is lost.
@@ -23,55 +28,25 @@ class TwoFaController
         $search = sanitize_text_field((string)$request->get_param('search'));
         $filter = sanitize_text_field((string)$request->get_param('filter'));
 
-        $args = [
-            'number'  => self::PER_PAGE,
-            'paged'   => $page,
-            'orderby' => 'ID',
-            'order'   => 'ASC',
-            'fields'  => 'all'
-        ];
-
-        if ($search) {
-            $args['search'] = '*' . $search . '*';
-            $args['search_columns'] = ['user_login', 'user_email', 'display_name'];
-        }
-
-        $clauses = [self::getScopeClause()];
-
-        /*
-         * Enrollment is a meta key, so filtering on it belongs in the query rather than
-         * in a loop over the page - otherwise "show me who is enrolled" returns however
-         * many of the first twenty users happen to be.
-         */
-        if ($filter === 'enrolled') {
-            $clauses[] = [
-                'key'     => TotpTwoFaMethod::META_SECRET,
-                'compare' => 'EXISTS'
-            ];
-        } elseif ($filter === 'not_enrolled') {
-            $clauses[] = [
-                'key'     => TotpTwoFaMethod::META_SECRET,
-                'compare' => 'NOT EXISTS'
-            ];
-        }
-
-        $args['meta_query'] = array_merge(['relation' => 'AND'], $clauses);
-
-        $query = new \WP_User_Query($args);
+        $page = self::queryPage($page, $search, $filter);
 
         $users = [];
 
-        foreach ($query->get_results() as $user) {
-            $users[] = self::formatUser($user);
+        foreach ($page['ids'] as $userId) {
+            $user = get_user_by('ID', $userId);
+
+            if ($user) {
+                $users[] = self::formatUser($user);
+            }
         }
 
         return [
             'users' => [
                 'data'         => $users,
-                'total'        => (int)$query->get_total(),
+                'total'        => $page['total'],
                 'per_page'     => self::PER_PAGE,
-                'current_page' => $page,
-                'last_page'    => (int)ceil($query->get_total() / self::PER_PAGE)
+                'current_page' => $page['page'],
+                'last_page'    => (int)ceil($page['total'] / self::PER_PAGE)
             ],
             'summary' => self::getSummary(),
             /*
@@ -128,45 +103,163 @@ class TwoFaController
     }
 
     /**
-     * Who belongs on this list at all.
+     * One page of the list, with its total.
      *
-     * Not every user on the site. A membership site has thousands of subscribers who are
-     * offered nothing, and a page of "Not available" repeated down every column buries
-     * the handful of rows worth reading.
+     * Written as a query rather than assembled from WP_User_Query, because enrollment
+     * no longer lives in user meta and WP_User_Query cannot join a table it has never
+     * heard of. What is below is what the meta clauses compiled to anyway - roles live
+     * serialised inside one capabilities key, so matching a role has always been a LIKE
+     * over that key - with the enrollment half now a join instead of a second one.
+     *
+     * Who belongs on this list at all: not every user on the site. A membership site
+     * has thousands of subscribers who are offered nothing, and a page of "Not
+     * available" repeated down every column buries the handful of rows worth reading.
      *
      * So: anybody whose role is offered a second factor, or - however the policy has
      * changed since - anybody who actually has one. That second half is not tidiness. A
-     * user who enrolled while their role was allowed keeps a working secret when the
+     * user who enrolled while their role was allowed keeps a working factor when the
      * role is taken off the list, and this screen is the only place to turn it off; drop
      * them and the count above the table reports somebody the table cannot show.
      *
-     * Built as meta clauses rather than `role__in` because that argument cannot be ORed
-     * with the enrollment test. This is the comparison it compiles to anyway - roles
-     * live serialised inside one capabilities key.
-     *
+     * @param $page int
+     * @param $search string
+     * @param $filter string
      * @return array
      */
-    private static function getScopeClause()
+    private static function queryPage($page, $search, $filter)
     {
         global $wpdb;
 
-        $clause = [
-            'relation' => 'OR',
-            [
-                'key'     => TotpTwoFaMethod::META_SECRET,
-                'compare' => 'EXISTS'
-            ]
-        ];
+        /*
+         * Asked before the query rather than after it, because this join is exactly what
+         * cannot see a legacy enrollment: a user still in user meta is absent from the
+         * table, so the list would report them as never having set anything up and offer
+         * to help them enrol again.
+         */
+        FactorMigration::ensureMigrated();
+
+        $factors = FactorStore::table();
+        $capsKey = $wpdb->get_blog_prefix() . 'capabilities';
+
+        /*
+         * Joined on the active rows only, so a half-finished setup does not read as an
+         * enrollment - which is the distinction the old storage could not draw at all,
+         * because a pending secret and a live one were the same serialised blob.
+         */
+        $join = FactorStore::hasTable()
+            ? "LEFT JOIN {$factors} f ON f.user_id = u.ID AND f.status = 'active'
+               AND f.type IN ('" . FactorStore::TYPE_TOTP . "', '" . FactorStore::TYPE_PASSKEY . "')"
+            : '';
+
+        $enrolledTest = FactorStore::hasTable() ? 'f.id IS NOT NULL' : '0 = 1';
+
+        $conditions = [];
+        $values = [];
+
+        $scope = [$enrolledTest];
 
         foreach (self::getCoveredRoles() as $role) {
-            $clause[] = [
-                'key'     => $wpdb->get_blog_prefix() . 'capabilities',
-                'value'   => '"' . $role . '"',
-                'compare' => 'LIKE'
-            ];
+            $scope[] = 'caps.meta_value LIKE %s';
+            $values[] = '%' . $wpdb->esc_like('"' . $role . '"') . '%';
         }
 
-        return $clause;
+        $conditions[] = '(' . implode(' OR ', $scope) . ')';
+
+        /*
+         * Filtering belongs in the query rather than in a loop over the page, or
+         * "show me who is enrolled" returns however many of the first twenty users
+         * happen to be.
+         */
+        if ($filter === 'enrolled') {
+            $conditions[] = $enrolledTest;
+        } elseif ($filter === 'not_enrolled') {
+            $conditions[] = FactorStore::hasTable() ? 'f.id IS NULL' : '1 = 1';
+        }
+
+        if ($search) {
+            $like = '%' . $wpdb->esc_like($search) . '%';
+            $conditions[] = '(u.user_login LIKE %s OR u.user_email LIKE %s OR u.display_name LIKE %s)';
+            $values[] = $like;
+            $values[] = $like;
+            $values[] = $like;
+        }
+
+        $where = implode(' AND ', $conditions);
+
+        $from = "FROM {$wpdb->users} u
+            LEFT JOIN {$wpdb->usermeta} caps ON caps.user_id = u.ID AND caps.meta_key = %s
+            {$join}
+            WHERE {$where}";
+
+        $capsValues = array_merge([$capsKey], $values);
+
+        /*
+         * Counted separately rather than with SQL_CALC_FOUND_ROWS, which MySQL has
+         * deprecated and which behaves differently once a GROUP BY is involved.
+         */
+        $total = (int)$wpdb->get_var(
+            $wpdb->prepare("SELECT COUNT(DISTINCT u.ID) {$from}", $capsValues)
+        );
+
+        $page = max(1, (int)$page);
+        $offset = ($page - 1) * self::PER_PAGE;
+
+        $ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT u.ID {$from} GROUP BY u.ID ORDER BY u.ID ASC LIMIT %d OFFSET %d",
+                array_merge($capsValues, [self::PER_PAGE, $offset])
+            )
+        );
+
+        return [
+            'ids'   => array_map('intval', (array)$ids),
+            'total' => $total,
+            'page'  => $page
+        ];
+    }
+
+    /**
+     * How many people on this site could have the second factor that is being counted.
+     *
+     * The denominator for every "x of y enrolled" on any screen, so the two that show one
+     * cannot disagree - which they did: the enrollment screen measured against the roles
+     * allowed an authenticator app and the dashboard measured against everybody with an
+     * account, so a shop with three administrators and thirty-two customers read "0 of 3"
+     * on one screen and "0 of 35" on the other. Only one of those numbers describes whether
+     * the policy has landed, and the other one is a membership list.
+     *
+     * Scoped to the roles allowed an authenticator app *or* a passkey, because that is what
+     * countEnrolledUsers() counts on the top of the fraction. Taking the roles for one
+     * method and the enrolments for two is how a denominator ends up smaller than its
+     * numerator.
+     *
+     * @return int
+     */
+    public static function countEligibleUsers()
+    {
+        $roles = [];
+
+        if (TotpTwoFaMethod::isEnabledForAnyRole()) {
+            $roles = (array)Helper::getSetting('totp_2fa_roles');
+        }
+
+        if (PasskeyTwoFaMethod::isEnabledForAnyRole()) {
+            $roles = array_merge($roles, (array)Helper::getSetting('passkey_2fa_roles'));
+        }
+
+        $roles = array_values(array_unique(array_filter($roles)));
+
+        if (!$roles) {
+            return 0;
+        }
+
+        $query = new \WP_User_Query([
+            'number'   => 1,
+            'fields'   => 'ID',
+            'role__in' => $roles
+        ]);
+
+        return (int)$query->get_total();
     }
 
     /**
@@ -180,6 +273,10 @@ class TwoFaController
 
         if (TotpTwoFaMethod::isEnabledForAnyRole()) {
             $roles = (array)Helper::getSetting('totp_2fa_roles');
+        }
+
+        if (PasskeyTwoFaMethod::isEnabledForAnyRole()) {
+            $roles = array_merge($roles, (array)Helper::getSetting('passkey_2fa_roles'));
         }
 
         if (EmailTwoFaMethod::isEnabledForAnyRole()) {
@@ -197,8 +294,9 @@ class TwoFaController
     private static function getMethodStates()
     {
         return [
-            'totp'  => TotpTwoFaMethod::isEnabledForAnyRole(),
-            'email' => EmailTwoFaMethod::isEnabledForAnyRole()
+            'totp'    => TotpTwoFaMethod::isEnabledForAnyRole(),
+            'email'   => EmailTwoFaMethod::isEnabledForAnyRole(),
+            'passkey' => PasskeyTwoFaMethod::isEnabledForAnyRole()
         ];
     }
 
@@ -209,6 +307,18 @@ class TwoFaController
     private static function formatUser($user)
     {
         $enrolled = TotpTwoFaMethod::isEnrolled($user);
+
+        $passkeys = PasskeyTwoFaMethod::isEnrolled($user) ? PasskeyStore::countForUser($user) : 0;
+
+        /*
+         * Recovery codes belong to the account, not to the authenticator app: a passkey
+         * holder has a set too, and reporting them only for app holders is what had this
+         * table print a dash for somebody whose codes are the only way back in.
+         */
+        $holdsDevice = $enrolled || $passkeys > 0;
+
+        /* Empty when this administrator may not edit them - see profile_url below. */
+        $profileUrl = get_edit_user_link($user->ID);
 
         $emailRoles = Helper::getSetting('email2fa_roles');
 
@@ -223,13 +333,32 @@ class TwoFaController
             'user_email'      => $user->user_email,
             'roles'           => array_values($user->roles),
             'totp_enrolled'   => $enrolled,
+            'passkey_count'   => $passkeys,
+            'passkey_allowed' => PasskeyTwoFaMethod::isAllowedForUser($user),
             'totp_allowed'    => TotpTwoFaMethod::isAllowedForUser($user),
-            'totp_required'   => TotpTwoFaMethod::isRequiredForUser($user),
-            'activated_at'    => $enrolled ? get_user_meta($user->ID, TotpTwoFaMethod::META_ACTIVATED_AT, true) : '',
-            'recovery_codes'  => $enrolled ? TotpTwoFaMethod::getRemainingRecoveryCount($user) : 0,
+            /*
+             * Whether anything is still owed, not whether the role is named. A user who
+             * met the requirement with a passkey is compliant, and the table used to flag
+             * them "Required, not set up" - the same false alarm this rule was rewritten
+             * to remove. The key keeps its name: it is read by the admin app.
+             */
+            'totp_required'   => DeviceRequirement::isOwedBy($user),
+            'activated_at'    => $enrolled ? TotpTwoFaMethod::getActivatedAt($user) : '',
+            'recovery_codes'  => $holdsDevice ? TotpTwoFaMethod::getRemainingRecoveryCount($user) : 0,
             'recovery_total'  => TotpTwoFaMethod::RECOVERY_CODE_COUNT,
             'email_2fa'       => $emailApplies,
-            'can_edit'        => current_user_can('edit_user', $user->ID)
+            'can_edit'        => current_user_can('edit_user', $user->ID),
+            /*
+             * Where the whole of this user's second factor lives, and the only place an
+             * administrator can take a passkey off an account - the profile card renders
+             * on edit_user_profile as well as show_user_profile, with its removal controls
+             * intact for whoever holds edit_user. Empty when this administrator may not
+             * edit them, which is what the row menu tests before offering the link.
+             *
+             * Built by core so it lands on profile.php for your own row and user-edit.php
+             * for everybody else's; the fragment is the card's own heading.
+             */
+            'profile_url'     => $profileUrl ? $profileUrl . '#fls-two-factor' : ''
         ];
     }
 
@@ -241,41 +370,49 @@ class TwoFaController
      */
     private static function getSummary()
     {
-        $enrolled = new \WP_User_Query([
-            'number'     => 1,
-            'fields'     => 'ID',
-            'meta_query' => [
-                [
-                    'key'     => TotpTwoFaMethod::META_SECRET,
-                    'compare' => 'EXISTS'
-                ]
-            ]
-        ]);
+        $enrolled = self::countEnrolledUsers();
 
         /*
          * Measured against the people who could have one, not against everybody with an
          * account. "3 of 4000" describes a membership list; "3 of 5" describes whether
          * the policy has landed, which is the only reason to put a number here.
          */
-        $allowedRoles = TotpTwoFaMethod::isEnabledForAnyRole()
-            ? (array)Helper::getSetting('totp_2fa_roles')
-            : [];
-
-        $eligible = 0;
-
-        if ($allowedRoles) {
-            $query = new \WP_User_Query([
-                'number'    => 1,
-                'fields'    => 'ID',
-                'role__in'  => $allowedRoles
-            ]);
-
-            $eligible = (int)$query->get_total();
-        }
+        $eligible = self::countEligibleUsers();
 
         return [
-            'enrolled' => (int)$enrolled->get_total(),
+            'enrolled' => $enrolled,
             'eligible' => $eligible
         ];
+    }
+
+    /**
+     * How many people hold a device factor of any kind.
+     *
+     * Counted across passkeys and authenticator apps together, which the old count could
+     * not do: it asked user meta, and a passkey has never been stored there. A site that
+     * had rolled out passkeys was told nobody was enrolled.
+     *
+     * @return int
+     */
+    public static function countEnrolledUsers()
+    {
+        global $wpdb;
+
+        FactorMigration::ensureMigrated();
+
+        if (!FactorStore::hasTable()) {
+            return 0;
+        }
+
+        $table = FactorStore::table();
+
+        return (int)$wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(DISTINCT user_id) FROM {$table} WHERE `status` = %s AND `type` IN (%s, %s)",
+                FactorStore::STATUS_ACTIVE,
+                FactorStore::TYPE_TOTP,
+                FactorStore::TYPE_PASSKEY
+            )
+        );
     }
 }

@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "phpstan": "phpstan analyse --memory-limit=1G --error-format=table > phpstan-errors.md",
+        "phpstan": "phpstan analyse --memory-limit=3G --error-format=table > phpstan-errors.md",
         "test": "phpunit",
         "test-coverage": "phpunit --coverage-html coverage-report",
         "test-coverage-clover": "phpunit --coverage-clover coverage.xml",

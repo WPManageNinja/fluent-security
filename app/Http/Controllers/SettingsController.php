@@ -4,8 +4,11 @@ namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Services\ProxyDetection;
+use FluentAuth\App\Services\TwoFa\RivalTwoFa;
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 class SettingsController
 {
@@ -22,7 +25,13 @@ class SettingsController
              * the way on the sites that will never need it and speak up on the ones
              * where it is already going wrong.
              */
-            'proxy_detection'     => ProxyDetection::detect()
+            'proxy_detection'     => ProxyDetection::detect(),
+            /*
+             * Another plugin finishing the logins this screen is configuring. Null on almost
+             * every site; when it is not, the second factor being switched on below does not
+             * work, and this screen is where that has to be said. See RivalTwoFa::notice().
+             */
+            'two_fa_conflict'     => RivalTwoFa::notice()
         ];
     }
 
@@ -33,20 +42,51 @@ class SettingsController
             return $settings;
         }
 
+        /*
+         * The digest window is measured from the last send. Left alone, switching from
+         * daily to a weekday could swallow the first weekly digest because a daily one
+         * went out a few days ago. A new frequency starts from now.
+         */
+        $previous = Helper::getSetting('digest_summary');
+        if (Arr::get($settings, 'digest_summary') !== $previous) {
+            delete_option('_fls_last_digest_sent');
+        }
+
         update_option('__fls_auth_settings', $settings, false);
+
+        /*
+         * Both device factors ship switched off, so on most sites the table they share
+         * is one nobody will ever have a row in. It is created here, the first time
+         * somebody says they want one of them, rather than at activation - where it
+         * would be made on every install that will never use it, and, because
+         * activation does not run when a plugin updates, still be missing on the sites
+         * that would.
+         *
+         * Asked on the saved state rather than on a change to it. The two differ only
+         * when the table has gone missing under a site that already had the setting on,
+         * and in that case re-saving the screen repairing it is better than re-saving
+         * the screen doing nothing. ensureTable() is a single option read once the
+         * table exists, so there is nothing to save by being cleverer.
+         */
+        if (Arr::get($settings, 'totp_2fa') === 'yes'
+            || Arr::get($settings, 'passkey_2fa') === 'yes'
+            // Offering passkeys on the login form needs the same table the method does.
+            || Arr::get($settings, 'passkey_primary_login') === 'yes'
+            // Requiring a factor grants the methods, so it needs the table as much as
+            // switching one on does - and can now be set without switching either on.
+            || Arr::get($settings, 'totp_required_roles')) {
+            FactorStore::ensureTable();
+        }
 
         return [
             'settings' => $settings,
-            'message'  => __('Settings has been updated', 'fluent-security')
+            'message'  => __('Settings have been updated', 'fluent-security')
         ];
     }
 
     private static function validateSettings($settings)
     {
         $oldSettings = Helper::getAuthSettings();
-        if (isset($settings['require_configuration'])) {
-            unset($settings['require_configuration']);
-        }
 
         $settings = Arr::only($settings, array_keys($oldSettings));
 
@@ -81,6 +121,7 @@ class SettingsController
             'email2fa_roles',
             'totp_2fa_roles',
             'totp_required_roles',
+            'passkey_2fa_roles',
             'disable_bar_roles'
         ];
 
@@ -122,41 +163,110 @@ class SettingsController
         }
 
         /*
-         * A role cannot be made to set up an authenticator app unless it is also allowed
-         * one - that would be a policy demanding something the setup screen refuses to
-         * offer, which is a locked out user rather than a secured one.
-         *
-         * An empty allow list means nobody may, so it conflicts with every required role
-         * rather than with none of them - which is why this is not guarded on the allow
-         * list being non-empty.
+         * One rule back, in a narrower form. The old pair - required roles must appear in
+         * the allow list, and apps must be on first - went when requiring a factor started
+         * granting the means to get one. Requiring still grants, but only a method that is
+         * switched on, so the lists can disagree again in exactly one way: every required
+         * role must have something it can actually reach. Without this the screen could
+         * save "editors must hold a factor" on a site whose only live method is emailed
+         * codes for administrators, and an editor would be marched to an enrolment screen
+         * with nothing on it. See DeviceRequirement::canBeSatisfiedBy().
          */
-        if (!empty($settings['totp_required_roles'])) {
-            $undeclared = array_diff((array)$settings['totp_required_roles'], (array)$settings['totp_2fa_roles']);
-
-            if ($undeclared) {
-                $errors['totp_required_roles'] = [
-                    'invalid' => sprintf(
-                        'These roles are required to use an authenticator app but are not allowed one: %s',
-                        implode(', ', $undeclared)
-                    )
-                ];
-            }
+        if (!in_array(Arr::get($settings, 'two_fa_required_level'), ['device', 'any'], true)) {
+            $settings['two_fa_required_level'] = 'device';
         }
 
-        if ($settings['totp_2fa'] !== 'yes' && !empty($settings['totp_required_roles'])) {
+        $unreachable = self::requiredRolesWithNothingToUse($settings);
+
+        if ($unreachable) {
             $errors['totp_required_roles'] = [
-                'invalid' => 'Authenticator apps must be enabled before any role can be required to use one'
+                'unreachable' => sprintf(
+                    /* translators: %s: comma separated list of role names */
+                    __('Switch on a method these roles can use first: %s', 'fluent-security'),
+                    implode(', ', $unreachable)
+                )
             ];
         }
 
+        /*
+         * The login form can only offer what the site has switched on, so the flag is
+         * tied to the method rather than allowed to outlive it. Without this, turning
+         * passkeys off and on again would bring back a login button the owner had no
+         * chance to reconsider - and while it was off the stored 'yes' would have been
+         * quietly opening registration to every role through isAllowedForUser().
+         */
+        if (Arr::get($settings, 'passkey_2fa') !== 'yes'
+            || Arr::get($settings, 'passkey_primary_login') !== 'yes') {
+            $settings['passkey_primary_login'] = 'no';
+        }
+
         if ($errors) {
-            return new \WP_Error('validation_error', 'Form Validation failed', $errors);
+            /*
+             * The first field's own sentence, not "Form Validation failed". The admin app
+             * prints `message` and nothing renders the per-field data, so every refusal
+             * reached the owner as three words that named neither the field nor the fix -
+             * which for a rule like "switch on a method these roles can use first" is the
+             * whole of what it had to say.
+             */
+            $first = reset($errors);
+
+            return new \WP_Error(
+                'validation_error',
+                is_array($first) ? (string)reset($first) : __('Form Validation failed', 'fluent-security'),
+                $errors
+            );
         }
 
         return $settings;
 
     }
 
+    /**
+     * Required roles that the settings about to be saved give nothing to.
+     *
+     * Read from the incoming array rather than through DeviceRequirement, because the
+     * question is about what this save would create, not what is in force now.
+     *
+     * The two kinds of method are asked differently for the same reason they are in
+     * DeviceRequirement::canBeSatisfiedBy(): a device method that is on is granted to
+     * every required role, while an emailed code only ever reaches the roles on its own
+     * list. Passkeys need a secure context before any of that, so a site on plain http
+     * cannot lean on them here.
+     *
+     * @param array $settings
+     * @return array Role names, ready to print.
+     */
+    private static function requiredRolesWithNothingToUse($settings)
+    {
+        $required = array_values((array)Arr::get($settings, 'totp_required_roles', []));
+
+        if (!$required) {
+            return [];
+        }
+
+        $deviceOn = Arr::get($settings, 'totp_2fa') === 'yes'
+            || (Arr::get($settings, 'passkey_2fa') === 'yes' && RelyingParty::isSupported());
+
+        if ($deviceOn) {
+            return [];
+        }
+
+        $emailRoles = Arr::get($settings, 'two_fa_required_level') === 'any'
+            && Arr::get($settings, 'email2fa') === 'yes'
+            ? (array)Arr::get($settings, 'email2fa_roles', [])
+            : [];
+
+        $names = Helper::getUserRoles(true);
+        $stranded = [];
+
+        foreach ($required as $role) {
+            if (!in_array($role, $emailRoles, true)) {
+                $stranded[] = isset($names[$role]) ? $names[$role] : $role;
+            }
+        }
+
+        return $stranded;
+    }
 
     public static function getAuthFormSettings(\WP_REST_Request $request)
     {
@@ -166,8 +276,111 @@ class SettingsController
         return [
             'settings'          => $settings,
             'roles'             => Helper::getUserRoles(true),
-            'user_capabilities' => Helper::getWpPermissions(true)
+            'user_capabilities' => Helper::getWpPermissions(true),
+            'destinations'      => self::getRedirectDestinations(),
+            'invalid_redirects' => self::getInvalidRedirects($settings)
         ];
+    }
+
+    /**
+     * The saved redirect addresses that are not on this site, as sentences for the screen.
+     *
+     * Every sign-in reply checks its destination the way wp_safe_redirect() does, so an
+     * address on another host is never followed - people land in wp-admin instead. Saving
+     * one is refused, and one saved before that rule existed is pointed out when the
+     * screen opens. A developer who needs another host adds it to core's
+     * `allowed_redirect_hosts`, which this check honours.
+     *
+     * @param $settings array
+     * @return string[]
+     */
+    private static function getInvalidRedirects($settings)
+    {
+        $problems = [];
+
+        $isOffSite = function ($url) {
+            return $url && is_string($url) && !wp_validate_redirect($url, '');
+        };
+
+        if ($isOffSite($url = Arr::get($settings, 'default_login_redirect'))) {
+            /* translators: %s: the address that was entered */
+            $problems[] = sprintf(__('After signing in: %s is not on this site.', 'fluent-security'), $url);
+        }
+
+        if ($isOffSite($url = Arr::get($settings, 'default_logout_redirect'))) {
+            /* translators: %s: the address that was entered */
+            $problems[] = sprintf(__('After signing out: %s is not on this site.', 'fluent-security'), $url);
+        }
+
+        foreach (array_values((array)Arr::get($settings, 'redirect_rules', [])) as $index => $rule) {
+            if ($isOffSite($url = Arr::get((array)$rule, 'login'))) {
+                /* translators: 1: rule number, 2: the address that was entered */
+                $problems[] = sprintf(__('Rule %1$d, after signing in: %2$s is not on this site.', 'fluent-security'), $index + 1, $url);
+            }
+
+            if ($isOffSite($url = Arr::get((array)$rule, 'logout'))) {
+                /* translators: 1: rule number, 2: the address that was entered */
+                $problems[] = sprintf(__('Rule %1$d, after signing out: %2$s is not on this site.', 'fluent-security'), $index + 1, $url);
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * The handful of places a redirect is actually pointed at.
+     *
+     * Offered as a list rather than left to a blank URL box: three of these four addresses
+     * are ones an administrator would otherwise have to remember and type exactly right,
+     * and getting one wrong is only discovered by signing out. Anything else is still typed
+     * in by hand.
+     *
+     * @return array
+     */
+    private static function getRedirectDestinations()
+    {
+        return [
+            'login'  => [
+                [
+                    'label' => __('Admin dashboard', 'fluent-security'),
+                    'url'   => admin_url()
+                ],
+                [
+                    'label' => __('Site home page', 'fluent-security'),
+                    'url'   => home_url('/')
+                ],
+                [
+                    'label' => __('Their profile page', 'fluent-security'),
+                    'url'   => admin_url('profile.php')
+                ]
+            ],
+            'logout' => [
+                [
+                    'label' => __('Site home page', 'fluent-security'),
+                    'url'   => home_url('/')
+                ],
+                [
+                    'label' => __('The login page', 'fluent-security'),
+                    'url'   => wp_login_url()
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * A redirect target, or an empty string for "leave it to whatever applies next".
+     *
+     * Relative paths survive this on purpose - `/members/` is a perfectly good answer and
+     * one that keeps working when the site moves domain.
+     *
+     * @param mixed $url
+     * @return string
+     */
+    private static function sanitizeRedirectUrl($url)
+    {
+        $url = trim((string)$url);
+
+        return $url ? sanitize_url($url) : '';
     }
 
     public static function saveAuthFormSettings(\WP_REST_Request $request)
@@ -178,44 +391,47 @@ class SettingsController
         if (!$settings) {
             $settings = (array)$request->get_param('redirect_settings');
 
-            $oldSettings['login_redirects'] = sanitize_text_field($settings['login_redirects']);
+            $oldSettings['login_redirects'] = sanitize_text_field(Arr::get($settings, 'login_redirects', 'no'));
 
-            if (!empty($settings['default_login_redirect'])) {
-                $oldSettings['default_login_redirect'] = sanitize_url($settings['default_login_redirect']);
-            }
-
-            if (!empty($settings['default_logout_redirect'])) {
-                $oldSettings['default_logout_redirect'] = sanitize_url($settings['default_logout_redirect']);
-            }
+            /*
+             * Written every time, empty or not. These used to be skipped when blank, which
+             * meant an address could be set but never cleared: choosing "let WordPress
+             * decide" saved silently and came back with the old address still in it.
+             */
+            $oldSettings['default_login_redirect'] = self::sanitizeRedirectUrl(Arr::get($settings, 'default_login_redirect'));
+            $oldSettings['default_logout_redirect'] = self::sanitizeRedirectUrl(Arr::get($settings, 'default_logout_redirect'));
 
             $redirectRules = Arr::get($settings, 'redirect_rules', []);
 
             $sanitizedRules = [];
 
             if ($redirectRules) {
-                foreach ($redirectRules as $redirectIndex => $redirect) {
+                foreach ($redirectRules as $redirect) {
                     $item = [
-                        'login'  => '',
-                        'logout' => ''
+                        'login'  => self::sanitizeRedirectUrl(Arr::get($redirect, 'login')),
+                        'logout' => self::sanitizeRedirectUrl(Arr::get($redirect, 'logout'))
                     ];
-                    if (!empty($redirect['login'])) {
-                        $item['login'] = sanitize_url($redirect['login']);
-                    }
-                    if (!empty($redirect['logout'])) {
-                        $item['logout'] = sanitize_url($redirect['logout']);
-                    }
-                    $conditions = $redirect['conditions'];
+
+                    $conditions = (array)Arr::get($redirect, 'conditions', []);
                     foreach ($conditions as $index => $condition) {
                         $conditions[$index] = map_deep($condition, 'sanitize_text_field');
                     }
 
-                    $item['conditions'] = $conditions;
+                    $item['conditions'] = array_values($conditions);
 
                     $sanitizedRules[] = $item;
                 }
             }
 
             $oldSettings['redirect_rules'] = $sanitizedRules;
+
+            $problems = self::getInvalidRedirects($oldSettings);
+            if ($problems) {
+                return new \WP_Error('invalid_redirect', __('Redirects have to stay on this site. Use an address on this site, or a path such as /members/.', 'fluent-security'), [
+                    'status'            => 422,
+                    'invalid_redirects' => $problems
+                ]);
+            }
 
         } else {
             $oldSettings['enabled'] = sanitize_text_field($settings['enabled']);
@@ -224,7 +440,7 @@ class SettingsController
         update_option('__fls_auth_forms_settings', $oldSettings, false);
 
         return [
-            'message'  => __('Settings has been updated', 'fluent-security'),
+            'message'  => __('Settings have been updated', 'fluent-security'),
             'settings' => $oldSettings
         ];
     }
@@ -244,15 +460,16 @@ class SettingsController
         update_option('__fls_auth_customizer_settings', $settings, false);
 
         return [
-            'message'  => __('Settings has been updated', 'fluent-security'),
+            'message'  => __('Settings have been updated', 'fluent-security'),
             'settings' => $settings
         ];
     }
 
     public static function uploadImage(\WP_REST_Request $request)
     {
-        $file = $_FILES['file'];
-        if (empty($file)) {
+        $file = isset($_FILES['file']) ? $_FILES['file'] : null;
+
+        if (empty($file) || !is_array($file) || empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
             return new \WP_Error('invalid_file', __('Invalid file', 'fluent-security'));
         }
 
@@ -262,7 +479,6 @@ class SettingsController
             $file['name'],
             null // we’ll supply our own list of allowed types below
         );
-        $ext = $checked['ext'];
         $type = $checked['type'];
 
 
@@ -425,21 +641,32 @@ class SettingsController
         ];
 
         if (!is_string($data['user_token']) || !is_string($data['server_token']) || !is_string($data['site_id'])) {
-            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'), ['status' => 400]);
         }
 
         if (empty($data['user_token']) || empty($data['server_token']) || empty($data['site_id'])) {
-            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid request', 'fluent-security'), ['status' => 400]);
         }
 
         $sites = get_option('__fls_child_sites', []);
-        $site = Arr::get($sites, $data['site_id'], null);
-        if (empty($site)) {
-            return new \WP_Error('invalid_request', __('Invalid Site ID', 'fluent-security'));
+
+        /*
+         * Indexed directly rather than through Arr::get(), which reads a dot in the key as
+         * a step down into the array. The id arrives from the network on the one route here
+         * that answers without a signed-in user, and a dotted one walked into a child site's
+         * own record - reaching a string where an array was expected, and taking the
+         * secret_key comparison below with it.
+         */
+        $site = isset($sites[$data['site_id']]) && is_array($sites[$data['site_id']])
+            ? $sites[$data['site_id']]
+            : null;
+
+        if (empty($site) || empty($site['secret_key'])) {
+            return new \WP_Error('invalid_request', __('Invalid Site ID', 'fluent-security'), ['status' => 403]);
         }
 
         if (!hash_equals($site['secret_key'], $data['server_token'])) {
-            return new \WP_Error('invalid_request', __('Invalid server token', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid server token', 'fluent-security'), ['status' => 403]);
         }
 
         $userToken = explode('___', $data['user_token']);
@@ -447,17 +674,39 @@ class SettingsController
         $userId = Arr::get($userToken, '1', null);
 
         if (!$userId) {
-            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'), ['status' => 403]);
         }
 
         $user = get_user_by('ID', $userId);
         $userMeta = get_user_meta($userId, '__flsc_temp_token', true);
 
         if (empty($user) || empty($userMeta) || !hash_equals($userMeta, $data['user_token'])) {
-            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'));
+            return new \WP_Error('invalid_request', __('Invalid user token', 'fluent-security'), ['status' => 403]);
+        }
+
+        /*
+         * And it has to be recent. A token is spent when it is redeemed, so one that never
+         * was - a redirect somebody closed, a callback that failed - used to stay valid for
+         * ever, waiting in user meta. The hop it authorises takes seconds, so a few minutes
+         * is all the life it needs.
+         *
+         * A token with no timestamp is refused rather than trusted. The only ones are those
+         * minted before this was recorded, which is exactly the set that has been sitting
+         * there unspent; the cost of refusing is that somebody follows the link again and
+         * gets a fresh one.
+         */
+        $issuedAt = (int)get_user_meta($userId, '__flsc_temp_token_at', true);
+        $window = (int)apply_filters('fluent_auth/child_site_token_ttl', 5 * MINUTE_IN_SECONDS);
+
+        if (!$issuedAt || (time() - $issuedAt) > $window) {
+            delete_user_meta($userId, '__flsc_temp_token');
+            delete_user_meta($userId, '__flsc_temp_token_at');
+
+            return new \WP_Error('invalid_request', __('That sign-in link has expired. Please try again.', 'fluent-security'), ['status' => 403]);
         }
 
         update_user_meta($userId, '__flsc_temp_token', '');
+        delete_user_meta($userId, '__flsc_temp_token_at');
 
         // now we will prepare the data for the user
         $data = apply_filters('fluent_auth/remote_auth_response_data', [
@@ -481,7 +730,7 @@ class SettingsController
         ];
     }
 
-    public function installPlugin(\WP_REST_Request $request)
+    public static function installPlugin(\WP_REST_Request $request)
     {
         $plugin = $request->get_param('plugin');
 
@@ -504,7 +753,7 @@ class SettingsController
             'file'      => 'fluent-smtp.php',
         ];
 
-        $this->backgroundInstaller($plugin, $plugin_id);
+        self::backgroundInstaller($plugin, $plugin_id);
 
         if (!defined('FLUENTMAIL_PLUGIN_FILE')) {
             return new \WP_Error('installation_failed', __('Plugin installation failed. Please try again.', 'fluent-security'));
@@ -517,7 +766,7 @@ class SettingsController
     }
 
 
-    private function backgroundInstaller($plugin_to_install, $plugin_id)
+    private static function backgroundInstaller($plugin_to_install, $plugin_id)
     {
         if (!empty($plugin_to_install['repo-slug'])) {
             require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -529,7 +778,7 @@ class SettingsController
 
             $skin = new \Automatic_Upgrader_Skin();
             $upgrader = new \WP_Upgrader($skin);
-            $installed_plugins = array_reduce(array_keys(\get_plugins()), array($this, 'associate_plugin_file'), array());
+            $installed_plugins = array_reduce(array_keys(\get_plugins()), array(self::class, 'associate_plugin_file'), array());
             $plugin_slug = $plugin_to_install['repo-slug'];
             $plugin_file = isset($plugin_to_install['file']) ? $plugin_to_install['file'] : $plugin_slug . '.php';
             $installed = false;
@@ -633,7 +882,7 @@ class SettingsController
         }
     }
 
-    private function associate_plugin_file($plugins, $key)
+    private static function associate_plugin_file($plugins, $key)
     {
         $path = explode('/', $key);
         $filename = end($path);

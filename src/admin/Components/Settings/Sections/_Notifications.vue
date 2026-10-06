@@ -20,7 +20,7 @@ export default {
                 thu: this.$t('Every Thursday'),
                 fri: this.$t('Every Friday'),
                 sat: this.$t('Every Saturday'),
-                monthly: this.$t('Every Month (1st day of every month)')
+                monthly: this.$t('Monthly, on the 1st')
             }
         }
     },
@@ -37,9 +37,9 @@ export default {
 <template>
     <div>
         <SettingRow :label="$t('Tell me when these roles sign in')"
-                    :description="$t('A sign-in by a high privilege account is worth knowing about. Leave empty for none.')">
+                    :description="$t('You get an email each time someone with one of these roles signs in.')">
             <el-select clearable :multiple="true" v-model="settings.notification_user_roles"
-                       :placeholder="$t('No sign-in notifications')" style="width: 100%;">
+                       :placeholder="$t('No sign-in notifications')">
                 <el-option v-for="role in user_roles" :value="role.id" :label="role.title"
                            :key="role.id"></el-option>
             </el-select>
@@ -47,11 +47,11 @@ export default {
 
         <SettingToggle v-model="settings.notify_on_blocked"
                        :label="$t('Tell me when someone is blocked')"
-                       :description="$t('Sent when an address hits the failed attempt limit.')"/>
+                       :description="$t('Emails you when the plugin blocks a login attempt. No more than one a minute, however many are blocked.')"/>
 
         <SettingRow :label="$t('Summary report')"
-                    :description="$t('A digest of login activity on a schedule.')">
-            <el-select v-model="settings.digest_summary" style="max-width: 320px;">
+                    :description="$t('A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.')">
+            <el-select v-model="settings.digest_summary">
                 <el-option value="" :label="$t('Do not send a summary')"></el-option>
                 <el-option v-for="(day, dayName) in digest_items" :key="dayName"
                            :value="dayName" :label="day"></el-option>
@@ -59,7 +59,7 @@ export default {
         </SettingRow>
 
         <SettingRow v-if="wantsEmail" :label="$t('Send them to')"
-                    :description="$t('Comma separate for more than one. {admin_email} is the site administration address.')">
+                    :description="$t('{admin_email} is the admin email from your site\'s General Settings. Separate several addresses with commas.')">
             <el-input type="text" v-model="settings.notification_email"/>
         </SettingRow>
     </div>
