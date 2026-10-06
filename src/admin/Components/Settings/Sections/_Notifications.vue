@@ -51,7 +51,7 @@ export default {
 
         <SettingRow :label="$t('Summary report')"
                     :description="$t('A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.')">
-            <el-select v-model="settings.digest_summary">
+            <el-select v-model="settings.digest_summary" :empty-values="[null, undefined]">
                 <el-option value="" :label="$t('Do not send a summary')"></el-option>
                 <el-option v-for="(day, dayName) in digest_items" :key="dayName"
                            :value="dayName" :label="day"></el-option>
