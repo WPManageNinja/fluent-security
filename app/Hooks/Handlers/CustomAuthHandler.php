@@ -923,20 +923,16 @@ class CustomAuthHandler
             ], 422);
         }
 
-        // let's validate the name field
-        $fullName = trim(Arr::get($formData, 'first_name') . ' ' . Arr::get($formData, 'last_name'));
-        if (!empty($fullName)) {
-            // check if the name is valid
-            // Consider if there has any special characters like +, -, *, /, etc
-            // only check the +,-,*,$,/,=,%,!,@,#,^,&,*,(,),_,{,},[,],:,;,',",<,>,?,|,`,~,,
-            if (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $fullName)) {
-                return __('Please provide a valid name', 'fluent-security');
-            }
-
-            // check if there has any http or https
-            if (preg_match('/http|https/', $fullName)) {
-                return __('Please provide a valid name', 'fluent-security');
-            }
+        /*
+         * Names are not policed for characters - O'Brien and Mary-Jane are names, and
+         * WordPress itself only runs sanitize_text_field() over them. A link is the one
+         * thing refused, because that is what a spam signup puts there.
+         */
+        $fullName = Arr::get($formData, 'first_name') . ' ' . Arr::get($formData, 'last_name');
+        if (stripos($fullName, 'http') !== false) {
+            wp_send_json([
+                'message' => __('Please provide a valid name', 'fluent-security')
+            ], 422);
         }
 
         if (apply_filters('fluent_auth/verify_signup_email', true, $formData)) {
@@ -1445,8 +1441,10 @@ class CustomAuthHandler
 
         $pStart = '<p style="font-family: Arial, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;">';
 
+        $firstName = esc_html(sanitize_text_field(wp_unslash((string)Arr::get($formData, 'first_name'))));
+
         /* translators: %s: First Name */
-        $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), Arr::get($formData, 'first_name')) . '</p>' .
+        $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), $firstName) . '</p>' .
             $pStart . __('Thanks for signing up. Enter the code below on the registration page to finish setting up your account.', 'fluent-security') . '</p>' .
             /* translators: %s: Verification code */
             $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
