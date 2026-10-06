@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.4
+Stable tag: 3.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -310,6 +310,17 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.0.5 - Date: Oct 7, 2026 =
+* Fix: Names with a hyphen or an apostrophe, such as Mary-Jane or O'Brien, can now sign up.
+* Fix: Magic login links now sign you in on servers and proxies (such as Cloudflare) that redirect index.php addresses.
+* Fix: Magic login now works when Wordfence Login Security's CAPTCHA is turned on.
+* Fix: Magic login links take you to the page you were heading to.
+* Fix: Social signup buttons now follow the form's redirect and your Login Redirects settings, including on Fluent Support's portal.
+* Fix: The Summary report setting shows "Do not send a summary" instead of a blank box.
+* Fix: The magic login success icon is centred on every theme.
+* Improvement: The signup form now shows dropdown fields added by other plugins, such as Fluent Support's country field.
+* Developer: New LoginBridge::release() lets a plugin end its use of FluentAuth's login form once it has drawn it.
 
 = 3.0.4 - Date: Oct 2, 2026 =
 * Security: Sign-in redirects now always stay on your site.
