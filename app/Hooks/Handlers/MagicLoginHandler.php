@@ -59,13 +59,6 @@ class MagicLoginHandler
 
             return $this->generateHash($user, $minutes);
         }, 10, 3);
-
-        add_filter('wordfence_ls_require_captcha', function ($isRequired) {
-            if (isset($_GET['fls_al'])) {
-                return false;
-            }
-            return $isRequired;
-        });
     }
 
     public function maybePushMagicForm()
@@ -267,12 +260,12 @@ class MagicLoginHandler
 
         if (!empty($_REQUEST['redirect_to']) && filter_var($_REQUEST['redirect_to'], FILTER_VALIDATE_URL)) {
             $redirect_to = sanitize_url($_REQUEST['redirect_to']);
-            // If redirect destination is wp-admin and user is not an admin, ignore it
-            if (strpos($redirect_to, '/wp-admin') !== false && !user_can($user, 'manage_options')) {
-                $redirect_to = home_url('/');
-            }
+        } else if (!empty($_COOKIE['_fls_redirect_to']) && is_string($_COOKIE['_fls_redirect_to'])) {
+            // Remembered by rememberRedirect(). Stored so it travels with the link to whichever device opens it.
+            $redirect_to = sanitize_url(wp_unslash($_COOKIE['_fls_redirect_to']));
         } else {
-            $redirect_to = $this->getLoginRedirect($user);
+            // Nothing asked for; login_redirect decides when the link is redeemed.
+            $redirect_to = '';
         }
 
         $loginUrl = esc_url($this->getMagicLoginUrl($user, $validity, false, $redirect_to));
@@ -625,13 +618,30 @@ class MagicLoginHandler
          */
         Helper::setSatisfiedFactors([AuthFactor::EMAIL]);
 
+        /*
+         * Wordfence Login Security asks for a reCAPTCHA token on every sign-in that passes
+         * through `authenticate`, and a link opened from an inbox never loaded the page that
+         * would have produced one. Waived for this one call only, after the link has been
+         * claimed: keyed on the request instead, `?fls_al=anything` on wp-login.php would
+         * turn the CAPTCHA off for ordinary password guessing.
+         */
+        $noCaptcha = function () {
+            return false;
+        };
+
+        add_filter('wordfence_ls_require_captcha', $noCaptcha);
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
-        $user = wp_signon(array(
-                'user_login'    => $user->user_login,
-                'user_password' => ''
-            )
-        );
-        remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
+
+        try {
+            $user = wp_signon(array(
+                    'user_login'    => $user->user_login,
+                    'user_password' => ''
+                )
+            );
+        } finally {
+            remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
+            remove_filter('wordfence_ls_require_captcha', $noCaptcha);
+        }
 
         Helper::setTokenVerifiedLogin(false);
 
@@ -653,7 +663,14 @@ class MagicLoginHandler
 
                 if (!wp_doing_ajax()) {
                     if (isset($_GET['force_redirect']) && $_GET['force_redirect'] == 'yes') {
-                        wp_safe_redirect($this->getLoginRedirect($user));
+                        if ($row->redirect_intend) {
+                            // The same filter a password sign-in gets, applied to where they asked to go.
+                            $redirectTo = apply_filters('login_redirect', $row->redirect_intend, $row->redirect_intend, $user);
+                        } else {
+                            $redirectTo = $this->getLoginRedirect($user);
+                        }
+
+                        wp_safe_redirect($redirectTo);
                         exit();
                     }
                 }
