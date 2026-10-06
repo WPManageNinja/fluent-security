@@ -12,6 +12,14 @@ use FluentAuth\App\Services\SystemEmailService;
 
 class CustomAuthHandler
 {
+    /**
+     * The field types the signup form can render. A field of any other type given to
+     * `fluent_auth/registration_form_fields` is left out of the form.
+     *
+     * Public so a plugin adding fields can ask before it relies on one: releases before
+     * this constant existed render text, email and password only.
+     */
+    const SIGNUP_FIELD_TYPES = ['text', 'email', 'password', 'select'];
 
     public function register()
     {
@@ -430,11 +438,42 @@ class CustomAuthHandler
             }
 
             $html .= '<div class="fs_input_wrap"><input ' . $atts . '/></div>';
+        } else if ($fieldType === 'select') {
+            $html .= '<div class="fs_input_wrap">' . $this->renderSelect($fieldName, $field) . '</div>';
         } else {
             return '';
         }
 
         return $html . '</div>';
+    }
+
+    /**
+     * A select takes `options` as value => label. The placeholder, if any, becomes an
+     * empty first option, so a required select cannot be submitted untouched.
+     *
+     * @param $fieldName string
+     * @param $field array
+     * @return string
+     */
+    private function renderSelect($fieldName, $field)
+    {
+        $atts = 'id="' . esc_attr(Arr::get($field, 'id')) . '" name="' . esc_attr($fieldName) . '"';
+
+        if (Arr::get($field, 'required')) {
+            $atts .= ' required';
+        }
+
+        $options = '';
+
+        if ($placeholder = Arr::get($field, 'placeholder')) {
+            $options .= '<option value="" disabled selected>' . esc_html($placeholder) . '</option>';
+        }
+
+        foreach ((array)Arr::get($field, 'options', []) as $value => $label) {
+            $options .= '<option value="' . esc_attr($value) . '">' . esc_html($label) . '</option>';
+        }
+
+        return '<select ' . $atts . '>' . $options . '</select>';
     }
 
     /**
@@ -1156,6 +1195,15 @@ class CustomAuthHandler
                 if (!is_email(Arr::get($data, $fieldName))) {
                     /* translators: %s: Form Field Label */
                     $errors[$fieldName] = sprintf(__('Provided %s is not a valid email', 'fluent-security'), esc_html(strtolower($field['label'])));
+                }
+            }
+
+            if ($field['type'] === 'select' && !empty($data[$fieldName])) {
+                $value = $data[$fieldName];
+                $options = (array)Arr::get($field, 'options', []);
+                if (!is_scalar($value) || !array_key_exists((string)$value, $options)) {
+                    /* translators: %s: Form Field Label */
+                    $errors[$fieldName] = sprintf(__('Please select a valid %s', 'fluent-security'), esc_html(strtolower($field['label'])));
                 }
             }
         }
