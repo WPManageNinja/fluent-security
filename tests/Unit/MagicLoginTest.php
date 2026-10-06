@@ -326,6 +326,277 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame(0, get_current_user_id());
     }
 
+    /* ------------------------------------------------------------ where it lands */
+
+    /**
+     * The link points at the site root, not index.php: hosts that rewrite index.php away
+     * answer the old form with a 301 before WordPress ever sees the token.
+     */
+    public function testTheLinkPointsAtTheSiteRoot()
+    {
+        $method = new \ReflectionMethod(MagicLoginHandler::class, 'getMagicLoginUrl');
+
+        $url = $method->invoke($this->handler, $this->user, 10);
+
+        $this->assertStringStartsWith(site_url('/') . '?', $url);
+        $this->assertStringNotContainsString('index.php', $url);
+        $this->assertStringContainsString('fls_al=', $url);
+    }
+
+    /**
+     * Where they asked to go when they requested the link is where the link takes them.
+     */
+    public function testARedeemedLinkGoesWhereThePersonAskedToGo()
+    {
+        $link = $this->issueLinkTo(home_url('/account/'));
+
+        $this->assertSame(home_url('/account/'), $this->redeemAndCaptureRedirect($link));
+    }
+
+    /**
+     * And it goes through login_redirect on the way, as a password sign-in does.
+     */
+    public function testLoginRedirectStillDecidesForAStoredDestination()
+    {
+        $link = $this->issueLinkTo(home_url('/account/'));
+
+        $seen = [];
+        $filter = function ($to, $requested, $user) use (&$seen) {
+            $seen[] = [$to, $requested, $user instanceof \WP_User ? $user->ID : null];
+            return home_url('/members/');
+        };
+
+        add_filter('login_redirect', $filter, 10, 3);
+        $landed = $this->redeemAndCaptureRedirect($link);
+        remove_filter('login_redirect', $filter, 10);
+
+        $this->assertSame(home_url('/members/'), $landed);
+        $this->assertSame([[home_url('/account/'), home_url('/account/'), $this->user->ID]], $seen);
+    }
+
+    public function testWithoutAStoredDestinationLoginRedirectDecides()
+    {
+        $link = $this->issueLink();
+
+        $filter = function () {
+            return home_url('/dashboard/');
+        };
+
+        add_filter('login_redirect', $filter);
+        $landed = $this->redeemAndCaptureRedirect($link);
+        remove_filter('login_redirect', $filter);
+
+        $this->assertSame(home_url('/dashboard/'), $landed);
+    }
+
+    /**
+     * A filter sending the person off the site is still caught by wp_safe_redirect().
+     */
+    public function testAFilterCannotSendThePersonOffSite()
+    {
+        $link = $this->issueLinkTo(home_url('/account/'));
+
+        $filter = function () {
+            return 'https://elsewhere.example.net/';
+        };
+
+        add_filter('login_redirect', $filter);
+        $landed = $this->redeemAndCaptureRedirect($link);
+        remove_filter('login_redirect', $filter);
+
+        $this->assertSame(admin_url(), $landed);
+    }
+
+    /* --------------------------------------------------------------- Wordfence */
+
+    /**
+     * Wordfence Login Security's CAPTCHA is waived for the sign-in a claimed link makes -
+     * inside wp_signon(), where Wordfence asks - and nowhere else.
+     */
+    public function testWordfenceCaptchaIsWaivedOnlyInsideTheLinksOwnSignIn()
+    {
+        $askedDuringSignIn = null;
+        $probe = function ($user) use (&$askedDuringSignIn) {
+            $askedDuringSignIn = apply_filters('wordfence_ls_require_captcha', true);
+            return $user;
+        };
+
+        add_filter('authenticate', $probe, 25);
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+        remove_filter('authenticate', $probe, 25);
+
+        $this->assertFalse($askedDuringSignIn, 'waived while the link signs in');
+        $this->assertTrue(apply_filters('wordfence_ls_require_captcha', true), 'and restored afterwards');
+    }
+
+    /**
+     * The request carrying `fls_al` is not what earns the waiver. If it were, adding
+     * `?fls_al=x` to a password POST at wp-login.php would switch the CAPTCHA off.
+     */
+    public function testABogusLinkDoesNotSwitchTheCaptchaOff()
+    {
+        $this->handler->register();
+
+        $_GET['fls_al'] = 'not-a-real-token:999999';
+
+        $asked = null;
+        $probe = function ($user) use (&$asked) {
+            $asked = apply_filters('wordfence_ls_require_captcha', true);
+            return $user;
+        };
+
+        try {
+            do_action('init');
+
+            add_filter('authenticate', $probe, 25);
+            wp_signon(['user_login' => 'magic_probe', 'user_password' => 'a guess']);
+        } finally {
+            remove_filter('authenticate', $probe, 25);
+            unset($_GET['fls_al']);
+        }
+
+        $this->assertTrue($asked, 'a password sign-in alongside ?fls_al still has to pass the CAPTCHA');
+        $this->assertSame(0, get_current_user_id());
+    }
+
+    /* ------------------------------------------------------- requesting a link */
+
+    /**
+     * With nothing asked for, nothing is stored: login_redirect decides once, at redeem,
+     * for the person who actually signed in - not ahead of time for nobody.
+     */
+    public function testRequestingALinkWithNoDestinationStoresNone()
+    {
+        $calls = 0;
+        $count = function ($to) use (&$calls) {
+            $calls++;
+            return $to;
+        };
+
+        add_filter('login_redirect', $count);
+        $row = $this->requestLink();
+        remove_filter('login_redirect', $count);
+
+        $this->assertSame('', (string)$row->redirect_intend);
+        $this->assertSame(0, $calls, 'login_redirect is not run while sending');
+    }
+
+    public function testRequestingALinkKeepsThePostedDestination()
+    {
+        $row = $this->requestLink(['redirect_to' => home_url('/checkout/')]);
+
+        $this->assertSame(home_url('/checkout/'), $row->redirect_intend);
+    }
+
+    /**
+     * Where rememberRedirect() said they were headed goes into the link, so opening it on
+     * another device - which has no such cookie - still lands there.
+     */
+    public function testRequestingALinkCarriesTheRememberedDestination()
+    {
+        $_COOKIE['_fls_redirect_to'] = home_url('/course/42/');
+
+        try {
+            $row = $this->requestLink();
+        } finally {
+            unset($_COOKIE['_fls_redirect_to']);
+        }
+
+        $this->assertSame(home_url('/course/42/'), $row->redirect_intend);
+    }
+
+    public function testARememberedDestinationOffTheSiteIsNotStored()
+    {
+        $_COOKIE['_fls_redirect_to'] = 'https://elsewhere.example.net/';
+
+        try {
+            $row = $this->requestLink();
+        } finally {
+            unset($_COOKIE['_fls_redirect_to']);
+        }
+
+        $this->assertSame('', (string)$row->redirect_intend);
+    }
+
+    /**
+     * Drives handleMagicLoginAjax() the way the form does and returns the row it issued.
+     */
+    private function requestLink(array $request = [])
+    {
+        $_REQUEST = array_merge([
+            'email'  => 'magic_probe@example.test',
+            '_nonce' => wp_create_nonce('fls_magic_logon_nonce')
+        ], $request);
+
+        $die = function () {
+            return function () {
+                throw new \WPDieException('sent');
+            };
+        };
+
+        add_filter('wp_doing_ajax', '__return_true');
+        add_filter('wp_die_ajax_handler', $die);
+
+        try {
+            ob_start();
+            $this->handler->handleMagicLoginAjax();
+        } catch (\WPDieException $e) {
+            // Expected: wp_send_json() ends in wp_die().
+        } finally {
+            ob_end_clean();
+            remove_filter('wp_doing_ajax', '__return_true');
+            remove_filter('wp_die_ajax_handler', $die);
+            $_REQUEST = [];
+        }
+
+        $row = flsDb()->table('fls_login_hashes')
+            ->where('user_id', $this->user->ID)
+            ->where('status', 'issued')
+            ->orderBy('id', 'DESC')
+            ->first();
+
+        $this->assertNotEmpty($row, 'a link was issued');
+
+        return $row;
+    }
+
+    private function issueLinkTo($destination)
+    {
+        $method = new \ReflectionMethod(MagicLoginHandler::class, 'generateHash');
+
+        return $method->invoke($this->handler, $this->user, 10, $destination);
+    }
+
+    /**
+     * makeLogin() ends in exit() when it redirects, so the redirect is intercepted at the
+     * filter and thrown out of.
+     *
+     * @return string|null
+     */
+    private function redeemAndCaptureRedirect($link)
+    {
+        $captured = null;
+
+        $catch = function ($location) use (&$captured) {
+            $captured = $location;
+            throw new \RuntimeException('redirected');
+        };
+
+        $_GET['force_redirect'] = 'yes';
+        add_filter('wp_redirect', $catch);
+
+        try {
+            $this->handler->makeLogin($link);
+        } catch (\RuntimeException $e) {
+            // Expected: this is how the exit() below the redirect is escaped.
+        } finally {
+            remove_filter('wp_redirect', $catch);
+            unset($_GET['force_redirect']);
+        }
+
+        return $captured;
+    }
+
     private function countRecent()
     {
         return flsDb()->table('fls_login_hashes')
