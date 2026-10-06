@@ -78,8 +78,23 @@ LoginBridge::adopt([
 ```
 
 It enqueues the login assets, sets the redirect the forms carry, prints your hidden
-fields and marks the request as yours. Call it before rendering; calling it twice is
-harmless.
+fields and marks the request as yours. Call it before rendering; a second call replaces
+the first.
+
+## release()
+
+```php
+LoginBridge::adopt([...]);
+echo do_shortcode('[fluent_auth_login]');
+
+if (method_exists('\FluentAuth\App\Services\LoginBridge', 'release')) {
+    LoginBridge::release();
+}
+```
+
+Otherwise the adoption lasts the rest of the request, so another FluentAuth form drawn
+later on the same page would carry your marker and redirect. `release()` ends it; your
+registration stays, because the form you rendered posts back in a later request.
 
 ## What your handlers still see
 
