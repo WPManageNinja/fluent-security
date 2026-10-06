@@ -69,6 +69,23 @@ class LoginBridge
     private static $adopted = '';
 
     /**
+     * A host adopt() put into $hosts because it had never registered. Kept so release()
+     * can take it out again: with no test of its own it would claim every request that
+     * followed.
+     *
+     * @var string
+     */
+    private static $adoptedUnregistered = '';
+
+    /**
+     * The filters adopt() added, as [hook, callback] pairs, so release() can take them
+     * off again.
+     *
+     * @var array<int, array{0: string, 1: callable}>
+     */
+    private static $adoptionFilters = [];
+
+    /**
      * The nonce action for a host's marker field. Anonymous nonces are what the rest of
      * the login endpoints already use.
      */
@@ -111,6 +128,11 @@ class LoginBridge
         self::$hosts[$slug] = $claim;
         self::$claimed = null;
 
+        // Registered for real now, so release() must not take it out with an adoption.
+        if (self::$adoptedUnregistered === $slug) {
+            self::$adoptedUnregistered = '';
+        }
+
         foreach ((array)$ajaxActions as $action) {
             self::allowInline2Fa($action);
         }
@@ -122,7 +144,8 @@ class LoginBridge
      */
     public static function isRegistered($slug)
     {
-        return isset(self::$hosts[sanitize_key($slug)]);
+        // Not isset(): a host registered with a null claim claims every request.
+        return array_key_exists(sanitize_key($slug), self::$hosts);
     }
 
     /**
@@ -132,6 +155,11 @@ class LoginBridge
      */
     public static function claimed()
     {
+        // An adoption holds until release(), even if a later register() clears the memo.
+        if (self::$adopted) {
+            return true;
+        }
+
         if (self::$claimed !== null) {
             return self::$claimed;
         }
@@ -153,7 +181,8 @@ class LoginBridge
      *
      * Everything here is per request and per screen: the claim, the assets, the
      * redirect the forms carry and any hidden fields the host needs echoed back to its
-     * own handlers. Safe to call more than once; the second call replaces the first.
+     * own handlers. It lasts until release() or the end of the request. Safe to call
+     * more than once; the second call replaces the first.
      *
      * @param $args array {
      *     @type string $host          slug passed to register(). Claims this request
@@ -180,6 +209,8 @@ class LoginBridge
             'ajax_actions'  => []
         ]);
 
+        self::release();
+
         $slug = sanitize_key($args['host']);
 
         if ($slug) {
@@ -187,8 +218,9 @@ class LoginBridge
              * A host rendering its screen is not asked to prove it. The test given to
              * register() exists for the request that comes back afterwards.
              */
-            if (!isset(self::$hosts[$slug])) {
+            if (!array_key_exists($slug, self::$hosts)) {
                 self::$hosts[$slug] = null;
+                self::$adoptedUnregistered = $slug;
             }
 
             self::$adopted = $slug;
@@ -211,8 +243,35 @@ class LoginBridge
         }
 
         foreach ((array)$args['ajax_actions'] as $action) {
-            self::allowInline2Fa($action);
+            self::addAdoptionFilter('fluent_auth/can_render_2fa_inline', self::inline2FaFilter($action));
         }
+    }
+
+    /**
+     * Ends the adoption adopt() began, once the host's form has been rendered.
+     *
+     * Without this the adoption lasts the rest of the request, and any other FluentAuth
+     * form drawn later on the same page - a signup shortcode further down, another
+     * plugin's login - would carry this host's marker and redirect, and render even with
+     * the forms setting off. Registration is left alone: the form just rendered posts
+     * back in a later request, and that is what register() is for.
+     *
+     * @return void
+     */
+    public static function release()
+    {
+        foreach (self::$adoptionFilters as $filter) {
+            remove_filter($filter[0], $filter[1]);
+        }
+
+        if (self::$adoptedUnregistered) {
+            unset(self::$hosts[self::$adoptedUnregistered]);
+        }
+
+        self::$adoptionFilters = [];
+        self::$adoptedUnregistered = '';
+        self::$adopted = '';
+        self::$claimed = null;
     }
 
     /**
@@ -262,9 +321,8 @@ class LoginBridge
      */
     public static function reset()
     {
+        self::release();
         self::$hosts = [];
-        self::$claimed = null;
-        self::$adopted = '';
     }
 
     /**
@@ -336,7 +394,7 @@ class LoginBridge
      */
     private static function printHiddenFields($fields)
     {
-        add_filter('login_form_top', function ($html) use ($fields) {
+        self::addAdoptionFilter('login_form_top', function ($html) use ($fields) {
             foreach ($fields as $name => $value) {
                 $html .= '<input type="hidden" name="' . esc_attr($name) . '" value="' . esc_attr($value) . '" />';
             }
@@ -351,16 +409,27 @@ class LoginBridge
      */
     private static function setRedirect($url)
     {
-        add_filter('fluent_auth/login_form_args', function ($args) use ($url) {
+        self::addAdoptionFilter('fluent_auth/login_form_args', function ($args) use ($url) {
             $args['redirect'] = $url;
             $args['force_redirect_to'] = $url;
 
             return $args;
         });
 
-        add_filter('fluent_auth/social_redirect_to', function () use ($url) {
+        self::addAdoptionFilter('fluent_auth/social_redirect_to', function () use ($url) {
             return $url;
         });
+    }
+
+    /**
+     * @param $hook string
+     * @param $callback callable
+     * @return void
+     */
+    private static function addAdoptionFilter($hook, $callback)
+    {
+        add_filter($hook, $callback);
+        self::$adoptionFilters[] = [$hook, $callback];
     }
 
     /**
@@ -369,13 +438,22 @@ class LoginBridge
      */
     private static function allowInline2Fa($action)
     {
-        add_filter('fluent_auth/can_render_2fa_inline', function ($can) use ($action) {
+        add_filter('fluent_auth/can_render_2fa_inline', self::inline2FaFilter($action));
+    }
+
+    /**
+     * @param $action string
+     * @return \Closure
+     */
+    private static function inline2FaFilter($action)
+    {
+        return function ($can) use ($action) {
             if ($can) {
                 return $can;
             }
 
             // phpcs:ignore WordPress.Security.NonceVerification.Recommended
             return !empty($_REQUEST['action']) && $_REQUEST['action'] === $action;
-        });
+        };
     }
 }
