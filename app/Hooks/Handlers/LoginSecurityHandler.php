@@ -1026,38 +1026,49 @@ class LoginSecurityHandler
         $agent = $this->getUserAgent();
         $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
 
-        $userRoles = (array)$user->roles;
+        $roleNames = [];
+        $wpRoles = wp_roles();
 
-        $roleNames = implode(', ', $userRoles);
+        foreach ((array)$user->roles as $userRole) {
+            if (isset($wpRoles->role_names[$userRole])) {
+                $roleNames[] = translate_user_role($wpRoles->role_names[$userRole]);
+            } else {
+                $roleNames[] = ucwords(str_replace('_', ' ', $userRole));
+            }
+        }
+
+        $roleNames = implode(', ', $roleNames);
+        $mediaLabel = Helper::getLoginMediaLabel($media);
 
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
-        $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
-        $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
-        $infoHtml .= '<li><b>User Role:</b> ' . $roleNames . '</li>';
+        $infoHtml .= '<li><b>' . esc_html__('Site URL', 'fluent-security') . ':</b> <a href="' . esc_url(site_url()) . '">' . esc_html(site_url()) . '</a></li>';
+        $infoHtml .= '<li><b>' . esc_html__('Username', 'fluent-security') . ':</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
+        $infoHtml .= '<li><b>' . esc_html__('User Role', 'fluent-security') . ':</b> ' . esc_html($roleNames) . '</li>';
         if ($media && $media != 'web') {
-            $infoHtml .= '<li><b>Media:</b> ' . $media . '</li>';
+            $infoHtml .= '<li><b>' . esc_html__('Media', 'fluent-security') . ':</b> ' . esc_html($mediaLabel) . '</li>';
         }
-        $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
-        $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
-        $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
-        $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
+        $infoHtml .= '<li><b>' . esc_html__('Email', 'fluent-security') . ':</b> ' . esc_html($user->user_email) . '</li>';
+        $infoHtml .= '<li><b>' . esc_html__('Name', 'fluent-security') . ':</b> ' . esc_html(trim($user->first_name . ' ' . $user->last_name)) . '</li>';
+        $infoHtml .= '<li><b>' . esc_html__('Login IP Address', 'fluent-security') . ':</b> <a href="' . esc_url('https://ipinfo.io/' . $ip) . '">' . esc_html($ip) . '</a></li>';
+        $infoHtml .= '<li><b>' . esc_html__('Browser', 'fluent-security') . ':</b> ' . esc_html($browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name']) . '</li>';
         $infoHtml .= '</ul>';
 
         $lines = [
-            '<p style="font-size: 16px; line-height: 25px;">Hello there, <br />The following user has been logged in to your site. Here is the details:</p>',
+            '<p style="font-size: 16px; line-height: 25px;">' . __('Hello there, <br />The following user has logged in to your site. Here are the details:', 'fluent-security') . '</p>',
             $infoHtml
         ];
 
         $siteName = get_bloginfo('name');
         $data = [
             'body'        => implode('', $lines),
-            'pre_header'  => 'Login success at ' . $siteName,
+            'pre_header'  => sprintf(__('Login success at %s', 'fluent-security'), $siteName),
             'show_footer' => true
         ];
 
         $body = Helper::loadView('notification', $data);
-        $subject = '[' . $siteName . '] Login success for ' . $user->user_login;
+        /* translators: %1$s: site name, %2$s: username */
+        $subject = sprintf(__('[%1$s] Login success for %2$s', 'fluent-security'), $siteName, $user->user_login);
 
         $headers = SystemEmailService::getEmailHeaders();
 
@@ -1098,36 +1109,37 @@ class LoginSecurityHandler
 
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
-        $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
+        $infoHtml .= '<li><b>' . esc_html__('Site URL', 'fluent-security') . ':</b> <a href="' . esc_url(site_url()) . '">' . esc_html(site_url()) . '</a></li>';
         /* Typed by whoever was refused, and printed into an email to the site's owner. */
-        $infoHtml .= '<li><b>Username:</b> ' . esc_html($userName) . '</li>';
-        $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
-        $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
+        $infoHtml .= '<li><b>' . esc_html__('Username', 'fluent-security') . ':</b> ' . esc_html($userName) . '</li>';
+        $infoHtml .= '<li><b>' . esc_html__('Login IP Address', 'fluent-security') . ':</b> <a href="' . esc_url('https://ipinfo.io/' . $ip) . '">' . esc_html($ip) . '</a></li>';
+        $infoHtml .= '<li><b>' . esc_html__('Browser', 'fluent-security') . ':</b> ' . esc_html($browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name']) . '</li>';
 
         if (is_wp_error($user)) {
             $infoHtml .= '<li>' . wp_kses_post($user->get_error_message()) . '</li>';
         } else if ($user instanceof \WP_User) {
             $userEditLInk = add_query_arg('user_id', $user->ID, self_admin_url('user-edit.php'));
-            $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
-            $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
-            $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
+            $infoHtml .= '<li><b>' . esc_html__('Username', 'fluent-security') . ':</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
+            $infoHtml .= '<li><b>' . esc_html__('Email', 'fluent-security') . ':</b> ' . esc_html($user->user_email) . '</li>';
+            $infoHtml .= '<li><b>' . esc_html__('Name', 'fluent-security') . ':</b> ' . esc_html(trim($user->first_name . ' ' . $user->last_name)) . '</li>';
         }
         $infoHtml .= '</ul>';
 
         $lines = [
-            '<p style="font-size: 16px; line-height: 25px;">Hello there, <br />The following user has been blocked from logged in from your site. Here is the details:</p>',
+            '<p style="font-size: 16px; line-height: 25px;">' . __('Hello there, <br />The following user was blocked from logging in to your site. Here are the details:', 'fluent-security') . '</p>',
             $infoHtml
         ];
 
         $siteName = get_bloginfo('name');
         $data = [
             'body'        => implode('', $lines),
-            'pre_header'  => 'Blocked from login ' . $siteName,
+            'pre_header'  => sprintf(__('Blocked from login %s', 'fluent-security'), $siteName),
             'show_footer' => true
         ];
 
         $body = Helper::loadView('notification', $data);
-        $subject = '[' . $siteName . '] Blocked from login - ' . $userName;
+        /* translators: %1$s: site name, %2$s: username */
+        $subject = sprintf(__('[%1$s] Blocked from login - %2$s', 'fluent-security'), $siteName, $userName);
 
         $headers = SystemEmailService::getEmailHeaders();
 
