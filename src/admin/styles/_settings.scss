@@ -100,12 +100,12 @@
         .fls_nav_chevron {
             @apply absolute opacity-0;
 
-            right: 16px;
+            inset-inline-end: 16px;
             top: 50%;
             width: 10px;
             height: 10px;
             transform: translateY(-50%);
-            transition: opacity .2s ease, right .2s ease;
+            transition: opacity .2s ease, inset-inline-end .2s ease;
         }
     }
 
@@ -115,8 +115,12 @@
         .fls_nav_chevron {
             @apply opacity-100;
 
-            right: 12px;
+            inset-inline-end: 12px;
         }
+    }
+
+    .rtl & .fls_nav_chevron {
+        transform: translateY(-50%) scaleX(-1);
     }
 
     /* Children hang off a hairline, the way a tree reads. */
