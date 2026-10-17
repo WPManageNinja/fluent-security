@@ -31,6 +31,23 @@ test('generates a mirrored stylesheet from compiled CSS', (context) => {
     );
 });
 
+test('mirrors native select background positioning', (context) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fluent-auth-rtl-'));
+    const source = 'build/example.css';
+    const output = 'build/example-rtl.css';
+
+    context.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    fs.mkdirSync(path.join(root, 'build'));
+    fs.writeFileSync(path.join(root, source), '.range select{background-position:right 8px top 55%}');
+
+    generateRtlStylesheets(root, [[source, output]]);
+
+    assert.equal(
+        fs.readFileSync(path.join(root, output), 'utf8'),
+        '.range select{background-position:left 8px top 55%}\n'
+    );
+});
+
 test('preserves existing manual RTL overrides', (context) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fluent-auth-rtl-'));
     const source = 'build/example.css';

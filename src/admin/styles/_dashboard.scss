@@ -611,12 +611,6 @@
         &:disabled { opacity: .6; cursor: wait; }
     }
 
-    /*!rtl:begin:ignore*/
-    .rtl &__range select {
-        background-position: left 8px top 55%;
-    }
-    /*!rtl:end:ignore*/
-
     .fls_stat_tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0 22px; padding: 18px 0; border-bottom: 1px solid var(--fls-border); }
     .fls_stat_tile {
         gap: 10px; padding: 4px 22px; border-radius: 0; background: transparent; transition: background .15s ease;
