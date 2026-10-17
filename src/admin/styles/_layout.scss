@@ -40,16 +40,14 @@
  * spread across the bar put the middle one near the middle. Centring it outright would
  * instead make it move whenever a screen adds a button to the right-hand end.
  *
- * 30px either side is the page gutter below. Fixed elements do not inherit wp-admin's
- * own content padding, so the measured padding is added to keep the wordmark aligned with
- * the in-flow page in both LTR and RTL.
+ * 30px either side keeps the wordmark and controls the same distance from wp-admin's menu
+ * in both LTR and RTL. The bar is already inset to the edge of wp-admin's content area, so
+ * adding that area's own padding here would make the RTL logo sit 20px farther in.
  */
 .fls_app_bar {
     @apply flex items-center justify-between gap-6 px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 56px;
-    padding-left: calc(30px + var(--fls-content-padding-left, 0px));
-    padding-right: calc(30px + var(--fls-content-padding-right, 0px));
 
     /*
      * Pinned rather than sticky. The settings pane below is pinned as well, which leaves
