@@ -40,25 +40,29 @@
  * spread across the bar put the middle one near the middle. Centring it outright would
  * instead make it move whenever a screen adds a button to the right-hand end.
  *
- * 30px either side is the page gutter below, so the wordmark starts where the page does.
+ * 30px either side is the page gutter below. Fixed elements do not inherit wp-admin's
+ * own content padding, so the measured padding is added to keep the wordmark aligned with
+ * the in-flow page in both LTR and RTL.
  */
 .fls_app_bar {
     @apply flex items-center justify-between gap-6 px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 56px;
+    padding-left: calc(30px + var(--fls-content-padding-left, 0px));
+    padding-right: calc(30px + var(--fls-content-padding-right, 0px));
 
     /*
      * Pinned rather than sticky. The settings pane below is pinned as well, which leaves
      * this bar's container only as tall as the bar itself - and a sticky element whose
      * container is its own height has no range to stick over, so it would scroll away the
-     * moment wp-admin's menu made the page scroll. `--fls-shell-left` is the width of that
-     * menu, measured at runtime (see App.vue) rather than hard-coded, so folding the menu
-     * or dropping to a narrow screen moves the bar with it.
+     * moment wp-admin's menu made the page scroll. The shell insets are measured at
+     * runtime (see App.vue) rather than hard-coded, so an RTL menu on the right, folding
+     * the menu or dropping to a narrow screen all move the bar with it.
      */
     position: fixed;
     top: 32px;
     left: var(--fls-shell-left, 160px);
-    right: 0;
+    right: var(--fls-shell-right, 0px);
     z-index: 2000;
     transition: box-shadow .2s ease;
 
@@ -125,16 +129,18 @@
  * settings, so the section that is on should read as the page you are on rather than as a
  * choice you have made. It is chrome, so it is pinned with the bar above it rather than
  * scrolling away with the page it labels - and for the same reason it repeats that bar's
- * left offset and its hairline.
+ * measured insets and its hairline.
  */
 .fls_sub_bar {
     @apply flex items-stretch px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 48px;
+    padding-left: calc(30px + var(--fls-content-padding-left, 0px));
+    padding-right: calc(30px + var(--fls-content-padding-right, 0px));
     position: fixed;
     top: 88px;
     left: var(--fls-shell-left, 160px);
-    right: 0;
+    right: var(--fls-shell-right, 0px);
     /* Under the bar above it, so a menu opened up there is not cut off by this one. */
     z-index: 1999;
     overflow-x: auto;
@@ -450,6 +456,13 @@
         top: 88px;
         left: auto;
         right: auto;
+    }
+
+    /* In-flow sticky bars inherit wp-admin's padding from their containing block. */
+    .fls_app_bar,
+    .fls_sub_bar {
+        padding-left: 30px;
+        padding-right: 30px;
     }
 }
 

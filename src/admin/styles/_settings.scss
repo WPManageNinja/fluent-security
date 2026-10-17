@@ -23,7 +23,7 @@
     position: fixed;
     top: 88px;
     left: var(--fls-shell-left, 160px);
-    right: 0;
+    right: var(--fls-shell-right, 0px);
     bottom: 0;
     overflow: hidden;
     z-index: 20;
