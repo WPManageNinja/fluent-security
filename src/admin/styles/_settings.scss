@@ -442,6 +442,14 @@
         }
     }
 
+    /* Keep switches on the same logical edge as the wider field controls. */
+    &.fls_row_toggle .fls_row_control {
+        display: flex;
+        justify-content: flex-start;
+        width: 280px;
+        max-width: 100%;
+    }
+
     /*
      * What a setting opens up rather than what it is: the fields a toggle reveals once
      * it is on. Indented under the row that governs them, so it is clear they belong to
