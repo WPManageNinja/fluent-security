@@ -55,6 +55,7 @@ class LoginAssets
             [],
             FLUENT_AUTH_VERSION
         );
+        wp_style_add_data('fluent_auth_login_helper', 'rtl', 'replace');
 
         wp_enqueue_script(
             'fluent_auth_login_helper',

@@ -8,8 +8,6 @@ import App from './App.vue';
 
 import {CloseBold, ArrowLeftBold, View} from '@element-plus/icons-vue';
 
-require('./app.scss');
-
 function convertToText(obj) {
     const string = [];
     if (typeof (obj) === 'object' && (obj.join === undefined)) {

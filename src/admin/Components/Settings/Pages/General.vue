@@ -55,7 +55,8 @@ export default {
 
             this.$notify.success({
                 message: this.$t('Recommended settings have been applied. Review the sections and save.'),
-                position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                // RTLCSS mirrors Element Plus's physical `right` placement for RTL builds.
+                position: 'bottom-right'
             });
         }
     }

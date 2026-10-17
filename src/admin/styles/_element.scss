@@ -117,6 +117,7 @@
  * right, but its absolutely positioned close control stays there and overlaps that icon.
  * Mirror the reserved padding, group spacing and close inset as one unit.
  */
+/*!rtl:begin:ignore*/
 .rtl .el-notification {
     --el-notification-padding: 14px 13px 14px 26px;
     --el-notification-group-margin-left: 8px;
@@ -127,6 +128,7 @@
         left: 15px;
     }
 }
+/*!rtl:end:ignore*/
 
 /* Notifications stack up from the bottom rather than down from under the admin bar. */
 .el-notification.right {

@@ -136,7 +136,7 @@ export default {
             if (!this.onboardForm.full_name || !this.onboardForm.email) {
                 this.$notify.error({
                     message: this.$t('Please provide valid name and email address'),
-                    position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                    position: 'bottom-right'
                 });
                 return;
             }
@@ -144,7 +144,7 @@ export default {
             if (this.settings.status === 'pending' && !this.onboardForm.api_key) {
                 this.$notify.error({
                     message: this.$t('Please provide valid API key'),
-                    position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                    position: 'bottom-right'
                 });
                 return;
             }
@@ -162,7 +162,7 @@ export default {
                 .then(response => {
                     this.$notify.success({
                         message: response.message,
-                        position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                        position: 'bottom-right'
                     });
                     this.settings.status = response.settings.status;
                     this.settings.api_id = response.settings.api_id;
@@ -201,7 +201,7 @@ export default {
                 .then(response => {
                     this.$notify.success({
                         message: response.message,
-                        position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                        position: 'bottom-right'
                     });
                     window.location.reload();
                 })

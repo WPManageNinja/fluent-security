@@ -160,6 +160,12 @@ class AdminMenuHandler
 
         wp_enqueue_script('diff', FLUENT_AUTH_PLUGIN_URL . 'dist/libs/diff.js', [], '7.0.0', true);
 
+        wp_enqueue_style('fluent_auth_element_plus', FLUENT_AUTH_PLUGIN_URL . 'dist/admin/element-plus.css', [], FLUENT_AUTH_VERSION);
+        wp_style_add_data('fluent_auth_element_plus', 'rtl', 'replace');
+
+        wp_enqueue_style('fluent_auth_app', FLUENT_AUTH_PLUGIN_URL . 'dist/admin/app.css', ['fluent_auth_element_plus'], FLUENT_AUTH_VERSION);
+        wp_style_add_data('fluent_auth_app', 'rtl', 'replace');
+
         wp_enqueue_script('fluent_auth_app', FLUENT_AUTH_PLUGIN_URL . 'dist/admin/app.js', ['jquery'], FLUENT_AUTH_VERSION, true);
 
         $fullName = trim($currentUser->first_name . ' ' . $currentUser->last_name);

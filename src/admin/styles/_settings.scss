@@ -22,8 +22,10 @@
 
     position: fixed;
     top: 88px;
+    /*!rtl:begin:ignore*/
     left: var(--fls-shell-left, 160px);
     right: var(--fls-shell-right, 0px);
+    /*!rtl:end:ignore*/
     bottom: 0;
     overflow: hidden;
     z-index: 20;
@@ -119,9 +121,11 @@
         }
     }
 
+    /*!rtl:begin:ignore*/
     .rtl & .fls_nav_chevron {
         transform: translateY(-50%) scaleX(-1);
     }
+    /*!rtl:end:ignore*/
 
     /* Children hang off a hairline, the way a tree reads. */
     .fls_settings_subnav {

@@ -3,6 +3,7 @@ const path = require('path');
 const AutoImport = require('unplugin-auto-import/webpack');
 const Components = require('unplugin-vue-components/webpack');
 const { ElementPlusResolver } = require('unplugin-vue-components/resolvers');
+const { generateRtlStylesheets } = require('./scripts/build-rtl');
 
 mix.webpackConfig({
     module: {
@@ -38,10 +39,18 @@ mix.options({
 });
 
 mix
-    .js('src/admin/app.js', 'dist/admin/app.js').vue({ version: 3 })
+    .js('src/admin/app.js', 'dist/admin/app.js').vue({
+        version: 3,
+        extractStyles: 'dist/admin/element-plus.css'
+    })
     .js('src/public/one_tap.js', 'dist/public/one_tap.js')
     .js('src/public/login_helper.js', 'dist/public/login_helper.js')
+    .sass('src/admin/app.scss', 'dist/admin/app.css')
     .sass('src/public/login_helper.scss', 'dist/public/login_helper.css')
     .sass('src/public/login_customizer.scss', 'dist/public/login_customizer.css')
     .copy('src/images', 'dist/images')
     .copy('src/libs', 'dist/libs');
+
+mix.after(() => {
+    generateRtlStylesheets();
+});

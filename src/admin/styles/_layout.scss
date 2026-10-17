@@ -59,8 +59,10 @@
      */
     position: fixed;
     top: 32px;
+    /*!rtl:begin:ignore*/
     left: var(--fls-shell-left, 160px);
     right: var(--fls-shell-right, 0px);
+    /*!rtl:end:ignore*/
     z-index: 2000;
     transition: box-shadow .2s ease;
 
@@ -133,12 +135,16 @@
     @apply flex items-stretch px-7.5 bg-surface border-0 border-b border-solid border-hairline;
 
     height: 48px;
+    /*!rtl:begin:ignore*/
     padding-left: calc(30px + var(--fls-content-padding-left, 0px));
     padding-right: calc(30px + var(--fls-content-padding-right, 0px));
+    /*!rtl:end:ignore*/
     position: fixed;
     top: 88px;
+    /*!rtl:begin:ignore*/
     left: var(--fls-shell-left, 160px);
     right: var(--fls-shell-right, 0px);
+    /*!rtl:end:ignore*/
     /* Under the bar above it, so a menu opened up there is not cut off by this one. */
     z-index: 1999;
     overflow-x: auto;
