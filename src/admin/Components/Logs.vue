@@ -367,7 +367,7 @@ export default {
                             </template>
                         </el-table-column>
 
-                        <el-table-column sortable prop="status" :label="$t('Status')" width="130">
+                        <el-table-column sortable prop="status" :label="$t('Status')" width="120">
                             <template #default="scope">
                                 <span class="fls_tag" :class="'is_' + scope.row.status">
                                     {{ appVars.auth_statuses[scope.row.status] || scope.row.status }}
@@ -375,11 +375,11 @@ export default {
                             </template>
                         </el-table-column>
 
-                        <el-table-column sortable prop="media" :label="$t('Event')" width="190">
+                        <el-table-column sortable prop="media" :label="$t('Event')" width="170">
                             <template #default="scope">{{ scope.row.media_label }}</template>
                         </el-table-column>
 
-                        <el-table-column sortable prop="ip" :label="$t('IP Address')" width="160">
+                        <el-table-column sortable prop="ip" :label="$t('IP Address')" width="150">
                             <template #default="scope">
                                 <a class="fls_cell_mono" target="_blank" rel="noopener nofollow"
                                    :href="'https://ipinfo.io/' + scope.row.ip">{{ scope.row.ip }}</a>
@@ -393,7 +393,7 @@ export default {
                             </template>
                         </el-table-column>
 
-                        <el-table-column align="right" width="90">
+                        <el-table-column align="right" width="80">
                             <template #default="scope">
                                 <!--
                                     The address is right there in the row, so the two things
