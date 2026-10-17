@@ -45,3 +45,21 @@ test('preserves existing manual RTL overrides', (context) => {
 
     assert.equal(fs.readFileSync(path.join(root, output), 'utf8'), '.rtl .notice{right:auto;left:15px}\n');
 });
+
+test('preserves runtime-measured physical shell insets', (context) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fluent-auth-rtl-'));
+    const source = 'build/example.css';
+    const output = 'build/example-rtl.css';
+    const css = '/*!rtl:begin:ignore*/.shell{left:var(--shell-left);right:var(--shell-right);padding-left:var(--content-left);padding-right:var(--content-right)}/*!rtl:end:ignore*/';
+
+    context.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    fs.mkdirSync(path.join(root, 'build'));
+    fs.writeFileSync(path.join(root, source), css);
+
+    generateRtlStylesheets(root, [[source, output]]);
+
+    assert.equal(
+        fs.readFileSync(path.join(root, output), 'utf8'),
+        '.shell{left:var(--shell-left);right:var(--shell-right);padding-left:var(--content-left);padding-right:var(--content-right)}\n'
+    );
+});

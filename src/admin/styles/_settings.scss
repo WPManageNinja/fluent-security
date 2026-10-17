@@ -22,8 +22,10 @@
 
     position: fixed;
     top: 88px;
+    /*!rtl:begin:ignore*/
     left: var(--fls-shell-left, 160px);
     right: var(--fls-shell-right, 0px);
+    /*!rtl:end:ignore*/
     bottom: 0;
     overflow: hidden;
     z-index: 20;
