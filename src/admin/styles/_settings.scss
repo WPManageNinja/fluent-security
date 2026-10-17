@@ -442,10 +442,10 @@
         }
     }
 
-    /* Keep switches on the same logical edge as the wider field controls. */
+    /* Keep switches at the outer edge of the same column used by wider fields. */
     &.fls_row_toggle .fls_row_control {
         display: flex;
-        justify-content: flex-start;
+        justify-content: flex-end;
         width: 280px;
         max-width: 100%;
     }
