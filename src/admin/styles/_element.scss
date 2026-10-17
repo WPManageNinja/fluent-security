@@ -83,6 +83,11 @@
 .el-select {
     width: 100%;
 
+    /* Element Plus uses physical left alignment, which is wrong in RTL. */
+    .el-select__placeholder {
+        text-align: start;
+    }
+
     .el-input__inner {
         cursor: pointer;
     }
@@ -105,6 +110,22 @@
 
 .el-notification__content {
     text-align: left !important;
+}
+
+/*
+ * Element Plus mirrors the notification's flex row in RTL, moving the status icon to the
+ * right, but its absolutely positioned close control stays there and overlaps that icon.
+ * Mirror the reserved padding, group spacing and close inset as one unit.
+ */
+.rtl .el-notification {
+    --el-notification-padding: 14px 13px 14px 26px;
+    --el-notification-group-margin-left: 8px;
+    --el-notification-group-margin-right: 13px;
+
+    .el-notification__closeBtn {
+        right: auto;
+        left: 15px;
+    }
 }
 
 /* Notifications stack up from the bottom rather than down from under the admin bar. */

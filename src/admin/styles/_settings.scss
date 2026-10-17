@@ -23,7 +23,7 @@
     position: fixed;
     top: 88px;
     left: var(--fls-shell-left, 160px);
-    right: 0;
+    right: var(--fls-shell-right, 0px);
     bottom: 0;
     overflow: hidden;
     z-index: 20;
@@ -100,12 +100,12 @@
         .fls_nav_chevron {
             @apply absolute opacity-0;
 
-            right: 16px;
+            inset-inline-end: 16px;
             top: 50%;
             width: 10px;
             height: 10px;
             transform: translateY(-50%);
-            transition: opacity .2s ease, right .2s ease;
+            transition: opacity .2s ease, inset-inline-end .2s ease;
         }
     }
 
@@ -115,8 +115,12 @@
         .fls_nav_chevron {
             @apply opacity-100;
 
-            right: 12px;
+            inset-inline-end: 12px;
         }
+    }
+
+    .rtl & .fls_nav_chevron {
+        transform: translateY(-50%) scaleX(-1);
     }
 
     /* Children hang off a hairline, the way a tree reads. */
@@ -442,6 +446,14 @@
         }
     }
 
+    /* Keep switches at the outer edge of the same column used by wider fields. */
+    &.fls_row_toggle .fls_row_control {
+        display: flex;
+        justify-content: flex-end;
+        width: 280px;
+        max-width: 100%;
+    }
+
     /*
      * What a setting opens up rather than what it is: the fields a toggle reveals once
      * it is on. Indented under the row that governs them, so it is clear they belong to
@@ -514,6 +526,11 @@
 
     > .fls_row .fls_row_label {
         max-width: none;
+    }
+
+    /* Half-width rows need the switch itself, not a full field-sized control column. */
+    > .fls_row_toggle .fls_row_control {
+        width: auto;
     }
 
     /* Too narrow to sit two abreast: the descriptions start wrapping to three lines. */

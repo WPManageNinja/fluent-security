@@ -53,7 +53,10 @@ export default {
                 ...this.appVars.recommended_settings
             };
 
-            this.$notify.success(this.$t('Recommended settings have been applied. Review the sections and save.'));
+            this.$notify.success({
+                message: this.$t('Recommended settings have been applied. Review the sections and save.'),
+                position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+            });
         }
     }
 };

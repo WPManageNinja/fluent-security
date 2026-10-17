@@ -134,12 +134,18 @@ export default {
         },
         registerSite() {
             if (!this.onboardForm.full_name || !this.onboardForm.email) {
-                this.$notify.error(this.$t('Please provide valid name and email address'));
+                this.$notify.error({
+                    message: this.$t('Please provide valid name and email address'),
+                    position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                });
                 return;
             }
 
             if (this.settings.status === 'pending' && !this.onboardForm.api_key) {
-                this.$notify.error(this.$t('Please provide valid API key'));
+                this.$notify.error({
+                    message: this.$t('Please provide valid API key'),
+                    position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                });
                 return;
             }
 
@@ -154,7 +160,10 @@ export default {
                 status: this.settings.status
             })
                 .then(response => {
-                    this.$notify.success(response.message);
+                    this.$notify.success({
+                        message: response.message,
+                        position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                    });
                     this.settings.status = response.settings.status;
                     this.settings.api_id = response.settings.api_id;
                     this.settings.account_email_id = response.settings.account_email_id;
@@ -190,7 +199,10 @@ export default {
 
             this.$post('security-scan-settings/register', {status: 'self'})
                 .then(response => {
-                    this.$notify.success(response.message);
+                    this.$notify.success({
+                        message: response.message,
+                        position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                    });
                     window.location.reload();
                 })
                 .catch(errors => {
