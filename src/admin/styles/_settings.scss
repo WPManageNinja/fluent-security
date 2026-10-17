@@ -524,6 +524,11 @@
         max-width: none;
     }
 
+    /* Half-width rows need the switch itself, not a full field-sized control column. */
+    > .fls_row_toggle .fls_row_control {
+        width: auto;
+    }
+
     /* Too narrow to sit two abreast: the descriptions start wrapping to three lines. */
     @media (max-width: 1180px) {
         grid-template-columns: 1fr;
