@@ -87,9 +87,11 @@ npx mix watch        # rebuild on change
 npx mix --production # minified, what ships
 ```
 
-The admin bundle is written to `dist/admin/app.js` and is **gitignored** — run a build before
-loading the plugin, or the screen will be blank or stale. A production build is roughly 1.4 MB;
-a development build is around 7 MB, so never judge the shipped size from an unflagged build.
+The admin bundles are written to `dist/admin/app.js`, `dist/admin/element-plus.css` and
+`dist/admin/app.css` and are **gitignored** — run a build before loading the plugin, or the
+screen will be blank or stale. Every Mix build also creates `-rtl.css` variants for the admin
+styles and both public stylesheets. A production JavaScript build is roughly 1.4 MB; a
+development build is around 7 MB, so never judge the shipped size from an unflagged build.
 
 ### Testing
 

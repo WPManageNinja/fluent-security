@@ -62,6 +62,13 @@ class LoginAssetsTest extends BaseTestCase
         $this->assertTrue(wp_style_is('fluent_auth_login_helper', 'enqueued'));
     }
 
+    public function test_the_login_stylesheet_uses_its_rtl_build()
+    {
+        LoginAssets::enqueue();
+
+        $this->assertSame('replace', wp_styles()->get_data('fluent_auth_login_helper', 'rtl'));
+    }
+
     /**
      * Every renderer on a login screen asks for the assets, because any of them might be
      * the first one on the page. Localising twice would print the config object twice.

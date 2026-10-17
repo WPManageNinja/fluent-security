@@ -119,9 +119,11 @@
         }
     }
 
+    /*!rtl:begin:ignore*/
     .rtl & .fls_nav_chevron {
         transform: translateY(-50%) scaleX(-1);
     }
+    /*!rtl:end:ignore*/
 
     /* Children hang off a hairline, the way a tree reads. */
     .fls_settings_subnav {

@@ -133,6 +133,7 @@ class LoginCustomizerHandler
                 [],
                 FLUENT_AUTH_VERSION
             );
+            wp_style_add_data('fls-login-customizer', 'rtl', 'replace');
 
             $bannerDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
             $formDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
