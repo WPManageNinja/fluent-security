@@ -134,12 +134,18 @@ export default {
         },
         registerSite() {
             if (!this.onboardForm.full_name || !this.onboardForm.email) {
-                this.$notify.error(this.$t('Please provide valid name and email address'));
+                this.$notify.error({
+                    message: this.$t('Please provide valid name and email address'),
+                    position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                });
                 return;
             }
 
             if (this.settings.status === 'pending' && !this.onboardForm.api_key) {
-                this.$notify.error(this.$t('Please provide valid API key'));
+                this.$notify.error({
+                    message: this.$t('Please provide valid API key'),
+                    position: document.documentElement.dir === 'rtl' ? 'bottom-left' : 'top-right'
+                });
                 return;
             }
 
