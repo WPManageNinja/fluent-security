@@ -83,6 +83,11 @@
 .el-select {
     width: 100%;
 
+    /* Element Plus uses physical left alignment, which is wrong in RTL. */
+    .el-select__placeholder {
+        text-align: start;
+    }
+
     .el-input__inner {
         cursor: pointer;
     }
