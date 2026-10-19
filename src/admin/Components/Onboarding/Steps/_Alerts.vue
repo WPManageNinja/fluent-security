@@ -1,6 +1,7 @@
 <script type="text/babel">
 import SettingToggle from '../../Settings/_SettingToggle.vue';
 import RoleChoice from './_RoleChoice.vue';
+import digestFrequencies from '@/Bits/digestFrequencies';
 
 /**
  * Who gets emailed when a privileged account signs in, and where.
@@ -10,6 +11,9 @@ import RoleChoice from './_RoleChoice.vue';
  * sign-ins nobody reads, and the one that mattered then arrives in a folder somebody wrote
  * a filter for. So the roles are chosen rather than assumed, and turning it off entirely is
  * a first-class answer rather than something to be talked out of.
+ *
+ * The summary report sits here too, because a new install already sends it monthly and
+ * this is the screen that asks what to email. It goes to the same address as the alerts.
  */
 export default {
     name: 'OnboardingAlerts',
@@ -29,7 +33,16 @@ export default {
             default: ''
         }
     },
+    data() {
+        return {
+            digestItems: digestFrequencies(this.$t)
+        };
+    },
     computed: {
+        /** Either email needs somewhere to go. */
+        wantsEmail() {
+            return !!(this.answer.enabled || this.answer.digest);
+        },
         answer: {
             get() {
                 return this.modelValue;
@@ -55,11 +68,11 @@ export default {
             this.update('email', (value || '').trim() || '{admin_email}');
         },
         validate() {
-            if (!this.answer.enabled) {
+            if (!this.wantsEmail) {
                 return '';
             }
 
-            if (!(this.answer.roles || []).length) {
+            if (this.answer.enabled && !(this.answer.roles || []).length) {
                 return this.$t('Choose at least one role, or turn alerts off.');
             }
 
@@ -88,12 +101,24 @@ export default {
             </div>
         </div>
 
-        <template v-if="answer.enabled">
-            <role-choice :model-value="answer.roles" :user-roles="userRoles"
-                         :label="$t('Tell me when these roles sign in')"
-                         :hint="$t('Keep it to administrators and other powerful accounts. Alerts for roles that sign in all day stop getting read.')"
-                         @update:model-value="v => update('roles', v)"/>
+        <role-choice v-if="answer.enabled" :model-value="answer.roles" :user-roles="userRoles"
+                     :label="$t('Tell me when these roles sign in')"
+                     :hint="$t('Keep it to administrators and other powerful accounts. Alerts for roles that sign in all day stop getting read.')"
+                     @update:model-value="v => update('roles', v)"/>
 
+        <div class="fls_onb_field">
+            <label class="fls_onb_label" for="fls_onb_digest">{{ $t('Summary report') }}</label>
+            <el-select id="fls_onb_digest" :model-value="answer.digest" :empty-values="[null, undefined]"
+                       @update:model-value="v => update('digest', v)">
+                <el-option value="" :label="$t('Do not send a summary')"></el-option>
+                <el-option v-for="(label, key) in digestItems" :key="key" :value="key" :label="label"></el-option>
+            </el-select>
+            <p class="fls_onb_hint">
+                {{ $t('A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.') }}
+            </p>
+        </div>
+
+        <template v-if="wantsEmail">
             <div class="fls_onb_field">
                 <label class="fls_onb_label" for="fls_onb_email">{{ $t('Send them to') }}</label>
                 <el-input id="fls_onb_email" type="email" :model-value="emailValue"

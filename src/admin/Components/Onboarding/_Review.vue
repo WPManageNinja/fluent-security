@@ -1,4 +1,6 @@
 <script type="text/babel">
+import digestFrequencies from '@/Bits/digestFrequencies';
+
 export default {
     name: 'OnboardingReview',
     emits: ['edit', 'back', 'finish'],
@@ -32,6 +34,7 @@ export default {
                     const methods = [];
                     if (answer.totp) methods.push(this.$t('Authenticator app'));
                     if (answer.email) methods.push(this.$t('Emailed code'));
+                    if (answer.passkey && this.appVars.passkey_supported) methods.push(this.$t('Passkey'));
                     return methods.length
                         ? [methods.join(' + '), this.$t('Offered to: %s', this.roles(answer.roles))]
                         : [this.$t('No second step')];
@@ -40,10 +43,18 @@ export default {
                     return [this.$t('%s failed attempts within %s minutes', answer.limit, answer.timing)];
                 case 'hardening':
                     return (step.checks || []).map(check => this.$t('%s: %s', check.title, answer[check.key] ? this.$t('On') : this.$t('Off')));
-                case 'alerts':
-                    return answer.enabled
-                        ? [this.$t('Sign-ins by: %s', this.roles(answer.roles)), this.$t('Send to: %s', !answer.email || answer.email === '{admin_email}' ? this.adminEmail : answer.email)]
-                        : [this.$t('Sign-in alerts off')];
+                case 'alerts': {
+                    const lines = [answer.enabled
+                        ? this.$t('Sign-ins by: %s', this.roles(answer.roles))
+                        : this.$t('Sign-in alerts off')];
+                    lines.push(answer.digest
+                        ? this.$t('Summary report: %s', digestFrequencies(this.$t)[answer.digest] || answer.digest)
+                        : this.$t('No summary report'));
+                    if (answer.enabled || answer.digest) {
+                        lines.push(this.$t('Send to: %s', !answer.email || answer.email === '{admin_email}' ? this.adminEmail : answer.email));
+                    }
+                    return lines;
+                }
                 default:
                     return [];
             }

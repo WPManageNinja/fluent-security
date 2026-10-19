@@ -43,10 +43,7 @@ export default {
             return (this.step.checks || []).map(check => ({
                 key: check.key,
                 title: check.title,
-                why: check.why,
-                /* Already satisfied before setup started - worth saying, rather than
-                 * presenting as something the reader is about to switch on. */
-                already: check.state === 'done'
+                why: check.why
             }));
         }
     },
@@ -80,11 +77,7 @@ export default {
                 <setting-toggle :model-value="answer[row.key]"
                                 :active-value="true" :inactive-value="false"
                                 :recommend="true" :label="row.title" :description="row.why"
-                                @update:model-value="v => update(row.key, v)">
-                    <p v-if="row.already" class="fls_onb_already">
-                        {{ $t('This one is already on.') }}
-                    </p>
-                </setting-toggle>
+                                @update:model-value="v => update(row.key, v)"/>
             </div>
         </div>
 

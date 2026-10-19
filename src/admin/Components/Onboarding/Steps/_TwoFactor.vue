@@ -19,7 +19,9 @@ import RoleChoice from './_RoleChoice.vue';
  * Only the emailed code carries a recommendation. The authenticator app is the stronger
  * method and still the wrong thing to press on somebody during setup - it is off here, and
  * flagging it "recommended: off" would read as advice against a method we are glad to have
- * people use. So it passes no recommendation at all and says nothing either way.
+ * people use. So it passes no recommendation at all and says nothing either way. Passkeys
+ * are treated the same way, and are only shown where the site is on https - anywhere else
+ * the browser refuses to create one, and the switch would be a promise nobody can keep.
  */
 export default {
     name: 'OnboardingTwoFactor',
@@ -53,7 +55,10 @@ export default {
             }
         },
         anyOn() {
-            return !!(this.answer.totp || this.answer.email);
+            return !!(this.answer.totp || this.answer.email || (this.passkeySupported && this.answer.passkey));
+        },
+        passkeySupported() {
+            return !!this.appVars.passkey_supported;
         }
     },
     methods: {
@@ -81,7 +86,10 @@ export default {
             reader chose the values, but on a first run nobody has been told where the
             values came from. One line covers that without a badge on each row.
         -->
-        <p class="fls_onb_hint">
+        <p v-if="passkeySupported" class="fls_onb_hint">
+            {{ $t('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app or passkeys if they suit your users, then choose who gets the second step.') }}
+        </p>
+        <p v-else class="fls_onb_hint">
             {{ $t('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.') }}
         </p>
 
@@ -101,6 +109,14 @@ export default {
                                 :description="$t('A code sent to their email address each time they sign in. Nothing to set up.')"
                                 @update:model-value="v => update('email', v)"/>
             </div>
+
+            <div v-if="passkeySupported" class="fls_onb_opt" :class="{'is-on': answer.passkey}">
+                <setting-toggle :model-value="answer.passkey" :active-value="true" :inactive-value="false"
+                                :recommend="null"
+                                :label="$t('Passkey')"
+                                :description="$t('A fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each person sets theirs up from their profile page.')"
+                                @update:model-value="v => update('passkey', v)"/>
+            </div>
         </div>
 
         <role-choice v-if="anyOn" :model-value="answer.roles" :user-roles="userRoles"
@@ -110,7 +126,7 @@ export default {
 
         <p class="fls_onb_reassure">
             {{
-                $t('Nobody is locked out by this. Setting up an app stays optional until you make it required in Settings.')
+                $t('Nobody is locked out by this. Setting up an app or a passkey stays optional until you make it required in Settings.')
             }}
         </p>
     </div>
