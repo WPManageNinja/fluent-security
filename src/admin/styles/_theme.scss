@@ -339,6 +339,15 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
         --el-button-active-border-color: #C0C2C4;
     }
 
+    /*
+     * The track takes the pale accent when on, and the knob is painted white whatever the
+     * theme - so a switch that was on read as white on light grey, and looked off. Inverted
+     * the same way as the button: the knob goes dark on the pale track.
+     */
+    .el-switch.is-checked .el-switch__action {
+        background-color: var(--fls-accent-contrast);
+    }
+
     .el-table {
         --el-table-bg-color: var(--fls-surface);
         --el-table-tr-bg-color: var(--fls-surface);
