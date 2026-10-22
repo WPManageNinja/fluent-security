@@ -1490,15 +1490,3 @@ button.fls_onb_rail_hit {
 
 }
 
-
-/*
- * A row this site already satisfies before setup started. Said under the toggle rather
- * than as a badge on its title, because it is a remark about the site rather than a
- * status of the setting.
- */
-.fls_onb_opt p.fls_onb_already {
-    @apply text-ok-fg;
-
-    margin-top: 5px;
-    font-weight: 500;
-}
