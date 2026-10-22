@@ -219,6 +219,36 @@ class OnboardingTest extends BaseTestCase
         $this->assertSame('no', Helper::getSetting('passkey_primary_login'));
     }
 
+    /** jQuery form-encodes the answers, so a switched-off passkey arrives as the string "false". */
+    public function test_a_switched_off_passkey_sent_as_a_string_stays_off()
+    {
+        update_option('home', 'https://example.org');
+
+        Onboarding::complete([
+            'two_fa' => [
+                'totp'    => 'true',
+                'email'   => 'false',
+                'passkey' => 'false',
+                'roles'   => ['administrator']
+            ]
+        ]);
+
+        $this->assertSame('yes', Helper::getSetting('totp_2fa'));
+        $this->assertSame('no', Helper::getSetting('passkey_2fa'));
+    }
+
+    public function test_passkeys_alone_still_need_a_role()
+    {
+        update_option('home', 'https://example.org');
+
+        $result = Onboarding::complete([
+            'two_fa' => ['totp' => 'false', 'email' => 'false', 'passkey' => 'true', 'roles' => []]
+        ]);
+
+        $this->assertWPError($result);
+        $this->assertSame('roles_required', $result->get_error_code());
+    }
+
     /** Over plain http the browser cannot create a passkey, so the answer is not written. */
     public function test_passkeys_are_not_turned_on_where_they_cannot_work()
     {
@@ -350,6 +380,29 @@ class OnboardingTest extends BaseTestCase
         ]);
 
         $this->assertSame('mon', Helper::getSetting('digest_summary'));
+    }
+
+    /** A report already sent at the old frequency must not hold back the first one at the new. */
+    public function test_a_new_report_frequency_starts_from_now()
+    {
+        update_option('_fls_last_digest_sent', current_time('mysql'));
+
+        Onboarding::complete([
+            'alerts' => ['enabled' => 'false', 'digest' => 'mon', 'email' => '{admin_email}']
+        ]);
+
+        $this->assertFalse(get_option('_fls_last_digest_sent'));
+    }
+
+    public function test_an_unchanged_report_frequency_keeps_its_last_send()
+    {
+        update_option('_fls_last_digest_sent', '2026-10-01 00:00:00');
+
+        Onboarding::complete([
+            'alerts' => ['enabled' => 'false', 'digest' => 'monthly', 'email' => '{admin_email}']
+        ]);
+
+        $this->assertSame('2026-10-01 00:00:00', get_option('_fls_last_digest_sent'));
     }
 
     /** The report and the sign-in alerts are separate answers that share an address. */

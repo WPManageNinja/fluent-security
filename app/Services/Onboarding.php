@@ -390,6 +390,15 @@ class Onboarding
         }
 
         /*
+         * A new install sends its default report before anyone opens the wizard. A new
+         * frequency starts from now, as on the settings screen, or that earlier send
+         * swallows the first weekly report.
+         */
+        if (Arr::get($settings, 'digest_summary') !== Helper::getSetting('digest_summary')) {
+            delete_option('_fls_last_digest_sent');
+        }
+
+        /*
          * One write. Saving replaces the option wholesale, so this is the only place the
          * wizard touches it - see the note on SecurityChecks::apply().
          */
