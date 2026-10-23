@@ -9561,6 +9561,63 @@ msgid ""
 "line has to be added by hand."
 msgstr ""
 
+#: app/Hooks/Handlers/BasicTasksHandler.php:454
+msgid "Hello there, <br />Here is your daily digest report of your site's (%s) login activity."
+msgstr ""
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:455
+msgid "Hello there, <br />Here is your weekly digest report of your site's (%s) login activity."
+msgstr ""
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:456
+msgid "Hello there, <br />Here is your monthly digest report of your site's (%s) login activity."
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:1055
+msgid "Hello there, <br />The following user has logged in to your site. Here are the details:"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:1119
+msgid "Hello there, <br />The following user was blocked from logging in to your site. Here are the details:"
+msgstr ""
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:469
+msgid "Auth Report for %s"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:1065
+msgid "Login success at %s"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:1071
+#, php-format
+msgid "[%1$s] Login success for %2$s"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:1129
+msgid "Blocked from login %s"
+msgstr ""
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:1135
+#, php-format
+msgid "[%1$s] Blocked from login - %2$s"
+msgstr ""
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:460
+#, php-format
+msgid "Daily report for %1$s - %2$s"
+msgstr ""
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:461
+#, php-format
+msgid "Weekly report for %1$s - %2$s"
+msgstr ""
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:462
+#, php-format
+msgid "Monthly report for %1$s - %2$s"
+msgstr ""
+
 #: app/Services/TransStrings.php:1189
 msgid ""
 "{admin_email} is the admin email from your site's General Settings. Separate "

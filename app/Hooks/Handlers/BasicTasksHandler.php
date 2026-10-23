@@ -451,19 +451,31 @@ class BasicTasksHandler
         }
         $infoHtml .= '</ul>';
 
+        $openingMessages = [
+            'daily'   => __('Hello there, <br />Here is your daily digest report of your site\'s (%s) login activity.', 'fluent-security'),
+            'weekly'  => __('Hello there, <br />Here is your weekly digest report of your site\'s (%s) login activity.', 'fluent-security'),
+            'monthly' => __('Hello there, <br />Here is your monthly digest report of your site\'s (%s) login activity.', 'fluent-security')
+        ];
+
+        $subjectFormats = [
+            'daily'   => __('Daily report for %1$s - %2$s', 'fluent-security'),
+            'weekly'  => __('Weekly report for %1$s - %2$s', 'fluent-security'),
+            'monthly' => __('Monthly report for %1$s - %2$s', 'fluent-security')
+        ];
+
         $lines = [
-            sprintf('<p style="font-size: 16px; line-height: 25px;">Hello there, <br />Here is the %1$s digest report of your site\'s (%2$s) login activity.</p>', $period, site_url()),
+            '<p style="font-size: 16px; line-height: 25px;">' . sprintf($openingMessages[$period], esc_url(site_url())) . '</p>',
             $infoHtml
         ];
 
         $data = [
             'body'        => implode('', $lines),
-            'pre_header'  => sprintf('Auth Report for %s', get_bloginfo('name')),
+            'pre_header'  => sprintf(__('Auth Report for %s', 'fluent-security'), get_bloginfo('name')),
             'show_footer' => true
         ];
 
         $body = Helper::loadView('notification', $data);
-        $subject = sprintf('%1$s report for %2$s - %3$s', ucfirst($period), get_bloginfo('name'), date('d, M Y', current_time('timestamp')));
+        $subject = sprintf($subjectFormats[$period], get_bloginfo('name'), $this->siteDate('d, M Y'));
 
         $headers = SystemEmailService::getEmailHeaders();
 
