@@ -20,11 +20,7 @@ class MagicLoginHandler
         add_action('wp_ajax_nopriv_fls_magic_send_magic_email', array($this, 'handleMagicLoginAjax'));
 
         add_action('init', function () {
-            if (isset($_GET['fls_al'])) {
-                $hash = sanitize_text_field($_GET['fls_al']);
-                $this->makeLogin($hash);
-            }
-
+            $this->handleLinkRequest();
             $this->rememberRedirect();
         }, 1);
 
@@ -508,6 +504,86 @@ class MagicLoginHandler
             ->insert($data);
 
         return $string . ':' . $insertId;
+    }
+
+    /**
+     * Opening the link only shows a page. The page posts the link back, and the POST signs in.
+     *
+     * Mail scanners - Microsoft Safe Links above all - fetch every URL in an email before the
+     * person sees it. When the GET itself signed in, the scanner spent the one-time link and
+     * took the session, and the person who clicked landed logged out. A scanner fetches; it
+     * does not submit forms, so the page submits itself in a real browser and nowhere else.
+     *
+     * @return void
+     */
+    public function handleLinkRequest()
+    {
+        if (!isset($_GET['fls_al']) || !is_string($_GET['fls_al']) || !$this->isEnabled()) {
+            return;
+        }
+
+        $hash = sanitize_text_field(wp_unslash($_GET['fls_al']));
+
+        if (is_user_logged_in()) {
+            $this->makeLogin($hash);
+            return;
+        }
+
+        if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            if ($this->makeLogin($hash)) {
+                // No force_redirect: land on the page the link pointed at, as a GET.
+                wp_safe_redirect(remove_query_arg(['fls_al', 'force_redirect']));
+                exit();
+            }
+
+            $this->renderLinkPage(false);
+            exit();
+        }
+
+        $this->renderLinkPage($this->isRedeemable($hash));
+        exit();
+    }
+
+    /**
+     * Whether the link would sign in if it were posted now. Reads only: a GET must not spend it.
+     *
+     * @param string $hash the `<secret>:<rowId>` pair from the URL
+     * @return bool
+     */
+    public function isRedeemable($hash)
+    {
+        $hashes = explode(':', $hash);
+
+        if (count($hashes) != 2) {
+            return false;
+        }
+
+        $row = flsDb()->table('fls_login_hashes')
+            ->where('id', $hashes[1])
+            ->where('use_type', 'magic_login')
+            ->where('status', 'issued')
+            ->first();
+
+        if (!$row || !$this->isPasswordEqual($hashes[0], $row->login_hash)) {
+            return false;
+        }
+
+        return strtotime($row->valid_till, current_time('timestamp')) >= current_time('timestamp');
+    }
+
+    private function renderLinkPage($isValid)
+    {
+        if (!headers_sent()) {
+            nocache_headers();
+            header('Content-Type: text/html; charset=' . get_option('blog_charset'));
+            header('X-Robots-Tag: noindex, nofollow');
+        }
+
+        echo Helper::loadView('magic_login.redeem', [ // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            'is_valid'  => $isValid,
+            'site_name' => get_bloginfo('name'),
+            'login_url' => wp_login_url()
+        ]);
     }
 
     public function makeLogin($hash)
