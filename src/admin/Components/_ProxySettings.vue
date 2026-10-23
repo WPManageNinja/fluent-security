@@ -75,6 +75,7 @@ export default {
                 return this.$t('Nothing to set up here unless another proxy sits between Cloudflare and your server.');
             }
 
+            // translators: %s is the IP address your own visit came from
             return this.$t('Nothing to set up here. Your own visit arrived from %s.', this.detection.remote_addr || '—');
         },
         /* Cloudflare is a proxy already, so there is nothing to set up - only to add to. */
@@ -96,9 +97,11 @@ export default {
         summary() {
             if (this.status === 'detected') {
                 if (this.detection.configured) {
+                    // translators: %s is the IP address the connection to this site came from
                     return this.$t('Traffic arrives from %s, and a proxy is listed below. Check that the address recorded for you looks right.', this.detection.remote_addr);
                 }
 
+                // translators: %s is a private IP address inside the server network that traffic arrives from
                 return this.$t('Traffic reaches this site from %s, an address inside your own server\'s network, so a proxy is passing it on. Until that proxy is listed below, every visitor looks like the same person.', this.detection.remote_addr);
             }
 
@@ -159,9 +162,8 @@ export default {
 
             <el-alert v-if="needsAttention" type="warning" :closable="false" show-icon
                       style="margin-bottom: 10px;">
-                {{
-                    $t('Failed logins are counted per address. While every visitor looks like %s, one person\'s failed attempts can lock everyone out.', detection.remote_addr)
-                }}
+                <!-- translators: %s is the single IP address every visitor currently appears to come from -->
+                {{ $t('Failed logins are counted per address. While every visitor looks like %s, one person\'s failed attempts can lock everyone out.', detection.remote_addr) }}
             </el-alert>
 
             <div class="fls_proxy_facts">
@@ -195,6 +197,7 @@ export default {
 
             <p v-if="canSuggest" class="fls_action_note">
                 <el-button size="small" type="primary" plain @click="applySuggestion()">
+                    <!-- translators: %s is the suggested proxy IP address -->
                     {{ $t('Use %s', detection.suggested_proxy) }}
                 </el-button>
                 <span>{{ $t('Fills in the fields below from your own visit. Nothing changes until you save.') }}</span>

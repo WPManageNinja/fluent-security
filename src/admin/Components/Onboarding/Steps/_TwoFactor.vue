@@ -87,10 +87,10 @@ export default {
             values came from. One line covers that without a badge on each row.
         -->
         <p v-if="passkeySupported" class="fls_onb_hint">
-            {{ $t('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app or passkeys if they suit your users, then choose who gets the second step.') }}
+            {{ $t('Emailed codes are on. People need nothing set up to use them. Add the authenticator app or passkeys if they suit your users, then choose who gets the second step.') }}
         </p>
         <p v-else class="fls_onb_hint">
-            {{ $t('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.') }}
+            {{ $t('Emailed codes are on. People need nothing set up to use them. Add the authenticator app if it suits your users, then choose who gets the second step.') }}
         </p>
 
         <div class="fls_onb_opts">

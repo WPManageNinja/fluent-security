@@ -89,7 +89,8 @@ export default {
                 return this.$t('Entries are kept until you delete them.');
             }
 
-            return this.$t('Entries older than %s days are deleted automatically.', this.retention);
+            // translators: %s is the number of days activity logs are kept
+            return this.$_n('Entries older than %s day are deleted automatically.', 'Entries older than %s days are deleted automatically.', this.retention);
         },
         countLabel() {
             const total = this.paginate.total;
@@ -101,7 +102,8 @@ export default {
             const from = (this.paginate.page - 1) * this.paginate.per_page + 1;
             const to = Math.min(from + this.logs.length - 1, total);
 
-            return this.$t('%1s-%2s of %3s', from, to, total);
+            // translators: %1$s is the number of the first entry shown, %2$s the last one, %3$s the total number of entries
+            return this.$t('%1$s-%2$s of %3$s', from, to, total);
         }
     },
     methods: {
@@ -361,7 +363,7 @@ export default {
                                             JavaScript - so every row written by the system
                                             rather than by a person announced "User #0".
                                         -->
-                                        {{ Number(scope.row.user_id) > 0 ? $t('User #%s', scope.row.user_id) : $t('No account') }}
+                                        {{ Number(scope.row.user_id) > 0 ? /* translators: %s is a numeric user ID */ $t('User #%s', scope.row.user_id) : $t('No account') }}
                                     </div>
                                 </div>
                             </template>
@@ -407,6 +409,7 @@ export default {
                                     <template #dropdown>
                                         <el-dropdown-menu>
                                             <el-dropdown-item command="allow" :disabled="!scope.row.ip">
+                                                <!-- translators: %s is an IP address -->
                                                 {{ $t('Never lock out %s', scope.row.ip) }}
                                             </el-dropdown-item>
                                             <el-dropdown-item command="block" :disabled="!scope.row.ip">

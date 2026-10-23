@@ -92,7 +92,8 @@ export default {
     watch: {
         $route(to) {
             this.navOpen = false;
-            document.title = this.$t(to.meta.title) + ' | ' + this.$t('FluentAuth');
+            // translators: %s is the name of the admin screen, e.g. "Dashboard"
+            document.title = this.$t('%s | FluentAuth', this.$t(to.meta.title));
         }
     },
     created() {

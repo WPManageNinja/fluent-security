@@ -15,6 +15,7 @@ export default {
         fileWatchLabel() {
             if (this.loading) return this.$t('Loading…');
             if (this.error || !this.scan) return this.$t('Unavailable');
+            // translators: %s is a time span, e.g. 5 mins or 2 hours
             return this.scan.last_checked_human ? this.$t('%s ago', this.scan.last_checked_human) : this.$t('Not run yet');
         }
     }
@@ -26,7 +27,7 @@ export default {
         <section class="fls_security_coverage">
             <h2>{{ $t('Recommended checks') }}</h2>
             <p class="fls_security_coverage_value">
-                <strong>{{ score.done }}</strong> <span>{{ $t('of %s addressed', score.total) }}</span>
+                <strong>{{ score.done }}</strong> <span>{{ /* translators: %s is the total number of recommended checks; the number addressed is shown just before this text */ $t('of %s addressed', score.total) }}</span>
             </p>
             <div class="fls_security_coverage_track" role="progressbar" :aria-label="$t('Recommended checks addressed')"
                  :aria-valuenow="percent" :aria-valuemin="0" :aria-valuemax="100">
