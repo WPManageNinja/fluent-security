@@ -37,6 +37,7 @@ export default {
             const names = this.notice.names || [];
 
             return names.length === 1
+                // translators: %s is the name of another two-factor plugin
                 ? this.$t('%s is also enforcing two-factor login', names[0])
                 : this.$t('Other plugins are also enforcing two-factor login');
         },

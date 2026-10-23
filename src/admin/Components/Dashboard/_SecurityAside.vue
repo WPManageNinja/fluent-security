@@ -59,7 +59,7 @@ export default {
                 {
                     key: 'two_fa',
                     label: this.$t('Authenticator app'),
-                    value: this.protection.two_fa_enabled ? this.$t('%1s of %2s users set up', twoFa.enrolled, twoFa.total) : this.$t('Disabled'),
+                    value: this.protection.two_fa_enabled ? /* translators: %1$s is how many users have set up two-factor, %2$s how many users there are */ this.$t('%1$s of %2$s users set up', twoFa.enrolled, twoFa.total) : this.$t('Disabled'),
                     warning: !this.protection.two_fa_enabled || twoFa.enrolled === 0,
                     route: this.protection.two_fa_enabled ? 'settings_two_fa_enrollment' : 'settings_general'
                 },
@@ -86,6 +86,7 @@ export default {
                     key: 'retention',
                     label: this.$t('Logs kept for'),
                     value: this.protection.retention
+                        // translators: %s is the number of days activity logs are kept
                         ? this.$_n('%s day', '%s days', this.protection.retention)
                         : this.$t('Forever'),
                     warning: false,
@@ -193,7 +194,7 @@ export default {
                 <div class="fls_dashboard__verdict" :class="{is_clear: !attention.length}">
                     <span class="fls_dashboard__verdict-icon" aria-hidden="true" v-html="attention.length ? icons.threat : icons.check"></span>
                     <div>
-                        <strong>{{ attention.length ? $_n('%s item needs attention', '%s items need attention', attention.length) : $t('No open issues found') }}</strong>
+                        <strong>{{ attention.length ? /* translators: %s is the number of open security issues */ $_n('%s item needs attention', '%s items need attention', attention.length) : $t('No open issues found') }}</strong>
                         <p>{{ $t('Based on the latest security checks') }}</p>
                     </div>
                 </div>
@@ -203,13 +204,13 @@ export default {
                         <router-link :to="{name: 'security_findings'}">{{ finding.title }}</router-link>
                     </li>
                 </ul>
-                <p v-if="remaining" class="fls_dashboard__caption">{{ $_n('%s more item to review', '%s more items to review', remaining) }}</p>
-                <p v-if="recommendations" class="fls_dashboard__caption">{{ $_n('%s optional recommendation', '%s optional recommendations', recommendations) }}</p>
+                <p v-if="remaining" class="fls_dashboard__caption">{{ /* translators: %s is the number of further security issues not listed above */ $_n('%s more item to review', '%s more items to review', remaining) }}</p>
+                <p v-if="recommendations" class="fls_dashboard__caption">{{ /* translators: %s is the number of optional security recommendations */ $_n('%s optional recommendation', '%s optional recommendations', recommendations) }}</p>
                 <el-button type="primary" class="fls_dashboard__review" @click="$router.push({name: 'security_findings'})">
                     {{ attention.length ? $t('Review security issues') : $t('View security checks') }}
                 </el-button>
                 <div v-if="score.total" class="fls_dashboard__checks">
-                    <span>{{ $t('Recommendations done') }}</span><b>{{ $t('%1s of %2s', score.done, score.total) }}</b>
+                    <span>{{ $t('Recommendations done') }}</span><b>{{ $t('%1$s of %2$s', score.done, score.total) }}</b>
                 </div>
                 <p v-if="score.total" class="fls_dashboard__caption">{{ $t('Counts recommendations that passed or that you dismissed. File scan results are not included.') }}</p>
             </template>

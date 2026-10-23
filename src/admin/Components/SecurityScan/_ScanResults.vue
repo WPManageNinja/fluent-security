@@ -214,10 +214,12 @@ export default {
             }
 
             if (changed) {
+                // translators: %s is the number of plugins and themes with changed files
                 parts.push(this.$_n('in %s plugin or theme', 'in %s plugins and themes', changed));
             }
 
             if (this.snapshotFindings) {
+                // translators: %s is the number of files changed since the site owner's snapshot
                 parts.push(this.$_n(
                     '%s changed since your snapshot',
                     '%s changed since your snapshot',
@@ -286,7 +288,7 @@ export default {
     <div v-else class="fls_scan_intro">
         <p v-if="errorMessage" class="fls_scan_state_error">{{ errorMessage }}</p>
         <p v-else-if="staleWarning">
-            <span v-html="$t('__last_scan_warning__', settings.last_checked_human)"></span>
+            <span v-html="/* translators: %s is how long ago the last scan ran, e.g. 3 days */ $t('__last_scan_warning__', settings.last_checked_human)"></span>
         </p>
         <el-button type="primary" @click="$emit('scan')">{{ $t('Run a scan') }}</el-button>
     </div>

@@ -146,6 +146,7 @@ export default {
          * file being deleted is the file on screen.
          */
         deleteFile(file) {
+            // translators: %s is the path of the file to delete
             this.$confirm(this.$t('__delete_file_confirm__', file.file), this.$t('Delete this file permanently?'), {
                 type: 'warning',
                 showCancelButton: true,
@@ -282,6 +283,7 @@ export default {
         </li>
 
         <li v-if="truncated" class="fls_scan_files_more">
+            <!-- translators: %s is the number of further changed files not listed -->
             {{ $_n('and %s more file', 'and %s more files', truncated) }}
         </li>
     </ul>

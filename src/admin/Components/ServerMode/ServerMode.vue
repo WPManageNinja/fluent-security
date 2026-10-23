@@ -56,7 +56,7 @@ export default {
         copyCode(code) {
             navigator.clipboard.writeText(code)
                 .then(() => this.$notify.success(this.$t('Copied to clipboard')))
-                .catch(err => this.$notify.error(this.$t('Could not copy to clipboard') + ': ' + err));
+                .catch(err => this.$notify.error(/* translators: %s is the browser's error message */ this.$t('Could not copy to clipboard: %s', err)));
         },
         removeSite(url) {
             this.$confirm(this.$t('Remove this site? People will no longer be able to sign in to it through this one.'), {

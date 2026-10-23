@@ -17,7 +17,7 @@
                         <li :class="['fcom_block_list', { block_hidden: field.hidden }]">
                             <div @click="updateField(field)" class="fcom_block_label"
                                  role="button" tabindex="0"
-                                 :aria-label="$t('Edit') + ' ' + getLabel(field.type)"
+                                 :aria-label="/* translators: %s is the name of a login screen field, such as Logo */ $t('Edit %s', getLabel(field.type))"
                                  @keydown.enter.prevent="updateField(field)"
                                  @keydown.space.prevent="updateField(field)">
                                 <el-icon class="fcom_el_icon">
@@ -37,7 +37,7 @@
                             </div>
                             <div class="fcom_block_action">
                                 <el-icon role="button" tabindex="0"
-                                         :aria-label="$t('Edit') + ' ' + getLabel(field.type)"
+                                         :aria-label="/* translators: %s is the name of a login screen field, such as Logo */ $t('Edit %s', getLabel(field.type))"
                                          @keydown.enter.prevent="updateField(field)"
                                          @keydown.space.prevent="updateField(field)"
                                          @click="updateField(field)">

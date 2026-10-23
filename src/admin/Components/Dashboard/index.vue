@@ -52,13 +52,16 @@ export default {
             const hour = new Date().getHours();
 
             if (hour < 12) {
+                // translators: %s is the signed-in user's full name
                 return this.$t('Good morning %s', this.appVars.me.full_name);
             }
 
             if (hour < 18) {
+                // translators: %s is the signed-in user's full name
                 return this.$t('Good afternoon %s', this.appVars.me.full_name);
             }
 
+            // translators: %s is the signed-in user's full name
             return this.$t('Good evening %s', this.appVars.me.full_name);
         }
     },
@@ -169,7 +172,7 @@ export default {
                 </section>
                 <section class="fls_dcard" :aria-label="$t('Recent activity')">
                     <div class="fls_dcard_head">
-                        <div><h2>{{ $t('Recent activity') }}</h2><p class="fls_dashboard__caption">{{ $t('Latest entries · %s', rangeLabel) }}</p></div>
+                        <div><h2>{{ $t('Recent activity') }}</h2><p class="fls_dashboard__caption">{{ /* translators: %s is the selected date range, such as Last 7 days */ $t('Latest entries · %s', rangeLabel) }}</p></div>
                         <router-link :to="{name: 'logs'}">{{ $t('Open the activity log') }} <span aria-hidden="true">↗</span></router-link>
                     </div>
                     <div class="fls_dashboard__views" :aria-label="$t('Recent activity view')">
@@ -190,14 +193,14 @@ export default {
                                 <div class="fls_dashboard__ip-row">
                                     <div class="fls_dash_list_main">
                                         <div class="fls_dash_list_title"><span class="fls_dashboard__address">{{ row.ip }}</span></div>
-                                        <div class="fls_dash_list_meta">{{ $_n('%s username tried', '%s usernames tried', row.usernames) }} · {{ row.last_seen }}</div>
+                                        <div class="fls_dash_list_meta">{{ /* translators: %s is the number of different usernames this IP address tried */ $_n('%s username tried', '%s usernames tried', row.usernames) }} · {{ row.last_seen }}</div>
                                     </div>
                                     <div class="fls_dash_list_aside"><span class="fls_dash_list_count">{{ row.attempts }}</span>{{ $t('attempts') }}</div>
                                     <span v-if="row.is_blocked" class="fls_tag is_blocked">{{ $t('Blocked') }}</span>
-                                    <el-button v-else size="small" :disabled="!!blocking" :aria-label="$t('Block %s', row.ip)" @click="pendingBlock = pendingBlock === row ? null : row">{{ $t('Block IP') }}</el-button>
+                                    <el-button v-else size="small" :disabled="!!blocking" :aria-label="/* translators: %s is an IP address */ $t('Block %s', row.ip)" @click="pendingBlock = pendingBlock === row ? null : row">{{ $t('Block IP') }}</el-button>
                                 </div>
                                 <div v-if="pendingBlock === row" class="fls_dashboard__confirm">
-                                    <p>{{ $t('Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.', row.ip) }}</p>
+                                    <p>{{ /* translators: %s is an IP address */ $t('Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.', row.ip) }}</p>
                                     <el-button size="small" :disabled="!!blocking" @click="pendingBlock = null">{{ $t('Cancel') }}</el-button>
                                     <el-button size="small" type="danger" :loading="blocking === row.ip" @click="blockIp(row)">{{ $t('Confirm block') }}</el-button>
                                 </div>

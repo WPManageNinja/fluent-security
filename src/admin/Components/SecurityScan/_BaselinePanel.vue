@@ -37,12 +37,15 @@ export default {
          * so this stays correct and "29,726 files" stays readable, which five bare digits do not.
          */
         filesLabel() {
+            // translators: %s is a number of files
             return this.$_n('%s file', '%s files', Number(this.baseline.files || 0).toLocaleString());
         },
         unitsLabel() {
+            // translators: %s is the number of plugins and themes in the snapshot
             return this.$_n('%s plugin or theme', '%s plugins and themes', this.baseline.units);
         },
         skippedLabel() {
+            // translators: %s is a number of files
             return this.$_n('%s file', '%s files', Number(this.baseline.skipped || 0).toLocaleString());
         },
         takenLabel() {

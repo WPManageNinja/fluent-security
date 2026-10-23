@@ -79,6 +79,7 @@ export default {
     <div class="fls_onb_mail" :class="{'is-off': !enabled}">
         <div class="fls_onb_mail_head">
             <p class="fls_onb_mail_subject">
+                <!-- translators: %s is the site name -->
                 {{ $t('New sign-in to %s', site) }}
             </p>
             <dl class="fls_onb_mail_meta">
@@ -94,7 +95,7 @@ export default {
         </div>
 
         <div class="fls_onb_mail_body">
-            <p>{{ $t('Someone just signed in to %s.', site) }}</p>
+            <p>{{ /* translators: %s is the site name */ $t('Someone just signed in to %s.', site) }}</p>
 
             <dl class="fls_onb_mail_facts">
                 <div>

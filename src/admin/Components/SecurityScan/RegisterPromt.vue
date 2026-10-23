@@ -246,7 +246,7 @@ export default {
                             {{ $t('Get an email when a file on this site changes') }}
                         </h2>
                         <p v-if="awaitingKey">
-                            <span v-html="$t('__api_key_email_sent__', settings.account_email_id)"></span>
+                            <span v-html="/* translators: %s is the email address the key was sent to */ $t('__api_key_email_sent__', settings.account_email_id)"></span>
                         </p>
                         <p v-else>{{ $t('__free_api_desc__') }}</p>
                     </div>
@@ -341,7 +341,7 @@ export default {
                             </a>.
                         </p>
                         <p v-else>
-                            <span v-html="$t('__api_key_form_consent__', `<a target=&quot;_blank&quot; rel=&quot;noopener&quot; href=&quot;https://fluentauth.com/privacy&quot;>` + $t('privacy policy and terms and conditions') + `</a>`)"></span>
+                            <span v-html="/* translators: %s is a link to the privacy policy and terms and conditions */ $t('__api_key_form_consent__', `<a target=&quot;_blank&quot; rel=&quot;noopener&quot; href=&quot;https://fluentauth.com/privacy&quot;>` + $t('privacy policy and terms and conditions') + `</a>`)"></span>
                         </p>
 
                     </div>

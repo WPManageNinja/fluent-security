@@ -58,13 +58,15 @@ export default {
             if (this.status.state === 'constant_missing') {
                 return {
                     title: this.$t('The encryption key is missing'),
-                    body: this.$t('The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. If you have the old value but not the line, add any new key line first, then come back to move the data across.', this.status.constant_name)
+                    // translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key
+                    body: this.$t('The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. Do you have the old value but not the line? Then add a new key line first. After that, come back here to move the data across.', this.status.constant_name)
                 };
             }
 
             if (this.status.state === 'key_changed') {
                 return {
                     title: this.$t('The encryption key has changed'),
+                    // translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key
                     body: this.$t('The %s value in your wp-config.php is not the one the app data was encrypted with. If you still have the old value, paste it below and everything will be moved to the new one.', this.status.constant_name)
                 };
             }
@@ -72,6 +74,7 @@ export default {
             return null;
         },
         sourceNote() {
+            // translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key
             return this.$t('Uses the %s value in your wp-config.php. Keep a copy of that value somewhere safe.', this.status.constant_name);
         }
     },
@@ -286,8 +289,8 @@ export default {
             <el-alert v-if="problem" type="error" :closable="false" show-icon :title="problem.title">
                 <p>{{ problem.body }}</p>
                 <p v-if="status.counts.unreadable">
-                    {{
-                        $_n(
+                    <!-- translators: %d is the number of users whose authenticator app setup cannot be decrypted -->
+                    {{ $_n(
                             '%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.',
                             '%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.',
                             status.counts.unreadable

@@ -91,9 +91,11 @@ export default {
             }
 
             if (!this.hasFileFindings) {
+                // translators: %s is a time span, e.g. 5 mins or 2 hours
                 return this.$t('Checked %s ago. Every WordPress file, and every plugin and theme from WordPress.org, matched the official copy.', this.files.checked_human);
             }
 
+            // translators: %s is a time span, e.g. 5 mins or 2 hours
             return this.$t('Checked %s ago. Each reinstall replaces every file with a fresh copy from WordPress.org, and once they are all done, sign everyone out again.', this.files.checked_human);
         },
         /* "3 files changed · 1 not in the release · 2 missing", or nothing. */
@@ -122,8 +124,8 @@ export default {
 
             return this.$t(
                 count === 1
-                    ? '%1s file was moved to %2s, where it cannot run. Delete the folder once you are sure you do not need it.'
-                    : '%1s files were moved to %2s, where they cannot run. Delete the folder once you are sure you do not need them.',
+                    ? '%1$s file was moved to %2$s, where it cannot run. Delete the folder once you are sure you do not need it.'
+                    : '%1$s files were moved to %2$s, where they cannot run. Delete the folder once you are sure you do not need them.',
                 count,
                 this.files.quarantine.path
             );
@@ -168,6 +170,7 @@ export default {
                     return this.$t('This site has no application passwords, so nothing here is permanent. Everyone just signs in again.');
                 }
 
+                // translators: %s is the number of signed-in sessions on this site
                 return this.$_n(
                     'There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.',
                     'There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.',
@@ -175,6 +178,7 @@ export default {
                 );
             }
 
+            // translators: %s is the number of application passwords on this site
             const passwords = this.$_n(
                 'The %s application password on this site will be deleted for good.',
                 'All %s application passwords on this site will be deleted for good.',
@@ -182,8 +186,9 @@ export default {
             );
 
             if (this.impact.password_people > 1) {
+                // translators: %1$s is the preceding sentence about application passwords being deleted, %2$s the number of people who own them
                 return this.$t(
-                    '%1s They belong to %2s people, so tell them first.',
+                    '%1$s They belong to %2$s people, so tell them first.',
                     passwords,
                     this.impact.password_people
                 );
@@ -210,11 +215,13 @@ export default {
                     key: 'admins',
                     title: this.$t('Check who can change your site'),
                     body: this.newAdmins.length
+                        // translators: %s is the number of administrator accounts created in the last 7 days
                         ? this.$_n(
-                            'One administrator account was created in the last week.',
+                            '%s administrator account was created in the last week.',
                             '%s administrator accounts were created in the last week.',
                             this.newAdmins.length
                         )
+                        // translators: %s is the number of administrators on this site
                         : this.$_n(
                             'There is %s administrator on this site.',
                             'There are %s administrators on this site.',
@@ -236,18 +243,22 @@ export default {
             const parts = [];
 
             if (counts.modified) {
+                // translators: %s is the number of files that differ from the official copy
                 parts.push(this.$_n('%s file changed', '%s files changed', counts.modified));
             }
 
             if (counts.new) {
+                // translators: %s is the number of files that are not part of the official copy
                 parts.push(this.$_n('%s unexpected file', '%s unexpected files', counts.new));
             }
 
             if (counts.deleted) {
+                // translators: %s is the number of official files missing from the site
                 parts.push(this.$_n('%s file missing', '%s files missing', counts.deleted));
             }
 
             if (counts.truncated) {
+                // translators: %s is the number of further changed files not counted in this list
                 parts.push(this.$t('and %s more', counts.truncated));
             }
 
@@ -357,10 +368,12 @@ export default {
         reinstallCore() {
             const core = this.core;
             const lines = [
+                // translators: %s is a WordPress version number, e.g. 6.6.2
                 this.$t('This downloads WordPress %s from WordPress.org and replaces every WordPress file. Your content, plugins, themes and wp-config.php are not touched.', core.version)
             ];
 
             if (core.removable) {
+                // translators: %s is the number of files to be moved to quarantine
                 lines.push(this.$_n(
                     '%s file that is not part of WordPress will be moved to quarantine first.',
                     '%s files that are not part of WordPress will be moved to quarantine first.',
@@ -370,6 +383,7 @@ export default {
 
             lines.push(this.$t('Your site will show a maintenance notice for a few seconds.'));
 
+            // translators: %s is a WordPress version number, e.g. 6.6.2
             this.confirmReinstall(lines.join(' '), this.$t('Reinstall WordPress %s?', core.version), () => {
                 this.reinstalling = 'core';
 
@@ -380,12 +394,15 @@ export default {
             const lines = [];
 
             if (row.suspicious) {
-                lines.push(this.$t('%1s is on version %2s, which WordPress.org never published, so it will be replaced with the current release instead.', row.name, row.version));
+                // translators: %1$s is a plugin or theme name, %2$s its installed version number
+                lines.push(this.$t('%1$s is on version %2$s, which WordPress.org never published, so it will be replaced with the current release instead.', row.name, row.version));
             } else {
-                lines.push(this.$t('This downloads %1s %2s from WordPress.org and replaces all of its files.', row.name, row.version));
+                // translators: %1$s is a plugin or theme name, %2$s its version number
+                lines.push(this.$t('This downloads %1$s %2$s from WordPress.org and replaces all of its files.', row.name, row.version));
             }
 
             if (row.new) {
+                // translators: %s is the number of files to be moved to quarantine; "it" is the plugin or theme
                 lines.push(this.$_n(
                     '%s file that is not part of it will be moved to quarantine first.',
                     '%s files that are not part of it will be moved to quarantine first.',
@@ -395,6 +412,7 @@ export default {
 
             lines.push(this.$t('Its settings are kept.'));
 
+            // translators: %s is a plugin or theme name
             this.confirmReinstall(lines.join(' '), this.$t('Reinstall %s?', row.name), () => {
                 this.reinstalling = row.type + ':' + row.key;
 
@@ -409,6 +427,7 @@ export default {
         reinstallAll() {
             const rows = this.reinstallableRows.slice();
             const lines = [
+                // translators: %s is the number of plugins and themes to reinstall
                 this.$_n(
                     'This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.',
                     'This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.',
@@ -448,6 +467,7 @@ export default {
 
                 this.reinstalling = '';
                 this.reinstallingAll = false;
+                // translators: %s is the number of plugins and themes reinstalled
                 this.$notify.success(this.$_n('%s reinstalled.', '%s reinstalled.', done));
                 this.load();
             }).catch(() => {
@@ -484,6 +504,7 @@ export default {
             }
 
             if (response.failed && response.failed.length) {
+                // translators: %s is a comma-separated list of file paths
                 this.$notify.warning(this.$t('%s could not be moved to quarantine and may still be on the server.', response.failed.join(', ')));
             }
         },
@@ -491,6 +512,7 @@ export default {
             const count = scope === 'administrators' ? this.administrators.length : null;
 
             const question = scope === 'administrators'
+                // translators: %s is the number of administrators
                 ? this.$_n(
                     'This emails a password reset link to %s administrator. Send it?',
                     'This emails a password reset link to %s administrators. Send it?',
@@ -577,6 +599,7 @@ export default {
                                     <div v-if="hasFileFindings" class="fls_recover_files">
                                         <div v-if="core && core.files" class="fls_recover_file" :class="{is_busy: reinstalling === 'core'}">
                                             <div class="fls_recover_file_main">
+                                                <!-- translators: %s is a WordPress version number, e.g. 6.6.2 -->
                                                 <strong>{{ $t('WordPress %s', core.version) }}</strong>
                                                 <span class="fls_recover_file_status">{{ coreStatusLine }}</span>
                                                 <span v-if="core.blocked && core.fixable" class="fls_recover_file_blocked">
@@ -615,6 +638,7 @@ export default {
 
                                         <div v-if="reinstallableRows.length > 1" class="fls_recover_files_all">
                                             <el-button size="small" :loading="reinstallingAll" :disabled="busy" @click="reinstallAll">
+                                                <!-- translators: %s is the number of plugins and themes to reinstall -->
                                                 {{ $t('Reinstall all %s', reinstallableRows.length) }}
                                             </el-button>
                                         </div>
@@ -630,6 +654,7 @@ export default {
                                         <ul>
                                             <li v-for="item in files.unverifiable" :key="item.key">
                                                 <strong>{{ item.label }}</strong>
+                                                <!-- translators: %s is how long ago, e.g. 3 days ago -->
                                                 <span v-if="item.modified">{{ $t('changed %s', item.modified) }}</span>
                                                 <span>{{ item.detail }}</span>
                                             </li>
@@ -650,6 +675,7 @@ export default {
                                             <span class="fls_recover_admin_email">{{ admin.email }}</span>
                                         </div>
                                         <div class="fls_recover_admin_dates">
+                                            <!-- translators: %s is how long ago the account was created, e.g. 3 days ago -->
                                             <span>{{ $t('Added %s', admin.registered_human) }}</span>
                                             <!-- The phrase comes whole from the server: the two answers are different claims. -->
                                             <span>{{ admin.last_login }}</span>
@@ -661,8 +687,10 @@ export default {
                                 </div>
 
                                 <div v-if="step.key === 'passwords' && progress.total" class="fls_recover_progress">
-                                    {{ $t('%1s of %2s sent', progress.sent, progress.total) }}
+                                    <!-- translators: %1$s is how many password reset emails have been sent so far, %2$s how many will be sent in total -->
+                                    {{ $t('%1$s of %2$s sent', progress.sent, progress.total) }}
                                     <span v-if="progress.failed">
+                                        <!-- translators: %s is the number of password reset emails that failed to send -->
                                         · {{ $_n('%s could not be sent', '%s could not be sent', progress.failed) }}
                                     </span>
                                     <span v-if="progress.running">· {{ $t('still sending') }}</span>
@@ -739,6 +767,7 @@ export default {
                         </div>
 
                         <div v-if="secureNeedsTyping" class="fls_secure_gate">
+                            <!-- translators: %s is the confirmation word the user must type, e.g. SIGN OUT -->
                             <label :for="'fls_secure_gate'">{{ $t('Type %s to confirm.', secureKeyword) }}</label>
                             <el-input id="fls_secure_gate" v-model="secureTyped" :placeholder="secureKeyword"
                                       @keyup.enter="confirmSecure"/>
@@ -763,10 +792,12 @@ export default {
                                 onto the screen as "by false".
                             -->
                             <template v-if="lastUsedBy">
-                                {{ $t('Last used %1s by %2s', lastUsed.at, lastUsedBy) }}
+                                <!-- translators: %1$s is the date and time, %2$s the user's name -->
+                                {{ $t('Last used %1$s by %2$s', lastUsed.at, lastUsedBy) }}
                             </template>
                             <template v-else>
-                                {{ $t('Last used %s, outside the dashboard', lastUsed.at) }}
+                                <!-- translators: %s is the date and time the action was last run, by a scheduled task or WP-CLI -->
+                                {{ $t('Last used %s by a scheduled task or the command line', lastUsed.at) }}
                             </template>
                             — {{ lastUsed.description }}
                         </span>

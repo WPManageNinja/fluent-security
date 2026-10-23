@@ -129,6 +129,7 @@ export default {
                 <SettingsCard :title="$t('This email')">
                     <template #actions>
                         <el-tag type="info" disable-transitions>
+                            <!-- translators: %s is who this email is sent to (an email address or a description of the recipient) -->
                             {{ $t('To: %s', email.recipient) }}
                         </el-tag>
                     </template>
