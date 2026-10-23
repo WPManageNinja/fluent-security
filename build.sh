@@ -61,7 +61,8 @@ done
 # Always regenerate the JS i18n string map before bundling — TransStrings.php
 # is part of the shipped runtime, and stale entries would lose translations.
 echo -e "\nRegenerating translation string map\n"
-node i18n.node.js
+if ! node --max-old-space-size=4096 i18n.node.js; then echo 'translation map generation failed'; exit 1; fi
+if ! node tests/lint/translation-map.js; then echo 'translation map lint failed'; exit 1; fi
 
 # Execute build steps if required
 if "$nodeBuild"; then
@@ -81,9 +82,10 @@ for arg in "$@"; do
 done
 
 if "$withLoco"; then
-  echo -e "\nExtracting Loco Translations\n"
-  # shellcheck disable=SC2164
-  wp loco extract fluent-security
+  echo -e "\nExtracting Translations\n"
+  # WP-CLI's extractor keeps the translators comments that `wp loco extract` drops.
+  wp i18n make-pot . language/fluent-security.pot --domain=fluent-security \
+    --exclude=node_modules,vendor,assets,tests,dev,dev-docs,user-docs,docs,resources,language,builds,_docs,dist
   echo -e "\nSyncing Loco Translations\n"
   wp loco sync fluent-security
     # shellcheck disable=SC2164

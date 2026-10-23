@@ -1,0 +1,38 @@
+{
+    "_comment": "Read by i18n.node.js (generator) and tests/lint/translation-map.js. Paths are relative to the repo root. The `runtime` block is only used by the fluent-plugins-skills installer.",
+    "textDomain": "fluent-security",
+    "namespace": "FluentAuth\\App\\Services",
+    "abspathGuard": false,
+    "helpers": {
+        "t": [
+            "$t"
+        ],
+        "n": [
+            "$_n"
+        ],
+        "x": [
+            "$_x"
+        ]
+    },
+    "reservedWords": "reserved18n.json",
+    "targets": [
+        {
+            "name": "admin",
+            "sourceDirs": [
+                "src/admin"
+            ],
+            "output": "app/Services/TransStrings.php",
+            "className": "TransStrings",
+            "method": "getStrings"
+        }
+    ],
+    "runtime": {
+        "file": "src/admin/Bits/i18n.js",
+        "mapGlobal": "window.fluentAuthAdmin.i18n",
+        "definitions": [
+            "src/admin/app.js:75 ($t)"
+        ],
+        "packageManager": "npm"
+    },
+    "reservedKeyPattern": "^__\\S+__$"
+}
