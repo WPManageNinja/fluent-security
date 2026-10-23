@@ -273,6 +273,24 @@ function showFieldErrors(response) {
 }
 
 /**
+ * A Turnstile token is good for one check, so a form that stays on screen after a reply
+ * needs a fresh one before it can be sent again.
+ */
+function resetTurnstile(scope) {
+    if (!scope || !window.turnstile) {
+        return;
+    }
+
+    scope.querySelectorAll('.cf-turnstile').forEach((el) => {
+        try {
+            window.turnstile.reset(el);
+        } catch (e) {
+            // Not rendered yet; it will fetch its own token when it is.
+        }
+    });
+}
+
+/**
  * Posts one of the plugin's own forms to admin-ajax and routes the reply. `callback`
  * takes over the success case where a form needs something other than handleSuccess().
  */
@@ -291,6 +309,7 @@ function submitForm(form, submitBtnId, action, callback, errorCallback) {
 
     send(settings.ajax_url, data).then(({ok, data: response}) => {
         toggleLoading(submitBtn);
+        resetTurnstile(form);
 
         if (ok) {
             if (callback) {
@@ -326,6 +345,7 @@ function submitForm(form, submitBtnId, action, callback, errorCallback) {
          * quote here, so the form says the one true thing and stays usable.
          */
         toggleLoading(submitBtn);
+        resetTurnstile(form);
         showError(form, (config().i18n || {}).network_error || 'Network error. Please try again.');
 
         if (errorCallback) {
@@ -1291,7 +1311,11 @@ function initShortcodeForms() {
         trigger.addEventListener('click', function (event) {
             event.preventDefault();
             this.parentNode.parentNode.classList.toggle('hide');
-            document.querySelector(toggles[id]).classList.toggle('hide');
+
+            const shown = document.querySelector(toggles[id]);
+            shown.classList.toggle('hide');
+            // Rendered while hidden, and its token may have run out since.
+            resetTurnstile(shown);
         });
     });
 }

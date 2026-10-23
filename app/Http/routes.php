@@ -92,6 +92,8 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->get('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'getRules'], $permissions)
     ->post('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'saveRules'], $permissions)
     ->post('ip-rules/add', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'addIp'], $permissions)
+    ->get('turnstile', ['\FluentAuth\App\Http\Controllers\TurnstileController', 'getSettings'], $permissions)
+    ->post('turnstile', ['\FluentAuth\App\Http\Controllers\TurnstileController', 'saveSettings'], $permissions)
     ->post('delete-log/{id}', ['\FluentAuth\App\Http\Controllers\LogsController', 'deleteLog'], $permissions)
     ->post('truncate-auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'deleteAllLog'], $permissions)
     ->get('social-auth-settings', ['\FluentAuth\App\Http\Controllers\SocialAuthApiController', 'getSettings'], $permissions)
