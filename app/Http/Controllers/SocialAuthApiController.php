@@ -7,6 +7,7 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\FacebookAuthService;
 use FluentAuth\App\Services\GithubAuthService;
 use FluentAuth\App\Services\GoogleAuthService;
+use FluentAuth\App\Services\LinkedInAuthService;
 
 class SocialAuthApiController
 {
@@ -32,6 +33,12 @@ class SocialAuthApiController
                     'app_redirect'        => FacebookAuthService::getAppRedirect(),
                     'has_wp_config_keys'  => self::hasWpConfigKeys('facebook'),
                     'doc_url'             => 'https://fluentauth.com/docs/facebook-auth-connection'
+                ],
+                'linkedin' => [
+                    'is_available'        => true,
+                    'app_redirect'        => LinkedInAuthService::getAppRedirect(),
+                    'has_wp_config_keys'  => self::hasWpConfigKeys('linkedin'),
+                    'doc_url'             => 'https://fluentauth.com/docs/linkedin-auth-connection'
                 ]
             ]
         ];
@@ -92,7 +99,7 @@ class SocialAuthApiController
         $settings = Arr::only($settings, array_keys($oldSettings));
 
         if ($settings['enabled'] != 'yes' || ($settings['enable_google'] != 'yes' && $settings['enable_github'] != 'yes' &&
-                $settings['enable_facebook'] != 'yes')) {
+                $settings['enable_facebook'] != 'yes' && $settings['enable_linkedin'] != 'yes')) {
             return [
                 'enabled'                => 'no',
                 'enable_google'          => 'no',
@@ -108,7 +115,11 @@ class SocialAuthApiController
                 'facebook_key_method'    => 'wp_config',
                 'facebook_client_id'     => '',
                 'facebook_client_secret' => '',
-                'facebook_api_version'   => 'v12.0'
+                'facebook_api_version'   => 'v12.0',
+                'enable_linkedin'        => 'no',
+                'linkedin_key_method'    => 'wp_config',
+                'linkedin_client_id'     => '',
+                'linkedin_client_secret' => ''
             ];
         }
 
@@ -198,6 +209,36 @@ class SocialAuthApiController
                     ],
                     'facebook_client_secret' => [
                         'required' => 'Facebook Client Secret is required'
+                    ]
+                ]);
+            }
+        }
+
+        if ($settings['enable_linkedin'] != 'yes') {
+            $settings['linkedin_key_method'] = 'wp_config';
+            $settings['linkedin_client_id'] = '';
+            $settings['linkedin_client_secret'] = '';
+        } else if ($settings['linkedin_key_method'] == 'wp_config') {
+            $settings['linkedin_client_id'] = '';
+            $settings['linkedin_client_secret'] = '';
+            if (!defined('FLUENT_AUTH_LINKEDIN_CLIENT_ID') || !defined('FLUENT_AUTH_LINKEDIN_CLIENT_SECRET')) {
+                return new \WP_Error('validation_error', 'Form Validation failed', [
+                    'linkedin_key_method' => [
+                        'FLUENT_AUTH_LINKEDIN_CLIENT_ID'     => 'FLUENT_AUTH_LINKEDIN_CLIENT_ID constant is required in wp-config.php file',
+                        'FLUENT_AUTH_LINKEDIN_CLIENT_SECRET' => 'FLUENT_AUTH_LINKEDIN_CLIENT_SECRET constant is required in wp-config.php file',
+                    ]
+                ]);
+            }
+        } else {
+            $settings['linkedin_client_id'] = sanitize_textarea_field($settings['linkedin_client_id']);
+            $settings['linkedin_client_secret'] = sanitize_textarea_field($settings['linkedin_client_secret']);
+            if (empty($settings['linkedin_client_id']) || empty($settings['linkedin_client_secret'])) {
+                return new \WP_Error('validation_error', 'Form Validation failed', [
+                    'linkedin_client_id'     => [
+                        'required' => 'LinkedIn Client ID is required'
+                    ],
+                    'linkedin_client_secret' => [
+                        'required' => 'LinkedIn Client Secret is required'
                     ]
                 ]);
             }
