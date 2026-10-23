@@ -586,6 +586,7 @@ class TransStrings
             /* translators: %s is the selected date range, such as Last 7 days */
             'Latest entries · %s' => __('Latest entries · %s', 'fluent-security'),
             'Learn More' => __('Learn More', 'fluent-security'),
+            'Learn more' => __('Learn more', 'fluent-security'),
             'Leave "Skip future security rule challenges" off. You do not need it.' => __('Leave "Skip future security rule challenges" off. You do not need it.', 'fluent-security'),
             'Leave empty to offer it to everyone.' => __('Leave empty to offer it to everyone.', 'fluent-security'),
             'Leave empty to use the site\'s admin email address.' => __('Leave empty to use the site\'s admin email address.', 'fluent-security'),
@@ -1282,6 +1283,7 @@ class TransStrings
             'Your Email Address' => __('Your Email Address', 'fluent-security'),
             'Your Full Name' => __('Your Full Name', 'fluent-security'),
             'Your Name' => __('Your Name', 'fluent-security'),
+            'Your PHP and WordPress versions' => __('Your PHP and WordPress versions', 'fluent-security'),
             'Your Snapshot' => __('Your Snapshot', 'fluent-security'),
             'Your address is correct. Nothing to change.' => __('Your address is correct. Nothing to change.', 'fluent-security'),
             'Your address, as this site sees it' => __('Your address, as this site sees it', 'fluent-security'),

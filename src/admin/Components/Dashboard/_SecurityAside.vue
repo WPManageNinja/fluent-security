@@ -194,6 +194,9 @@ export default {
             </h3>
             <p><strong>{{ protection.php_advisory.title }}</strong></p>
             <p>{{ protection.php_advisory.body }}</p>
+            <p>
+                <a :href="protection.php_advisory.learn_more_url" target="_blank" rel="noopener">{{ $t('Learn more') }}</a>
+            </p>
         </div>
 
         <div class="fls_aside_block fls_dashboard__security">

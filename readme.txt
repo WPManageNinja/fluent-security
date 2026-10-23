@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.5
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -173,7 +173,7 @@ Another plugin can put its own login screen on FluentAuth's flows. It registers 
 Nothing below leaves your site unless you turn that feature on.
 
 * **File scanning** compares your files against the official copies, so it fetches them from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org`) and the official WordPress mirror on GitHub (`raw.githubusercontent.com`). Only the name, version and file path of the item being checked is sent. [WordPress.org privacy](https://wordpress.org/about/privacy/) · GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
-* **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, and your plugin and theme versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
+* **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, your plugin and theme versions, and your PHP and WordPress versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
 * **Social login** contacts Google, GitHub or Facebook only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)).
 * **Cloudflare Turnstile** (`challenges.cloudflare.com`) checks for bots on the forms you choose: signup, login and password reset, or WooCommerce's account forms. Off until you add your keys and pick a form. On those forms the visitor's browser loads Cloudflare's script, which collects signals from the browser to tell people from bots. When the form is sent, your site sends the result to Cloudflare to confirm it. [Turnstile privacy addendum](https://www.cloudflare.com/turnstile-privacy-policy/) · [Cloudflare terms](https://www.cloudflare.com/website-terms/).
 
@@ -316,6 +316,16 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.1.0 - Date: Oct 23, 2026 =
+* New: Cloudflare Turnstile bot protection for the signup, login and password reset forms, and WooCommerce's account forms.
+* New: A warning in wp-admin and on the dashboard when your server's PHP has the critical php2shell security hole (CVE-2026-109618, CVE-2026-109619), with the PHP version to ask your host for.
+* Fix: Magic login links now work for Outlook, Hotmail and Live users. Microsoft's link scanner opened the link first and used it up.
+* Improvement: The setup wizard offers passkeys and the summary report, and links to requiring two-factor.
+* Improvement: A summary report frequency chosen in the setup wizard starts counting from that day.
+* Improvement: Clearer admin text throughout, with notes for translators.
+* Fix: Switched-on toggles look on in dark mode.
+* Change: Scan reports to the FluentAuth Alerts Service now include your PHP and WordPress versions.
 
 = 3.0.5 - Date: Oct 7, 2026 =
 * Fix: Names with a hyphen or an apostrophe, such as Mary-Jane or O'Brien, can now sign up.

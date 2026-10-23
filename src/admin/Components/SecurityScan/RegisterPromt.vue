@@ -284,6 +284,7 @@ export default {
                                 <li>{{ $t('This site\'s address, title and admin link') }}</li>
                                 <li>{{ $t('Scan results: paths of files and folders that differ from the official release') }}</li>
                                 <li>{{ $t('Installed plugins and themes, with their version numbers') }}</li>
+                                <li>{{ $t('Your PHP and WordPress versions') }}</li>
                             </ul>
                         </div>
                         <div class="fls_scan_disclosure_col is_never">
