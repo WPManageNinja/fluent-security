@@ -39,7 +39,8 @@ class PhpAdvisoryHandler
             return;
         }
 
-        $status = self::statusFor(PHP_VERSION);
+        $version = self::shortVersion(PHP_VERSION);
+        $status = self::statusFor($version);
 
         if ($status === 'safe') {
             return;
@@ -52,13 +53,13 @@ class PhpAdvisoryHandler
                 <strong>
                     <?php
                     /* translators: %s: PHP version, e.g. 8.3.20 */
-                    echo esc_html(sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), PHP_VERSION));
+                    echo esc_html(sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), $version));
                     ?>
                 </strong>
                 <?php if ($status === 'outdated') : ?>
                     <?php
                     /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
-                    echo esc_html(sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf(PHP_VERSION)]));
+                    echo esc_html(sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf($version)]));
                     ?>
                 <?php else : ?>
                     <?php esc_html_e('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security'); ?>
@@ -77,12 +78,7 @@ class PhpAdvisoryHandler
      */
     public static function statusFor($version)
     {
-        // Distro builds append a suffix ("8.3.6-1ubuntu0.2") that version_compare would
-        // read as a pre-release; only the leading x.y.z says anything here.
-        if (preg_match('/^\d+\.\d+\.\d+/', $version, $match)) {
-            $version = $match[0];
-        }
-
+        $version = self::shortVersion($version);
         $branch = self::branchOf($version);
 
         if (isset(self::FIXED[$branch])) {
@@ -90,6 +86,19 @@ class PhpAdvisoryHandler
         }
 
         return version_compare($branch, '8.2', '<') ? 'unsupported' : 'safe';
+    }
+
+    /**
+     * The leading x.y.z. Distro and host builds append whatever they like
+     * ("8.3.6-1ubuntu0.2", "8.2.29-1+0~20250101.40+debian12~1.gbp1a2b3c"), which
+     * version_compare would read as a pre-release and nobody needs to read in a notice.
+     *
+     * @param $version string
+     * @return string
+     */
+    public static function shortVersion($version)
+    {
+        return preg_match('/^\d+\.\d+\.\d+/', $version, $match) ? $match[0] : $version;
     }
 
     /**

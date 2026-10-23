@@ -43,6 +43,16 @@ class PhpAdvisoryTest extends BaseTestCase
     {
         $this->assertSame('safe', PhpAdvisoryHandler::statusFor('8.3.36-1ubuntu0.1'));
         $this->assertSame('outdated', PhpAdvisoryHandler::statusFor('8.3.6-0ubuntu0.24.04.5'));
+        $this->assertSame('safe', PhpAdvisoryHandler::statusFor('8.2.35-1+0~20261021.60+debian12~1.gbp4f2c1a'));
+        $this->assertSame('outdated', PhpAdvisoryHandler::statusFor('8.4.20-1+ubuntu22.04.1+deb.sury.org+1'));
+        $this->assertSame('unsupported', PhpAdvisoryHandler::statusFor('7.4.33-nmm7'));
+    }
+
+    public function test_the_notice_shows_only_the_leading_version()
+    {
+        $this->assertSame('8.1.2', PhpAdvisoryHandler::shortVersion('8.1.2-1ubuntu2.20'));
+        $this->assertSame('8.2.35', PhpAdvisoryHandler::shortVersion('8.2.35-1+0~20261021.60+debian12~1.gbp4f2c1a'));
+        $this->assertSame('8.4.27', PhpAdvisoryHandler::shortVersion('8.4.27'));
     }
 
     public function test_notice_is_for_administrators_only()
