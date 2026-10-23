@@ -158,4 +158,12 @@ class ScanReportPayloadTest extends BaseTestCase
         $this->assertSame(['/old-site'], $payload['modified_folders']);
         $this->assertSame([], $payload['unpublished_versions']);
     }
+
+    public function testEveryReportCarriesTheRawPhpAndWordPressVersions()
+    {
+        $payload = IntegrityHelper::buildReportPayload([], [], []);
+
+        $this->assertSame(PHP_VERSION, $payload['php_version']);
+        $this->assertSame(get_bloginfo('version'), $payload['wp_version']);
+    }
 }

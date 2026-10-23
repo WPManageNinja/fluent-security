@@ -717,6 +717,8 @@ class IntegrityHelper
             'site_url'         => site_url(),
             'admin_url'        => admin_url('admin.php?page=fluent-auth#/'),
             'site_title'       => get_bloginfo('name'),
+            'php_version'      => PHP_VERSION,
+            'wp_version'       => get_bloginfo('version'),
             'modified_files'   => $modifiedFiles,
             /*
              * Re-indexed on the way out. The relay reads this key only when it is a JSON array,
