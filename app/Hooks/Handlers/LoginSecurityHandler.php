@@ -511,6 +511,16 @@ class LoginSecurityHandler
             return;
         }
 
+        /*
+         * The password was never checked against a widget that could not run - a browser
+         * blocking Cloudflare, or a submit before the token arrived. Counting it would let
+         * the owner lock out their own address on top of the refusal. Bots are already
+         * stopped by the refusal itself.
+         */
+        if ($error->get_error_code() === 'fls_turnstile_failed') {
+            return;
+        }
+
         if (!$media) {
             // `wp_login_failed` passes no media, so honour whatever the flow set.
             $media = Helper::getLoginMedia();

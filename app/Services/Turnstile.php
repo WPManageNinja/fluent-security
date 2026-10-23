@@ -166,10 +166,14 @@ class Turnstile
             ]
         ]);
 
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) >= 500) {
             return true;
         }
 
+        /*
+         * The body decides, never the status. Cloudflare answers a bad secret with a 400,
+         * and a page from its edge, such as a 403, carries no answer about the token at all.
+         */
         $result = json_decode(wp_remote_retrieve_body($response), true);
 
         if (!is_array($result)) {
@@ -272,7 +276,8 @@ class Turnstile
     {
         $open = [];
 
-        if (get_option('users_can_register') && !self::isActive(self::SIGNUP)) {
+        // Multisite signs people up on wp-signup.php, which has no widget to switch on.
+        if (!is_multisite() && get_option('users_can_register') && !self::isActive(self::SIGNUP)) {
             $open[] = 'wordpress';
         }
 

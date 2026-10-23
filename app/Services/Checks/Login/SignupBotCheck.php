@@ -117,7 +117,7 @@ class SignupBotCheck extends Check
      */
     private function signupIsOpen()
     {
-        return get_option('users_can_register')
+        return (!is_multisite() && get_option('users_can_register'))
             || (class_exists('WooCommerce') && get_option('woocommerce_enable_myaccount_registration') === 'yes');
     }
 }

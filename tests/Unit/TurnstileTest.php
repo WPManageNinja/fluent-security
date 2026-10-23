@@ -182,6 +182,24 @@ class TurnstileTest extends BaseTestCase
 
         $this->cloudflareSays(['success' => false, 'error-codes' => ['internal-error']]);
         $this->assertTrue(Turnstile::verify('token', 'secret'), 'internal error');
+
+        $this->cloudflareSays(['success' => false, 'error-codes' => ['invalid-input-secret']], 400);
+        $this->assertTrue(Turnstile::verify('token', 'secret'), 'secret rejected with a 400, as Cloudflare does');
+
+        $this->cloudflareSays('<html>Access denied</html>', 403);
+        $this->assertTrue(Turnstile::verify('token', 'secret'), 'an edge page says nothing about the token');
+    }
+
+    /**
+     * A token the bot controls must not buy a pass by making Cloudflare answer with a 4xx.
+     */
+    public function test_a_4xx_about_the_token_is_refused()
+    {
+        foreach (['bad-request', 'invalid-input-response'] as $code) {
+            $this->cloudflareSays(['success' => false, 'error-codes' => [$code]], 400);
+
+            $this->assertWpErrorWithCode(Turnstile::verify('token', 'secret'), 'fls_turnstile_failed', $code);
+        }
     }
 
     /* ----------------------------------------------------- settings and widget */
@@ -237,10 +255,19 @@ class TurnstileTest extends BaseTestCase
 
     /* ------------------------------------------------------------ wp-login.php */
 
+    /**
+     * Records that wp-login.php is running without firing its callbacks, which send headers.
+     */
+    private function markLoginScreen()
+    {
+        global $wp_actions;
+        $wp_actions['login_init'] = 1;
+    }
+
     public function test_a_password_login_on_wp_login_needs_a_token()
     {
         $this->guard(['login']);
-        do_action('login_form_login');
+        $this->markLoginScreen();
         $_POST['log'] = 'someone';
 
         $user = self::factory()->user->create_and_get();
@@ -251,6 +278,35 @@ class TurnstileTest extends BaseTestCase
         $this->sendToken();
 
         $this->assertSame($user, (new TurnstileHandler())->checkLogin($user));
+    }
+
+    /**
+     * Core runs its password login for `entered_recovery_mode` too, and for any action a
+     * plugin registers, so the check cannot hang on the action's name.
+     */
+    public function test_a_password_post_under_another_wp_login_action_still_needs_a_token()
+    {
+        $this->guard(['login']);
+        $this->markLoginScreen();
+        $_POST['log'] = 'someone';
+
+        $user = self::factory()->user->create_and_get();
+
+        foreach (['entered_recovery_mode', 'fls_2fa_verify'] as $action) {
+            do_action('login_form_' . $action);
+
+            $this->assertWpErrorWithCode((new TurnstileHandler())->checkLogin($user), 'fls_turnstile_failed', $action);
+        }
+    }
+
+    public function test_a_failed_turnstile_check_does_not_count_towards_the_lockout()
+    {
+        global $wpdb;
+        $before = (int)$wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs");
+
+        (new \FluentAuth\App\Hooks\Handlers\LoginSecurityHandler())->logFailedAuth('someone', new \WP_Error('fls_turnstile_failed', 'x'));
+
+        $this->assertSame($before, (int)$wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs"));
     }
 
     /**

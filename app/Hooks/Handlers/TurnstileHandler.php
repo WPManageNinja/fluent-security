@@ -77,12 +77,16 @@ class TurnstileHandler
     }
 
     /**
+     * Any password post to wp-login.php, whatever its `action`. Core sends
+     * `entered_recovery_mode`, and any action a plugin registers, to the same login code,
+     * so asking for `login_form_login` let a bot post a password past the widget.
+     *
      * @param \WP_User|\WP_Error|null $user
      * @return \WP_User|\WP_Error|null
      */
     public function checkLogin($user)
     {
-        if (!did_action('login_form_login') || empty($_POST['log'])) {
+        if (!did_action('login_init') || empty($_POST['log'])) {
             return $user;
         }
 
