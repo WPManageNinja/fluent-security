@@ -55,6 +55,7 @@ const generator = require(path.join(root, 'i18n.node.js'));
 const ENTITY_PATTERN = /&(?:quot|amp|lt|gt|#\d+|#x[0-9a-f]+|[a-z]+);/i;
 // The placeholder forms the runtime helper's applyPlaceholders() fills.
 const PLACEHOLDER_PATTERN = /%(?:\d+\$?)?[sd]/;
+const UNORDERED_NUMBERED_PATTERN = /%\d+[sd]/;
 // em dash, en dash, figure dash.
 const DASH_PATTERN = /[—–‒]/;
 const WHITESPACE_PATTERN = /^\s|\s$|\s{2}|[\t\n\r]/;
@@ -161,6 +162,20 @@ function collectViolations(result, committed) {
         violations.push(`${entry.file}:${entry.line} key has leading, trailing or double whitespace; it is a concatenation fragment, use one string with a %s placeholder: ${show(entry.text)}`);
     });
 
+    // 10. A numbered placeholder needs the `$`: %1$s. PHP and WP-CLI read %1s
+    // as %s with a minimum width of 1, so the POT flags the string as having
+    // unordered placeholders and translators cannot reorder them safely.
+    const seenUnordered = new Set();
+    result.rows.forEach((row) => {
+        if (!UNORDERED_NUMBERED_PATTERN.test(row.text) || seenUnordered.has(row.key)) {
+            return;
+        }
+        seenUnordered.add(row.key);
+        const site = (row.reserved ? firstSite[row.key] : firstSite[row.text]) || firstSite[row.key];
+        const where = site ? `${site.file}:${site.line}` : `reserved words "${row.key}"`;
+        violations.push(`${where} numbered placeholder without \`$\`; write %1$s, %2$s: ${show(row.text)}`);
+    });
+
     // Reserved words no call references are expected: Pro screens may share
     // the map, and dynamic lookups ($t(ticket.status)) are kept this way.
     if (result.unreferencedReserved.length > 0) {
@@ -265,7 +280,8 @@ function selfTest() {
         ['placeholder without translator note', /Bad\.vue:\d+ placeholder string has no `translators:` comment/],
         ['dash in a key', /Bad\.vue:\d+ em\/en dash in UI text/],
         ['dash in a reserved text', /reserved words "Dashed_Help" em\/en dash/],
-        ['whitespace fragment', /leading, trailing or double whitespace/]
+        ['whitespace fragment', /leading, trailing or double whitespace/],
+        ['numbered placeholder without $', /Bad\.vue:\d+ numbered placeholder without `\$`/]
     ];
     const missed = expected.filter(([, pattern]) => !violations.some((v) => pattern.test(v)));
 

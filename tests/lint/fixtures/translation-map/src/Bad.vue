@@ -20,6 +20,10 @@
         <!-- 9. trailing space: a concatenation fragment -->
         <span>{{ $t('Wait until ') }}{{ date }}</span>
 
+        <!-- 10. numbered placeholder without the $: WordPress reads it as unordered -->
+        <!-- translators: %1s is the page, %2s the page count -->
+        <p>{{ $t('Page %1s of %2s', page, pages) }}</p>
+
         <!-- good: translator comment on the line above, carried into the map -->
         <!-- translators: %s is the item count -->
         <p>{{ $t('%s items', total) }}</p>
