@@ -25,6 +25,7 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 - Magic Login links by email, with no password
 - Limit Login Attempts and block brute force attacks
 - IP allow list and IP block list
+- Bot protection for signup, login and WooCommerce account forms, with Cloudflare Turnstile
 - Security checklist that finds problems and fixes them
 - WordPress core, plugin and theme file change scanning
 - Audit log of every login, failed attempt and plugin change
@@ -80,6 +81,10 @@ Block brute force attacks by counting failed logins. Set how many attempts are a
 Two simple lists, one address or range per line. The block list refuses a login from those addresses outright. The allow list skips the attempt limit for addresses you trust, such as your office.
 
 You can also require that a role only signs in from an allow listed address. FluentAuth detects reverse proxies and Cloudflare, so the address it acts on is the real visitor address and not your proxy.
+
+= Bot Protection with Cloudflare Turnstile =
+
+Stop spam signups before your site sends them an email. Turn on Cloudflare Turnstile for the signup forms, the login and password reset forms, or WooCommerce's My Account forms. Each one has its own switch. If Fluent Forms or FluentCart already has Turnstile keys, you can use the same keys with one click. Checkout is never changed. If a site move ever leaves you locked out, adding `define('FLUENT_AUTH_DISABLE_TURNSTILE', true);` to wp-config.php switches it off.
 
 = Security Checklist =
 
@@ -170,6 +175,7 @@ Nothing below leaves your site unless you turn that feature on.
 * **File scanning** compares your files against the official copies, so it fetches them from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org`) and the official WordPress mirror on GitHub (`raw.githubusercontent.com`). Only the name, version and file path of the item being checked is sent. [WordPress.org privacy](https://wordpress.org/about/privacy/) · GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
 * **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, and your plugin and theme versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
 * **Social login** contacts Google, GitHub or Facebook only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)).
+* **Cloudflare Turnstile** (`challenges.cloudflare.com`) checks for bots on the forms you choose: signup, login and password reset, or WooCommerce's account forms. Off until you add your keys and pick a form. On those forms the visitor's browser loads Cloudflare's script, which collects signals from the browser to tell people from bots. When the form is sent, your site sends the result to Cloudflare to confirm it. [Turnstile privacy addendum](https://www.cloudflare.com/turnstile-privacy-policy/) · [Cloudflare terms](https://www.cloudflare.com/website-terms/).
 
 == Why FluentAuth? ==
 
@@ -270,11 +276,11 @@ Yes. You can pick which roles may set up a second factor and which roles must ha
 
 No. Two-factor authentication, passkeys, audit logs, login limits and the rest all run on your own site.
 
-Two things do reach out. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. And there is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. See the External Services section above.
+Three things can reach out. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. There is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. And if you turn on Cloudflare Turnstile for bot protection, the forms you pick use Cloudflare's check. See the External Services section above.
 
 = Is it GDPR compliant? =
 
-Yes. All of your data stays in your WordPress database unless you choose to connect the optional alerts service, and what that sends is listed above in the External Services section.
+Yes. All of your data stays in your WordPress database unless you choose to connect the optional alerts service or turn on Cloudflare Turnstile. What each of those sends is listed above in the External Services section.
 
 = Does it work with WooCommerce and membership plugins? =
 

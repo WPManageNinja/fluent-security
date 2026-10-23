@@ -183,6 +183,19 @@ export default {
 
 <template>
     <aside class="fls_page_aside">
+        <!--
+            First in the aside: a hole in PHP itself outranks everything below it, and the
+            WordPress notice that says the same thing is hidden on this screen.
+        -->
+        <div v-if="protection.php_advisory" class="fls_aside_block fls_dash_php" role="alert">
+            <h3>
+                <span class="fls_dash_php_icon" aria-hidden="true" v-html="icons.threat"></span>
+                {{ $t('Update PHP on your server') }}
+            </h3>
+            <p><strong>{{ protection.php_advisory.title }}</strong></p>
+            <p>{{ protection.php_advisory.body }}</p>
+        </div>
+
         <div class="fls_aside_block fls_dashboard__security">
             <h2>{{ $t('Security status') }}</h2>
             <el-skeleton v-if="loading" :animated="true" :rows="3"/>

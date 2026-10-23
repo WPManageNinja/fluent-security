@@ -27,6 +27,7 @@ const icons = {
     redirect: icon('<path d="M4 7h11a5 5 0 0 1 0 10H9"/><path d="M12 14l-3 3 3 3"/>'),
     mail: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'),
     server: icon('<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>'),
+    bot: icon('<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/>'),
     shieldCheck: icon('<path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/>')
 };
 
@@ -50,6 +51,11 @@ export const settingsNav = (vm) => [
         route: 'settings_ip_rules',
         title: vm.$t('IP Access Rules'),
         icon: icons.shieldCheck
+    },
+    {
+        route: 'settings_bot_protection',
+        title: vm.$t('Bot Protection'),
+        icon: icons.bot
     },
     {
         route: 'settings_social_login',

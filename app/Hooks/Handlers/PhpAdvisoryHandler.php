@@ -39,10 +39,9 @@ class PhpAdvisoryHandler
             return;
         }
 
-        $version = self::shortVersion(PHP_VERSION);
-        $status = self::statusFor($version);
+        $advisory = self::advisory();
 
-        if ($status === 'safe') {
+        if (!$advisory) {
             return;
         }
 
@@ -50,23 +49,36 @@ class PhpAdvisoryHandler
         <div class="notice notice-error">
             <p>
                 <strong>FluentAuth:</strong>
-                <strong>
-                    <?php
-                    /* translators: %s: PHP version, e.g. 8.3.20 */
-                    echo esc_html(sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), $version));
-                    ?>
-                </strong>
-                <?php if ($status === 'outdated') : ?>
-                    <?php
-                    /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
-                    echo esc_html(sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf($version)]));
-                    ?>
-                <?php else : ?>
-                    <?php esc_html_e('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security'); ?>
-                <?php endif; ?>
+                <strong><?php echo esc_html($advisory['title']); ?></strong>
+                <?php echo esc_html($advisory['body']); ?>
             </p>
         </div>
         <?php
+    }
+
+    /**
+     * What to tell the administrator, or null when this PHP is fine. Shared by the
+     * WordPress notice and the dashboard, which hides WordPress notices.
+     *
+     * @return array|null title and body
+     */
+    public static function advisory()
+    {
+        $version = self::shortVersion(PHP_VERSION);
+        $status = self::statusFor($version);
+
+        if ($status === 'safe') {
+            return null;
+        }
+
+        return [
+            /* translators: %s: PHP version, e.g. 8.3.20 */
+            'title' => sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), $version),
+            'body'  => $status === 'outdated'
+                /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
+                ? sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf($version)])
+                : __('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security')
+        ];
     }
 
     /**

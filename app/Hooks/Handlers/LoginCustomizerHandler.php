@@ -27,7 +27,8 @@ class LoginCustomizerHandler
                     margin-bottom: 20px;
                 }
 
-                body.fls_register_form_token #registerform > p {
+                body.fls_register_form_token #registerform > p,
+                body.fls_register_form_token #registerform .fls_turnstile {
                     display: none !important;
                 }
             </style>

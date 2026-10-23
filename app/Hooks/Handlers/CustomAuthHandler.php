@@ -9,6 +9,7 @@ use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\LoginBridge;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 use FluentAuth\App\Services\SystemEmailService;
+use FluentAuth\App\Services\Turnstile;
 
 class CustomAuthHandler
 {
@@ -243,6 +244,7 @@ class CustomAuthHandler
         $registrationForm .= '<input type="hidden" name="__redirect_to" value="' . esc_url($attributes['redirect_to']) . '">';
         $registrationForm .= '<input type="hidden" name="_fls_signup_nonce" value="' . wp_create_nonce('fluent_auth_signup_nonce') . '">';
         $registrationForm .= LoginBridge::markerFields();
+        $registrationForm .= Turnstile::widget(Turnstile::SIGNUP);
         $registrationForm .= '<button type="submit" id="fls_submit">' . $this->submitBtnLoadingSvg() . '<span>' . __('Signup', 'fluent-security') . '</span></button>';
 
         $registrationForm .= '</div></form>';
@@ -305,6 +307,7 @@ class CustomAuthHandler
         $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . esc_attr($attributes['redirect_to']) . '">';
         $resetPasswordForm .= '<input type="hidden" name="_fls_reset_pass_nonce" value="' . wp_create_nonce('fluent_auth_reset_pass_nonce') . '">';
         $resetPasswordForm .= LoginBridge::markerFields();
+        $resetPasswordForm .= Turnstile::widget(Turnstile::LOGIN);
         $resetPasswordForm .= '<button type="submit" id="fls_reset_pass">' . $this->submitBtnLoadingSvg() . '<span>' . __('Reset Password', 'fluent-security') . '</span></button>';
 
         $resetPasswordForm .= '</form>';
@@ -794,6 +797,14 @@ class CustomAuthHandler
             ], 422);
         }
 
+        $turnstile = Turnstile::check(Turnstile::LOGIN);
+
+        if (is_wp_error($turnstile)) {
+            wp_send_json([
+                'message' => $turnstile->get_error_message()
+            ], 422);
+        }
+
         $redirectUrl = admin_url();
         if (isset($data['redirect_to']) && filter_var($data['redirect_to'], FILTER_VALIDATE_URL)) {
             $userRedirect = sanitize_url($data['redirect_to']);
@@ -891,6 +902,23 @@ class CustomAuthHandler
          * @param array $formData
          */
         do_action('fluent_auth/before_signup_validation', $formData);
+
+        /*
+         * The post that carries the emailed code is proven by the code, and its widget token
+         * was spent on the first post. Only skipped where a code is actually asked for: with
+         * verification filtered off, a made-up code field would otherwise create the account.
+         */
+        $isCodeStep = !empty($formData['_email_verification_token']) && apply_filters('fluent_auth/verify_signup_email', true, $formData);
+
+        if (!$isCodeStep) {
+            $turnstile = Turnstile::check(Turnstile::SIGNUP);
+
+            if (is_wp_error($turnstile)) {
+                wp_send_json([
+                    'message' => $turnstile->get_error_message()
+                ], 422);
+            }
+        }
 
         $errors = $this->validateSignUpData($formData);
 
@@ -1036,6 +1064,14 @@ class CustomAuthHandler
                 'message' => __('That form had been open too long. Please reload the page and try again.', 'fluent-security')
             ], 422);
 
+        }
+
+        $turnstile = Turnstile::check(Turnstile::LOGIN);
+
+        if (is_wp_error($turnstile)) {
+            wp_send_json([
+                'message' => $turnstile->get_error_message()
+            ], 422);
         }
 
         $usernameOrEmail = trim(wp_unslash(Arr::get($data, 'user_login')));
