@@ -570,6 +570,34 @@
     }
 }
 
+/* A critical hole in the server's PHP. The one block in the aside drawn as a danger. */
+.fls_dash_php {
+    h3 {
+        @apply flex items-center justify-start text-danger-fg;
+
+        gap: 8px;
+    }
+
+    .fls_dash_php_icon svg {
+        display: block;
+        width: 18px;
+        height: 18px;
+    }
+
+    p {
+        @apply text-sm text-ink-mid;
+
+        margin: 0 0 8px;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    strong {
+        @apply text-ink;
+    }
+}
 
 /* Dashboard workspace: activity on the left, current protection on the right. */
 .fls_dashboard {

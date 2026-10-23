@@ -75,4 +75,28 @@ class PhpAdvisoryTest extends BaseTestCase
 
         return trim(ob_get_clean());
     }
+
+    /**
+     * The dashboard hides WordPress notices, so it reads the same advisory to show it in
+     * its own sidebar.
+     */
+    public function test_the_dashboard_gets_the_same_advisory_as_the_notice()
+    {
+        $advisory = PhpAdvisoryHandler::advisory();
+        $status = PhpAdvisoryHandler::statusFor(PHP_VERSION);
+
+        if ($status === 'safe') {
+            $this->assertNull($advisory);
+        } else {
+            $this->assertStringContainsString(PhpAdvisoryHandler::shortVersion(PHP_VERSION), $advisory['title']);
+            $this->assertNotEmpty($advisory['body']);
+        }
+
+        $admin = self::factory()->user->create(['role' => 'administrator']);
+        wp_set_current_user($admin);
+
+        $protection = \FluentAuth\App\Http\Controllers\DashboardController::getDashboard(new \WP_REST_Request('GET', '/fluent-auth/dashboard'))['protection'];
+
+        $this->assertSame($advisory, $protection['php_advisory']);
+    }
 }
