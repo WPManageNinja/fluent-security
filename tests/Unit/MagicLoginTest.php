@@ -235,6 +235,54 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame(0, get_current_user_id());
     }
 
+    /* ----------------------------------------------- opening the link (mail scanners) */
+
+    /**
+     * Microsoft Safe Links fetches every URL in an email before the person clicks. The GET
+     * used to sign in, so the scanner spent the link and the person landed logged out.
+     */
+    public function testOpeningTheLinkSpendsNothingAndSignsNobodyIn()
+    {
+        $link = $this->issueLink();
+
+        $html = $this->renderLinkPage($this->handler->isRedeemable($link));
+
+        $this->assertStringContainsString('method="post"', $html);
+        $this->assertStringContainsString("getElementById('fls_redeem_form').submit()", $html);
+        $this->assertSame('issued', $this->rowFor($link)->status);
+        $this->assertSame(0, get_current_user_id());
+
+        /* The person's own browser posts it next, and that still works. */
+        $this->assertTrue($this->handler->makeLogin($link));
+    }
+
+    public function testAnOpenedLinkThatCannotSignInSaysSo()
+    {
+        $link = $this->issueLink();
+        $this->assertTrue($this->handler->makeLogin($link));
+        wp_set_current_user(0);
+
+        $html = $this->renderLinkPage($this->handler->isRedeemable($link));
+
+        $this->assertStringNotContainsString('fls_redeem_form', $html);
+        $this->assertStringContainsString('expired or was already used', $html);
+    }
+
+    public function testCheckingALinkNeverWritesToIt()
+    {
+        $link = $this->issueLink();
+        $parts = explode(':', $link);
+
+        flsDb()->table('fls_login_hashes')
+            ->where('id', $parts[1])
+            ->update(['valid_till' => date('Y-m-d H:i:s', current_time('timestamp') - 60)]);
+
+        $this->assertFalse($this->handler->isRedeemable($link));
+        $this->assertFalse($this->handler->isRedeemable(bin2hex(random_bytes(32)) . ':' . $parts[1]));
+        $this->assertFalse($this->handler->isRedeemable('nonsense'));
+        $this->assertSame('issued', $this->rowFor($link)->status, 'expiry is recorded on redemption, not on a look');
+    }
+
     /* ------------------------------------------------------- what the form gives away */
 
     /**
@@ -446,7 +494,7 @@ class MagicLoginTest extends BaseTestCase
         };
 
         try {
-            do_action('init');
+            $this->assertFalse($this->handler->makeLogin($_GET['fls_al']));
 
             add_filter('authenticate', $probe, 25);
             wp_signon(['user_login' => 'magic_probe', 'user_password' => 'a guess']);
@@ -558,6 +606,17 @@ class MagicLoginTest extends BaseTestCase
         $this->assertNotEmpty($row, 'a link was issued');
 
         return $row;
+    }
+
+    private function renderLinkPage($isValid)
+    {
+        $method = new \ReflectionMethod(MagicLoginHandler::class, 'renderLinkPage');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke($this->handler, $isValid);
+
+        return ob_get_clean();
     }
 
     private function issueLinkTo($destination)
