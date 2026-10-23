@@ -25,6 +25,8 @@ class PhpAdvisoryHandler
         '8.5' => '8.5.12',
     ];
 
+    const LEARN_MORE_URL = 'https://fluentauth.com/articles/php2shell';
+
     public function register()
     {
         add_action('admin_notices', [$this, 'renderNotice']);
@@ -51,6 +53,7 @@ class PhpAdvisoryHandler
                 <strong>FluentAuth:</strong>
                 <strong><?php echo esc_html($advisory['title']); ?></strong>
                 <?php echo esc_html($advisory['body']); ?>
+                <a href="<?php echo esc_url($advisory['learn_more_url']); ?>" target="_blank" rel="noopener"><?php esc_html_e('Learn more', 'fluent-security'); ?></a>
             </p>
         </div>
         <?php
@@ -60,7 +63,7 @@ class PhpAdvisoryHandler
      * What to tell the administrator, or null when this PHP is fine. Shared by the
      * WordPress notice and the dashboard, which hides WordPress notices.
      *
-     * @return array|null title and body
+     * @return array|null title, body and learn_more_url
      */
     public static function advisory()
     {
@@ -77,7 +80,8 @@ class PhpAdvisoryHandler
             'body'  => $status === 'outdated'
                 /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
                 ? sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf($version)])
-                : __('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security')
+                : __('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security'),
+            'learn_more_url' => self::LEARN_MORE_URL
         ];
     }
 

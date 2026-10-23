@@ -90,6 +90,7 @@ class PhpAdvisoryTest extends BaseTestCase
         } else {
             $this->assertStringContainsString(PhpAdvisoryHandler::shortVersion(PHP_VERSION), $advisory['title']);
             $this->assertNotEmpty($advisory['body']);
+            $this->assertSame(PhpAdvisoryHandler::LEARN_MORE_URL, $advisory['learn_more_url']);
         }
 
         $admin = self::factory()->user->create(['role' => 'administrator']);
