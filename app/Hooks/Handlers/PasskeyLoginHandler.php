@@ -43,8 +43,18 @@ class PasskeyLoginHandler
         add_action('login_form', [$this, 'maybeRenderOnLoginPage'], 9);
         add_filter('login_form_bottom', [$this, 'maybeRenderOnCustomForm'], 9, 2);
 
-        add_action('wp_ajax_nopriv_' . self::CHALLENGE_ACTION, [$this, 'handleChallenge']);
-        add_action('wp_ajax_nopriv_' . self::VERIFY_ACTION, [$this, 'handleVerify']);
+        /*
+         * Both routes, not nopriv alone. A login page left open while the same browser
+         * signs in on another tab sends its cookie with the click, and admin-ajax.php
+         * then looks only for the wp_ajax_ hook - without it the button gets a bare 400.
+         * With it, verifyNonce() answers "this page has expired": the nonce was made for a
+         * logged-out visitor and cannot pass now, and that is meant - skipping it here
+         * would let another site sign this browser into an account of its choosing.
+         */
+        foreach (['wp_ajax_nopriv_', 'wp_ajax_'] as $prefix) {
+            add_action($prefix . self::CHALLENGE_ACTION, [$this, 'handleChallenge']);
+            add_action($prefix . self::VERIFY_ACTION, [$this, 'handleVerify']);
+        }
     }
 
     /**

@@ -904,7 +904,8 @@ function initPasskeyLogin() {
 
         send(settings.challenge, {}).then(({data: result}) => {
             if (!result || !result.success) {
-                reset(messages.failed);
+                // The server's reason when it gave one: "this page has expired" tells the user to reload.
+                reset(result && result.data && result.data.message ? result.data.message : messages.failed);
                 return;
             }
 
