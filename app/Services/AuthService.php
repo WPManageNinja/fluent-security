@@ -556,8 +556,24 @@ class AuthService
             return new \WP_Error('invalid_verification_code', __('That code does not match the one we emailed you. Please check and try again.', 'fluent-security'));
         }
 
-        // check if it got expired or not
-        if ($logHash->used_count > 5 || strtotime($logHash->valid_till) < current_time('timestamp')) {
+        if (strtotime($logHash->valid_till) < current_time('timestamp')) {
+            return new \WP_Error('verification_code_expired', __('That code has expired. Please ask for a new one.', 'fluent-security'));
+        }
+
+        global $wpdb;
+
+        // Claimed in one statement before the code is compared, so parallel guesses each
+        // spend an attempt - see TwoFaHandler for the same claim on login codes.
+        $claimed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET used_count = used_count + 1, updated_at = %s
+             WHERE id = %d AND status = 'issued' AND used_count < %d",
+            current_time('mysql'),
+            $logHash->id,
+            5
+        ));
+
+        if (!$claimed) {
             return new \WP_Error('verification_code_expired', __('That code has expired. Please ask for a new one.', 'fluent-security'));
         }
 
@@ -566,18 +582,18 @@ class AuthService
         $checkValue = $email ? $token . '|' . strtolower(trim($email)) : $token;
 
         if (!wp_check_password($checkValue, $logHash->two_fa_code_hash)) {
-            flsDb()->table('fls_login_hashes')->where('id', $logHash->id)
-                ->update([
-                    'used_count' => $logHash->used_count + 1
-                ]);
             return new \WP_Error('invalid_verification_code', __('That code does not match the one we emailed you. Please check and try again.', 'fluent-security'));
         }
 
-        flsDb()->table('fls_login_hashes')->where('id', $logHash->id)
-            ->update([
-                'used_count' => $logHash->used_count + 1,
-                'status'     => 'used'
-            ]);
+        // One winner per code, or two parallel signups could both pass with it.
+        $won = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'used' WHERE id = %d AND status = 'issued'",
+            $logHash->id
+        ));
+
+        if (!$won) {
+            return new \WP_Error('verification_code_expired', __('That code has expired. Please ask for a new one.', 'fluent-security'));
+        }
 
         return true;
     }

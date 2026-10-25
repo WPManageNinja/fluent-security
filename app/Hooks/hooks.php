@@ -21,6 +21,7 @@ defined('ABSPATH') || exit;
 // No leading backslash: WordPress builds the callback id from this string verbatim, so a
 // spelling nobody would guess is a hook nobody can remove_action() off.
 add_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeMigrateSettings'], 1);
+add_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeWidenIpColumn'], 1);
 
 (new \FluentAuth\App\Hooks\Handlers\AdminMenuHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\CustomAuthHandler())->register();

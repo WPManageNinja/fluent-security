@@ -61,6 +61,43 @@ class Activator
     }
 
     /**
+     * Widens `fls_login_hashes.ip_address` to fit an IPv6 address, once.
+     *
+     * It was varchar(20). WordPress runs MySQL without strict mode, so a longer address was
+     * cut short on insert, and the email limits count rows by the full address - an IPv6
+     * visitor never matched their own rows and could request emails without limit.
+     *
+     * Its own flag and hook for the reason maybeMigrateSettings() gives: activation does not
+     * run on update. A failed ALTER (a lock timeout, no ALTER rights) waits a day before the
+     * next try rather than retrying on every request or giving up for good.
+     *
+     * @return void
+     */
+    public static function maybeWidenIpColumn()
+    {
+        if (get_option('__fls_hashes_ip_widened') || get_transient('__fls_hashes_ip_widen_retry')) {
+            return;
+        }
+
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'fls_login_hashes';
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table) {
+            $suppress = $wpdb->suppress_errors(true);
+            $altered = $wpdb->query("ALTER TABLE `{$table}` MODIFY `ip_address` VARCHAR(45) NULL");
+            $wpdb->suppress_errors($suppress);
+
+            if ($altered === false) {
+                set_transient('__fls_hashes_ip_widen_retry', 'yes', DAY_IN_SECONDS);
+                return;
+            }
+        }
+
+        update_option('__fls_hashes_ip_widened', 'yes', true);
+    }
+
+    /**
      * Keeps a 3.0.0 requirement enforcing after the rules changed under it.
      *
      * 3.0.0 said in as many words that "roles required, every switch off" was a complete
@@ -264,7 +301,7 @@ class Activator
 				status varchar(20) DEFAULT 'issued',
 				use_type varchar(20) DEFAULT 'magic_login',
 				two_fa_code_hash varchar(100) DEFAULT '',
-				ip_address varchar(20) NULL,
+				ip_address varchar(45) NULL,
 				redirect_intend varchar(255) NULL,
 				success_ip_address varchar(50) NULL,
 				country varchar(50) NULL,

@@ -164,6 +164,24 @@ class IpResolutionTest extends BaseTestCase
         $this->assertSame('203.0.113.9', Helper::getIp());
     }
 
+    /**
+     * (int) on the suffix made each of these /0, so one typo trusted every IPv4 client.
+     * An IPv4 value in the header is then skipped as "one of ours" too, which is why the
+     * claimed address here is IPv6: that is the one a client could pick freely, a new one
+     * per request to step around the attempt limit.
+     */
+    public function testAMalformedCidrSuffixTrustsNobody()
+    {
+        foreach (['10.0.0.1/foo', '10.0.0.1/', '10.0.0.1/-1', '10.0.0.1/8a'] as $entry) {
+            $this->setTrustedProxies($entry);
+
+            $_SERVER['REMOTE_ADDR'] = '198.51.100.4';
+            $_SERVER['HTTP_X_FORWARDED_FOR'] = '2001:db8::9';
+
+            $this->assertSame('198.51.100.4', Helper::getIp(), $entry);
+        }
+    }
+
     public function testHeaderFromAnUndeclaredAddressIsStillIgnored()
     {
         $this->setTrustedProxies('10.0.0.0/8');

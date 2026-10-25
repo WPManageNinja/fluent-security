@@ -601,6 +601,50 @@ class ShortcodeTest extends BaseTestCase
         Helper::resetStatics();
     }
 
+    /**
+     * Two different sentences for "no such account" and "wrong password" answer the
+     * question the login form must not answer: does this account exist?
+     */
+    public function testAnUnknownUserAndAWrongPasswordGetTheSameReply()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        wp_set_password('correct-horse', $user->ID);
+
+        $wrongPassword = $this->postLogin(get_user_by('ID', $user->ID), 'wrong-password');
+        $unknownUser = $this->postLogin((object)['user_login' => 'nobody-here'], 'wrong-password');
+
+        $this->assertArrayHasKey('message', $wrongPassword);
+        $this->assertSame($unknownUser, $wrongPassword);
+    }
+
+    /* An unknown account used to skip the attempt limit, so a locked-out visitor could still probe. */
+    public function testAnUnknownUserMeetsTheAttemptLimitToo()
+    {
+        global $wpdb;
+
+        $this->setSettings(['login_try_limit' => 2, 'login_try_timing' => 30]);
+
+        foreach ([1, 2] as $i) {
+            $wpdb->insert($wpdb->prefix . 'fls_auth_logs', [
+                'username'   => 'someone',
+                'ip'         => Helper::getIp(),
+                'status'     => 'failed',
+                'media'      => 'web',
+                'count'      => 1,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            ]);
+        }
+
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        $unknownUser = $this->postLogin((object)['user_login' => 'nobody-here'], 'wrong-password');
+        $realUser = $this->postLogin(get_user_by('ID', $user->ID), 'wrong-password');
+
+        $this->assertStringContainsString('Too many tries', $unknownUser['message']);
+        $this->assertSame($realUser, $unknownUser);
+    }
+
     private function userWithEmail2Fa()
     {
         $this->setSettings([

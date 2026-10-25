@@ -428,14 +428,6 @@ class TwoFaHandler
             ], 422);
         }
 
-        if ($logHash->used_count >= self::MAX_VERIFY_ATTEMPTS) {
-            $this->invalidate2FaCode($logHash);
-
-            wp_send_json([
-                'message' => __('Too many tries with that code. Please sign in again.', 'fluent-security')
-            ], 422);
-        }
-
         /*
          * A challenge authorises itself: it was raised precisely because the account was
          * under attack, so it has to keep working even if the attack has since died down
@@ -447,9 +439,43 @@ class TwoFaHandler
             ], 422);
         }
 
+        /*
+         * The attempt is claimed in one statement, before the proof is compared. Reading
+         * used_count and writing it back later let parallel guesses all see the same count,
+         * so fifty of them cost one attempt. Written through $wpdb because the builder's
+         * update() does not say how many rows matched.
+         */
+        global $wpdb;
+
+        $claimed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET used_count = used_count + 1, updated_at = %s
+             WHERE id = %d AND status = 'issued' AND used_count < %d",
+            current_time('mysql'),
+            $logHash->id,
+            self::MAX_VERIFY_ATTEMPTS
+        ));
+
+        if (!$claimed) {
+            $this->invalidate2FaCode($logHash);
+
+            wp_send_json([
+                'message' => __('Too many tries with that code. Please sign in again.', 'fluent-security')
+            ], 422);
+        }
+
+        $logHash->used_count++;
+
         $verified = $method->verifyProof($user, $logHash, $_REQUEST);
 
         if (is_wp_error($verified)) {
+            // Malformed input, not a guess - see BaseTwoFaMethod::verifyProof. This hands back
+            // only the attempt this request claimed, so parallel guesses gain nothing from it.
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET used_count = used_count - 1 WHERE id = %d AND used_count > 0",
+                $logHash->id
+            ));
+
             wp_send_json([
                 'message' => $verified->get_error_message()
             ], 422);
@@ -460,6 +486,22 @@ class TwoFaHandler
 
             wp_send_json([
                 'message' => __('That code is not correct. Please try again.', 'fluent-security')
+            ], 422);
+        }
+
+        // One winner per code: two requests carrying the same right code must not both sign in.
+        $won = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET status = 'used', success_ip_address = %s, updated_at = %s
+             WHERE id = %d AND status = 'issued'",
+            Helper::getIp(),
+            current_time('mysql'),
+            $logHash->id
+        ));
+
+        if (!$won) {
+            wp_send_json([
+                'message' => __('That code has expired. Please sign in again.', 'fluent-security')
             ], 422);
         }
 
@@ -500,13 +542,6 @@ class TwoFaHandler
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);
             if (is_user_logged_in()) {
-                flsDb()->table('fls_login_hashes')
-                    ->where('id', $logHash->id)
-                    ->update([
-                        'status'             => 'used',
-                        'success_ip_address' => Helper::getIp()
-                    ]);
-
                 $redirectTo = $logHash->redirect_intend;
                 if (!$redirectTo) {
                     $redirectTo = admin_url();
@@ -1263,7 +1298,8 @@ class TwoFaHandler
     }
 
     /**
-     * Counts a wrong answer and burns the challenge once the cap is reached.
+     * Burns the challenge once the cap is reached and reports the wrong answer. The
+     * attempt itself was already counted when it was claimed.
      *
      * @param $logHash object
      * @param $user \WP_User
@@ -1272,21 +1308,15 @@ class TwoFaHandler
      */
     private function recordFailedAttempt($logHash, $user, $method)
     {
-        $usedCount = $logHash->used_count + 1;
-
-        $update = [
-            'used_count' => $usedCount,
-            'updated_at' => current_time('mysql')
-        ];
-
         // Burn the challenge once the cap is reached, it must not stay guessable.
-        if ($usedCount >= self::MAX_VERIFY_ATTEMPTS) {
-            $update['status'] = 'failed';
+        if ($logHash->used_count >= self::MAX_VERIFY_ATTEMPTS) {
+            flsDb()->table('fls_login_hashes')
+                ->where('id', $logHash->id)
+                ->update([
+                    'status'     => 'failed',
+                    'updated_at' => current_time('mysql')
+                ]);
         }
-
-        flsDb()->table('fls_login_hashes')
-            ->where('id', $logHash->id)
-            ->update($update);
 
         /*
          * The first factor already succeeded to get here, so nothing has been recorded
@@ -1334,8 +1364,10 @@ class TwoFaHandler
             return;
         }
 
+        // Still issued only: a parallel request may have just completed the login with it.
         flsDb()->table('fls_login_hashes')
             ->where('id', $logHash->id)
+            ->where('status', 'issued')
             ->update([
                 'status'     => 'failed',
                 'updated_at' => current_time('mysql')
