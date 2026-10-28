@@ -1441,4 +1441,42 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertArrayNotHasKey('redirect', $this->verify('000000', $issued['hash']));
         $this->assertArrayHasKey('redirect', $this->verify($issued['code'], $issued['hash']));
     }
+
+    /*
+     * An emailed code proves the inbox it went to. Bound to that address, it stops working
+     * once the account email changes, so a changed address cannot borrow the old proof.
+     */
+    public function testACodeStopsWorkingWhenTheAccountEmailChanges()
+    {
+        $issued = $this->issueCode();
+
+        add_filter('send_email_change_email', '__return_false');
+        wp_update_user(['ID' => $this->user->ID, 'user_email' => 'moved-' . $this->user->ID . '@example.test']);
+        remove_filter('send_email_change_email', '__return_false');
+
+        $response = $this->verify($issued['code'], $issued['hash']);
+
+        $this->assertArrayNotHasKey('redirect', $response);
+        $this->assertSame('issued', $this->hashRow($issued['hash'])->status);
+        $this->assertSame(0, get_current_user_id());
+    }
+
+    public function testAnEmailCodeSignInReportsTheEmailAsVerified()
+    {
+        $issued = $this->issueCode();
+
+        $seen = [];
+        $spy = function ($user) use (&$seen) {
+            $seen[] = [$user->ID, $user->user_email];
+        };
+        add_action('fluent_auth/email_verified', $spy, 10, 1);
+
+        try {
+            $this->verify($issued['code'], $issued['hash']);
+        } finally {
+            remove_action('fluent_auth/email_verified', $spy, 10);
+        }
+
+        $this->assertSame([[$this->user->ID, $this->user->user_email]], $seen);
+    }
 }

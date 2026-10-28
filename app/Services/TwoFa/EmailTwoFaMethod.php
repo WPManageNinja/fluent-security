@@ -123,7 +123,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
 
         return [
             'columns' => [
-                'two_fa_code_hash' => wp_hash_password($code),
+                'two_fa_code_hash' => wp_hash_password(Helper::emailBoundSecret($code, $user->user_email)),
                 'valid_till'       => date('Y-m-d H:i:s', current_time('timestamp') + self::VALIDITY_MINUTES * 60)
             ],
             'secret'  => $code
@@ -176,7 +176,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
             );
         }
 
-        return (bool)wp_check_password($code, $logHash->two_fa_code_hash);
+        return (bool)wp_check_password(Helper::emailBoundSecret($code, $user->user_email), $logHash->two_fa_code_hash);
     }
 
     public function renderForm($data = [])
