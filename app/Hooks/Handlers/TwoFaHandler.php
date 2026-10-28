@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
@@ -506,6 +507,11 @@ class TwoFaHandler
                         'status'             => 'used',
                         'success_ip_address' => Helper::getIp()
                     ]);
+
+                if ($method->getSatisfiedFactor() === AuthFactor::EMAIL) {
+                    /** This action is documented in MagicLoginHandler::makeLogin() */
+                    do_action('fluent_auth/email_verified', $user);
+                }
 
                 $redirectTo = $logHash->redirect_intend;
                 if (!$redirectTo) {

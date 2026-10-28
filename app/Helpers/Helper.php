@@ -83,6 +83,15 @@ class Helper
         return self::$tokenVerifiedLogin;
     }
 
+    /**
+     * Binds an emailed secret to the address it was mailed to, so it stops working once the
+     * account email changes. Hashed first because some password hashers read only 72 bytes.
+     */
+    public static function emailBoundSecret($secret, $email)
+    {
+        return hash('sha256', $secret . '|' . strtolower(trim((string)$email)));
+    }
+
     public static function getAuthSettings()
     {
         if (self::$authSettings) {

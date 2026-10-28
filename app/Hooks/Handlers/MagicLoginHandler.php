@@ -486,7 +486,7 @@ class MagicLoginHandler
          * which is not a thing anybody should have to know to answer "is this safe".
          */
         $string = bin2hex(random_bytes(32));
-        $hash = wp_hash_password($string);
+        $hash = wp_hash_password(Helper::emailBoundSecret($string, $user->user_email));
 
         $data = array(
             'login_hash'      => $hash,
@@ -564,7 +564,9 @@ class MagicLoginHandler
             ->where('status', 'issued')
             ->first();
 
-        if (!$row || !$this->isPasswordEqual($hashes[0], $row->login_hash)) {
+        $user = $row ? get_user_by('ID', $row->user_id) : false;
+
+        if (!$user || !$this->isPasswordEqual(Helper::emailBoundSecret($hashes[0], $user->user_email), $row->login_hash)) {
             return false;
         }
 
@@ -625,7 +627,9 @@ class MagicLoginHandler
             return false;
         }
 
-        if (!$this->isPasswordEqual($hash, $row->login_hash)) {
+        $user = get_user_by('ID', $row->user_id);
+
+        if (!$user || !$this->isPasswordEqual(Helper::emailBoundSecret($hash, $user->user_email), $row->login_hash)) {
             return false;
         }
 
@@ -642,10 +646,6 @@ class MagicLoginHandler
                 ]);
             return false;
         }
-
-        // The hash is valid now make the user logged in
-        $userId = $row->user_id;
-        $user = get_user_by('ID', $userId);
 
         if (!apply_filters('fluent_auth/magic_login_can_use', $this->canUseMagic($user), $user)) {
             return false;
@@ -736,6 +736,13 @@ class MagicLoginHandler
                     ]);
 
                 Helper::setLoginMedia('magic_login');
+
+                /*
+                 * The link was bound to this address, so redeeming it proves the inbox.
+                 *
+                 * @param \WP_User $user
+                 */
+                do_action('fluent_auth/email_verified', $user);
 
                 if (!wp_doing_ajax()) {
                     if (isset($_GET['force_redirect']) && $_GET['force_redirect'] == 'yes') {
