@@ -198,6 +198,29 @@ class FactorStoreTest extends BaseTestCase
         $this->assertTrue(FactorStore::delete($id, $owner));
     }
 
+    /**
+     * User IDs can come back after a database restore, and the new account would inherit
+     * whatever was left under the old one.
+     */
+    public function test_deleting_a_user_removes_every_factor_they_had()
+    {
+        $leaving = $this->factory->user->create();
+        $staying = $this->factory->user->create();
+
+        foreach ([$leaving, $staying] as $userId) {
+            FactorStore::insert(['user_id' => $userId, 'type' => FactorStore::TYPE_TOTP, 'secret' => 'secret']);
+            FactorStore::insert(['user_id' => $userId, 'type' => FactorStore::TYPE_PASSKEY, 'identifier' => 'key-' . $userId]);
+            RecoveryCodes::generate($userId);
+        }
+
+        self::delete_user($leaving);
+
+        $this->assertSame([], FactorStore::forUser($leaving, null, null));
+        $this->assertSame(1, FactorStore::countForUser($staying, FactorStore::TYPE_TOTP));
+        $this->assertSame(1, FactorStore::countForUser($staying, FactorStore::TYPE_PASSKEY));
+        $this->assertSame(RecoveryCodes::CODE_COUNT, RecoveryCodes::countRemaining($staying));
+    }
+
     // ---------------------------------------------------------------- recovery codes
 
     public function test_a_fresh_set_of_recovery_codes_is_issued_once_and_counted()
