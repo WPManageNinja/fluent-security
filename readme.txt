@@ -318,18 +318,13 @@ It is not a malware scanner. It tells you which files no longer match the offici
 == Changelog ==
 
 = 3.1.1 - Date: Nov 3, 2026 =
-* Security: Magic login links and emailed sign-in codes stop working when the account's email address changes.
-* Security: Guesses at a two-factor or signup code sent at the same moment now each count against the attempt limit.
-* Security: The login form gives the same reply for an unknown username as for a wrong password, and the attempt limit and IP rules now cover unknown usernames too.
-* Security: A trusted proxy entry with a broken range, such as "10.0.0.0/abc", is now refused. Before, it trusted every visitor.
-* Security: On multisite, only network admins can change settings that touch shared files, wp-config.php or every user's sessions.
-* Security: Deleting a user now removes their authenticator app secret and recovery codes, not only their passkeys.
 * Fix: Magic link and signup email limits now work for visitors on IPv6.
 * Fix: The security scan now checks PHP files inside the node_modules folders of plugins and themes.
 * Fix: The passkey button on a login page left open after signing in now says the page has expired.
 * Fix: Some text boxes and buttons were hard to read in dark mode, and warning and info boxes in light mode.
 * Improvement: The PHP security warning now says your server "may" be affected when your host could have patched PHP without changing its version. Once your host confirms the patch, you can dismiss the warning.
 * Developer: New fluent_auth/email_verified action, fired when a magic link or an emailed code signs someone in.
+* Security: Hardening for sign-in links and codes, login attempts, trusted proxies, multisite permissions and deleted users.
 
 = 3.1.0 - Date: Oct 23, 2026 =
 * New: Cloudflare Turnstile bot protection for the signup, login and password reset forms, and WooCommerce's account forms.
