@@ -79,6 +79,16 @@
     }
 }
 
+/*
+ * wp-admin's `input[type="text"]` outscores `.el-input__inner` above and paints a white
+ * fill, which only `.el-form-item` inputs escaped. In the dark theme every other input was
+ * a white box. Background only: lifting the whole block would hand wp-admin's padding back.
+ */
+.el-input__wrapper .el-input__inner,
+.el-select__wrapper .el-select__input {
+    background: transparent;
+}
+
 /* A select fills the space it is given; the input inside it is a display, not a field. */
 .el-select {
     width: 100%;
