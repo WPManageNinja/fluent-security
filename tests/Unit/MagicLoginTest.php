@@ -664,4 +664,41 @@ class MagicLoginTest extends BaseTestCase
             ->where('created_at', '>', date('Y-m-d H:i:s', current_time('timestamp') - 1800))
             ->count();
     }
+
+    /*
+     * The link proves the inbox it was mailed to. Bound to that address, it stops working
+     * once the account email changes, so a changed address cannot borrow the old proof.
+     */
+    public function testALinkStopsWorkingWhenTheAccountEmailChanges()
+    {
+        $link = $this->issueLink();
+
+        add_filter('send_email_change_email', '__return_false');
+        wp_update_user(['ID' => $this->user->ID, 'user_email' => 'moved_probe@example.test']);
+        remove_filter('send_email_change_email', '__return_false');
+
+        $this->assertFalse($this->handler->isRedeemable($link));
+        $this->assertFalse($this->handler->makeLogin($link));
+        $this->assertSame(0, get_current_user_id());
+        $this->assertSame('issued', $this->rowFor($link)->status);
+    }
+
+    public function testALinkSignInReportsTheEmailAsVerified()
+    {
+        $link = $this->issueLink();
+
+        $seen = [];
+        $spy = function ($user) use (&$seen) {
+            $seen[] = [$user->ID, $user->user_email];
+        };
+        add_action('fluent_auth/email_verified', $spy, 10, 1);
+
+        try {
+            $this->assertTrue($this->handler->makeLogin($link));
+        } finally {
+            remove_action('fluent_auth/email_verified', $spy, 10);
+        }
+
+        $this->assertSame([[$this->user->ID, 'magic_probe@example.test']], $seen);
+    }
 }

@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
@@ -542,6 +543,11 @@ class TwoFaHandler
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);
             if (is_user_logged_in()) {
+                if ($method->getSatisfiedFactor() === AuthFactor::EMAIL) {
+                    /** This action is documented in MagicLoginHandler::makeLogin() */
+                    do_action('fluent_auth/email_verified', $user);
+                }
+
                 $redirectTo = $logHash->redirect_intend;
                 if (!$redirectTo) {
                     $redirectTo = admin_url();
