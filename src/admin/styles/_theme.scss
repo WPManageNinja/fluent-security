@@ -262,6 +262,17 @@ body.toplevel_page_fluent-auth {
         --el-tag-text-color: var(--fls-text-mid);
         --el-tag-hover-color: var(--fls-text);
     }
+
+    /*
+     * Element Plus writes an alert's text in its own type colour: orange on the warning
+     * tint was 2.0:1 in light, the info grey 2.8:1. The tint and icon still carry the type.
+     */
+    .el-alert {
+        .el-alert__title,
+        .el-alert__description {
+            color: var(--fls-text);
+        }
+    }
 }
 
 .fluent_theme_dark body.toplevel_page_fluent-auth,
@@ -361,11 +372,6 @@ body.toplevel_page_fluent-auth.fluent_theme_dark {
     /* Element Plus's alerts tint themselves from their own light ramp, which is opaque. */
     .el-alert {
         --el-alert-bg-color: var(--fls-surface-raised);
-
-        .el-alert__title,
-        .el-alert__description {
-            color: var(--fls-text);
-        }
     }
 
     /*
