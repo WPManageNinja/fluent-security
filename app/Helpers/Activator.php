@@ -67,9 +67,9 @@ class Activator
      * cut short on insert, and the email limits count rows by the full address - an IPv6
      * visitor never matched their own rows and could request emails without limit.
      *
-     * Its own flag and hook for the reason maybeMigrateSettings() gives: activation does not
-     * run on update. A failed ALTER (a lock timeout, no ALTER rights) waits a day before the
-     * next try rather than retrying on every request or giving up for good.
+     * Activation does not run on update, so this runs when the FluentAuth admin page loads
+     * (AdminMenuHandler::render()), not on every request. A failed ALTER (a lock timeout, no
+     * ALTER rights) waits a day before the next try rather than giving up for good.
      *
      * @return void
      */
@@ -94,7 +94,7 @@ class Activator
             }
         }
 
-        update_option('__fls_hashes_ip_widened', 'yes', true);
+        update_option('__fls_hashes_ip_widened', 'yes', false);
     }
 
     /**

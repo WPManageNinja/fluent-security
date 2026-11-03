@@ -134,7 +134,7 @@ class ActivatorTest extends BaseTestCase
 
         $this->assertSame('varchar(45)', $this->ipColumnType());
         $this->assertSame('yes', get_option('__fls_hashes_ip_widened'));
-        $this->assertNotFalse(has_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeWidenIpColumn']));
+        $this->assertArrayNotHasKey('__fls_hashes_ip_widened', wp_load_alloptions());
     }
 
     /* A failed ALTER is tried again later, not marked done for good. */

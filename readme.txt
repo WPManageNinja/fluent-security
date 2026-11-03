@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.1.0
+Stable tag: 3.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -316,6 +316,15 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.1.1 - Date: Nov 3, 2026 =
+* Fix: Magic link and signup email limits now work for visitors on IPv6.
+* Fix: The security scan now checks PHP files inside the node_modules folders of plugins and themes.
+* Fix: The passkey button on a login page left open after signing in now says the page has expired.
+* Fix: Some text boxes and buttons were hard to read in dark mode, and warning and info boxes in light mode.
+* Improvement: The PHP security warning now says your server "may" be affected when your host could have patched PHP without changing its version. Once your host confirms the patch, you can dismiss the warning.
+* Developer: New fluent_auth/email_verified action, fired when a magic link or an emailed code signs someone in.
+* Security: Hardening for sign-in links and codes, login attempts, trusted proxies, multisite permissions and deleted users.
 
 = 3.1.0 - Date: Oct 23, 2026 =
 * New: Cloudflare Turnstile bot protection for the signup, login and password reset forms, and WooCommerce's account forms.
