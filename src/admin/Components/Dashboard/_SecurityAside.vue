@@ -190,12 +190,16 @@ export default {
         <div v-if="protection.php_advisory" class="fls_aside_block fls_dash_php" role="alert">
             <h3>
                 <span class="fls_dash_php_icon" aria-hidden="true" v-html="icons.threat"></span>
-                {{ $t('Update PHP on your server') }}
+                {{ protection.php_advisory.status === 'outdated' && !protection.php_advisory.confirmed ? $t('Check PHP on your server') : $t('Update PHP on your server') }}
             </h3>
             <p><strong>{{ protection.php_advisory.title }}</strong></p>
             <p>{{ protection.php_advisory.body }}</p>
             <p>
                 <a :href="protection.php_advisory.learn_more_url" target="_blank" rel="noopener">{{ $t('Learn more') }}</a>
+            </p>
+            <!-- A plain link to admin-post.php, the same one the WordPress notice uses; it comes back here with the block gone. -->
+            <p v-if="protection.php_advisory.dismiss_url">
+                <el-button tag="a" size="small" :href="protection.php_advisory.dismiss_url">{{ $t('My host confirmed this is patched') }}</el-button>
             </p>
         </div>
 

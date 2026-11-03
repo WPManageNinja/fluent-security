@@ -27,9 +27,54 @@ class PhpAdvisoryHandler
 
     const LEARN_MORE_URL = 'https://fluentauth.com/articles/php2shell';
 
+    /**
+     * The exact PHP_VERSION an administrator said their host has patched. Per site, like
+     * every other FluentAuth option, so a sub-site admin on a network answers for their
+     * own site only. Keyed to the version so the notice comes back when PHP changes.
+     */
+    const DISMISSED_OPTION = '__fls_php_advisory_dismissed';
+
+    const DISMISS_ACTION = 'fluent_auth_dismiss_php_advisory';
+
     public function register()
     {
         add_action('admin_notices', [$this, 'renderNotice']);
+        add_action('admin_post_' . self::DISMISS_ACTION, [$this, 'handleDismiss']);
+    }
+
+    /**
+     * @return void
+     */
+    public function handleDismiss()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Sorry, you are not allowed to do that.', 'fluent-security'), 403);
+        }
+
+        check_admin_referer(self::DISMISS_ACTION);
+
+        self::dismiss();
+
+        wp_safe_redirect(wp_get_referer() ?: admin_url());
+        exit;
+    }
+
+    /**
+     * @param $version string
+     * @return void
+     */
+    public static function dismiss($version = PHP_VERSION)
+    {
+        update_option(self::DISMISSED_OPTION, $version, false);
+    }
+
+    /**
+     * @param $version string
+     * @return bool
+     */
+    public static function isDismissed($version = PHP_VERSION)
+    {
+        return get_option(self::DISMISSED_OPTION) === $version;
     }
 
     /**
@@ -55,34 +100,91 @@ class PhpAdvisoryHandler
                 <?php echo esc_html($advisory['body']); ?>
                 <a href="<?php echo esc_url($advisory['learn_more_url']); ?>" target="_blank" rel="noopener"><?php esc_html_e('Learn more', 'fluent-security'); ?></a>
             </p>
+            <?php if ($advisory['dismiss_url']) : ?>
+                <p>
+                    <a href="<?php echo esc_url($advisory['dismiss_url']); ?>" class="button"><?php esc_html_e('My host confirmed this is patched', 'fluent-security'); ?></a>
+                </p>
+            <?php endif; ?>
         </div>
         <?php
     }
 
     /**
-     * What to tell the administrator, or null when this PHP is fine. Shared by the
-     * WordPress notice and the dashboard, which hides WordPress notices.
+     * What to tell the administrator, or null when this PHP is fine or an administrator
+     * has said their host patched it. Shared by the WordPress notice and the dashboard,
+     * which hides WordPress notices.
      *
-     * @return array|null title, body and learn_more_url
+     * An 'outdated' version is only a maybe: Ubuntu, Debian, RHEL and many hosts backport
+     * the fix and keep the version number, and nothing inside PHP can tell us which. The
+     * exception is a Sury build, which is confirmed and so cannot be dismissed.
+     *
+     * @param $fullVersion string
+     * @return array|null status, confirmed, title, body, learn_more_url and dismiss_url
      */
-    public static function advisory()
+    public static function advisory($fullVersion = PHP_VERSION)
     {
-        $version = self::shortVersion(PHP_VERSION);
+        $version = self::shortVersion($fullVersion);
         $status = self::statusFor($version);
+        $confirmed = $status === 'outdated' && self::isSuryBuild($fullVersion);
 
-        if ($status === 'safe') {
+        if ($status === 'safe' || (!$confirmed && self::isDismissed($fullVersion))) {
             return null;
         }
 
-        return [
+        if ($confirmed) {
             /* translators: %s: PHP version, e.g. 8.3.20 */
-            'title' => sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), $version),
-            'body'  => $status === 'outdated'
-                /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
-                ? sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf($version)])
-                : __('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security'),
-            'learn_more_url' => self::LEARN_MORE_URL
+            $title = sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), $version);
+            /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
+            $body = sprintf(__('Ask your hosting provider to update PHP to %s or newer. This is a server update; no plugin can fix it.', 'fluent-security'), self::FIXED[self::branchOf($version)]);
+        } elseif ($status === 'outdated') {
+            /* translators: %s: PHP version, e.g. 8.3.20 */
+            $title = sprintf(__('This site runs PHP %s, which may have a critical security hole that lets attackers take over the server.', 'fluent-security'), $version);
+            /* translators: %s: the PHP version that contains the fix, e.g. 8.3.36 */
+            $body = sprintf(__('Linux distributions often patch PHP without changing the version number, so your server may already be safe. Ask your hosting provider if the security patch is applied. If not, ask them to update PHP to %s or newer.', 'fluent-security'), self::FIXED[self::branchOf($version)]);
+        } else {
+            /* translators: %s: PHP version, e.g. 8.3.20 */
+            $title = sprintf(__('This site runs PHP %s, which has a critical security hole that lets attackers take over the server.', 'fluent-security'), $version);
+            $body = __('This PHP version no longer gets security fixes. Upgrade to PHP 8.2 or newer; your hosting provider can do this for you.', 'fluent-security');
+        }
+
+        return [
+            'status'         => $status,
+            'confirmed'      => $confirmed,
+            'title'          => $title,
+            'body'           => $body,
+            'learn_more_url' => self::LEARN_MORE_URL,
+            'dismiss_url'    => $confirmed ? '' : self::dismissUrl()
         ];
+    }
+
+    /**
+     * Ondrej Sury's packages ("8.4.20-1+ubuntu22.04.1+deb.sury.org+1") ship upstream
+     * releases and never backport, so their version number is the truth.
+     *
+     * @param $version string
+     * @return bool
+     */
+    public static function isSuryBuild($version)
+    {
+        return strpos($version, '+deb.sury.org') !== false;
+    }
+
+    /**
+     * Raw rather than wp_nonce_url(), which HTML-escapes the ampersand and would break the
+     * dashboard's href. Empty for anyone who may not dismiss.
+     *
+     * @return string
+     */
+    private static function dismissUrl()
+    {
+        if (!current_user_can('manage_options')) {
+            return '';
+        }
+
+        return add_query_arg([
+            'action'   => self::DISMISS_ACTION,
+            '_wpnonce' => wp_create_nonce(self::DISMISS_ACTION)
+        ], admin_url('admin-post.php'));
     }
 
     /**

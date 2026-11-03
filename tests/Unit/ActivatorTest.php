@@ -110,6 +110,62 @@ class ActivatorTest extends BaseTestCase
         $this->assertEquals('two_fa_code_hash', $column);
     }
 
+    private function ipColumnType()
+    {
+        global $wpdb;
+
+        return $wpdb->get_row("SHOW COLUMNS FROM `{$wpdb->prefix}fls_login_hashes` LIKE 'ip_address'")->Type;
+    }
+
+    public function testANewHashesTableFitsAnIpv6Address()
+    {
+        $this->assertSame('varchar(45)', $this->ipColumnType());
+    }
+
+    /* A site that updated still has varchar(20); activation never runs for it. */
+    public function testAnExistingHashesTableIsWidenedOnce()
+    {
+        global $wpdb;
+
+        $wpdb->query("ALTER TABLE `{$wpdb->prefix}fls_login_hashes` MODIFY `ip_address` VARCHAR(20) NULL");
+        delete_option('__fls_hashes_ip_widened');
+
+        Activator::maybeWidenIpColumn();
+
+        $this->assertSame('varchar(45)', $this->ipColumnType());
+        $this->assertSame('yes', get_option('__fls_hashes_ip_widened'));
+        $this->assertNotFalse(has_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeWidenIpColumn']));
+    }
+
+    /* A failed ALTER is tried again later, not marked done for good. */
+    public function testAFailedWideningIsRetriedLater()
+    {
+        global $wpdb;
+
+        delete_option('__fls_hashes_ip_widened');
+        delete_transient('__fls_hashes_ip_widen_retry');
+
+        $break = function ($query) {
+            return strpos($query, 'ALTER TABLE') === 0 ? 'ALTER TABLE fls_no_such_table_x MODIFY x INT' : $query;
+        };
+
+        add_filter('query', $break);
+
+        try {
+            Activator::maybeWidenIpColumn();
+        } finally {
+            remove_filter('query', $break);
+        }
+
+        $this->assertFalse(get_option('__fls_hashes_ip_widened'));
+        $this->assertSame('yes', get_transient('__fls_hashes_ip_widen_retry'));
+
+        delete_transient('__fls_hashes_ip_widen_retry');
+        Activator::maybeWidenIpColumn();
+
+        $this->assertSame('yes', get_option('__fls_hashes_ip_widened'));
+    }
+
     public function testMigrateSchedulesCronJobs()
     {
         // Clear any existing scheduled hooks

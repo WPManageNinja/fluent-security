@@ -827,26 +827,19 @@ class CustomAuthHandler
             ], 200);
         }
 
-        $email = sanitize_user($data['log']);
+        /*
+         * An unknown account goes through wp_signon() like a real one. Answering it early
+         * skipped the attempt limit and the IP rules, so a locked-out or blocked visitor
+         * could still tell real accounts from unknown ones by the reply.
+         */
+        $user = wp_signon();
 
-        if (is_email($email)) {
-            $user = get_user_by('email', $email);
-        } else {
-            $user = get_user_by('login', $email);
-        }
-
-        if (!$user) {
-            $user = new \WP_Error('authentication_failed', __('<strong>Error</strong>: That username, email address or password is not correct.', 'fluent-security'));
-
-            do_action('wp_login_failed', $email, $user);
-
+        // One reply for no such account and a wrong password, or the two tell an account apart.
+        if (is_wp_error($user) && in_array($user->get_error_code(), ['invalid_username', 'invalid_email', 'incorrect_password'], true)) {
             wp_send_json([
                 'message' => __('That email address and password do not match. Please try again.', 'fluent-security')
             ], 422);
         }
-
-
-        $user = wp_signon();
 
         if (is_wp_error($user)) {
             wp_send_json([

@@ -1216,6 +1216,81 @@ class TwoFaHandlerTest extends BaseTestCase
         $this->assertArrayNotHasKey('redirect', $response);
     }
 
+    /**
+     * A parallel guess claims its attempt while this one is still comparing. The old code
+     * wrote back its own stale count + 1 over it, so parallel guesses cost one attempt
+     * between them.
+     */
+    public function testAParallelGuessIsNotOverwritten()
+    {
+        global $wpdb;
+
+        $issued = $this->issueCode();
+
+        $parallel = function ($check) use ($wpdb, $issued) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET used_count = used_count + 1 WHERE login_hash = %s",
+                $issued['hash']
+            ));
+
+            return $check;
+        };
+
+        add_filter('check_password', $parallel);
+
+        try {
+            $this->verify('000000', $issued['hash']);
+        } finally {
+            remove_filter('check_password', $parallel);
+        }
+
+        $this->assertSame(2, (int)$this->hashRow($issued['hash'])->used_count);
+    }
+
+    /* An empty submit is malformed input, not a guess - see BaseTwoFaMethod::verifyProof. */
+    public function testAnEmptySubmitDoesNotSpendAnAttempt()
+    {
+        $issued = $this->issueCode();
+
+        for ($i = 0; $i < TwoFaHandler::MAX_VERIFY_ATTEMPTS + 1; $i++) {
+            $this->verify('', $issued['hash']);
+        }
+
+        $row = $this->hashRow($issued['hash']);
+        $this->assertSame(0, (int)$row->used_count);
+        $this->assertSame('issued', $row->status);
+
+        $this->assertArrayHasKey('redirect', $this->verify($issued['code'], $issued['hash']));
+    }
+
+    /* A parallel request with the same right code finished first; this one must not sign in too. */
+    public function testARightCodeSignsInOnlyOnce()
+    {
+        global $wpdb;
+
+        $issued = $this->issueCode();
+
+        $winner = function ($check) use ($wpdb, $issued) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'used' WHERE login_hash = %s",
+                $issued['hash']
+            ));
+
+            return $check;
+        };
+
+        add_filter('check_password', $winner);
+
+        try {
+            $response = $this->verify($issued['code'], $issued['hash']);
+        } finally {
+            remove_filter('check_password', $winner);
+        }
+
+        $this->assertArrayNotHasKey('redirect', $response);
+        $this->assertSame('used', $this->hashRow($issued['hash'])->status);
+    }
+
     public function testFurtherGuessesAfterTheCapDoNotKeepIncrementing()
     {
         $issued = $this->issueCode();

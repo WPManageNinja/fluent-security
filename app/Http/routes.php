@@ -19,6 +19,13 @@ $permissions = [$appPermission];
 /* For the endpoints that read or change other people's accounts - see two-fa/users below. */
 $userPermissions = ['list_users'];
 
+/*
+ * For the endpoints that act on what every site in a network shares: wp-config.php, core,
+ * plugin and theme files, and every user's sessions. A subsite administrator holds
+ * manage_options on their own site and must not reach those.
+ */
+$networkPermissions = is_multisite() ? ['manage_network_options'] : $permissions;
+
 $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'getSettings'], $permissions)
     ->post('settings', ['\FluentAuth\App\Http\Controllers\SettingsController', 'updateSettings'], $permissions)
     /*
@@ -53,10 +60,10 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
      * it - see TwoFaEncryptionController.
      */
     ->get('two-fa/encryption', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'getStatus'], $permissions)
-    ->post('two-fa/encryption/write-config', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'writeConfig'], $permissions)
-    ->post('two-fa/encryption/enable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'enable'], $permissions)
-    ->post('two-fa/encryption/disable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'disable'], $permissions)
-    ->post('two-fa/encryption/rekey', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'rekey'], $permissions)
+    ->post('two-fa/encryption/write-config', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'writeConfig'], $networkPermissions)
+    ->post('two-fa/encryption/enable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'enable'], $networkPermissions)
+    ->post('two-fa/encryption/disable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'disable'], $networkPermissions)
+    ->post('two-fa/encryption/rekey', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'rekey'], $networkPermissions)
     ->get('auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'getLogs'], $permissions)
     ->get('dashboard', ['\FluentAuth\App\Http\Controllers\DashboardController', 'getDashboard'], $permissions)
     /*
@@ -85,10 +92,10 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('baseline/compare', ['\FluentAuth\App\Http\Controllers\BaselineController', 'compare'], $permissions)
     ->post('baseline/clear', ['\FluentAuth\App\Http\Controllers\BaselineController', 'clear'], $permissions)
     ->get('recovery', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'getRecovery'], $permissions)
-    ->post('recovery/secure-now', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'secureNow'], $permissions)
-    ->post('recovery/password-resets', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'passwordResets'], $permissions)
-    ->post('recovery/reinstall-core', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'reinstallCore'], $permissions)
-    ->post('recovery/reinstall-extension', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'reinstallExtension'], $permissions)
+    ->post('recovery/secure-now', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'secureNow'], $networkPermissions)
+    ->post('recovery/password-resets', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'passwordResets'], $networkPermissions)
+    ->post('recovery/reinstall-core', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'reinstallCore'], $networkPermissions)
+    ->post('recovery/reinstall-extension', ['\FluentAuth\App\Http\Controllers\RecoveryController', 'reinstallExtension'], $networkPermissions)
     ->get('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'getRules'], $permissions)
     ->post('ip-rules', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'saveRules'], $permissions)
     ->post('ip-rules/add', ['\FluentAuth\App\Http\Controllers\IpRulesController', 'addIp'], $permissions)
@@ -115,9 +122,9 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('security-scan-settings/scan/toggle-ignore', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'toggleIgnore'], $permissions)
     ->get('security-scan-settings/mu-plugins', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'getMuPlugins'], $permissions)
     ->post('security-scan-settings/mu-plugins/baseline', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'baselineMuPlugins'], $permissions)
-    ->get('security-scan-settings/scan/view-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'viewFileDiff'], $permissions)
-    ->post('security-scan-settings/scan/restore-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'restoreFile'], $permissions)
-    ->post('security-scan-settings/scan/delete-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'deleteFile'], $permissions)
+    ->get('security-scan-settings/scan/view-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'viewFileDiff'], $networkPermissions)
+    ->post('security-scan-settings/scan/restore-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'restoreFile'], $networkPermissions)
+    ->post('security-scan-settings/scan/delete-file', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'deleteFile'], $networkPermissions)
     ->post('security-scan-settings/scan/update-schedule-scan', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'updateScheduleScan'], $permissions)
     ->post('security-scan-settings/scan/reset-api', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resetApi'], $permissions)
     ->post('security-scan-settings/scan/resume-reporting', ['\FluentAuth\App\Http\Controllers\SecurityScanController', 'resumeReporting'], $permissions)

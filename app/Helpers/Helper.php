@@ -966,6 +966,11 @@ class Helper
             return false;
         }
 
+        // (int) would turn "/", "/foo" or "/ 24" into /0, which matches every address.
+        if (!preg_match('/^\d+$/', $bits)) {
+            return false;
+        }
+
         $bits = (int)$bits;
         $maxBits = strlen($ipBin) * 8;
 
