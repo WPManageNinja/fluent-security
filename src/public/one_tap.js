@@ -58,7 +58,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     size: 'large',
                     text: 'continue_with',
                     type: 'standard',
-                    shape: 'rectangular'
+                    shape: 'rectangular',
+                    locale: config.locale
                 }  // customization attributes
             );
         });

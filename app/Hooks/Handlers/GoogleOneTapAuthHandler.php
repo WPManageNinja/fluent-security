@@ -252,6 +252,10 @@ class GoogleOneTapAuthHandler
             'mode'      => $args['type'],
             'delay'     => intval($args['delay']),
             'client_id' => $config['google_client_id'],
+            // Google picks the button's language from the visitor's Google account or
+            // location unless told otherwise, so an English site showed a Bengali button
+            // to a visitor in Bangladesh. The button follows the site's language instead.
+            'locale'    => determine_locale(),
             'ajax_url'  => admin_url('admin-ajax.php'),
             'i18n'      => [
                 'login_error' => __('An error occurred during the login process. Please try again.', 'fluent-security')
