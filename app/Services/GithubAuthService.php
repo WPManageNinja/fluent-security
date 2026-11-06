@@ -11,11 +11,13 @@ class GithubAuthService
     {
         $config = Helper::getSocialAuthSettings('edit');
 
+        // The callback URL carries its own query, and add_query_arg() does not encode
+        // values. Encoded, it reaches GitHub whole; see getAppRedirect().
         $params = [
-            'client_id'    => $config['github_client_id'],
-            'redirect_uri' => self::getAppRedirect(),
+            'client_id'    => rawurlencode($config['github_client_id']),
+            'redirect_uri' => rawurlencode(self::getAppRedirect()),
             'scope'        => 'user',
-            'state'        => $state
+            'state'        => rawurlencode($state)
         ];
 
         return add_query_arg($params, 'https://github.com/login/oauth/authorize');
@@ -124,11 +126,23 @@ class GithubAuthService
         return '';
     }
 
+    /**
+     * The callback URL: the one the settings screen shows, the authorize link sends and
+     * the token exchange posts.
+     *
+     * It used to end in &fs_type=confirm. The authorize link sent it unencoded, so that
+     * & split it, GitHub read redirect_uri as ".../wp-login.php?fs_auth=github" and never
+     * passed fs_type back. GitHub apps that match redirect URIs exactly then refused the
+     * sign-in ("The redirect_uri is not associated with this application"), because the
+     * settings screen told admins to register the longer URL. Without fs_type, GitHub
+     * receives exactly the address it received before, so sites that work keep working.
+     * The callback needs nothing more: SocialAuthHandler::handleGitHubActions() treats a
+     * GitHub request that carries a code as the confirm step.
+     */
     public static function getAppRedirect()
     {
         return add_query_arg([
             'fs_auth' => 'github',
-            'fs_type' => 'confirm'
         ], wp_login_url());
     }
 }
