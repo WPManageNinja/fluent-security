@@ -79,7 +79,7 @@ class MagicLoginHandler
 
                 <div class="fls_magic_login_btn">
                     <button class="fls_magic_show_btn magic_btn_secondary button button-primary button-large">
-                        <?php esc_html_e('Login Via Magic URL', 'fluent-security'); ?>
+                        <?php esc_html_e('Email me a login link', 'fluent-security'); ?>
                     </button>
                 </div>
             </div>

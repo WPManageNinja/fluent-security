@@ -107,6 +107,12 @@ class LoginCustomizerHandler
                 $formSettings['form']['description'] = '';
             }
 
+            // A posted form is the "Your password has been reset" page, which needs no heading.
+            if ($formType == 'new_password' && empty($_POST['pass1'])) {
+                $formSettings['form']['title'] = __('Choose a new password', 'fluent-security');
+                $formSettings['form']['description'] = '';
+            }
+
             if ($formType == 'totp_setup') {
                 $formSettings['form']['title'] = __('Set up two-factor authentication', 'fluent-security');
                 $formSettings['form']['description'] = '';
@@ -115,12 +121,12 @@ class LoginCustomizerHandler
 
         $smartCodeParse = new \FluentAuth\App\Services\SmartCodeParser();
 
-        $formSettings['form']['title'] = $smartCodeParse->parse($formSettings['form']['title'], null);
-        $formSettings['form']['description'] = $smartCodeParse->parse($formSettings['form']['description'], null);
+        $formSettings['form']['title'] = $smartCodeParse->parse(Arr::get($formSettings, 'form.title', ''), null);
+        $formSettings['form']['description'] = $smartCodeParse->parse(Arr::get($formSettings, 'form.description', ''), null);
 
         if (isset($formSettings['banner'])) {
-            $formSettings['banner']['title'] = $smartCodeParse->parse($formSettings['banner']['title'], null);
-            $formSettings['banner']['description'] = $smartCodeParse->parse($formSettings['banner']['description'], null);
+            $formSettings['banner']['title'] = $smartCodeParse->parse(Arr::get($formSettings, 'banner.title', ''), null);
+            $formSettings['banner']['description'] = $smartCodeParse->parse(Arr::get($formSettings, 'banner.description', ''), null);
         } else {
             $loginForm = Arr::get($allSettings, 'login', []);
             $formSettings['banner']['title'] = $smartCodeParse->parse($loginForm['banner']['title'], null);
@@ -500,6 +506,20 @@ class LoginCustomizerHandler
                 break;
             case 'retrievepassword':
                 $type = 'reset_password_confirm';
+                break;
+            case 'rp':
+            case 'resetpass':
+                $type = 'new_password';
+                break;
+            case 'checkemail':
+                $type = 'check_email';
+                break;
+            case 'confirmaction':
+            case 'confirm_admin_email':
+                $type = $action;
+                break;
+            case TwoFaService::LOGIN_ACTION:
+                $type = 'two_fa_verify';
                 break;
             /*
              * A type of its own, with nothing configured against it, so it takes the
