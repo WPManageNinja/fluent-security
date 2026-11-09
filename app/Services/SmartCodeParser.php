@@ -206,6 +206,10 @@ class SmartCodeParser
             return esc_url(self_admin_url('profile.php?newuseremail=' . $hash));
         }
 
+        if ($valueKey == '_previous_email_address_') {
+            return isset($wpUser->_previous_email_address_) ? $wpUser->_previous_email_address_ : $defaultValue;
+        }
+
         if ($valueKey == 'profile_edit_url') {
             return admin_url('user-edit.php?user_id=' . $wpUser->ID);
         }
