@@ -135,22 +135,15 @@ class LoginCustomizerHandler
                 FLUENT_AUTH_VERSION
             );
 
-            $bannerDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
-            $formDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
-
-            $bannerValues = array_filter(Arr::only(Arr::get($formSettings, 'banner', []), $bannerDesignElements));
-            $formValues = array_filter(Arr::only(Arr::get($formSettings, 'form', []), $formDesignElements));
-
             $css = '';
-            foreach ($bannerValues as $designKey => $designValue) {
-                if ($designValue) {
-                    $css .= '--fls-banner-' . $designKey . ': ' . $designValue . ';';
-                }
-            }
-
-            foreach ($formValues as $designKey => $designValue) {
-                if ($designValue) {
-                    $css .= '--fls-form-' . $designKey . ': ' . $designValue . ';';
+            foreach (['banner', 'form'] as $section) {
+                $values = Arr::only(Arr::get($formSettings, $section, []), Helper::colorFields());
+                foreach ($values as $designKey => $designValue) {
+                    // Checked again here: values saved before 3.0.2 never went through the save-time check.
+                    $designValue = Helper::sanitizeCssColor($designValue);
+                    if ($designValue) {
+                        $css .= '--fls-' . $section . '-' . $designKey . ': ' . $designValue . ';';
+                    }
                 }
             }
 
@@ -159,10 +152,14 @@ class LoginCustomizerHandler
             wp_add_inline_style('fls-login-customizer', $cssVars);
         });
 
-        add_action('login_header', function () use ($formSettings, $formType) {
+        $bannerHidden = Arr::isTrue($formSettings, 'banner.hidden');
 
-            $extraCssClass = apply_filters('fluent_auth/extra_login_page_wrap_css_class', '');
-            $extraCssClass .= 'fls_layout_banner_' . Arr::get($formSettings, 'banner.position');
+        add_action('login_header', function () use ($formSettings, $formType, $bannerHidden) {
+
+            $extraCssClass = trim((string)apply_filters('fluent_auth/extra_login_page_wrap_css_class', ''));
+            if (!$bannerHidden) {
+                $extraCssClass = trim($extraCssClass . ' fls_layout_banner_' . Arr::get($formSettings, 'banner.position'));
+            }
 
             ?>
             <div class="fls_login_page_wrap fls_form_type_<?php echo esc_attr($formType); ?> <?php echo esc_attr($extraCssClass); ?>">
@@ -174,11 +171,12 @@ class LoginCustomizerHandler
             <?php
         });
 
-        add_action('login_footer', function () use ($formSettings) {
+        add_action('login_footer', function () use ($formSettings, $bannerHidden) {
             $backgroundImage = Arr::get($formSettings, 'banner.background_image');
             ?>
             </div></div> <!-- End of fls_form_wrap and fls_login_form_wrap-->
 
+            <?php if (!$bannerHidden): ?>
             <div style="<?php if ($backgroundImage) {
                 echo 'background-image: url(' . esc_url($backgroundImage) . ')';
             } ?>" class="fls_login_cusom_content_wrap">
@@ -195,6 +193,7 @@ class LoginCustomizerHandler
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
             </div> <!-- End of fls_login_page_wrap-->
             <?php
         });
