@@ -91,4 +91,24 @@ class ResetPasswordEmailGreetingTest extends BaseTestCase
         $this->assertStringContainsString('Hi Shop Owner,', $message);
         $this->assertStringNotContainsString('Hi ,', $message);
     }
+
+    /**
+     * The body is HTML, so a name is printed as text, never as markup.
+     */
+    public function test_the_name_is_escaped_in_the_html_body()
+    {
+        global $wpdb;
+
+        $userId = $this->factory->user->create([
+            'user_login' => 'markupname',
+            'user_email' => 'markupname@example.test',
+        ]);
+        $wpdb->update($wpdb->users, ['display_name' => '<img src=x onerror=alert(1)>'], ['ID' => $userId]);
+        clean_user_cache($userId);
+
+        $message = $this->resetEmailFor('markupname');
+
+        $this->assertStringNotContainsString('<img src=x', $message);
+        $this->assertStringContainsString('Hi &lt;img src=x onerror=alert(1)&gt;,', $message);
+    }
 }
