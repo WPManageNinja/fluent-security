@@ -1157,8 +1157,10 @@ class CustomAuthHandler
         /* translators: %s: Site Name */
         $mailSubject = apply_filters('fluent_auth/reset_password_mail_subject', sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
-        /* translators: %s: User's first name */
-        $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) . '</p>' .
+        $greetingName = $user_data->first_name ? $user_data->first_name : $user_data->display_name;
+
+        /* translators: %s: User's first name, or display name when there is none */
+        $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), esc_html($greetingName)) . '</p>' .
             '<p>' . __('Someone asked to reset the password for this account:', 'fluent-security') . '</p>' .
             /* translators: %s: User's Login */
             '<p>' . \sprintf(__('Username: %s', 'fluent-security'), $user_login) . '</p>' .

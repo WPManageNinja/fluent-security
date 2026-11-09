@@ -148,6 +148,65 @@ class LoginCustomizerBannerTest extends BaseTestCase
         $this->assertStringContainsString('--fls-form-title_color: #123456;', $css, 'a real colour still goes through');
     }
 
+    public function screensWithTheirOwnWords()
+    {
+        // wp-login.php action, form type, title the screen shows when nothing is configured for it
+        return [
+            'choose a new password (rp)'       => ['rp', 'new_password', 'Choose a new password'],
+            'choose a new password (resetpass)' => ['resetpass', 'new_password', 'Choose a new password'],
+            'check your email'                 => ['checkemail', 'check_email', ''],
+            'log out confirmation'             => ['logout', 'logout', ''],
+            'password-protected post'          => ['postpass', 'postpass', ''],
+            'confirm a personal-data request'  => ['confirmaction', 'confirmaction', ''],
+            'confirm the admin email'          => ['confirm_admin_email', 'confirm_admin_email', ''],
+        ];
+    }
+
+    /**
+     * These screens used to fall through to the login form, so they printed
+     * "Login to <site>" and "Please enter your details to login".
+     *
+     * @dataProvider screensWithTheirOwnWords
+     */
+    public function test_a_screen_that_is_not_the_login_form_does_not_use_its_words($action, $expectedType, $expectedTitle)
+    {
+        $this->saveBanner('login', []);
+        $handler = new LoginCustomizerHandler();
+
+        $this->assertSame($expectedType, $handler->getFormType($action));
+
+        $html = $this->renderScreen($action, $expectedType);
+
+        $this->assertStringNotContainsString('Please enter your details to login', $html);
+        $this->assertStringNotContainsString('Login to ', $html);
+        $this->assertStringContainsString('fls_form_type_' . $expectedType, $html);
+        $this->assertMatchesRegularExpression('#<h1>' . preg_quote($expectedTitle, '#') . '</h1>#', $html);
+    }
+
+    /**
+     * A host that overrides the settings can give a screen its own words by its type.
+     */
+    public function test_saved_settings_for_a_screens_type_are_used()
+    {
+        $settings = Helper::getAuthCustomizerSettings();
+        $settings['status'] = 'yes';
+        $settings['new_password'] = $settings['login'];
+        $settings['new_password']['form']['title'] = 'Pick a fresh password';
+        update_option('__fls_auth_customizer_settings', $settings, false);
+
+        $html = $this->renderScreen('rp', 'new_password');
+
+        $this->assertStringContainsString('<h1>Pick a fresh password</h1>', $html);
+    }
+
+    public function test_the_login_form_keeps_its_own_words()
+    {
+        $this->saveBanner('login', []);
+
+        $this->assertSame('login', (new LoginCustomizerHandler())->getFormType('login'));
+        $this->assertStringContainsString('Please enter your details to login', $this->renderScreen('login', 'login'));
+    }
+
     public function test_a_class_from_the_wrapper_filter_stays_a_separate_class()
     {
         $this->saveBanner('login', ['position' => 'left']);

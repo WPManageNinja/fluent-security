@@ -107,6 +107,11 @@ class LoginCustomizerHandler
                 $formSettings['form']['description'] = '';
             }
 
+            if ($formType == 'new_password') {
+                $formSettings['form']['title'] = __('Choose a new password', 'fluent-security');
+                $formSettings['form']['description'] = '';
+            }
+
             if ($formType == 'totp_setup') {
                 $formSettings['form']['title'] = __('Set up two-factor authentication', 'fluent-security');
                 $formSettings['form']['description'] = '';
@@ -500,6 +505,19 @@ class LoginCustomizerHandler
                 break;
             case 'retrievepassword':
                 $type = 'reset_password_confirm';
+                break;
+            case 'rp':
+            case 'resetpass':
+                $type = 'new_password';
+                break;
+            case 'checkemail':
+                $type = 'check_email';
+                break;
+            case 'logout':
+            case 'postpass':
+            case 'confirmaction':
+            case 'confirm_admin_email':
+                $type = $action;
                 break;
             /*
              * A type of its own, with nothing configured against it, so it takes the
