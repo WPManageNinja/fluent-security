@@ -58,7 +58,7 @@ class SystemEmailService
                 ],
                 'additional_smartcodes' => [
                     '##user.confirm_email_change_url##' => __('Confirm Email Change URL', 'fluent-security'),
-                    '{{new_changing_email_id}}'         => __('New Email Address', 'fluent-security'),
+                    '{{user.new_changing_email_id}}'    => __('New Email Address', 'fluent-security'),
                 ]
             ],
             'email_change_notification_after_confimation' => [

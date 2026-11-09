@@ -32,21 +32,6 @@ class WPSystemEmailHandler
 
 
         /*
-         * If we want to disable the email to user when a new user is registered
-         * We will just disable the welcome email by WP
-         */
-        add_filter('wp_send_new_user_notification_to_user', function ($status, $user) {
-            if (!get_user_meta($user->ID, 'default_password_nag')) {
-                $setting = SystemEmailService::getEmailSettingsByType('user_registration_to_user');
-                if (!$setting || Arr::get($setting, 'status', '') !== 'active') {
-                    return $status;
-                }
-                return false;
-            }
-            return $status;
-        }, 100, 2);
-
-        /*
          * Core has no wp_send_* filter for the admin's password change notice,
          * so the only way to silence it is to take the action off.
          */
@@ -101,17 +86,11 @@ class WPSystemEmailHandler
             return $defaults;
         }
 
-        $hasCustomPassword = false;
-        // check if the user has custom password
-        if (!get_user_meta($user->ID, 'default_password_nag', true)) {
-            $customSetting = SystemEmailService::getEmailSettingsByType('fluent_auth_welcome_email_to_user');
-            if (Arr::get($customSetting, 'status', '') !== 'system') {
-                $setting = $customSetting;
-                $hasCustomPassword = true;
-            }
-        }
+        $welcome = SystemEmailService::getEmailSettingsByType('fluent_auth_welcome_email_to_user');
 
-        if (!$hasCustomPassword) {
+        if (Arr::get($welcome, 'status', '') === 'active' && $this->choseOwnPassword($user)) {
+            $setting = $welcome;
+        } else {
             $key = get_password_reset_key($user);
             if (is_wp_error($key)) {
                 return $defaults;
@@ -140,6 +119,9 @@ class WPSystemEmailHandler
 
         // Let's change these now
         $email = Arr::get($setting, 'email', []);
+
+        // Templates saved from the old picker hold this code without the "user." prefix.
+        $email = str_replace('{{new_changing_email_id}}', '{{user.new_changing_email_id}}', $email);
 
         $emailSubject = $this->parseCode(Arr::get($email, 'subject', ''), $wpUser);
         $newEmailBody = $this->withHtmlTemplate($this->parseCode(Arr::get($email, 'body', ''), $wpUser), null, $wpUser);
@@ -249,7 +231,12 @@ class WPSystemEmailHandler
         $status = Arr::get($setting, 'status', '');
 
         if ($status === 'system') {
-            return; // it's system default. We don't have to do anything here.
+            // The customized registration email is a "set your password" email, and this person just chose one.
+            $registration = SystemEmailService::getEmailSettingsByType('user_registration_to_user');
+            if (Arr::get($registration, 'status', '') === 'active') {
+                add_filter('wp_send_new_user_notification_to_user', '__return_false', 99);
+            }
+            return;
         }
 
         // We will just disable the welcome email by WP
@@ -277,6 +264,25 @@ class WPSystemEmailHandler
         }
 
         wp_mail($to, $subject, $emailBody, $headers);
+    }
+
+    /**
+     * Whether the new user picked their own password, so a welcome email fits better
+     * than a "set your password" one.
+     *
+     * WordPress, Woo and FluentCRM mark a generated password with default_password_nag.
+     * Users → Add New does not, but there an admin is signed in making someone else's
+     * account, and that person never saw the password either.
+     */
+    protected function choseOwnPassword($user)
+    {
+        if (get_user_meta($user->ID, 'default_password_nag', true)) {
+            return false;
+        }
+
+        $creatorId = get_current_user_id();
+
+        return !$creatorId || $creatorId === (int)$user->ID;
     }
 
     protected function parseCode($code, $wpUser)
