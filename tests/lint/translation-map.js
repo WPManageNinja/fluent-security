@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @fluent-i18n-toolkit v4
+ * @fluent-i18n-toolkit v6
  *
  * S0 lint: the Vue translation map must match the source it is generated
  * from, and every key in it must be reachable at runtime.
@@ -105,12 +105,14 @@ function collectViolations(result, committed) {
             violations.push(`${problem.file}:${problem.line} template literal passed to a translation helper: \`${problem.text}\`; use a plain string with %s placeholders`);
         } else if (problem.type === 'dynamic-context') {
             violations.push(`${problem.file}:${problem.line} $_x('${problem.text}', ...) needs a literal context string`);
+        } else if (problem.type === 'dynamic-plural') {
+            violations.push(`${problem.file}:${problem.line} $_n('${problem.text}', ...) needs a literal plural string`);
         }
     });
 
     const seenEntity = new Set();
     result.entries.forEach((entry) => {
-        if (ENTITY_PATTERN.test(entry.text) && !seenEntity.has(entry.text)) {
+        if (ENTITY_PATTERN.test(entryText(entry)) && !seenEntity.has(entry.text)) {
             seenEntity.add(entry.text);
             violations.push(`${entry.file}:${entry.line} key contains an HTML entity; write the real character: ${show(entry.text)}`);
         }
@@ -128,7 +130,7 @@ function collectViolations(result, committed) {
     });
     const seenPlaceholder = new Set();
     result.rows.forEach((row) => {
-        if (row.comment || !PLACEHOLDER_PATTERN.test(row.text) || seenPlaceholder.has(row.key)) {
+        if (row.comment || !PLACEHOLDER_PATTERN.test(rowText(row)) || seenPlaceholder.has(row.key)) {
             return;
         }
         if (row.reserved && !firstSite[row.key]) {
@@ -143,7 +145,7 @@ function collectViolations(result, committed) {
     // and get copied into every locale.
     const seenDash = new Set();
     result.rows.forEach((row) => {
-        if (!DASH_PATTERN.test(row.text) || seenDash.has(row.key)) {
+        if (!DASH_PATTERN.test(rowText(row)) || seenDash.has(row.key)) {
             return;
         }
         seenDash.add(row.key);
@@ -155,7 +157,7 @@ function collectViolations(result, committed) {
     // 9. Leading/trailing/double whitespace marks a concatenation fragment.
     const seenWhitespace = new Set();
     result.entries.forEach((entry) => {
-        if (!WHITESPACE_PATTERN.test(entry.text) || seenWhitespace.has(entry.text)) {
+        if (!(WHITESPACE_PATTERN.test(entry.text) || (entry.plural && WHITESPACE_PATTERN.test(entry.plural))) || seenWhitespace.has(entry.text)) {
             return;
         }
         seenWhitespace.add(entry.text);
@@ -167,7 +169,7 @@ function collectViolations(result, committed) {
     // unordered placeholders and translators cannot reorder them safely.
     const seenUnordered = new Set();
     result.rows.forEach((row) => {
-        if (!UNORDERED_NUMBERED_PATTERN.test(row.text) || seenUnordered.has(row.key)) {
+        if (!UNORDERED_NUMBERED_PATTERN.test(rowText(row)) || seenUnordered.has(row.key)) {
             return;
         }
         seenUnordered.add(row.key);
@@ -186,9 +188,18 @@ function collectViolations(result, committed) {
     return { violations, warnings };
 }
 
+// The text a check reads: a $_n() entry is checked on both of its forms.
+function rowText(row) {
+    return row.plural ? row.text + '\n' + row.plural : row.text;
+}
+
+function entryText(entry) {
+    return entry.plural ? entry.text + '\n' + entry.plural : entry.text;
+}
+
 /**
  * Keys of a committed map: single-quoted plain entries plus the
- * double-quoted contextual entries.
+ * double-quoted contextual and plural entries.
  */
 function readMapKeys(php) {
     const keys = new Set();
@@ -202,6 +213,7 @@ function readMapKeys(php) {
     while ((match = double.exec(php)) !== null) {
         keys.add(match[1]
             .replace(/\\x04/g, generator.CONTEXT_DELIMITER)
+            .replace(/\\x00/g, generator.PLURAL_DELIMITER)
             .replace(/\\(["\\$])/g, '$1'));
     }
 
@@ -209,7 +221,7 @@ function readMapKeys(php) {
 }
 
 function show(key) {
-    const printable = key.split(generator.CONTEXT_DELIMITER).join(' | ');
+    const printable = key.split(generator.CONTEXT_DELIMITER).join(' | ').split(generator.PLURAL_DELIMITER).join(' / ');
 
     return JSON.stringify(printable.length > 80 ? printable.slice(0, 77) + '...' : printable);
 }
@@ -281,7 +293,8 @@ function selfTest() {
         ['dash in a key', /Bad\.vue:\d+ em\/en dash in UI text/],
         ['dash in a reserved text', /reserved words "Dashed_Help" em\/en dash/],
         ['whitespace fragment', /leading, trailing or double whitespace/],
-        ['numbered placeholder without $', /Bad\.vue:\d+ numbered placeholder without `\$`/]
+        ['numbered placeholder without $', /Bad\.vue:\d+ numbered placeholder without `\$`/],
+        ['dynamic plural', /Bad\.vue:\d+ \$_n\('%s file', \.\.\.\) needs a literal plural string/]
     ];
     const missed = expected.filter(([, pattern]) => !violations.some((v) => pattern.test(v)));
 
@@ -297,8 +310,11 @@ function selfTest() {
     if (!php.includes('"Ticket status\\x04Open" => _x(\'Open\', \'Ticket status\'')) {
         missed.push(['contextual key emitted']);
     }
-    if (!php.includes("'%s ticket' =>") || !php.includes("'%s tickets' =>")) {
-        missed.push(['both $_n forms emitted']);
+    if (!php.includes('"%s ticket\\x00%s tickets" => self::pluralForms(_n_noop(\'%s ticket\', \'%s tickets\'')) {
+        missed.push(['$_n emitted as one plural entry']);
+    }
+    if (!php.includes('"\\x00plural_index" => self::pluralRule(') || !php.includes('private static function pluralForms($noop)')) {
+        missed.push(['plural rule table and helpers emitted']);
     }
     if (php.includes('Example in a comment')) {
         missed.push(['call inside a comment ignored']);

@@ -31,9 +31,12 @@
         <!-- good: reserved word, expanded to its long text -->
         <p>{{ $t('Long_Help_Text') }}</p>
 
-        <!-- good: plural pair, both forms become keys -->
+        <!-- good: plural pair, one plural entry with every translated form -->
         <!-- translators: %s is the number of tickets -->
         <p>{{ $_n('%s ticket', '%s tickets', total) }}</p>
+
+        <!-- bad: the plural form is not a literal -->
+        <p>{{ $_n('%s file', pluralLabel, count) }}</p>
 
         <!-- good: contextual key -->
         <span>{{ $_x('Open', 'Ticket status') }}</span>
