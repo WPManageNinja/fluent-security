@@ -10,6 +10,7 @@ class TransStrings
     public static function getStrings()
     {
         return [
+            "\x00plural_index" => self::pluralRule('fluent-security')['index'],
             /* translators: %1$s is the preceding sentence about application passwords being deleted, %2$s the number of people who own them */
             '%1$s They belong to %2$s people, so tell them first.' => __('%1$s They belong to %2$s people, so tell them first.', 'fluent-security'),
             /* translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes */
@@ -37,15 +38,11 @@ class TransStrings
             /* translators: %1$s is the name of a security setting, %2$s is On or Off */
             '%1$s: %2$s' => __('%1$s: %2$s', 'fluent-security'),
             /* translators: %d is the number of users whose authenticator app setup cannot be decrypted */
-            '%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.' => __('%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.', 'fluent-security'),
-            /* translators: %d is the number of users whose authenticator app setup cannot be decrypted */
-            '%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.' => __('%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.', 'fluent-security'),
+            "%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.\x00%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again." => self::pluralForms(_n_noop('%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.', '%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.', 'fluent-security')),
             /* translators: %s is the button label, e.g. Turn on or Set up */
             '%s (opens in a new tab)' => __('%s (opens in a new tab)', 'fluent-security'),
             /* translators: %s is the number of administrator accounts created in the last 7 days */
-            '%s administrator account was created in the last week.' => __('%s administrator account was created in the last week.', 'fluent-security'),
-            /* translators: %s is the number of administrator accounts created in the last 7 days */
-            '%s administrator accounts were created in the last week.' => __('%s administrator accounts were created in the last week.', 'fluent-security'),
+            "%s administrator account was created in the last week.\x00%s administrator accounts were created in the last week." => self::pluralForms(_n_noop('%s administrator account was created in the last week.', '%s administrator accounts were created in the last week.', 'fluent-security')),
             /* translators: %s is a time span, e.g. 5 mins or 2 hours */
             '%s ago' => __('%s ago', 'fluent-security'),
             /* translators: %s is a comma-separated list of user role names */
@@ -53,75 +50,45 @@ class TransStrings
             /* translators: %s is a plugin name, like Fluent Forms */
             '%s already has Turnstile keys' => __('%s already has Turnstile keys', 'fluent-security'),
             /* translators: %s is the number of changed files in this plugin or theme */
-            '%s change' => __('%s change', 'fluent-security'),
+            "%s change\x00%s changes" => self::pluralForms(_n_noop('%s change', '%s changes', 'fluent-security')),
             /* translators: %s is the number of changed files in this plugin or theme */
-            '%s changed' => __('%s changed', 'fluent-security'),
+            "%s changed\x00%s changed" => self::pluralForms(_n_noop('%s changed', '%s changed', 'fluent-security')),
             /* translators: %s is the number of files changed since the site owner's snapshot */
-            '%s changed since your snapshot' => __('%s changed since your snapshot', 'fluent-security'),
-            /* translators: %s is the number of changed files in this plugin or theme */
-            '%s changes' => __('%s changes', 'fluent-security'),
+            "%s changed since your snapshot\x00%s changed since your snapshot" => self::pluralForms(_n_noop('%s changed since your snapshot', '%s changed since your snapshot', 'fluent-security')),
             /* translators: %s is the number of checks that passed */
-            '%s check passed' => __('%s check passed', 'fluent-security'),
-            /* translators: %s is the number of checks that passed */
-            '%s checks passed' => __('%s checks passed', 'fluent-security'),
+            "%s check passed\x00%s checks passed" => self::pluralForms(_n_noop('%s check passed', '%s checks passed', 'fluent-security')),
             /* translators: %s is a comma-separated list of file paths */
             '%s could not be moved to quarantine and may still be on the server.' => __('%s could not be moved to quarantine and may still be on the server.', 'fluent-security'),
             /* translators: %s is the number of password reset emails that failed to send */
-            '%s could not be sent' => __('%s could not be sent', 'fluent-security'),
+            "%s could not be sent\x00%s could not be sent" => self::pluralForms(_n_noop('%s could not be sent', '%s could not be sent', 'fluent-security')),
             /* translators: %s is the number of days activity logs are kept */
-            '%s day' => __('%s day', 'fluent-security'),
-            /* translators: %s is the number of days activity logs are kept */
-            '%s days' => __('%s days', 'fluent-security'),
+            "%s day\x00%s days" => self::pluralForms(_n_noop('%s day', '%s days', 'fluent-security')),
             /* translators: %s is a number of files */
-            '%s file' => __('%s file', 'fluent-security'),
+            "%s file\x00%s files" => self::pluralForms(_n_noop('%s file', '%s files', 'fluent-security')),
             /* translators: %s is the number of files that differ from the official copy */
-            '%s file changed' => __('%s file changed', 'fluent-security'),
+            "%s file changed\x00%s files changed" => self::pluralForms(_n_noop('%s file changed', '%s files changed', 'fluent-security')),
             /* translators: %s is the number of files */
-            '%s file has changed since your snapshot' => __('%s file has changed since your snapshot', 'fluent-security'),
+            "%s file has changed since your snapshot\x00%s files have changed since your snapshot" => self::pluralForms(_n_noop('%s file has changed since your snapshot', '%s files have changed since your snapshot', 'fluent-security')),
             /* translators: %s is the number of must-use plugin files */
-            '%s file is new or changed since it was recorded' => __('%s file is new or changed since it was recorded', 'fluent-security'),
+            "%s file is new or changed since it was recorded\x00%s files are new or changed since they were recorded" => self::pluralForms(_n_noop('%s file is new or changed since it was recorded', '%s files are new or changed since they were recorded', 'fluent-security')),
             /* translators: %s is the number of files, already formatted with thousands separators */
-            '%s file is not being watched because one plugin or theme is too large to record in full.' => __('%s file is not being watched because one plugin or theme is too large to record in full.', 'fluent-security'),
+            "%s file is not being watched because one plugin or theme is too large to record in full.\x00%s files are not being watched because some plugins or themes are too large to record in full." => self::pluralForms(_n_noop('%s file is not being watched because one plugin or theme is too large to record in full.', '%s files are not being watched because some plugins or themes are too large to record in full.', 'fluent-security')),
             /* translators: %s is the number of official files missing from the site */
-            '%s file missing' => __('%s file missing', 'fluent-security'),
+            "%s file missing\x00%s files missing" => self::pluralForms(_n_noop('%s file missing', '%s files missing', 'fluent-security')),
             /* translators: %s is the number of files, already formatted with thousands separators */
-            '%s file recorded' => __('%s file recorded', 'fluent-security'),
+            "%s file recorded\x00%s files recorded" => self::pluralForms(_n_noop('%s file recorded', '%s files recorded', 'fluent-security')),
             /* translators: %s is the number of files to be moved to quarantine */
-            '%s file that is not part of WordPress will be moved to quarantine first.' => __('%s file that is not part of WordPress will be moved to quarantine first.', 'fluent-security'),
+            "%s file that is not part of WordPress will be moved to quarantine first.\x00%s files that are not part of WordPress will be moved to quarantine first." => self::pluralForms(_n_noop('%s file that is not part of WordPress will be moved to quarantine first.', '%s files that are not part of WordPress will be moved to quarantine first.', 'fluent-security')),
             /* translators: %s is the number of files to be moved to quarantine; "it" is the plugin or theme */
-            '%s file that is not part of it will be moved to quarantine first.' => __('%s file that is not part of it will be moved to quarantine first.', 'fluent-security'),
-            /* translators: %s is a number of files */
-            '%s files' => __('%s files', 'fluent-security'),
-            /* translators: %s is the number of must-use plugin files */
-            '%s files are new or changed since they were recorded' => __('%s files are new or changed since they were recorded', 'fluent-security'),
-            /* translators: %s is the number of files, already formatted with thousands separators */
-            '%s files are not being watched because some plugins or themes are too large to record in full.' => __('%s files are not being watched because some plugins or themes are too large to record in full.', 'fluent-security'),
-            /* translators: %s is the number of files that differ from the official copy */
-            '%s files changed' => __('%s files changed', 'fluent-security'),
-            /* translators: %s is the number of files */
-            '%s files have changed since your snapshot' => __('%s files have changed since your snapshot', 'fluent-security'),
-            /* translators: %s is the number of official files missing from the site */
-            '%s files missing' => __('%s files missing', 'fluent-security'),
-            /* translators: %s is the number of files, already formatted with thousands separators */
-            '%s files recorded' => __('%s files recorded', 'fluent-security'),
-            /* translators: %s is the number of files to be moved to quarantine */
-            '%s files that are not part of WordPress will be moved to quarantine first.' => __('%s files that are not part of WordPress will be moved to quarantine first.', 'fluent-security'),
-            /* translators: %s is the number of files to be moved to quarantine; "it" is the plugin or theme */
-            '%s files that are not part of it will be moved to quarantine first.' => __('%s files that are not part of it will be moved to quarantine first.', 'fluent-security'),
+            "%s file that is not part of it will be moved to quarantine first.\x00%s files that are not part of it will be moved to quarantine first." => self::pluralForms(_n_noop('%s file that is not part of it will be moved to quarantine first.', '%s files that are not part of it will be moved to quarantine first.', 'fluent-security')),
             /* translators: %s is the number of findings that need action */
-            '%s finding needs action' => __('%s finding needs action', 'fluent-security'),
+            "%s finding needs action\x00%s findings need action" => self::pluralForms(_n_noop('%s finding needs action', '%s findings need action', 'fluent-security')),
             /* translators: %s is the number of findings to review */
-            '%s finding to review' => __('%s finding to review', 'fluent-security'),
-            /* translators: %s is the number of findings that need action */
-            '%s findings need action' => __('%s findings need action', 'fluent-security'),
-            /* translators: %s is the number of findings to review */
-            '%s findings to review' => __('%s findings to review', 'fluent-security'),
+            "%s finding to review\x00%s findings to review" => self::pluralForms(_n_noop('%s finding to review', '%s findings to review', 'fluent-security')),
             /* translators: %s is the number of changed WordPress core folders */
-            '%s folder' => __('%s folder', 'fluent-security'),
-            /* translators: %s is the number of changed WordPress core folders */
-            '%s folders' => __('%s folders', 'fluent-security'),
+            "%s folder\x00%s folders" => self::pluralForms(_n_noop('%s folder', '%s folders', 'fluent-security')),
             /* translators: %s is a number of files or items the site owner chose to ignore */
-            '%s ignored' => __('%s ignored', 'fluent-security'),
+            "%s ignored\x00%s ignored" => self::pluralForms(_n_noop('%s ignored', '%s ignored', 'fluent-security')),
             /* translators: %s is the name of another two-factor plugin */
             '%s is also enforcing two-factor login' => __('%s is also enforcing two-factor login', 'fluent-security'),
             /* translators: %s is the PHP constant name FLUENT_AUTH_DISABLE_TURNSTILE */
@@ -129,55 +96,37 @@ class TransStrings
             /* translators: %s is the PHP constant name FLUENT_AUTH_DISABLE_IP_RESTRICTION */
             '%s is set in wp-config.php, so the block list and the role restriction below are not being applied. Remove that line once your lists are fixed.' => __('%s is set in wp-config.php, so the block list and the role restriction below are not being applied. Remove that line once your lists are fixed.', 'fluent-security'),
             /* translators: %s is the number of plugins and themes */
-            '%s item is not from WordPress.org, so there is no official copy to compare it with.' => __('%s item is not from WordPress.org, so there is no official copy to compare it with.', 'fluent-security'),
+            "%s item is not from WordPress.org, so there is no official copy to compare it with.\x00%s items are not from WordPress.org, so there is no official copy to compare them with." => self::pluralForms(_n_noop('%s item is not from WordPress.org, so there is no official copy to compare it with.', '%s items are not from WordPress.org, so there is no official copy to compare them with.', 'fluent-security')),
             /* translators: %s is the number of open security issues */
-            '%s item needs attention' => __('%s item needs attention', 'fluent-security'),
-            /* translators: %s is the number of plugins and themes */
-            '%s items are not from WordPress.org, so there is no official copy to compare them with.' => __('%s items are not from WordPress.org, so there is no official copy to compare them with.', 'fluent-security'),
-            /* translators: %s is the number of open security issues */
-            '%s items need attention' => __('%s items need attention', 'fluent-security'),
+            "%s item needs attention\x00%s items need attention" => self::pluralForms(_n_noop('%s item needs attention', '%s items need attention', 'fluent-security')),
             /* translators: %s is the number of further security issues not listed above */
-            '%s more item to review' => __('%s more item to review', 'fluent-security'),
-            /* translators: %s is the number of further security issues not listed above */
-            '%s more items to review' => __('%s more items to review', 'fluent-security'),
+            "%s more item to review\x00%s more items to review" => self::pluralForms(_n_noop('%s more item to review', '%s more items to review', 'fluent-security')),
             /* translators: %s is the number of plugins and themes not in the snapshot yet */
-            '%s not yet recorded' => __('%s not yet recorded', 'fluent-security'),
+            "%s not yet recorded\x00%s not yet recorded" => self::pluralForms(_n_noop('%s not yet recorded', '%s not yet recorded', 'fluent-security')),
             /* translators: %s is the number of optional security recommendations */
-            '%s optional recommendation' => __('%s optional recommendation', 'fluent-security'),
-            /* translators: %s is the number of optional security recommendations */
-            '%s optional recommendations' => __('%s optional recommendations', 'fluent-security'),
+            "%s optional recommendation\x00%s optional recommendations" => self::pluralForms(_n_noop('%s optional recommendation', '%s optional recommendations', 'fluent-security')),
             /* translators: %s is the number of passkeys this user has, always 2 or more */
             '%s passkeys' => __('%s passkeys', 'fluent-security'),
             /* translators: %s is the number of plugins and themes in the snapshot */
-            '%s plugin or theme' => __('%s plugin or theme', 'fluent-security'),
+            "%s plugin or theme\x00%s plugins and themes" => self::pluralForms(_n_noop('%s plugin or theme', '%s plugins and themes', 'fluent-security')),
             /* translators: %s is the number of plugins and themes in the snapshot */
-            '%s plugin or theme recorded' => __('%s plugin or theme recorded', 'fluent-security'),
-            /* translators: %s is the number of plugins and themes in the snapshot */
-            '%s plugins and themes' => __('%s plugins and themes', 'fluent-security'),
-            /* translators: %s is the number of plugins and themes in the snapshot */
-            '%s plugins and themes recorded' => __('%s plugins and themes recorded', 'fluent-security'),
+            "%s plugin or theme recorded\x00%s plugins and themes recorded" => self::pluralForms(_n_noop('%s plugin or theme recorded', '%s plugins and themes recorded', 'fluent-security')),
             /* translators: %s is the number of plugins and themes reinstalled */
-            '%s reinstalled.' => __('%s reinstalled.', 'fluent-security'),
+            "%s reinstalled.\x00%s reinstalled." => self::pluralForms(_n_noop('%s reinstalled.', '%s reinstalled.', 'fluent-security')),
             /* translators: %s is a number of items waiting to be checked */
-            '%s to check' => __('%s to check', 'fluent-security'),
+            "%s to check\x00%s to check" => self::pluralForms(_n_noop('%s to check', '%s to check', 'fluent-security')),
             /* translators: %s is the number of files that are not part of the official copy */
-            '%s unexpected file' => __('%s unexpected file', 'fluent-security'),
-            /* translators: %s is the number of files that are not part of the official copy */
-            '%s unexpected files' => __('%s unexpected files', 'fluent-security'),
+            "%s unexpected file\x00%s unexpected files" => self::pluralForms(_n_noop('%s unexpected file', '%s unexpected files', 'fluent-security')),
             /* translators: %s is the number of different usernames this IP address tried */
-            '%s username tried' => __('%s username tried', 'fluent-security'),
-            /* translators: %s is the number of different usernames this IP address tried */
-            '%s usernames tried' => __('%s usernames tried', 'fluent-security'),
+            "%s username tried\x00%s usernames tried" => self::pluralForms(_n_noop('%s username tried', '%s usernames tried', 'fluent-security')),
             /* translators: %s is the number of plugins or themes whose installed version is not published on WordPress.org */
-            '%s version not on WordPress.org' => __('%s version not on WordPress.org', 'fluent-security'),
-            /* translators: %s is the number of plugins or themes whose installed version is not published on WordPress.org */
-            '%s versions not on WordPress.org' => __('%s versions not on WordPress.org', 'fluent-security'),
+            "%s version not on WordPress.org\x00%s versions not on WordPress.org" => self::pluralForms(_n_noop('%s version not on WordPress.org', '%s versions not on WordPress.org', 'fluent-security')),
             /* translators: %s is a comma-separated list of user role names */
             '%s will have to set one up the next time they sign in. Anyone already signed in sees a reminder in the admin area until they do.' => __('%s will have to set one up the next time they sign in. Anyone already signed in sees a reminder in the admin area until they do.', 'fluent-security'),
             /* translators: %s is the number of plugins or themes with changed files */
-            '%s with changes' => __('%s with changes', 'fluent-security'),
+            "%s with changes\x00%s with changes" => self::pluralForms(_n_noop('%s with changes', '%s with changes', 'fluent-security')),
             /* translators: %s is the number of premium or custom plugins and themes */
-            '%s with no official copy' => __('%s with no official copy', 'fluent-security'),
+            "%s with no official copy\x00%s with no official copy" => self::pluralForms(_n_noop('%s with no official copy', '%s with no official copy', 'fluent-security')),
             /* translators: %s is the name of the admin screen, e.g. "Dashboard" */
             '%s | FluentAuth' => __('%s | FluentAuth', 'fluent-security'),
             '2FA Enrollment' => __('2FA Enrollment', 'fluent-security'),
@@ -186,13 +135,13 @@ class TransStrings
             'A code sent to the user\'s email address when they sign in. There is nothing for them to install.' => __('A code sent to the user\'s email address when they sign in. There is nothing for them to install.', 'fluent-security'),
             'A code sent to their email address each time they sign in. Nothing to set up.' => __('A code sent to their email address each time they sign in. Nothing to set up.', 'fluent-security'),
             'A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.' => __('A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.', 'fluent-security'),
-            'A file has changed since your snapshot' => __('A file has changed since your snapshot', 'fluent-security'),
+            "A file has changed since your snapshot\x00Files have changed since your snapshot" => self::pluralForms(_n_noop('A file has changed since your snapshot', 'Files have changed since your snapshot', 'fluent-security')),
             'A fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each person sets theirs up from their profile page.' => __('A fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each person sets theirs up from their profile page.', 'fluent-security'),
             'A firewall, CDN or similar service sits in front of this site. You will add its address next.' => __('A firewall, CDN or similar service sits in front of this site. You will add its address next.', 'fluent-security'),
             'A full address, or a path like /members/.' => __('A full address, or a path like /members/.', 'fluent-security'),
             'A key is already in your wp-config.php. Switch this on to encrypt the app data.' => __('A key is already in your wp-config.php. Switch this on to encrypt the app data.', 'fluent-security'),
             'A passkey or the authenticator app only' => __('A passkey or the authenticator app only', 'fluent-security'),
-            'A plugin or theme is on a version WordPress.org has never released' => __('A plugin or theme is on a version WordPress.org has never released', 'fluent-security'),
+            "A plugin or theme is on a version WordPress.org has never released\x00Some plugins or themes are on versions WordPress.org has never released" => self::pluralForms(_n_noop('A plugin or theme is on a version WordPress.org has never released', 'Some plugins or themes are on versions WordPress.org has never released', 'fluent-security')),
             'A proxy sits in front of this site' => __('A proxy sits in front of this site', 'fluent-security'),
             'A step-by-step page for signing everyone out, putting files back and resetting passwords.' => __('A step-by-step page for signing everyone out, putting files back and resetting passwords.', 'fluent-security'),
             'API Key' => __('API Key', 'fluent-security'),
@@ -234,8 +183,6 @@ class TransStrings
             'After too many failed attempts' => __('After too many failed attempts', 'fluent-security'),
             'Alerts go to' => __('Alerts go to', 'fluent-security'),
             'All' => __('All', 'fluent-security'),
-            /* translators: %s is the number of application passwords on this site */
-            'All %s application passwords on this site will be deleted for good.' => __('All %s application passwords on this site will be deleted for good.', 'fluent-security'),
             'All Emails' => __('All Emails', 'fluent-security'),
             'All categories' => __('All categories', 'fluent-security'),
             'All events' => __('All events', 'fluent-security'),
@@ -440,9 +387,7 @@ class TransStrings
             'Enter the code from your authenticator app, or the one we emailed you.' => __('Enter the code from your authenticator app, or the one we emailed you.', 'fluent-security'),
             'Entries are kept until you delete them.' => __('Entries are kept until you delete them.', 'fluent-security'),
             /* translators: %s is the number of days activity logs are kept */
-            'Entries older than %s day are deleted automatically.' => __('Entries older than %s day are deleted automatically.', 'fluent-security'),
-            /* translators: %s is the number of days activity logs are kept */
-            'Entries older than %s days are deleted automatically.' => __('Entries older than %s days are deleted automatically.', 'fluent-security'),
+            "Entries older than %s day are deleted automatically.\x00Entries older than %s days are deleted automatically." => self::pluralForms(_n_noop('Entries older than %s day are deleted automatically.', 'Entries older than %s days are deleted automatically.', 'fluent-security')),
             'Event' => __('Event', 'fluent-security'),
             'Every 12 hours' => __('Every 12 hours', 'fluent-security'),
             'Every 6 hours' => __('Every 6 hours', 'fluent-security'),
@@ -483,7 +428,6 @@ class TransStrings
             'File integrity scans and alerts' => __('File integrity scans and alerts', 'fluent-security'),
             'File monitoring' => __('File monitoring', 'fluent-security'),
             'Files' => __('Files', 'fluent-security'),
-            'Files have changed since your snapshot' => __('Files have changed since your snapshot', 'fluent-security'),
             'Filled in from your own visit. Check it, then save.' => __('Filled in from your own visit. Check it, then save.', 'fluent-security'),
             'Fills in the fields below from your own visit. Nothing changes until you save.' => __('Fills in the fields below from your own visit. Nothing changes until you save.', 'fluent-security'),
             'Filter by category' => __('Filter by category', 'fluent-security'),
@@ -942,11 +886,9 @@ class TransStrings
             'Shortcodes' => __('Shortcodes', 'fluent-security'),
             'Shortcodes for front-end auth forms' => __('Shortcodes for front-end auth forms', 'fluent-security'),
             /* translators: %s is the number of detail lines under this finding */
-            'Show %s detail' => __('Show %s detail', 'fluent-security'),
-            /* translators: %s is the number of detail lines under this finding */
-            'Show %s details' => __('Show %s details', 'fluent-security'),
+            "Show %s detail\x00Show %s details" => self::pluralForms(_n_noop('Show %s detail', 'Show %s details', 'fluent-security')),
             /* translators: %s is the number of plugins or themes hidden from the list */
-            'Show %s more' => __('Show %s more', 'fluent-security'),
+            "Show %s more\x00Show %s more" => self::pluralForms(_n_noop('Show %s more', 'Show %s more', 'fluent-security')),
             'Show fewer' => __('Show fewer', 'fluent-security'),
             'Show the link form first' => __('Show the link form first', 'fluent-security'),
             'Show the side panel' => __('Show the side panel', 'fluent-security'),
@@ -979,7 +921,6 @@ class TransStrings
             'Social Login Settings' => __('Social Login Settings', 'fluent-security'),
             'Social login' => __('Social login', 'fluent-security'),
             'Some files differ from the official copies on WordPress.org' => __('Some files differ from the official copies on WordPress.org', 'fluent-security'),
-            'Some plugins or themes are on versions WordPress.org has never released' => __('Some plugins or themes are on versions WordPress.org has never released', 'fluent-security'),
             'Some sign-in methods are off' => __('Some sign-in methods are off', 'fluent-security'),
             /* translators: %s is the site name */
             'Someone just signed in to %s.' => __('Someone just signed in to %s.', 'fluent-security'),
@@ -1027,7 +968,7 @@ class TransStrings
             'Text size' => __('Text size', 'fluent-security'),
             'That does not look like an email address.' => __('That does not look like an email address.', 'fluent-security'),
             /* translators: %s is the number of application passwords on this site */
-            'The %s application password on this site will be deleted for good.' => __('The %s application password on this site will be deleted for good.', 'fluent-security'),
+            "The %s application password on this site will be deleted for good.\x00All %s application passwords on this site will be deleted for good." => self::pluralForms(_n_noop('The %s application password on this site will be deleted for good.', 'All %s application passwords on this site will be deleted for good.', 'fluent-security')),
             /* translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key */
             'The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. Do you have the old value but not the line? Then add a new key line first. After that, come back here to move the data across.' => __('The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. Do you have the old value but not the line? Then add a new key line first. After that, come back here to move the data across.', 'fluent-security'),
             /* translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key */
@@ -1071,13 +1012,9 @@ class TransStrings
             'Theme: %s' => __('Theme: %s', 'fluent-security'),
             'Themes' => __('Themes', 'fluent-security'),
             /* translators: %s is the number of administrators on this site */
-            'There are %s administrators on this site.' => __('There are %s administrators on this site.', 'fluent-security'),
+            "There is %s administrator on this site.\x00There are %s administrators on this site." => self::pluralForms(_n_noop('There is %s administrator on this site.', 'There are %s administrators on this site.', 'fluent-security')),
             /* translators: %s is the number of signed-in sessions on this site */
-            'There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.' => __('There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security'),
-            /* translators: %s is the number of administrators on this site */
-            'There is %s administrator on this site.' => __('There is %s administrator on this site.', 'fluent-security'),
-            /* translators: %s is the number of signed-in sessions on this site */
-            'There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.' => __('There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security'),
+            "There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.\x00There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again." => self::pluralForms(_n_noop('There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security')),
             'There is no official copy of these to compare against. Open each one and look for anything you did not put there.' => __('There is no official copy of these to compare against. Open each one and look for anything you did not put there.', 'fluent-security'),
             'These addresses are never locked out after too many failed logins.' => __('These addresses are never locked out after too many failed logins.', 'fluent-security'),
             'These addresses are not on this site, so nobody is sent to them. People land on the dashboard instead. Change them to an address on this site, or a path such as /members/.' => __('These addresses are not on this site, so nobody is sent to them. People land on the dashboard instead. Change them to an address on this site, or a path such as /members/.', 'fluent-security'),
@@ -1104,9 +1041,7 @@ class TransStrings
             'This email is not sent at all. Nobody is told when the event happens.' => __('This email is not sent at all. Nobody is told when the event happens.', 'fluent-security'),
             'This emails a link. It does not stop the old password working until somebody uses it, so do step 1 first.' => __('This emails a link. It does not stop the old password working until somebody uses it, so do step 1 first.', 'fluent-security'),
             /* translators: %s is the number of administrators */
-            'This emails a password reset link to %s administrator. Send it?' => __('This emails a password reset link to %s administrator. Send it?', 'fluent-security'),
-            /* translators: %s is the number of administrators */
-            'This emails a password reset link to %s administrators. Send it?' => __('This emails a password reset link to %s administrators. Send it?', 'fluent-security'),
+            "This emails a password reset link to %s administrator. Send it?\x00This emails a password reset link to %s administrators. Send it?" => self::pluralForms(_n_noop('This emails a password reset link to %s administrator. Send it?', 'This emails a password reset link to %s administrators. Send it?', 'fluent-security')),
             'This emails a password reset link to every user on this site. Send it?' => __('This emails a password reset link to every user on this site. Send it?', 'fluent-security'),
             'This has to be added by hand' => __('This has to be added by hand', 'fluent-security'),
             'This hides the finding without fixing anything. You can bring it back from the Dismissed tab.' => __('This hides the finding without fixing anything. You can bring it back from the Dismissed tab.', 'fluent-security'),
@@ -1115,9 +1050,7 @@ class TransStrings
             'This only skips the lockout. Two-factor still applies and every attempt is still logged.' => __('This only skips the lockout. Two-factor still applies and every attempt is still logged.', 'fluent-security'),
             'This records things as they are now. You will hear about it again only if something changes.' => __('This records things as they are now. You will hear about it again only if something changes.', 'fluent-security'),
             /* translators: %s is the number of plugins and themes to reinstall */
-            'This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.' => __('This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'fluent-security'),
-            /* translators: %s is the number of plugins and themes to reinstall */
-            'This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.' => __('This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'fluent-security'),
+            "This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.\x00This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first." => self::pluralForms(_n_noop('This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'fluent-security')),
             'This request carried the kind of information a proxy adds, but anyone can send that, so it proves nothing. Only list a proxy below if you know one is there.' => __('This request carried the kind of information a proxy adds, but anyone can send that, so it proves nothing. Only list a proxy below if you know one is there.', 'fluent-security'),
             'This server cannot encrypt' => __('This server cannot encrypt', 'fluent-security'),
             'This site cannot use passkeys yet' => __('This site cannot use passkeys yet', 'fluent-security'),
@@ -1139,9 +1072,7 @@ class TransStrings
             'To: %s' => __('To: %s', 'fluent-security'),
             'Today' => __('Today', 'fluent-security'),
             /* translators: %s is the number of minutes */
-            'Too many failed attempts. Try again in %s minute.' => __('Too many failed attempts. Try again in %s minute.', 'fluent-security'),
-            /* translators: %s is the number of minutes */
-            'Too many failed attempts. Try again in %s minutes.' => __('Too many failed attempts. Try again in %s minutes.', 'fluent-security'),
+            "Too many failed attempts. Try again in %s minute.\x00Too many failed attempts. Try again in %s minutes." => self::pluralForms(_n_noop('Too many failed attempts. Try again in %s minute.', 'Too many failed attempts. Try again in %s minutes.', 'fluent-security')),
             'Top sources of failed & blocked attempts' => __('Top sources of failed & blocked attempts', 'fluent-security'),
             'Top sources of failed and blocked attempts' => __('Top sources of failed and blocked attempts', 'fluent-security'),
             'Totals for the selected period' => __('Totals for the selected period', 'fluent-security'),
@@ -1217,13 +1148,9 @@ class TransStrings
             /* translators: %1$s is the number of files watched, %2$s the total files in this plugin or theme */
             'Watching %1$s of %2$s' => __('Watching %1$s of %2$s', 'fluent-security'),
             /* translators: %s is the number of must-use plugin files being watched */
-            'Watching %s file' => __('Watching %s file', 'fluent-security'),
+            "Watching %s file\x00Watching %s files" => self::pluralForms(_n_noop('Watching %s file', 'Watching %s files', 'fluent-security')),
             /* translators: %s is the number of files, already formatted with thousands separators */
-            'Watching %s file against your snapshot' => __('Watching %s file against your snapshot', 'fluent-security'),
-            /* translators: %s is the number of must-use plugin files being watched */
-            'Watching %s files' => __('Watching %s files', 'fluent-security'),
-            /* translators: %s is the number of files, already formatted with thousands separators */
-            'Watching %s files against your snapshot' => __('Watching %s files against your snapshot', 'fluent-security'),
+            "Watching %s file against your snapshot\x00Watching %s files against your snapshot" => self::pluralForms(_n_noop('Watching %s file against your snapshot', 'Watching %s files against your snapshot', 'fluent-security')),
             'We have emailed you a code. It expires in a few minutes.' => __('We have emailed you a code. It expires in a few minutes.', 'fluent-security'),
             'We sent a code to that address. Enter it to confirm the address is yours.' => __('We sent a code to that address. Enter it to confirm the address is yours.', 'fluent-security'),
             'Wednesday' => __('Wednesday', 'fluent-security'),
@@ -1371,9 +1298,7 @@ class TransStrings
             /* translators: %s is the number of further changed files not counted in this list */
             'and %s more' => __('and %s more', 'fluent-security'),
             /* translators: %s is the number of further changed files not listed */
-            'and %s more file' => __('and %s more file', 'fluent-security'),
-            /* translators: %s is the number of further changed files not listed */
-            'and %s more files' => __('and %s more files', 'fluent-security'),
+            "and %s more file\x00and %s more files" => self::pluralForms(_n_noop('and %s more file', 'and %s more files', 'fluent-security')),
             'and compare it with the one above.' => __('and compare it with the one above.', 'fluent-security'),
             'attempts' => __('attempts', 'fluent-security'),
             'capability' => __('capability', 'fluent-security'),
@@ -1387,9 +1312,7 @@ class TransStrings
             'emailed codes' => __('emailed codes', 'fluent-security'),
             'failed attempts within' => __('failed attempts within', 'fluent-security'),
             /* translators: %s is the number of plugins and themes with changed files */
-            'in %s plugin or theme' => __('in %s plugin or theme', 'fluent-security'),
-            /* translators: %s is the number of plugins and themes with changed files */
-            'in %s plugins and themes' => __('in %s plugins and themes', 'fluent-security'),
+            "in %s plugin or theme\x00in %s plugins and themes" => self::pluralForms(_n_noop('in %s plugin or theme', 'in %s plugins and themes', 'fluent-security')),
             'inside your network' => __('inside your network', 'fluent-security'),
             'is one of' => __('is one of', 'fluent-security'),
             'last checked' => __('last checked', 'fluent-security'),
@@ -1417,5 +1340,61 @@ class TransStrings
             '{admin_email} is the admin email from your site\'s General Settings. Separate several addresses with commas.' => __('{admin_email} is the admin email from your site\'s General Settings. Separate several addresses with commas.', 'fluent-security'),
             '← Go to Website' => __('← Go to Website', 'fluent-security'),
         ];
+    }
+
+    /**
+     * Every translated form of a $_n() string, in the order of the site language's plural rule.
+     *
+     * @param array $noop From _n_noop()
+     * @return string[]
+     */
+    private static function pluralForms($noop)
+    {
+        $samples = self::pluralRule($noop['domain'])['samples'];
+        $forms = [];
+        foreach ($samples as $count) {
+            $forms[] = translate_nooped_plural($noop, $count, $noop['domain']);
+        }
+        return $forms;
+    }
+
+    /**
+     * The plural form index for counts 0..199 (`index`) and the first count of each form (`samples`).
+     *
+     * @param string $domain Text domain
+     * @return array{index: int[], samples: int[]}
+     */
+    public static function pluralRule($domain)
+    {
+        static $rules = [];
+        if (isset($rules[$domain])) {
+            return $rules[$domain];
+        }
+
+        $expression = 'n != 1';
+        $translations = get_translations_for_domain($domain);
+        foreach ((array) $translations->headers as $name => $value) {
+            if (strtolower($name) === 'plural-forms' && preg_match('/plural\s*=\s*(.+)$/', (string) $value, $match)) {
+                $expression = rtrim(trim($match[1]), ';');
+            }
+        }
+        try {
+            $rule = new \Plural_Forms($expression);
+        } catch (\Exception $e) {
+            $rule = new \Plural_Forms('n != 1');
+        }
+
+        $index = [];
+        $samples = [];
+        for ($count = 0; $count < 200; $count++) {
+            $form = (int) $rule->get($count);
+            $index[] = $form;
+            if (!isset($samples[$form])) {
+                $samples[$form] = $count;
+            }
+        }
+        ksort($samples);
+
+        return $rules[$domain] = ['index' => $index, 'samples' => array_values($samples)];
     }
 }
