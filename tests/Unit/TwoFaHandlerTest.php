@@ -1354,6 +1354,7 @@ class TwoFaHandlerTest extends BaseTestCase
             'created_at' => date('Y-m-d H:i:s', $created),
             'valid_till' => date('Y-m-d H:i:s', $created + 600)
         ]);
+        Helper::cleanUpLoginHashes();
         $this->assertArrayHasKey('redirect', $this->verify($issued['code'], $issued['hash']));
     }
 

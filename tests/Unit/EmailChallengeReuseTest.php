@@ -182,11 +182,33 @@ class EmailChallengeReuseTest extends BaseTestCase
             'created_at' => date('Y-m-d H:i:s', $created),
             'valid_till' => date('Y-m-d H:i:s', $created + 600)
         ]);
+        Helper::cleanUpLoginHashes();
         $this->assertSame($first, $this->issue(), 'A wall-clock jump must not create another code.');
     }
 
     public static function daylightSavingTransitions()
     {
         return ['spring forward' => [-3600], 'autumn rollback' => [3600]];
+    }
+
+    public function testCleanupExpiresOldUtcTokensAndKeepsLegacyAndOtherTypesRules()
+    {
+        $issued = $this->issue();
+        $oldHash = preg_replace('/-[0-9]+$/', '-' . (time() - 660), $issued['login_hash']);
+        flsDb()->table('fls_login_hashes')->where('login_hash', $issued['login_hash'])->update(['login_hash' => $oldHash]);
+        foreach (['email_2_fa', 'magic_login'] as $type) {
+            foreach ([-60, 600] as $expiry) {
+                flsDb()->table('fls_login_hashes')->insert([
+                    'login_hash' => $type . $expiry, 'user_id' => $this->user->ID,
+                    'use_type' => $type, 'status' => 'issued', 'created_at' => current_time('mysql'),
+                    'valid_till' => date('Y-m-d H:i:s', current_time('timestamp') + $expiry)
+                ]);
+            }
+        }
+        Helper::cleanUpLoginHashes();
+        foreach ([$oldHash => 'expired', 'email_2_fa-60' => 'expired', 'email_2_fa600' => 'issued',
+            'magic_login-60' => 'expired', 'magic_login600' => 'issued'] as $hash => $status) {
+            $this->assertSame($status, flsDb()->table('fls_login_hashes')->where('login_hash', $hash)->first()->status);
+        }
     }
 }

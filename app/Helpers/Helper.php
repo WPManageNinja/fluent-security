@@ -771,12 +771,19 @@ class Helper
 
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $keepDays * 86400);
 
-        flsDb()->table('fls_login_hashes')
-            ->where('valid_till', '<', current_time('mysql'))
-            ->where('status', 'issued')
-            ->update([
-                'status' => 'expired'
-            ]);
+        global $wpdb;
+        // New email tokens use elapsed UTC age, including when local clocks jump at DST.
+        // Other types and legacy tokens keep their existing site-local expiry rule.
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'expired'
+             WHERE status = 'issued' AND CASE
+             WHEN use_type IN (%s, %s) AND login_hash REGEXP %s
+             THEN CAST(SUBSTRING_INDEX(REPLACE(login_hash, '-auth', ''), '-', -1) AS UNSIGNED)
+                  + LEAST(%d, TIMESTAMPDIFF(SECOND, created_at, valid_till)) < %d
+             ELSE valid_till < %s END",
+            'email_2_fa', '2fa_challenge', '^email-[a-f0-9]{32}-[a-z0-9]+-[0-9]+(-auth)?$',
+            \FluentAuth\App\Hooks\Handlers\TwoFaHandler::PENDING_TIMEOUT, time(), current_time('mysql')
+        ));
 
         flsDb()->table('fls_login_hashes')
             ->where('status', '!=', 'issued')
