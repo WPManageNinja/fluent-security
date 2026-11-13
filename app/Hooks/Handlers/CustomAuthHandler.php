@@ -664,7 +664,7 @@ class CustomAuthHandler
      * @param $user \WP_User
      * @return false|string
      */
-    private function getDefaultLoginRedirectUrl($user)
+    public function getDefaultLoginRedirectUrl($user)
     {
         $settings = Helper::getAuthFormsSettings();
 

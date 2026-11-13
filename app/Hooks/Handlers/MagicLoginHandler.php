@@ -777,7 +777,10 @@ class MagicLoginHandler
 
     private function getLoginRedirect($user)
     {
-        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : site_url();
+        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : '';
+        if (!$requested_redirect_to) {
+            $requested_redirect_to = (new CustomAuthHandler())->getDefaultLoginRedirectUrl($user) ?: site_url();
+        }
         return apply_filters('login_redirect', $requested_redirect_to, $requested_redirect_to, $user);
     }
 
