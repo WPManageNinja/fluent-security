@@ -597,6 +597,17 @@ class CustomAuthHandler
             $redirectTo = home_url(Arr::get($_SERVER, 'REQUEST_URI'));
             $attributes['redirect_to'] = $redirectTo;
         } else if ($redirectTo) {
+            if (is_string($redirectTo) && strpos($redirectTo, '/') === 0 && strpos($redirectTo, '//') !== 0) {
+                // Downstream auth flows expect an absolute URL. Keep root paths at the
+                // site's origin, including its port, without prepending a home subdirectory.
+                $home = wp_parse_url(home_url());
+                if (!empty($home['scheme']) && !empty($home['host'])) {
+                    $redirectTo = $home['scheme'] . '://' . $home['host']
+                        . (isset($home['port']) ? ':' . $home['port'] : '') . $redirectTo;
+                    $attributes['redirect_to'] = $redirectTo;
+                }
+            }
+
             // Validate URL
             if (!filter_var($redirectTo, FILTER_VALIDATE_URL)) {
                 $attributes['redirect_to'] = '';

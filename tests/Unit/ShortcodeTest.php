@@ -201,6 +201,126 @@ class ShortcodeTest extends BaseTestCase
         $this->assertStringContainsString('id="fls_magic_logon_nonce"', $html);
     }
 
+    /** @dataProvider rootRelativeRedirects */
+    public function test_root_relative_redirects_reach_every_shortcode_form($redirect, $home, $expected)
+    {
+        update_option('home', $home);
+        update_option('users_can_register', 1);
+        $this->setSettings(['magic_login' => 'yes']);
+
+        foreach (['fluent_auth', 'fluent_auth_login', 'fluent_auth_signup', 'fluent_auth_reset_password', 'fluent_auth_magic_login'] as $tag) {
+            $html = do_shortcode('[' . $tag . ' redirect_to="' . $redirect . '"]');
+            $inputs = $this->redirectInputsIn($html);
+            $count = $tag === 'fluent_auth' ? 4 : ($tag === 'fluent_auth_login' ? 2 : 1);
+            $this->assertCount($count, $inputs, $tag . ' must carry the explicit destination');
+            foreach ($inputs as $input) {
+                $this->assertSame($expected, $input, $tag . ' changed or discarded the destination');
+            }
+            remove_all_filters('fluent_auth/social_redirect_to');
+        }
+    }
+
+    public function rootRelativeRedirects()
+    {
+        return [
+            'portal' => ['/portal/', 'https://example.org', 'https://example.org/portal/'],
+            'root' => ['/', 'https://example.org', 'https://example.org/'],
+            'query and fragment' => ['/portal/?step=2&next=%2Fmembers%2F#ready', 'https://example.org', 'https://example.org/portal/?step=2&next=%2Fmembers%2F#ready'],
+            'zero values' => ['/0?0#0', 'https://example.org', 'https://example.org/0?0#0'],
+            'subdirectory and port' => ['/portal/', 'https://example.org:8443/blog', 'https://example.org:8443/portal/'],
+            'encoded unicode' => ['/caf%C3%A9/', 'https://example.org', 'https://example.org/caf%C3%A9/']
+        ];
+    }
+
+    /** @dataProvider existingShortcodeRedirects */
+    public function test_existing_shortcode_redirect_inputs_keep_their_behavior($redirect, $expected)
+    {
+        $inputs = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="' . $redirect . '"]'));
+        $this->assertSame($expected ? [$expected, $expected] : [''], $inputs);
+    }
+
+    public function existingShortcodeRedirects()
+    {
+        return [
+            'absolute' => ['https://example.org/portal/?step=2#ready', 'https://example.org/portal/?step=2#ready'],
+            'external absolute' => ['https://other.example/portal/', 'https://other.example/portal/'],
+            'empty' => ['', ''],
+            'protocol relative' => ['//other.example/portal/', ''],
+            'invalid' => ['not a URL', ''],
+            'page relative' => ['portal/', '']
+        ];
+    }
+
+    public function test_root_relative_signup_redirect_reaches_social_buttons_and_respects_overrides()
+    {
+        update_option('users_can_register', 1);
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        $shortcode = '[fluent_auth_signup redirect_to="/portal/?step=2#ready"]';
+        $this->assertSame('https://example.org/portal/?step=2#ready', $this->socialIntentIn(do_shortcode($shortcode)));
+
+        add_filter('fluent_auth/social_redirect_to', function () { return 'https://example.org/override/'; });
+        $this->assertSame('https://example.org/override/', $this->socialIntentIn(do_shortcode($shortcode)));
+    }
+
+    public function test_root_relative_login_destination_survives_submission()
+    {
+        $this->setSettings(['email2fa' => 'no', 'email2fa_roles' => []]);
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        wp_set_password('correct-horse', $user->ID);
+        $inputs = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="/portal/"]'));
+        $_REQUEST['redirect_to'] = end($inputs);
+        $_REQUEST['force_redirect_to'] = reset($inputs);
+        try {
+            $response = $this->postLogin($user, 'correct-horse');
+            $this->assertSame('https://example.org/portal/', $response['redirect']);
+        } finally {
+            unset($_REQUEST['redirect_to'], $_REQUEST['force_redirect_to']);
+        }
+    }
+
+    public function test_root_relative_login_destination_is_retained_by_the_second_factor()
+    {
+        global $wpdb;
+        $user = $this->userWithEmail2Fa();
+        $inputs = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="/portal/"]'));
+        $_REQUEST['redirect_to'] = end($inputs);
+        $_REQUEST['force_redirect_to'] = reset($inputs);
+        try {
+            $response = $this->postLogin($user, 'correct-horse');
+            $this->assertSame('yes', $response['load_2fa']);
+            $this->assertSame('https://example.org/portal/', $wpdb->get_var($wpdb->prepare(
+                "SELECT redirect_intend FROM {$wpdb->prefix}fls_login_hashes WHERE user_id = %d ORDER BY id DESC LIMIT 1",
+                $user->ID
+            )));
+        } finally {
+            unset($_REQUEST['redirect_to'], $_REQUEST['force_redirect_to']);
+        }
+    }
+
+    public function test_self_shortcode_redirect_remains_the_current_page()
+    {
+        $_SERVER['REQUEST_URI'] = '/current/?step=2';
+        $this->assertSame(
+            ['https://example.org/current/?step=2', 'https://example.org/current/?step=2'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    private function redirectInputsIn($html)
+    {
+        $document = new \DOMDocument();
+        @$document->loadHTML($html);
+        $values = [];
+        foreach ($document->getElementsByTagName('input') as $input) {
+            if (in_array($input->getAttribute('name'), ['redirect_to', 'force_redirect_to', '__redirect_to'], true)) {
+                $values[] = $input->getAttribute('value');
+            }
+        }
+        return $values;
+    }
+
     // --------------------------------------------------------- the social buttons
 
     public function test_the_social_buttons_shortcode_renders_the_providers_that_are_on()
