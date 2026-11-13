@@ -369,15 +369,18 @@ class TwoFaHandler
         try {
             $hash = null;
             if ($prefix) {
-                $now = current_time('timestamp');
-                $hash = $wpdb->get_var($wpdb->prepare(
-                    "SELECT login_hash FROM {$wpdb->prefix}fls_login_hashes
+                $row = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}fls_login_hashes
                      WHERE user_id = %d AND login_hash LIKE %s AND status = 'issued'
-                     AND used_count < %d AND created_at >= %s AND created_at <= %s AND valid_till > %s
-                     ORDER BY id DESC LIMIT 1",
-                    $user->ID, $wpdb->esc_like($prefix) . '%', self::MAX_VERIFY_ATTEMPTS,
-                    date('Y-m-d H:i:s', $now - 5), date('Y-m-d H:i:s', $now), date('Y-m-d H:i:s', $now)
+                     AND used_count < %d ORDER BY id DESC LIMIT 1",
+                    $user->ID, $wpdb->esc_like($prefix) . '%', self::MAX_VERIFY_ATTEMPTS
                 ));
+                if ($row) {
+                    $age = $this->challengeAge($row);
+                    if ($age >= 0 && $age <= 5 && $age < strtotime($row->valid_till) - strtotime($row->created_at)) {
+                        $hash = $row->login_hash;
+                    }
+                }
             }
 
             $issued = $hash ? null : $this->issue2FaChallenge($user, $method, $redirectIntend, $useType, $prefix);
@@ -394,6 +397,15 @@ class TwoFaHandler
         }
         $redirectTo = TwoFaService::getChallengeUrl($hash);
         return $return === 'url' ? $redirectTo : ['redirect_to' => $redirectTo, 'login_hash' => $hash];
+    }
+
+    private function challengeAge($row)
+    {
+        // New email tokens carry the UTC issuance instant; legacy rows keep their existing clock.
+        if (preg_match('/^email-[a-f0-9]{32}-[a-z0-9]+-([0-9]+)(?:-auth)?$/D', $row->login_hash, $matches)) {
+            return time() - (int) $matches[1];
+        }
+        return current_time('timestamp') - strtotime($row->created_at);
     }
 
     private function issue2FaChallenge($user, $method, $redirectIntend, $useType, $prefix)
@@ -464,7 +476,7 @@ class TwoFaHandler
          * them afterwards (as this used to) means the attempt cap only ever applies to
          * a code that already matched, so a wrong code could be retried indefinitely.
          */
-        if (!$user || !$method || $logHash->status != 'issued' || strtotime($logHash->created_at) < current_time('timestamp') - self::PENDING_TIMEOUT) {
+        if (!$user || !$method || $logHash->status != 'issued' || $this->challengeAge($logHash) > self::PENDING_TIMEOUT) {
             wp_send_json([
                 'message' => __('That code has expired. Please sign in again.', 'fluent-security')
             ], 422);
@@ -1095,7 +1107,7 @@ class TwoFaHandler
 
         $row = $this->getPendingRow($hash);
 
-        if (!$row || strtotime($row->valid_till) < current_time('timestamp')) {
+        if (!$row || $this->challengeAge($row) > strtotime($row->valid_till) - strtotime($row->created_at)) {
             return;
         }
 

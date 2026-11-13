@@ -100,7 +100,8 @@ class EmailChallengeReuseTest extends BaseTestCase
         $first = $this->issue();
         $now = current_time('timestamp');
         if (isset($changes['age'])) {
-            $changes = ['created_at' => date('Y-m-d H:i:s', $now - $changes['age'])];
+            $changes = ['created_at' => date('Y-m-d H:i:s', $now - $changes['age']),
+                'login_hash' => preg_replace('/-[0-9]+$/', '-' . (time() - $changes['age']), $first['login_hash'])];
         } elseif (isset($changes['expired'])) {
             $changes = ['valid_till' => date('Y-m-d H:i:s', $now - 1)];
         }
@@ -169,5 +170,23 @@ class EmailChallengeReuseTest extends BaseTestCase
         $after = flsDb()->table('fls_login_hashes')->where('login_hash', $legacy['login_hash'])->first();
         $this->assertEquals($before, $after);
         $this->assertTrue($method->verifyProof($this->user, $after, ['login_passcode' => $challenge['secret']]));
+    }
+
+    /** @dataProvider daylightSavingTransitions */
+    public function testReuseSurvivesDaylightSavingTransitions($oldOffset)
+    {
+        $first = $this->issue();
+        // Model the old clock on either side of a one-hour DST jump; UTC issuance is unchanged.
+        $created = current_time('timestamp') + $oldOffset;
+        flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash'])->update([
+            'created_at' => date('Y-m-d H:i:s', $created),
+            'valid_till' => date('Y-m-d H:i:s', $created + 600)
+        ]);
+        $this->assertSame($first, $this->issue(), 'A wall-clock jump must not create another code.');
+    }
+
+    public static function daylightSavingTransitions()
+    {
+        return ['spring forward' => [-3600], 'autumn rollback' => [3600]];
     }
 }

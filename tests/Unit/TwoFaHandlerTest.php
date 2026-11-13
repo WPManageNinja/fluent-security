@@ -1333,15 +1333,33 @@ class TwoFaHandlerTest extends BaseTestCase
     public function testAnExpiredCodeIsRejectedWithoutBeingCompared()
     {
         $issued = $this->issueCode();
+        $expiredHash = preg_replace('/-[0-9]+$/', '-' . (time() - 11 * 60), $issued['hash']);
 
         flsDb()->table('fls_login_hashes')
             ->where('login_hash', $issued['hash'])
-            ->update(['created_at' => date('Y-m-d H:i:s', current_time('timestamp') - 11 * 60)]);
+            ->update(['created_at' => date('Y-m-d H:i:s', current_time('timestamp') - 11 * 60), 'login_hash' => $expiredHash]);
 
-        $response = $this->verify($issued['code'], $issued['hash']);
+        $response = $this->verify($issued['code'], $expiredHash);
 
         $this->assertArrayNotHasKey('redirect', $response);
-        $this->assertSame(0, (int)$this->hashRow($issued['hash'])->used_count);
+        $this->assertSame(0, (int)$this->hashRow($expiredHash)->used_count);
+    }
+
+    /** @dataProvider daylightSavingOffsets */
+    public function testEmailCodeRemainsAnswerableAcrossADaylightSavingJump($oldOffset)
+    {
+        $issued = $this->issueCode();
+        $created = current_time('timestamp') + $oldOffset;
+        flsDb()->table('fls_login_hashes')->where('login_hash', $issued['hash'])->update([
+            'created_at' => date('Y-m-d H:i:s', $created),
+            'valid_till' => date('Y-m-d H:i:s', $created + 600)
+        ]);
+        $this->assertArrayHasKey('redirect', $this->verify($issued['code'], $issued['hash']));
+    }
+
+    public static function daylightSavingOffsets()
+    {
+        return ['spring forward' => [-3600], 'autumn rollback' => [3600]];
     }
 
     public function testAnAlreadyUsedCodeCannotBeReplayed()
