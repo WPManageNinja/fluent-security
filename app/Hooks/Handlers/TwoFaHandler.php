@@ -343,14 +343,65 @@ class TwoFaHandler
             return false;
         }
 
-        $string = $user->ID . '-' . wp_generate_uuid4() . mt_rand(1, 99999999);
-        $hash = wp_hash_password($string);
-        $hash = sanitize_title($hash, '', 'display');
-        $hash .= $user->ID . '-' . time();
-
         if ($redirectIntend === null) {
             $redirectIntend = $this->resolveRedirectIntent();
         }
+
+        $useType = $this->resolveUseType($user, $method);
+        $prefix = '';
+        $lock = '';
+        global $wpdb;
+
+        // Custom methods keep their own issuance semantics. Only our mailed code is reused.
+        if (get_class($method) === EmailTwoFaMethod::class) {
+            $context = serialize([
+                $wpdb->prefix, $user->ID, $user->user_pass, $user->user_email,
+                Helper::getIp(), $redirectIntend, isset($_REQUEST['rememberme']), $useType
+            ]);
+            $prefix = 'email-' . substr(hash_hmac('sha256', $context, wp_salt('auth')), 0, 32) . '-';
+            // Namespace the database lock by site and database as well as the login context.
+            $lock = 'fls-email-' . md5(constant('DB_NAME') . $wpdb->prefix . $prefix);
+            if ((string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, 5)', $lock)) !== '1') {
+                wp_die(__('Something went wrong while signing you in. Please try again.', 'fluent-security'), '', ['response' => 503]);
+            }
+        }
+
+        try {
+            $hash = null;
+            if ($prefix) {
+                $now = current_time('timestamp');
+                $hash = $wpdb->get_var($wpdb->prepare(
+                    "SELECT login_hash FROM {$wpdb->prefix}fls_login_hashes
+                     WHERE user_id = %d AND login_hash LIKE %s AND status = 'issued'
+                     AND used_count < %d AND created_at >= %s AND created_at <= %s AND valid_till > %s
+                     ORDER BY id DESC LIMIT 1",
+                    $user->ID, $wpdb->esc_like($prefix) . '%', self::MAX_VERIFY_ATTEMPTS,
+                    date('Y-m-d H:i:s', $now - 5), date('Y-m-d H:i:s', $now), date('Y-m-d H:i:s', $now)
+                ));
+            }
+
+            $issued = $hash ? null : $this->issue2FaChallenge($user, $method, $redirectIntend, $useType, $prefix);
+            $hash = $hash ?: $issued['login_hash'];
+        } finally {
+            if ($lock) {
+                $wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $lock));
+            }
+        }
+
+        // Mail can be slow: release the issuance lock before calling transports or listeners.
+        if ($issued) {
+            $method->dispatchChallenge($user, $issued['challenge'], $issued['context']);
+        }
+        $redirectTo = TwoFaService::getChallengeUrl($hash);
+        return $return === 'url' ? $redirectTo : ['redirect_to' => $redirectTo, 'login_hash' => $hash];
+    }
+
+    private function issue2FaChallenge($user, $method, $redirectIntend, $useType, $prefix)
+    {
+        $string = $user->ID . '-' . wp_generate_uuid4() . mt_rand(1, 99999999);
+        $hash = $prefix ? $prefix . wp_generate_password(32, false) : wp_hash_password($string);
+        $hash = sanitize_title($hash, '', 'display');
+        $hash .= $user->ID . '-' . time();
 
         if (isset($_REQUEST['rememberme'])) {
             $hash .= '-auth';
@@ -364,7 +415,7 @@ class TwoFaHandler
             'status'          => 'issued',
             'ip_address'      => Helper::getIp(),
             'redirect_intend' => $redirectIntend,
-            'use_type'        => $this->resolveUseType($user, $method),
+            'use_type'        => $useType,
             'valid_till'      => date('Y-m-d H:i:s', current_time('timestamp') + self::PENDING_TIMEOUT),
             'created_at'      => current_time('mysql'),
             'updated_at'      => current_time('mysql')
@@ -372,24 +423,14 @@ class TwoFaHandler
 
         $data = array_merge($data, (array)Arr::get($challenge, 'columns', []));
 
-        flsDb()->table('fls_login_hashes')
-            ->insert($data);
-
-        $method->dispatchChallenge($user, $challenge, [
-            'login_hash'  => $hash,
-            'redirect_to' => $redirectIntend,
-            'row'         => $data
-        ]);
-
-        $redirectTo = TwoFaService::getChallengeUrl($hash);
-
-        if ($return === 'url') {
-            return $redirectTo;
+        if (!flsDb()->table('fls_login_hashes')->insert($data)) {
+            wp_die(__('Something went wrong while signing you in. Please try again.', 'fluent-security'), '', ['response' => 503]);
         }
 
         return [
-            'redirect_to' => $redirectTo,
-            'login_hash'  => $hash
+            'login_hash' => $hash,
+            'challenge' => $challenge,
+            'context' => ['login_hash' => $hash, 'redirect_to' => $redirectIntend, 'row' => $data]
         ];
     }
 

@@ -1373,7 +1373,8 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $returns = [];
         for ($i = 0; $i < 9; $i++) {
-            $returns[] = $this->handler->sendAndGet2FaConfirmFormUrl($this->user, 'both');
+            // Distinct login contexts exercise throttling rather than duplicate reuse.
+            $returns[] = $this->handler->sendAndGet2FaConfirmFormUrl($this->user, 'both', '/attempt-' . $i);
         }
 
         remove_filter('wp_mail', $counter);
@@ -1488,7 +1489,7 @@ class TwoFaHandlerTest extends BaseTestCase
     {
         // Well past the limit of 5, but none of these are magic links.
         for ($i = 0; $i < 9; $i++) {
-            $this->handler->sendAndGet2FaConfirmFormUrl($this->user, 'both');
+            $this->handler->sendAndGet2FaConfirmFormUrl($this->user, 'both', '/attempt-' . $i);
         }
 
         $total = flsDb()->table('fls_login_hashes')
@@ -1507,7 +1508,7 @@ class TwoFaHandlerTest extends BaseTestCase
     public function testThrottledCodeStillHasToBeEnteredCorrectly()
     {
         for ($i = 0; $i < 6; $i++) {
-            $this->handler->sendAndGet2FaConfirmFormUrl($this->user, 'both');
+            $this->handler->sendAndGet2FaConfirmFormUrl($this->user, 'both', '/attempt-' . $i);
         }
 
         // The 7th is past the email throttle but must still be a working, required code.
