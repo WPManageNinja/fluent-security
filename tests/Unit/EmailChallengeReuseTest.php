@@ -46,16 +46,24 @@ class EmailChallengeReuseTest extends BaseTestCase
 
     public function testIdenticalSubmissionsShareOneChallengeWithoutResettingIt()
     {
-        $first = $this->issue();
-        $query = flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash']);
-        $query->update(['used_count' => 2]);
-        $before = flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash'])->first();
-        $this->assertSame($first, $this->issue(), 'Identical submissions must share their challenge URL and hash.');
-        $after = flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash'])->first();
-        $this->assertEquals($before, $after, 'Reuse must not refresh expiry, timestamps, or the guess budget.');
-        $this->assertSame(1, $this->sent, 'Only one email dispatch action should run.');
-        $this->assertSame(1, (int) flsDb()->table('fls_login_hashes')->where('user_id', $this->user->ID)->count());
-        $this->assertLessThanOrEqual(100, strlen($first['login_hash']));
+        $mailCount = 0;
+        $captureMail = function ($result) use (&$mailCount) { $mailCount++; return $result; };
+        add_filter('pre_wp_mail', $captureMail, 20);
+        try {
+            $first = $this->issue();
+            $query = flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash']);
+            $query->update(['used_count' => 2]);
+            $before = flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash'])->first();
+            $this->assertSame($first, $this->issue(), 'Identical submissions must share their challenge URL and hash.');
+            $after = flsDb()->table('fls_login_hashes')->where('login_hash', $first['login_hash'])->first();
+            $this->assertEquals($before, $after, 'Reuse must not refresh expiry, timestamps, or the guess budget.');
+            $this->assertSame(1, $this->sent, 'Only one email dispatch action should run.');
+            $this->assertSame(1, (int) flsDb()->table('fls_login_hashes')->where('user_id', $this->user->ID)->count());
+            $this->assertLessThanOrEqual(100, strlen($first['login_hash']));
+            $this->assertSame(1, $mailCount, 'One actual wp_mail call for a fresh account, even with duplicate submissions.');
+        } finally {
+            remove_filter('pre_wp_mail', $captureMail, 20);
+        }
     }
 
     /** @dataProvider distinctContexts */
