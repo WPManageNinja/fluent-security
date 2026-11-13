@@ -256,6 +256,12 @@
     tbody .el-table__cell {
         padding-top: 14px;
         padding-bottom: 14px;
+        text-align: start;
+
+        /* The actions column belongs at the outer end in either writing direction. */
+        &.is-right {
+            text-align: end;
+        }
     }
 
     td .cell {
@@ -271,12 +277,12 @@
     /* The first and last columns sit against the card's own padding, not the cell's. */
     tr th:first-child .cell,
     tr td:first-child .cell {
-        padding-left: 20px;
+        padding-inline-start: 20px;
     }
 
     tr th:last-child .cell,
     tr td:last-child .cell {
-        padding-right: 20px;
+        padding-inline-end: 20px;
     }
 
     td.el-table__cell,

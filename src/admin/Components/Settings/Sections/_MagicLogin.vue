@@ -32,7 +32,7 @@ export default {
                     </el-select>
                 </SettingRow>
 
-                <SettingRow :label="$t('Show the link form first')"
+                <SettingRow class="fls_row_toggle" :label="$t('Show the link form first')"
                             :description="$t('The login page opens on the email-a-link form. The password form is one click away.')">
                     <el-switch v-model="settings.magic_link_primary" active-value="yes"
                                inactive-value="no"/>
