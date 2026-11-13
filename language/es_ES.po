@@ -1,0 +1,844 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Fluent Auth\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-12-16 15:47+0000\n"
+"PO-Revision-Date: 2023-01-23 20:36-0400\n"
+"Last-Translator: Ludwig Moreno <ludwig.moreno@gmail.com>\n"
+"Language-Team: \n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 3.2.2\n"
+"X-Loco-Version: 2.6.2; wp-6.0.1\n"
+"X-Domain: fluent-security\n"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:465
+#, php-format
+msgid "%s Github"
+msgstr "%s Github"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:475
+#, php-format
+msgid "%s Google"
+msgstr "%s Google"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:951
+#, php-format
+msgid "%s is required"
+msgstr "%s es requerido "
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:913
+#, php-format
+msgid "<p>%s</p>"
+msgstr "<p>%s</p>"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:910
+#, php-format
+msgid "<p>Hi %s,</p>"
+msgstr "<p>Hola %s,</p>"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:914
+msgid "<p>If you did not request to reset your password, please ignore this email.</p>"
+msgstr "<p>Si no solicitaste restablecer tu contraseña, ignora este correo electrónico.</p>"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:911
+msgid "<p>Someone has requested a new password for the following account on WordPress:</p>"
+msgstr "<p>Alguien ha solicitado una nueva contraseña para la siguiente cuenta en WordPress:</p>"
+
+#: app/Services/AuthService.php:182
+msgid "<strong>Error:</strong> This email address is already registered. Please login or try reset password"
+msgstr "<strong>Error:</strong> Esta dirección de correo electrónico ya está registrada. Por favor inicia sesión o intenta restablecer la contraseña"
+
+#: app/Services/AuthService.php:239
+msgid "<strong>Error</strong>: Could not register you. Please contact the site admin!"
+msgstr "<strong>Error</strong>: No se pudo registrar. Ponte en contacto con el admininstrador del sitio!"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:862
+msgid "<strong>Error</strong>: Invalid username or email"
+msgstr "<strong>Error</strong>: Nombre de usuario o correo electrónico no válido"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:676
+msgid "<strong>Error</strong>: Invalid username, email address or incorrect password."
+msgstr "<strong>Error</strong>: Nombre de usuario, dirección de correo electrónico no válidos o contraseña incorrecta."
+
+#: app/Services/AuthService.php:159
+msgid "<strong>Error</strong>: Please enter a username."
+msgstr "<strong>Error</strong>: Introduce un nombre de usuario."
+
+#: app/Services/AuthService.php:175
+msgid "<strong>Error</strong>: Please type your email address."
+msgstr "<strong>Error</strong>: Escribe su dirección de correo electrónico."
+
+#: app/Services/AuthService.php:169
+msgid "<strong>Error</strong>: Sorry, that username is not allowed."
+msgstr "<strong>Error</strong>: Lo siento, ese nombre de usuario no está permitido."
+
+#: app/Services/AuthService.php:177
+msgid "<strong>Error</strong>: The email address is not correct."
+msgstr "<strong>Error</strong>: La dirección de correo electrónico no es correcta."
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:43
+msgid "<strong>Error</strong>: The username or the password is invalid. Please try different combination."
+msgstr "<strong>Error</strong>: El nombre de usuario o la contraseña no son válidos. Intenta combinaciones diferentes."
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:856
+msgid "<strong>Error</strong>: There is no account with that username or email address."
+msgstr "<strong>Error</strong>: No hay cuenta con ese nombre de usuario o correo electrónico."
+
+#: app/Services/AuthService.php:164
+msgid "<strong>Error</strong>: This username is already registered. Please choose another one."
+msgstr "<strong>Error</strong>: Este usuario ya está registrado. Por favor elige otra."
+
+#: app/Services/AuthService.php:161
+msgid "<strong>Error</strong>: This username is invalid because it uses illegal characters. Please enter a valid username."
+msgstr "<strong>Error</strong>: Este nombre de usuario no es válido porque utiliza caracteres ilegales. Introduce un nombre de usuario válido."
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:147
+msgid "[Only use this if you do not have other wp users than your close circle]"
+msgstr "[Úsalo solamente si no tienes otros usuarios de wp además de tu círculo cercano]"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:150
+msgid "A new field will be shown to provide this code to login. Users can also set their own code from profile page."
+msgstr "Se mostrará un nuevo campo para proporcionar este código para iniciar sesión. Los usuarios también pueden configurar su propio código desde la página de perfil."
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:169
+msgid "Action"
+msgstr "Acción"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:176
+msgid "Add Rule"
+msgstr "Agregar regla"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:175
+msgid "Advanced Redirect Rules"
+msgstr "Reglas de redirección avanzadas"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:158
+msgid "All"
+msgstr "Todos"
+
+#: app/Http/Controllers/LogsController.php:64
+msgid "All Logs has been deleted"
+msgstr "Todos los registros han sido eliminados"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:200
+msgid "All Time"
+msgstr "Todos el tiempo"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:177
+msgid "Already have an account?"
+msgstr "¿Ya tienes una cuenta?"
+
+#: app/Services/GithubAuthService.php:70
+msgid "API Error when authenticate via github"
+msgstr "Error de API al autenticarse a través de github"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:134
+msgid "Apply recommended settings"
+msgstr "Aplicar configuración recomendada"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:170
+msgid "Are you sure to delete all the logs?"
+msgstr "¿Estás seguro de borrar todos los registros?"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:152
+msgid "Automatically delete logs older than (in days)"
+msgstr "Eliminar automáticamente registros anteriores a (en días)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:102
+msgid "Blocked"
+msgstr "Bloqueado"
+
+#: app/Http/Controllers/LogsController.php:100
+msgid "Blocked Logins"
+msgstr "Inicios de sesión bloqueados"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:167
+msgid "Browser"
+msgstr "Navegador"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:250
+msgid "Check your inbox"
+msgstr "Revisa tu bandeja de entrada"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:207
+#, php-format
+msgid "Click the link below to sign in to your %s account"
+msgstr "Haz clic en el enlace a continuación para iniciar sesión en su cuenta %s"
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:135
+msgid "Configure Fluent Auth"
+msgstr "Configurar Fluent Auth"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:453
+msgid "Connect with"
+msgstr "Conéctate con"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:297
+#: app/Hooks/Handlers/MagicLoginHandler.php:87
+msgid "Continue"
+msgstr "Continuar "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:135
+msgid "Core Security Settings"
+msgstr "Configuración de seguridad principal"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:112
+msgid "Create an Account"
+msgstr "Crear una Cuenta"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:126
+msgid "Credential Storage Method"
+msgstr "Método de Almacenamiento de Credenciales"
+
+#: fluent-security.php:86 app/Hooks/Handlers/AdminMenuHandler.php:113
+msgid "Dashboard"
+msgstr "Panel de control"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:123
+msgid "Database"
+msgstr "Base de datos"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:168
+msgid "Date"
+msgstr "Fecha"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:161
+msgid "Delete All Logs"
+msgstr "Borrar todos los registros"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:159
+msgid "Description"
+msgstr "Descripción"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:203
+msgid "Disable admin bar and <code>/wp-admin/</code> access for selected user roles."
+msgstr "Deshabilitar la barra de administración y el acceso <code>/wp-admin/</code> para roles de usuario seleccionados."
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:137
+msgid "Disable App Login (Rest API) for Remote Access. (Recommended: Disable)"
+msgstr "Deshabilitar el inicio de sesión de la aplicación (API Rest) para el acceso remoto. (Recomendado: Deshabilitar)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:148
+msgid "Disable Magic Login for specific user roles (Leave blank to enable magic login for all users)"
+msgstr "Deshabilitar inicio de sesión mágico para roles de usuario específicos (déjalo en blanco para habilitar inicio de sesión mágico para todos los usuarios)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:184
+msgid "Disable Public User Indexing"
+msgstr "Deshabilitar indexación pública de usuarios"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:138
+msgid "Disable REST Endpoint for wp users query for public (Recommended: Disable)"
+msgstr "Deshabilitar REST Endpoint para consultas de usuarios de wp para el público (Recomendado: Deshabilitar)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:182
+msgid "Disable Rest Remote App Login"
+msgstr "Deshabilitar el inicio de sesión de la aplicación remota Rest"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:136
+msgid "Disable XML-RPC (Most of the sites don't need XMLRPC)"
+msgstr "Deshabilitar XML-RPC (La mayoría de los sitios no necesitan XMLRPC)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:181
+msgid "Disable XML-RPC Requests"
+msgstr "Desactivar solicitudes XML-RPC"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:648
+msgid "Email and Password is required"
+msgstr "Se requiere correo electrónico y contraseña"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:681
+msgid "Email or Password is not valid. Please try again"
+msgstr "Email o Contraseña no es válido. Inténtalo de nuevo "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:189
+msgid "Enable Custom Login / Signup Shortcodes"
+msgstr "Habilitar códigos cortos personalizados de inicio de sesión/registro"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:174
+msgid "Enable Custom Login Redirects"
+msgstr "Habilitar redirecciones de inicio de sesión personalizadas"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:140
+msgid "Enable Login Security and Login Limit (recommended)"
+msgstr "Habilitar seguridad de inicio de sesión y límite de inicio de sesión (recomendado)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:130
+msgid "Enable Login with Github"
+msgstr "Habilitar inicio de sesión con Github"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:122
+msgid "Enable Login with Google"
+msgstr "Habilitar inicio de sesión con Google"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:120
+msgid "Enable Social Login / Signup"
+msgstr "Habilitar inicio de sesión / registro social"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:77
+msgid "Enter the email address or username associated with your account, and we'll send a magic link to your inbox."
+msgstr "Ingresa la dirección de correo electrónico o el nombre de usuario asociado con su cuenta, y enviaremos un enlace mágico a su bandeja de entrada."
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:143
+msgid "Extended Login Security"
+msgstr "Seguridad de inicio de sesión extendida"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:101
+msgid "Failed"
+msgstr "Fallo "
+
+#: app/Http/Controllers/LogsController.php:96
+msgid "Failed Logins"
+msgstr "Inicios de sesión fallidos"
+
+#. Author of the plugin
+msgid "Fluent Auth Team"
+msgstr "Equipo de autenticación fluida"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:24
+msgid "FluentAuth"
+msgstr "FluentAuth"
+
+#. Name of the plugin
+msgid "FluentAuth - Auth Security Plugin"
+msgstr "FluentAuth - Complemento de seguridad de autenticación"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:23
+msgid "FluentAuth Settings"
+msgstr "Configuración de FluentAuth"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:118
+msgid "Forgot your password?"
+msgstr "¿Olvidaste tu contraseña?"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:734
+msgid "Form validation failed. Please provide the correct data"
+msgstr "La validación del formulario falló. Por favor proporcione los datos correctos "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:190
+msgid "Full Authentication Flow ShortCode (includes Login Form, Registration Form and Password Reset Form)"
+msgstr "Código abreviado de flujo de autenticación completo (incluye formulario de inicio de sesión, formulario de registro y formulario de restablecimiento de contraseña)"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:131
+msgid "Github Client ID"
+msgstr "ID de cliente de Github"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:132
+msgid "Github Client Secret"
+msgstr "Secreto de cliente de Github"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:127
+msgid "Google Client ID"
+msgstr "ID de cliente de Google"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:128
+msgid "Google Client Secret"
+msgstr "Secreto de cliente de Google"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:214
+#: app/Hooks/Handlers/MagicLoginHandler.php:206
+#, php-format
+msgid "Hello %s,"
+msgstr "Hola %s, "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:142
+msgid "How many times user can try login in"
+msgstr "Cuántas veces el usuario puede intentar iniciar sesión"
+
+#. URI of the plugin
+#. Author URI of the plugin
+msgid "https://fluentauth.com"
+msgstr "https://fluentauth.com"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:217
+msgid "If the button above does not work, paste this link into your web browser:"
+msgstr "Si el botón de arriba no funciona, pega este enlace en tu navegador web:"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:237
+msgid "If you did not make this request, you can safely ignore this email."
+msgstr "Si no realizaste esta solicitud, puedes ignorar este correo electrónico de manera segura."
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:838
+msgid "Invalid username or email"
+msgstr "Usuario o correo electrónico no válido"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:166
+msgid "IP"
+msgstr "IP"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:198
+msgid "Last 30 days"
+msgstr "Últimos 30 días"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:197
+msgid "Last 7 days"
+msgstr "Últimos 7 días"
+
+#: app/Http/Controllers/LogsController.php:53
+msgid "Log has been deleted"
+msgstr "El registro ha sido eliminado "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:183
+msgid "Log Login Logs"
+msgstr "Registrar Registros de inicio de sesión"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:179
+msgid "Login"
+msgstr "Iniciar sesión"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:40
+msgid "Login Code"
+msgstr "Código de inicio de sesión"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:626
+msgid "Login is not enabled"
+msgstr "El inicio de sesión no está habilitado "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:185
+msgid "Login Notifications"
+msgstr "Notificaciones de inicio de sesión"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:452
+msgid "Login or Signup"
+msgstr "Iniciar sesión o Registrarse"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:117
+msgid "Login or Signup Forms"
+msgstr "Inicio de sesión o formularios de registro"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:188
+msgid "Login or Signup Forms and Login Redirects"
+msgstr "Inicio de sesión o formularios de registro y redirecciones de inicio de sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:118
+msgid "Login Redirects"
+msgstr "Redirecciones de inicio de sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:173
+msgid "Login Redirects Settings"
+msgstr "Configuración de redirecciones de inicio de sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:139
+msgid "Login Security Settings"
+msgstr "Configuración de seguridad de inicio de sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:163
+msgid "Login Username"
+msgstr "Iniciar sesión Nombre de usuario"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:71
+msgid "Login Via Magic URL"
+msgstr "Iniciar sesión a través de la URL mágica"
+
+#: app/Http/Controllers/LogsController.php:116
+msgid "Login via URL"
+msgstr "Iniciar sesión a través de URL"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:146
+msgid "Login via URL is not activated"
+msgstr "Login vía URL no está activado"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:129
+msgid "Login with Github Settings"
+msgstr "Iniciar sesión con la configuración de Github"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:121
+msgid "Login with Google Settings"
+msgstr "Iniciar sesión con la configuración de Google"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:201
+msgid "Login/Signup Forms"
+msgstr "Inicio de sesión/Formularios de registro"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:114
+msgid "Logs"
+msgstr "Registros"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:146
+msgid "Magic Login"
+msgstr "Inicio de sesión mágico"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:165
+msgid "Media"
+msgstr "Medios"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:172
+msgid "Nonce Verification failed. Please try again"
+msgstr "Nonce Verificación fallida. Inténtalo de nuevo "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:179
+msgid "Not enough data. This section will show recent failed login attempts"
+msgstr "No hay suficientes datos. Esta sección mostrará los intentos de inicio de sesión fallidos recientes"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:187
+msgid "Not enough data. This section will show recent successful logins"
+msgstr "No hay suficientes datos. Esta sección mostrará inicios de sesión exitosos recientes "
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:110
+msgid "Not registered?"
+msgstr "¿No estás registrado?"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:156
+msgid "Notification Send to Email Address"
+msgstr "Enviar notificación a dirección de correo electrónico"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:192
+msgid "Only Login Form ShortCode"
+msgstr "Sólo formulario de inicio de sesión ShortCode"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:191
+msgid "Only Registration Form ShortCode"
+msgstr "Solamente Formulario de Registro ShortCode"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:67
+#: app/Hooks/Handlers/MagicLoginHandler.php:93
+msgid "Or"
+msgstr "O "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:151
+msgid "Other Settings"
+msgstr "Otras Configuraciones"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:511
+msgid "Password"
+msgstr "Contraseña"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:193
+msgid "Password Reset Form ShortCode"
+msgstr "Formulario de restablecimiento de contraseña desde ShortCode"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:875
+msgid "Password reset is not allowed for this user"
+msgstr "El restablecimiento de contraseña no está permitido para este usuario"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:125
+msgid "Please add the following code in your wp-config.php file (please replace the *** with your app values)"
+msgstr "Agrega el siguiente código en tu archivo wp-config.php (reemplaza *** con los valores de tu aplicación)"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:939
+msgid "Please check your email for the reset link"
+msgstr "Por favor revisa tu correo electrónico para el enlace de reinicio"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:37
+msgid "Please check your email inbox and get the 2 factor Authentication code and Provide here to login"
+msgstr "Por favor revisa la bandeja de entrada de su correo electrónico, obtén el código de autenticación de 2 factores y colócalo aquí para iniciar sesión"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:132
+msgid "Please provide a valid login code"
+msgstr "Por favor proporciona un código de inicio de sesión válido"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:149
+msgid "Provide Login Security Pass that users need to provide when login"
+msgstr "Proporciona el pase de seguridad de inicio de sesión que los usuarios deben introducir al iniciar sesión"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:956
+#, php-format
+msgid "Provided %s is not a valid email"
+msgstr "Siempre que %s no sea un correo electrónico válido"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:178
+msgid "Recent Failed & Blocked Logins"
+msgstr "Últimos inicios de sesión fallidos y bloqueados"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:186
+msgid "Recent Successful Logins"
+msgstr "Últimos inicios de sesión exitosos"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:157
+msgid "refresh"
+msgstr "actualizar"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:775
+msgid "Registration has been completed. Please login now"
+msgstr "El registro ha sido completado. Inicia sesión ahora"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:120
+#: app/Hooks/Handlers/CustomAuthHandler.php:220
+msgid "Reset Password"
+msgstr "Restablecer contraseña"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:892
+#: app/Hooks/Handlers/CustomAuthHandler.php:908
+#, php-format
+msgid "Reset your password for %s"
+msgstr "Restablece tu contraseña para %s"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:204
+msgid "Roles to disable <code>wp-admin</code> access and hide admin bar"
+msgstr "Roles para deshabilitar el acceso <code>wp-admin</code> y ocultar la barra de administración"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:133
+msgid "Save Settings"
+msgstr "Guardar configuración"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:634
+msgid "Security nonce is required"
+msgstr "Se requiere nonce de seguridad"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:640
+msgid "Security verification failed"
+msgstr "Verificación de seguridad fallida"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:710
+#: app/Hooks/Handlers/CustomAuthHandler.php:817
+msgid "Security verification failed. Please try again"
+msgstr "Verificación de seguridad fallida. Inténtalo de nuevo "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:195
+msgid "Select Range"
+msgstr "Seleccionar Rango"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:154
+msgid "Send Email notification if any of the following user roles login"
+msgstr "Enviar notificación por correo electrónico si alguno de los siguientes roles de usuario inicia sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:155
+msgid "Send email notification when a user get blocked"
+msgstr "Enviar notificación por correo electrónico cuando un usuario es bloqueado"
+
+#: fluent-security.php:80 app/Hooks/Handlers/AdminMenuHandler.php:115
+msgid "Settings"
+msgstr "Configuración"
+
+#: app/Http/Controllers/SettingsController.php:30
+#: app/Http/Controllers/SettingsController.php:163
+msgid "Settings has been updated"
+msgstr "Se ha actualizado la configuración"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:180
+msgid "Settings Overview"
+msgstr "Descripción general de la configuración"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:229
+#: app/Hooks/Handlers/MagicLoginHandler.php:203
+#, php-format
+msgid "Sign in to %s"
+msgstr "Inicia sesión en %s"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:169
+msgid "Signup"
+msgstr "Regístrate"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:116
+msgid "Social Login"
+msgstr "Inicio de sesión social"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:119
+msgid "Social Login/Signup Settings"
+msgstr "Inicio de sesión social/Configuración de registro"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:215
+#, php-format
+msgid "Someone requested to login to %s and here is the Login code that you can use in the login form"
+msgstr "Alguien solicitó iniciar sesión en %s y aquí está el código de inicio de sesión que puede usar en el formulario de inicio de sesión"
+
+#: app/Services/GoogleAuthService.php:72
+msgid "Sorry! There has an error when fetching data for google authentication. Please try again"
+msgstr "¡Lo siento! Hay un error al obtener datos para la autenticación de Google. Por favor inténtalo de nuevo"
+
+#: app/Services/GoogleAuthService.php:46
+msgid "Sorry! There has an error when fetching token for google authentication. Please try again"
+msgstr "¡Lo siento! Hay un error al obtener datos para la autenticación de Google. Por favor inténtalo de nuevo"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:127
+msgid "Sorry! we could not authenticate you via github"
+msgstr "¡Lo siento! no pudimos autenticarte a través de github"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:175
+msgid "Sorry! we could not authenticate you via google"
+msgstr "¡Lo siento! no pudimos autentificarte a través de google"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:187
+msgid "Sorry, You can not login via magic url. Please use regular login form"
+msgstr "Lo sentimos, no puede iniciar sesión a través de la URL mágica. Utiliza el formulario de inicio de sesión normal"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:163
+msgid "Sorry, You can not use this verification method"
+msgstr "Lo siento, no puedes usar este método de verificación"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:169
+msgid "Sorry, your login code has been expired. Please try to login again"
+msgstr "Lo sentimos, tu código de inicio de sesión ha caducado. Intenta iniciar sesión de nuevo "
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:144
+msgid "Standard"
+msgstr "Estándar"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:162
+msgid "Status"
+msgstr "Estado"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:103
+msgid "Successful"
+msgstr "Exitoso"
+
+#: app/Http/Controllers/LogsController.php:104
+msgid "Successful Logins"
+msgstr "Inicios de sesión exitosos"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:782
+msgid "Successfully registered to the site."
+msgstr "Registrado con éxito en el sitio."
+
+#. Description of the plugin
+msgid "Super Simple Login & Signup Security and Social Login Plugin for WordPress"
+msgstr "Complemento de inicio de sesión social y seguridad de inicio de sesión y registro súper simple para WordPress"
+
+#: app/Hooks/Handlers/BasicTasksHandler.php:134
+#, php-format
+msgid "Thank you for installing %s Plugin. Please configure the security settings to enable enhanced security of your site"
+msgstr "Gracias por instalar el complemento %s. Configure los ajustes de seguridad para habilitar la seguridad mejorada de su sitio"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:204
+msgid "There has an error when log you in. Please try to login again"
+msgstr "Hay un error al iniciar sesión. Intente iniciar sesión de nuevo"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:218
+#, php-format
+msgid "This code will expire in %d minutes and can only be used once."
+msgstr "Este código caducará en %d minutos y solo se puede usar una vez."
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:208
+#, php-format
+msgid "This link will expire in %d minutes and can only be used once."
+msgstr "Este enlace caducará en %d minutos y solo se puede usar una vez."
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:199
+msgid "This Month"
+msgstr "Este Mes"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:196
+msgid "Today"
+msgstr "Hoy"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:38
+msgid "Two-Factor Authentication Code"
+msgstr "Código de autenticación de dos factores"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:153
+msgid "Use 0 if you do not delete the logs"
+msgstr "Usa 0 si no borras los logs"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:97
+msgid "Use Regular Login form"
+msgstr "Usar formulario de inicio de sesión normal"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:160
+msgid "User Agent"
+msgstr "Agente de Usuario"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:172
+msgid "User Capability"
+msgstr "Capacidad de usuario"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:164
+msgid "User ID"
+msgstr "ID de usuario"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:704
+msgid "User registration is not enabled"
+msgstr "El registro de usuarios no está habilitado"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:140
+#, php-format
+msgid "User registration is not enabled. <a href=\"%s\">Go to Home Page</a>"
+msgstr "El registro de usuarios no está habilitado. <a href=\"%s\">Ir a la página de inicio</a>"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:171
+msgid "User Role"
+msgstr "Rol de usuario"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:194
+msgid "Username"
+msgstr "Nombre de usuario"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:510
+msgid "Username or Email"
+msgstr "Usuario o Email"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:826
+msgid "Username or email is required"
+msgstr "Se requiere nombre de usuario o correo electrónico"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:202
+msgid "Users can only login with the extended security code. Enable only if only internal team login to the site to manage"
+msgstr "Los usuarios solo pueden iniciar sesión con el código de seguridad extendido. Habilitar solo si el equipo interno inicia sesión en el sitio para administrar"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:177
+msgid "view your security config and recent login activities"
+msgstr "ver su configuración de seguridad y actividades de inicio de sesión recientes"
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:244
+msgid "We just emailed a login link to your registered email. Click the link to sign in."
+msgstr "Acabamos de enviar un enlace de inicio de sesión a su correo electrónico registrado. Haga clic en el enlace para iniciar sesión."
+
+#: app/Hooks/Handlers/MagicLoginHandler.php:246
+#, php-format
+msgid "We just emailed a magic link to %s. Click the link to sign in."
+msgstr "Acabamos de enviar un enlace mágico a %s. Haz clic en el enlace para iniciar sesión."
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:141
+msgid "We recommend to enable login logs as well as set login try limit"
+msgstr "Recomendamos habilitar los registros de inicio de sesión y establecer un límite de intentos de inicio de sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:145
+msgid "With Login Security Code"
+msgstr "Con código de seguridad de inicio de sesión"
+
+#: app/Hooks/Handlers/AdminMenuHandler.php:124
+msgid "wp-config file(recommended)"
+msgstr "archivo wp-config (recomendado)"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:77
+#: app/Hooks/Handlers/CustomAuthHandler.php:144
+#: app/Hooks/Handlers/CustomAuthHandler.php:195
+#: app/Hooks/Handlers/CustomAuthHandler.php:241
+#: app/Hooks/Handlers/CustomAuthHandler.php:269
+#, php-format
+msgid "You are already logged in. <a href=\"%s\">Go to Home Page</a>"
+msgstr "Ya has iniciado sesión. <a href=\"%s\">Ir a la página de inicio</a>"
+
+#: app/Hooks/Handlers/LoginSecurityHandler.php:255
+#: app/Hooks/Handlers/MagicLoginHandler.php:162
+#, php-format
+msgid "You are trying too much. Please try after %d minutes"
+msgstr "Demasiados intentos. Inténtalo después de %d minutos"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:227
+msgid "You can also login by clicking the following button"
+msgstr "También puedes iniciar sesión haciendo clic en el siguiente botón"
+
+#: app/Hooks/Handlers/CustomAuthHandler.php:286
+#: app/Hooks/Handlers/CustomAuthHandler.php:288
+#: app/Hooks/Handlers/MagicLoginHandler.php:80
+#: app/Hooks/Handlers/MagicLoginHandler.php:82
+msgid "Your Email/Username"
+msgstr "Tu correo electrónico/nombre de usuario"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:136
+msgid "Your Github email address does not match with your current account email address. Please use the same email address"
+msgstr "Tu dirección de correo electrónico de Github no coincide con la dirección de correo electrónico de tu cuenta actual. Utiliza la misma dirección de correo electrónico"
+
+#: app/Hooks/Handlers/SocialAuthHandler.php:193
+msgid "Your Google email address does not match with your current account email address. Please use the same email address"
+msgstr "Tu dirección de correo electrónico de Google no coincide con la dirección de correo electrónico de tu cuenta actual. Utilize la misma dirección de correo electrónico"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:211
+#, php-format
+msgid "Your Login code for %1s - %d"
+msgstr "Tu código de inicio de sesión para %1s - %d"
+
+#: app/Hooks/Handlers/TwoFaHandler.php:216
+msgid "Your Login Code: "
+msgstr "Tu código de inicio de sesión: "
+
+#: app/Hooks/Handlers/TwoFaHandler.php:155
+msgid "Your provided code is not valid. Please try again"
+msgstr "Tu código proporcionado no es válido. Inténtalo de nuevo "
+
+#: app/Hooks/Handlers/TwoFaHandler.php:144
+msgid "Your provided code or url is not valid"
+msgstr "Tu código o url proporcionado no es válido"
