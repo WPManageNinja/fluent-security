@@ -9,6 +9,7 @@ use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
 use FluentAuth\App\Services\ProxyDetection;
 use FluentAuth\App\Services\TwoFa\RivalTwoFa;
 use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
+use FluentAuth\App\Hooks\Handlers\LoginRoutingHandler;
 
 class SettingsController
 {
@@ -273,8 +274,17 @@ class SettingsController
 
         $settings = Helper::getAuthFormsSettings();
 
+        $loginPages = [];
+        foreach (get_posts(['post_type' => 'page', 'post_status' => 'publish', 'numberposts' => -1, 'orderby' => 'title', 'order' => 'ASC']) as $page) {
+            if (LoginRoutingHandler::getLoginPage($page->ID)) {
+                $loginPages[] = ['id' => $page->ID, 'title' => get_the_title($page)];
+            }
+        }
+
         return [
             'settings'          => $settings,
+            'login_pages'       => $loginPages,
+            'login_routing_disabled' => defined('FLUENT_AUTH_DISABLE_LOGIN_ROUTING') && FLUENT_AUTH_DISABLE_LOGIN_ROUTING,
             'roles'             => Helper::getUserRoles(true),
             'user_capabilities' => Helper::getWpPermissions(true),
             'destinations'      => self::getRedirectDestinations(),
@@ -434,7 +444,32 @@ class SettingsController
             }
 
         } else {
-            $oldSettings['enabled'] = sanitize_text_field($settings['enabled']);
+            $invalid = new \WP_Error('invalid_login_routing', __('Choose a published page with a FluentAuth login shortcode.', 'fluent-security'), ['status' => 422]);
+            if (array_key_exists('enabled', $settings)) {
+                if (!is_string($settings['enabled'])) {
+                    return $invalid;
+                }
+                $oldSettings['enabled'] = sanitize_text_field($settings['enabled']);
+            }
+            if (array_key_exists('redirect_wp_login', $settings)) {
+                if (!in_array($settings['redirect_wp_login'], ['yes', 'no'], true)) {
+                    return $invalid;
+                }
+                $oldSettings['redirect_wp_login'] = $settings['redirect_wp_login'];
+            }
+            if (array_key_exists('login_page_id', $settings)) {
+                $id = $settings['login_page_id'];
+                if ((!is_int($id) && !is_string($id)) || !ctype_digit((string) $id)) {
+                    return $invalid;
+                }
+                $oldSettings['login_page_id'] = (int) $id;
+            }
+            if ($oldSettings['enabled'] !== 'yes') {
+                $oldSettings['redirect_wp_login'] = 'no';
+            }
+            if ($oldSettings['redirect_wp_login'] === 'yes' && !LoginRoutingHandler::getLoginPage($oldSettings['login_page_id'])) {
+                return $invalid;
+            }
         }
 
         update_option('__fls_auth_forms_settings', $oldSettings, false);

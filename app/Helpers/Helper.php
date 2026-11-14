@@ -843,6 +843,8 @@ class Helper
     {
         $settingsDefault = [
             'enabled'                 => 'no',
+            'login_page_id'           => 0,
+            'redirect_wp_login'       => 'no',
             'login_redirects'         => 'no',
             'default_login_redirect'  => '',
             'default_logout_redirect' => '',
