@@ -83,6 +83,77 @@ class MagicLoginTest extends BaseTestCase
         return [['1', true], [null, false], ['0', false], ['', false], ['true', false], ['forever', false], [['1'], false], [1, false]];
     }
 
+    public function factorSwitchChoices()
+    {
+        return [[true, []], [false, ['rememberme' => '1']]];
+    }
+
+    /** @dataProvider factorSwitchChoices */
+    public function testRememberChoiceSurvivesPasskeyToAuthenticatorSwitch($remember, $switchRequest)
+    {
+        $settings = get_option('__fls_auth_settings');
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+        $secret = 'JBSWY3DPEHPK3PXP';
+        \FluentAuth\App\Services\TwoFa\TotpTwoFaMethod::activate($this->user, $secret);
+        $twoFa = new \FluentAuth\App\Hooks\Handlers\TwoFaHandler();
+        $generate = new \ReflectionMethod($this->handler, 'generateHash');
+        $link = $generate->invoke($this->handler, $this->user, 10, '', $remember);
+        $pending = null;
+        $beginFactor = function () use ($twoFa, &$pending) {
+            $pending = $twoFa->sendAndGet2FaConfirmFormUrl($this->user, 'both', home_url('/after-switch/'), new \FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod());
+            return new \WP_Error('test_pending_passkey', 'The passkey proof is still required.');
+        };
+        $_REQUEST = [];
+        add_filter('authenticate', $beginFactor, 99);
+        try {
+            $this->assertFalse($this->handler->makeLogin($link), 'the real magic token hands off to the required passkey');
+        } finally {
+            remove_filter('authenticate', $beginFactor, 99);
+        }
+        $this->assertNotNull($pending, 'a passkey challenge was issued during magic redemption');
+        $_REQUEST = array_merge(['login_hash' => $pending['login_hash']], $switchRequest);
+        $location = '';
+        $redirect = function ($url) use (&$location) {
+            $location = $url;
+            throw new \RuntimeException('test switch redirect');
+        };
+        add_filter('wp_redirect', $redirect);
+        try {
+            $twoFa->switchMethod();
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('test switch redirect', $exception->getMessage());
+        } finally {
+            remove_filter('wp_redirect', $redirect);
+        }
+        parse_str(wp_parse_url($location, PHP_URL_QUERY), $query);
+        $replacement = flsDb()->table('fls_login_hashes')->where('login_hash', $query['login_hash'])->first();
+        $this->assertSame('totp', $replacement->use_type, 'the actual switch reaches the authenticator');
+        $this->assertSame(home_url('/after-switch/'), $replacement->redirect_intend, 'the original destination travels with the challenge');
+        $cookiePersistent = null;
+        $capture = function ($cookie, $expire) use (&$cookiePersistent) { $cookiePersistent = $expire > 0; };
+        $die = function () { return function () { throw new \WPDieException('test JSON response'); }; };
+        $_REQUEST = ['login_hash' => $replacement->login_hash, 'login_passcode' => \FluentAuth\App\Services\TwoFa\TotpProvider::getCodeForCounter($secret, (int)floor(time() / \FluentAuth\App\Services\TwoFa\TotpProvider::PERIOD))];
+        add_action('set_logged_in_cookie', $capture, 10, 2);
+        add_filter('wp_doing_ajax', '__return_true');
+        add_filter('wp_die_ajax_handler', $die);
+        ob_start();
+        try {
+            $twoFa->verifyChallenge();
+        } catch (\WPDieException $exception) {
+            // wp_send_json completes the real proof and sign-in path.
+        } finally {
+            ob_end_clean();
+            remove_action('set_logged_in_cookie', $capture, 10);
+            remove_filter('wp_doing_ajax', '__return_true');
+            remove_filter('wp_die_ajax_handler', $die);
+            $_REQUEST = [];
+        }
+        $this->assertSame($remember, $cookiePersistent, 'only the authenticated original choice controls the final switched cookie');
+    }
+
     /** @dataProvider rememberChoices */
     public function testRememberConsentTravelsFromTheEmailRequestToTheCookie($value, $remember)
     {
