@@ -78,6 +78,95 @@ class MagicLoginTest extends BaseTestCase
         return flsDb()->table('fls_login_hashes')->where('id', end($parts))->first();
     }
 
+    public function rememberChoices()
+    {
+        return [['1', true], [null, false], ['0', false], ['', false], ['true', false], ['forever', false], [['1'], false], [1, false]];
+    }
+
+    /** @dataProvider rememberChoices */
+    public function testRememberConsentTravelsFromTheEmailRequestToTheCookie($value, $remember)
+    {
+        $link = '';
+        $mail = function ($result, $attributes) use (&$link) {
+            preg_match('/fls_al=([^&"\s<>]+)/', $attributes['message'], $matches);
+            $link = rawurldecode($matches[1] ?? '');
+            return true;
+        };
+        add_filter('pre_wp_mail', $mail, 10, 2);
+        try {
+            $this->requestLink($value === null ? [] : ['rememberme' => $value]);
+        } finally {
+            remove_filter('pre_wp_mail', $mail, 10);
+        }
+        $this->assertNotSame('', $link, 'the real mail renderer carries the issued token');
+        $this->assertTrue($this->handler->isRedeemable($link), 'the mailed URL remains redeemable');
+        $_REQUEST = ['rememberme' => 'untrusted redemption flag'];
+        $cookie = [];
+        $capture = function ($value, $expire, $expiration) use (&$cookie) {
+            $cookie = [$expire > 0, $expiration - time()];
+        };
+        add_action('set_logged_in_cookie', $capture, 10, 3);
+        try {
+            $this->assertTrue($this->handler->makeLogin($link), 'the verified mailed token signs in');
+            $this->assertSame($remember, $cookie[0], 'only explicit issuance consent makes the cookie persistent');
+            $this->assertEqualsWithDelta(($remember ? 14 : 2) * DAY_IN_SECONDS, $cookie[1], 5, 'WordPress selects the native lifetime');
+            $this->assertSame('untrusted redemption flag', $_REQUEST['rememberme'], 'request context is restored');
+        } finally {
+            remove_action('set_logged_in_cookie', $capture, 10);
+            $_REQUEST = [];
+        }
+    }
+
+    public function testRememberConsentCannotBeAddedToOrRemovedFromAValidToken()
+    {
+        $generate = new \ReflectionMethod($this->handler, 'generateHash');
+        $remembered = $generate->invoke($this->handler, $this->user, 10, '', true);
+        $legacy = $this->issueLink();
+        $this->assertStringStartsWith('remember_', $remembered, 'consent is inside the authenticated secret');
+        foreach (['remember_' . $legacy, substr($remembered, strlen('remember_'))] as $tampered) {
+            $this->assertFalse($this->handler->isRedeemable($tampered), 'the altered secret does not authenticate');
+            $this->assertFalse($this->handler->makeLogin($tampered), 'tampering cannot create a session');
+        }
+        $this->assertSame('issued', $this->rowFor($remembered)->status, 'tampering does not spend the original token');
+        $this->assertTrue($this->handler->makeLogin($remembered), 'the original opted-in token still works');
+    }
+
+    public function testRememberDefaultsStayOffForProgrammaticTokens()
+    {
+        $_REQUEST['rememberme'] = '1';
+        try {
+            $link = apply_filters('fluent_auth/login_token_by_user_id', '', $this->user->ID, 10);
+            $this->assertMatchesRegularExpression('/^[0-9a-f]{64}:[0-9]+$/', $link, 'programmatic tokens keep the legacy default');
+        } finally {
+            unset($_REQUEST['rememberme']);
+        }
+    }
+
+    /** @dataProvider rememberChoices */
+    public function testRememberConsentReachesTheRemainingFactorAndRestoresRequestOnFailure($value, $remember)
+    {
+        $generate = new \ReflectionMethod($this->handler, 'generateHash');
+        $link = $generate->invoke($this->handler, $this->user, 10, '', $remember);
+        $_REQUEST = ['rememberme' => 'untrusted redemption flag'];
+        $challenge = null;
+        $gate = function ($user) use (&$challenge) {
+            $challenge = (new \FluentAuth\App\Hooks\Handlers\TwoFaHandler())->sendAndGet2FaConfirmFormUrl(
+                $user, 'both', '', new \FluentAuth\App\Services\TwoFa\TotpTwoFaMethod()
+            );
+            return new \WP_Error('test_pending_factor', 'A device proof is still required.');
+        };
+        add_filter('authenticate', $gate, 99);
+        try {
+            $this->assertFalse($this->handler->makeLogin($link), 'the outstanding factor prevents sign-in');
+            $this->assertSame(0, get_current_user_id(), 'no user is authenticated before the device proof');
+            $this->assertSame($remember, substr($challenge['login_hash'], -5) === '-auth', 'the real challenge producer carries verified consent');
+            $this->assertSame('untrusted redemption flag', $_REQUEST['rememberme'], 'failed sign-in restores request context');
+        } finally {
+            remove_filter('authenticate', $gate, 99);
+            $_REQUEST = [];
+        }
+    }
+
     /* ------------------------------------------------------------------- the token */
 
     public function testTheTokenIsLongAndUnpredictable()

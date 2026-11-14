@@ -387,6 +387,11 @@ class CustomAuthHandler
                        class="fls_magic_input" type="text"/>
                 <input id="fls_magic_logon_nonce" type="hidden"
                        value="<?php echo esc_attr(wp_create_nonce('fls_magic_logon_nonce')); ?>"/>
+                <p class="fls_magic_remember">
+                    <label><input type="checkbox" name="fls_magic_rememberme" value="1"/>
+                        <?php esc_html_e('Remember Me', 'fluent-security'); ?>
+                    </label>
+                </p>
                 <?php if (!empty($atts['redirect_to'])): ?>
                     <input type="hidden" value="<?php echo esc_url($atts['redirect_to']); ?>" name="redirect_to"/>
                 <?php endif; ?>

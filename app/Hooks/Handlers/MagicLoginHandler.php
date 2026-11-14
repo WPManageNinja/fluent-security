@@ -94,6 +94,11 @@ class MagicLoginHandler
                        class="fls_magic_input" type="text" name="fls_magic_logon_email"/>
                 <input id="fls_magic_logon_nonce" type="hidden" name="fls_magic_logon_nonce"
                        value="<?php echo esc_attr(wp_create_nonce('fls_magic_logon_nonce')); ?>"/>
+                <p class="fls_magic_remember">
+                    <label><input type="checkbox" name="fls_magic_rememberme" value="1"/>
+                        <?php esc_html_e('Remember Me', 'fluent-security'); ?>
+                    </label>
+                </p>
                 <div class="fls_magic_submit_wrapper">
                     <button class="button button-primary button-large" id="fls_magic_submit">
                         <?php esc_html_e('Continue', 'fluent-security'); ?>
@@ -264,7 +269,8 @@ class MagicLoginHandler
             $redirect_to = '';
         }
 
-        $loginUrl = esc_url($this->getMagicLoginUrl($user, $validity, false, $redirect_to));
+        $remember = isset($_REQUEST['rememberme']) && $_REQUEST['rememberme'] === '1';
+        $loginUrl = esc_url($this->getMagicLoginUrl($user, $validity, false, $redirect_to, $remember));
 
 
         $emailData = $this->getCustomizedEmailSubjectBody($user, $loginUrl);
@@ -449,7 +455,7 @@ class MagicLoginHandler
         ]);
     }
 
-    private function getMagicLoginUrl($user, $validity = 5, $baseUrl = false, $redirectIntend = '')
+    private function getMagicLoginUrl($user, $validity = 5, $baseUrl = false, $redirectIntend = '', $remember = false)
     {
         if (!$baseUrl) {
             $baseUrl = site_url('/');
@@ -463,14 +469,14 @@ class MagicLoginHandler
         $redirectIntend = $redirectIntend ? Helper::getValidatedRedirectUrl($redirectIntend, '') : '';
 
         $args = [
-            'fls_al'         => $this->generateHash($user, $validity, $redirectIntend),
+            'fls_al'         => $this->generateHash($user, $validity, $redirectIntend, $remember),
             'force_redirect' => 'yes'
         ];
 
         return add_query_arg($args, $baseUrl);
     }
 
-    private function generateHash($user, $validity = 5, $redirectIntend = '') // $validity in minutes
+    private function generateHash($user, $validity = 5, $redirectIntend = '', $remember = false) // $validity in minutes
     {
         if (!$user || !$this->isEnabled()) {
             return false;
@@ -486,6 +492,10 @@ class MagicLoginHandler
          * which is not a thing anybody should have to know to answer "is this safe".
          */
         $string = bin2hex(random_bytes(32));
+        // Hash the choice with the secret so it cannot be changed when the link is opened.
+        if ($remember) {
+            $string = 'remember_' . $string;
+        }
         $hash = wp_hash_password(Helper::emailBoundSecret($string, $user->user_email));
 
         $data = array(
@@ -708,15 +718,30 @@ class MagicLoginHandler
         add_filter('wordfence_ls_require_captcha', $noCaptcha);
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
 
+        // The full secret has been verified and claimed. Carry only that choice into 2FA.
+        $remember = strpos($hash, 'remember_') === 0;
+        $hadRemember = array_key_exists('rememberme', $_REQUEST);
+        $previousRemember = $hadRemember ? $_REQUEST['rememberme'] : null;
+        unset($_REQUEST['rememberme']);
+        if ($remember) {
+            $_REQUEST['rememberme'] = '1';
+        }
+
         try {
             $user = wp_signon(array(
                     'user_login'    => $user->user_login,
-                    'user_password' => ''
+                    'user_password' => '',
+                    'remember'      => $remember
                 )
             );
         } finally {
             remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
             remove_filter('wordfence_ls_require_captcha', $noCaptcha);
+            if ($hadRemember) {
+                $_REQUEST['rememberme'] = $previousRemember;
+            } else {
+                unset($_REQUEST['rememberme']);
+            }
         }
 
         Helper::setTokenVerifiedLogin(false);

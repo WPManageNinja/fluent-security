@@ -199,6 +199,15 @@ class ShortcodeTest extends BaseTestCase
 
         $this->assertStringContainsString('id="fls_magic_login"', $html);
         $this->assertStringContainsString('id="fls_magic_logon_nonce"', $html);
+
+        ob_start();
+        (new MagicLoginHandler())->maybePushMagicForm();
+        $native = ob_get_clean();
+        foreach ([$html, $native] as $surface) {
+            $this->assertSame(1, preg_match('/<input[^>]+name="fls_magic_rememberme"[^>]*>/', $surface, $checkbox), 'both magic renderers offer a separate choice');
+            $this->assertStringNotContainsString('checked', $checkbox[0], 'remembering magic sessions requires explicit consent');
+            $this->assertStringContainsString('Remember Me', $surface, 'reuse the existing WordPress wording');
+        }
     }
 
     // --------------------------------------------------------- the social buttons

@@ -1126,11 +1126,17 @@ function initMagicLogin(passkeyButtonShowing) {
         submitButton.textContent = settings.wait_text;
         submitButton.disabled = true;
 
-        post(config().ajax_url, 'fls_magic_send_magic_email', {
+        const request = {
             email: logon.value,
             redirect_to: redirectTarget(),
             _nonce: nonceField ? nonceField.value : ''
-        }).then(({ok, data}) => {
+        };
+        const remember = magicLogin.querySelector('input[name="fls_magic_rememberme"]');
+        if (remember && remember.checked) {
+            request.rememberme = '1';
+        }
+
+        post(config().ajax_url, 'fls_magic_send_magic_email', request).then(({ok, data}) => {
             if (ok) {
                 setSuccess(data);
                 return;
