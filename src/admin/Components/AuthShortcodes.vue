@@ -62,6 +62,10 @@ export default {
         }
     },
     methods: {
+        clearLoginPage() {
+            this.settings.login_page_id = 0;
+            this.settings.redirect_wp_login = 'no';
+        },
         saveSettings() {
             // Nothing loaded means nothing to save - posting now would overwrite with blanks.
             if (!this.settings) {
@@ -162,7 +166,7 @@ export default {
                     <SettingRow :label="$t('Login page')"
                                 :description="$t('Choose a published page with a FluentAuth login shortcode.')">
                         <el-select v-model="settings.login_page_id" :aria-label="$t('Login page')"
-                                   clearable filterable @clear="settings.login_page_id = 0">
+                                   clearable filterable @clear="clearLoginPage">
                             <el-option v-for="page in loginPages" :key="page.id" :value="page.id" :label="page.title"/>
                         </el-select>
                     </SettingRow>

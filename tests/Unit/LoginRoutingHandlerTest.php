@@ -108,10 +108,15 @@ class LoginRoutingHandlerTest extends BaseTestCase
     public function test_unavailable_or_incompatible_page_falls_back_to_core($changes)
     {
         wp_update_post(array_merge(['ID' => $this->pageId], $changes));
+        if (isset($changes['post_content'])) {
+            $this->preserveRawContent($changes['post_content']);
+        }
         $this->assertSame('', (new LoginRoutingHandler())->getRedirectUrl());
         $before = get_option('__fls_auth_forms_settings');
         $this->assertWPError($this->save(['redirect_wp_login' => 'yes']));
         $this->assertSame($before, get_option('__fls_auth_forms_settings'));
+        $choices = SettingsController::getAuthFormSettings(new \WP_REST_Request());
+        $this->assertNotContains($this->pageId, array_column($choices['login_pages'], 'id'));
     }
 
     public function unavailablePages()
@@ -119,8 +124,38 @@ class LoginRoutingHandlerTest extends BaseTestCase
         return [
             [['post_status' => 'draft']], [['post_status' => 'private']], [['post_status' => 'trash']],
             [['post_password' => 'local-only']], [['post_content' => '[fluent_auth_signup]']],
-            [['post_content' => 'No form']], [['post_content' => '[[fluent_auth]]']], [['post_type' => 'post']]
+            [['post_content' => 'No form']], [['post_content' => '[[fluent_auth]]']], [['post_type' => 'post']],
+            [['post_content' => '<!-- [fluent_auth] -->']],
+            [['post_content' => '<![CDATA[ [fluent_auth_login] ]]>']],
+            [['post_content' => '[fluent_<!-- interrupted -->auth]']]
         ];
+    }
+
+    /** @dataProvider mixedCommentContent */
+    public function test_only_active_shortcode_occurrences_make_a_page_usable($content)
+    {
+        $this->preserveRawContent($content);
+        $this->assertSame(get_permalink($this->pageId), (new LoginRoutingHandler())->getRedirectUrl());
+        $this->assertNotWPError($this->save(['redirect_wp_login' => 'yes']));
+        $choices = SettingsController::getAuthFormSettings(new \WP_REST_Request());
+        $this->assertContains($this->pageId, array_column($choices['login_pages'], 'id'));
+    }
+
+    public function mixedCommentContent()
+    {
+        return [
+            ['<!-- [fluent_auth] --> [fluent_auth_login]'],
+            ['<![CDATA[ [fluent_auth_login] ]]> [fluent_auth]'],
+            ['<!-- wp:shortcode -->[fluent_auth]<!-- /wp:shortcode -->']
+        ];
+    }
+
+    public function test_cleared_target_can_be_saved_with_routing_off()
+    {
+        $this->assertNotWPError($this->save(['login_page_id' => 0, 'redirect_wp_login' => 'no']));
+        $this->assertSame(0, Helper::getAuthFormsSettings()['login_page_id']);
+        $this->assertSame('no', Helper::getAuthFormsSettings()['redirect_wp_login']);
+        $this->assertSame('', (new LoginRoutingHandler())->getRedirectUrl());
     }
 
     public function test_forms_off_and_missing_page_disable_routing()
@@ -219,5 +254,13 @@ class LoginRoutingHandlerTest extends BaseTestCase
         $request = new \WP_REST_Request();
         $request->set_param('settings', $settings);
         return SettingsController::saveAuthFormSettings($request);
+    }
+
+    private function preserveRawContent($content)
+    {
+        // Preserve imported/unfiltered saved content instead of letting fixture KSES remove CDATA.
+        global $wpdb;
+        $wpdb->update($wpdb->posts, ['post_content' => $content], ['ID' => $this->pageId]);
+        clean_post_cache($this->pageId);
     }
 }

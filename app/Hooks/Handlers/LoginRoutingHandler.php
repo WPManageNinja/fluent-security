@@ -80,7 +80,11 @@ class LoginRoutingHandler
             return false;
         }
 
-        preg_match_all('/' . get_shortcode_regex(['fluent_auth', 'fluent_auth_login']) . '/s', $page->post_content, $matches, PREG_SET_ORDER);
+        // Match core's HTML/comment exclusions without executing arbitrary shortcodes.
+        $content = implode('', array_map(function ($part) {
+            return strpos($part, '<!--') === 0 || strpos($part, '<![CDATA[') === 0 ? ' ' : $part;
+        }, wp_html_split($page->post_content)));
+        preg_match_all('/' . get_shortcode_regex(['fluent_auth', 'fluent_auth_login']) . '/s', $content, $matches, PREG_SET_ORDER);
         foreach ($matches as $match) {
             // [[fluent_auth]] is literal text, not a usable login form.
             if (($match[1] !== '[' || $match[6] !== ']') && shortcode_exists($match[2])) {
