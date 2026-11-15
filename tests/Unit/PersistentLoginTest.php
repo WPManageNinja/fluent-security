@@ -210,6 +210,52 @@ class PersistentLoginTest extends BaseTestCase
         $this->assertSame('LOWERCASE', $manager->get($token)['custom_metadata']);
     }
 
+    public function testNativeMetadataWriteVetoIsRespected()
+    {
+        list($manager, $token) = $this->arrived();
+        $before = $manager->get($token);
+        $veto = function ($check, $id, $key) {
+            return $key === 'session_tokens' ? false : $check;
+        };
+        add_filter('update_user_metadata', $veto, 10, 3);
+        try { $this->handler->renew(); }
+        finally { remove_filter('update_user_metadata', $veto); }
+        $this->assertSame($before, $manager->get($token));
+    }
+
+    public function testMetadataSanitizersAndUpdateActionsRemainEffective()
+    {
+        list($manager, $token) = $this->arrived();
+        $before = $manager->get($token);
+        $sanitize = function ($value) { return []; };
+        add_filter('sanitize_user_meta_session_tokens', $sanitize);
+        try { $this->handler->renew(); }
+        finally { remove_filter('sanitize_user_meta_session_tokens', $sanitize); }
+        $this->assertSame($before, $manager->get($token));
+
+        $handler = $this->newHandler();
+        $handler->noteAuthenticated(wp_parse_auth_cookie('', 'logged_in'), $this->user);
+        $events = [];
+        $watch = function ($id, $user, $key) use (&$events) { $events[] = $key; };
+        add_action('update_user_meta', $watch, 10, 3);
+        add_action('updated_user_meta', $watch, 10, 3);
+        try { $handler->renew(); }
+        finally {
+            remove_action('update_user_meta', $watch);
+            remove_action('updated_user_meta', $watch);
+        }
+        $this->assertSame(['session_tokens', 'session_tokens'], $events);
+        $this->assertGreaterThan($before['expiration'], $manager->get($token)['expiration']);
+    }
+
+    public function testMetadataBackedCustomStoreAlsoDisablesRenewal()
+    {
+        $provider = function ($value, $user, $key) { return $key === 'session_tokens' ? [] : $value; };
+        add_filter('get_user_metadata', $provider, 10, 3);
+        try { $this->assertFalse(SessionLengthHandler::supportsRenewal()); }
+        finally { remove_filter('get_user_metadata', $provider); }
+    }
+
     /** @dataProvider foregroundGuards */
     public function testBackgroundAndPrefetchDoNotRenew($key, $value)
     {

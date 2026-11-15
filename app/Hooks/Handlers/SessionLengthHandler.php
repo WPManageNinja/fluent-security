@@ -76,7 +76,8 @@ class SessionLengthHandler
 
     public static function supportsRenewal()
     {
-        return apply_filters('session_token_manager', 'WP_User_Meta_Session_Tokens') === 'WP_User_Meta_Session_Tokens';
+        return apply_filters('session_token_manager', 'WP_User_Meta_Session_Tokens') === 'WP_User_Meta_Session_Tokens'
+            && apply_filters('get_user_metadata', null, get_current_user_id(), 'session_tokens', true, 'user') === null;
     }
 
     public function markSession($session, $userId)
@@ -162,7 +163,7 @@ class SessionLengthHandler
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT umeta_id, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s", $userId, 'session_tokens'
         ));
-        if (count($rows) !== 1) {
+        if (!is_array($rows) || count($rows) !== 1) {
             return;
         }
         $row = $rows[0];
@@ -174,6 +175,13 @@ class SessionLengthHandler
         $expiration = time() + $days * DAY_IN_SECONDS;
         $sessions[$key]['expiration'] = $expiration;
         $sessions[$key]['fls_renewed'] = time();
+        // Keep native metadata sanitizers and write vetoes effective, without using
+        // update_user_meta(), whose missing-row fallback could recreate a session.
+        if (sanitize_meta('session_tokens', $sessions, 'user', get_object_subtype('user', $userId)) !== $sessions
+            || apply_filters('update_user_metadata', null, $userId, 'session_tokens', $sessions, '') !== null) {
+            return;
+        }
+        do_action('update_user_meta', (int)$row->umeta_id, $userId, 'session_tokens', $sessions);
         // Usermeta commonly has a case-insensitive collation; CAS must compare bytes,
         // including metadata supplied by other plugins, rather than collation weights.
         $changed = $wpdb->query($wpdb->prepare(
@@ -184,6 +192,7 @@ class SessionLengthHandler
             return;
         }
         wp_cache_delete($userId, 'user_meta');
+        do_action('updated_user_meta', (int)$row->umeta_id, $userId, 'session_tokens', $sessions);
         $duration = function ($length, $id) use ($expiration, $userId) {
             return (int)$id === $userId ? max(1, $expiration - time()) : $length;
         };
