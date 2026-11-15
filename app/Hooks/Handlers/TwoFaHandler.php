@@ -402,21 +402,25 @@ class TwoFaHandler
     /**
      * A double-submitted password form sends two emails, and the page shows the newer
      * challenge. Checking the typed code against the older one would give a second guess
-     * per attempt, so this only says that an older email is still open.
+     * per attempt, so this only asks whether this page is the newest of several open ones.
      */
-    private function hasOlderEmailChallenge($logHash, $method)
+    private function isNewestOfSeveralEmailChallenges($logHash, $method)
     {
         if (!$method instanceof EmailTwoFaMethod) {
             return false;
         }
 
-        return (bool)flsDb()->table('fls_login_hashes')
-            ->where('user_id', $logHash->user_id)
-            ->whereIn('use_type', [$method->getKey(), $method->getChallengeKey()])
-            ->where('status', 'issued')
-            ->where('id', '<', $logHash->id)
-            ->where('created_at', '>=', date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT))
-            ->first();
+        $open = function ($operator) use ($logHash, $method) {
+            return (bool)flsDb()->table('fls_login_hashes')
+                ->where('user_id', $logHash->user_id)
+                ->whereIn('use_type', [$method->getKey(), $method->getChallengeKey()])
+                ->where('status', 'issued')
+                ->where('id', $operator, $logHash->id)
+                ->where('created_at', '>=', date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT))
+                ->first();
+        };
+
+        return $open('<') && !$open('>');
     }
 
     public function verifyChallenge()
@@ -511,8 +515,8 @@ class TwoFaHandler
         if (!$verified) {
             $this->recordFailedAttempt($logHash, $user, $method);
 
-            $message = $this->hasOlderEmailChallenge($logHash, $method)
-                ? __('That code is not correct. We sent you more than one email. Use the code from the newest email.', 'fluent-security')
+            $message = $this->isNewestOfSeveralEmailChallenges($logHash, $method)
+                ? __('That code is not correct. If you got more than one email, use the code from the newest one.', 'fluent-security')
                 : __('That code is not correct. Please try again.', 'fluent-security');
 
             wp_send_json([

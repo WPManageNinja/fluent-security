@@ -179,7 +179,7 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $reply = $this->verify($first['code'], $second['hash']);
 
-        $this->assertStringContainsString('newest email', $reply['message']);
+        $this->assertStringContainsString('newest one', $reply['message']);
         $this->assertSame('issued', $this->hashRow($first['hash'])->status, 'the older challenge is not touched');
     }
 
@@ -187,9 +187,9 @@ class TwoFaHandlerTest extends BaseTestCase
     {
         $only = $this->issueCode();
 
-        $reply = $this->verify('000000' === $only['code'] ? '111111' : '000000', $only['hash']);
+        $reply = $this->verify($this->wrongCodeFor($only), $only['hash']);
 
-        $this->assertStringNotContainsString('newest email', $reply['message']);
+        $this->assertStringNotContainsString('newest one', $reply['message']);
     }
 
     public function testTheOlderPageDoesNotSendPeopleToTheNewestEmail()
@@ -199,7 +199,45 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $reply = $this->verify($second['code'], $first['hash']);
 
-        $this->assertStringNotContainsString('newest email', $reply['message']);
+        $this->assertStringNotContainsString('newest one', $reply['message']);
+    }
+
+    private function wrongCodeFor($issued)
+    {
+        return $issued['code'] === '000000' ? '111111' : '000000';
+    }
+
+    public function testThreeOpenChallengesGiveTheHintOnlyOnTheNewestPage()
+    {
+        $a = $this->issueCode();
+        $b = $this->issueCode();
+        $c = $this->issueCode();
+
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($b), $b['hash'])['message']);
+        $this->assertStringContainsString('newest one', $this->verify($this->wrongCodeFor($c), $c['hash'])['message']);
+    }
+
+    public function testOlderChallengesThatAreClosedOrTooOldOrSomeoneElsesGiveNoHint()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'fls_login_hashes';
+
+        $older = $this->issueCode();
+        $newer = $this->issueCode();
+        $olderId = $this->hashRow($older['hash'])->id;
+
+        $wpdb->update($table, ['status' => 'failed'], ['id' => $olderId]);
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($newer), $newer['hash'])['message'], 'closed');
+
+        $wpdb->update($table, [
+            'status'     => 'issued',
+            'created_at' => date('Y-m-d H:i:s', current_time('timestamp') - TwoFaHandler::PENDING_TIMEOUT - 60)
+        ], ['id' => $olderId]);
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($newer), $newer['hash'])['message'], 'too old');
+
+        $otherUser = $this->factory->user->create(['role' => 'administrator']);
+        $wpdb->update($table, ['created_at' => current_time('mysql'), 'user_id' => $otherUser], ['id' => $olderId]);
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($newer), $newer['hash'])['message'], 'other user');
     }
 
     private function hashRow($hash)
