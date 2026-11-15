@@ -930,7 +930,7 @@ class TransStrings
             'Sign-in methods' => __('Sign-in methods', 'fluent-security'),
             /* translators: %s is a comma-separated list of user roles whose sign-ins trigger an alert */
             'Sign-ins by: %s' => __('Sign-ins by: %s', 'fluent-security'),
-            'Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.' => __('Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.', 'fluent-security'),
+            'Sign-ins with Google, GitHub, Facebook or a passkey use this length unless the persistent login policy applies. New accounts after sign-up follow the same rule.' => __('Sign-ins with Google, GitHub, Facebook or a passkey use this length unless the persistent login policy applies. New accounts after sign-up follow the same rule.', 'fluent-security'),
             'Signing in ends at the password' => __('Signing in ends at the password', 'fluent-security'),
             'Signing in from an emailed link instead of a password.' => __('Signing in from an emailed link instead of a password.', 'fluent-security'),
             'Signing up' => __('Signing up', 'fluent-security'),

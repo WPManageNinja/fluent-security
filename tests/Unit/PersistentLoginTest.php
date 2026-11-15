@@ -21,6 +21,8 @@ class PersistentLoginTest extends BaseTestCase
         $this->server = $_SERVER;
         $this->cookies = $_COOKIE;
         $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['HTTP_SEC_FETCH_DEST'] = 'document';
+        $_SERVER['HTTP_SEC_FETCH_MODE'] = 'navigate';
         wp_set_current_user(0);
         $this->user = $this->factory->user->create_and_get(['role' => 'subscriber']);
         $this->handler = $this->newHandler();
@@ -32,7 +34,11 @@ class PersistentLoginTest extends BaseTestCase
         // CLI PHPUnit has already printed progress. Keep headers writable for each
         // simulated request; real HTTP specs verify actual headers separately.
         return new class extends SessionLengthHandler {
+            public $inputHeaders = [];
+            public $emittedHeaders = [];
             protected function headersSent() { return false; }
+            protected function cookieHeaders() { return $this->inputHeaders; }
+            protected function sendCookieHeader($header) { $this->emittedHeaders[] = $header; }
         };
     }
 
@@ -72,6 +78,31 @@ class PersistentLoginTest extends BaseTestCase
         $this->settings(['persistent_login_days' => $days]);
         $this->assertSame($days * DAY_IN_SECONDS,
             $this->handler->filterExpiration(99999999, $this->user->ID, $remember));
+    }
+
+    public function testNativeCookieEncodingPreservesSpaceBearingUsernames()
+    {
+        $user = $this->factory->user->create_and_get(['user_login' => 'wpmn space', 'role' => 'subscriber']);
+        $this->assertSame('wpmn space', $user->user_login);
+        $expiration = time() + 30 * DAY_IN_SECONDS;
+        $cookie = wp_generate_auth_cookie($user->ID, $expiration, 'logged_in', 'token');
+        $hash = substr($cookie, strrpos($cookie, '|') + 1);
+        $header = 'Set-Cookie: ' . LOGGED_IN_COOKIE . '=wpmn%20space%7C' . $expiration . '%7Ctoken%7C' . $hash . '; path=/; secure; HttpOnly';
+        $this->handler->inputHeaders = [$header, 'Set-Cookie: unrelated=keep; path=/'];
+        $this->handler->captureCookie($cookie, 0, $expiration, $user->ID, 'logged_in', 'token');
+        $this->handler->persistLogin($user->user_login, $user);
+        $this->assertCount(1, $this->handler->emittedHeaders);
+        $this->assertStringStartsWith($header . '; expires=', $this->handler->emittedHeaders[0]);
+        $this->handler->emittedHeaders = [];
+        $this->handler->inputHeaders = [str_replace('%20', '+', $header)];
+        $this->handler->captureCookie($cookie, 0, $expiration, $user->ID, 'logged_in', 'token');
+        $this->handler->persistLogin($user->user_login, $user);
+        $this->assertCount(1, $this->handler->emittedHeaders, 'Equivalent form encoding stays supported.');
+        $this->handler->emittedHeaders = [];
+        $this->handler->inputHeaders = [str_replace('wpmn%20space', 'WPMN%20space', $header)];
+        $this->handler->captureCookie($cookie, 0, $expiration, $user->ID, 'logged_in', 'token');
+        $this->handler->persistLogin($user->user_login, $user);
+        $this->assertSame([], $this->handler->emittedHeaders, 'Only byte-identical cookie payloads can be promoted.');
     }
 
     public static function durations()
@@ -266,9 +297,23 @@ class PersistentLoginTest extends BaseTestCase
         $this->assertSame($before, $manager->get($token));
     }
 
+    /** @dataProvider xhrFlags */
+    public function testBackgroundGetWithoutNavigationMetadataDoesNotRenew($xhr)
+    {
+        list($manager, $token) = $this->arrived();
+        $before = $manager->get($token);
+        unset($_SERVER['HTTP_SEC_FETCH_DEST'], $_SERVER['HTTP_SEC_FETCH_MODE']);
+        if ($xhr) { $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'; }
+        $this->handler->renew();
+        $this->assertSame($before, $manager->get($token));
+    }
+
+    public static function xhrFlags() { return [[false], [true]]; }
+
     public static function foregroundGuards()
     {
         return [['HTTP_SEC_FETCH_DEST', 'empty'], ['HTTP_SEC_FETCH_DEST', 'iframe'],
+            ['HTTP_SEC_FETCH_MODE', 'cors'], ['HTTP_X_REQUESTED_WITH', 'XMLHttpRequest'],
             ['HTTP_PURPOSE', 'prefetch'], ['HTTP_SEC_PURPOSE', 'prefetch;prerender']];
     }
 

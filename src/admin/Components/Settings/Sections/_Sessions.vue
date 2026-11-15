@@ -32,7 +32,7 @@ export default {
             </template>
         </SettingRow>
 
-        <SettingRow :description="$t('Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.')">
+        <SettingRow :description="$t('Sign-ins with Google, GitHub, Facebook or a passkey use this length unless the persistent login policy applies. New accounts after sign-up follow the same rule.')">
             <template #label>
                 <!-- translators: %s is a number field for days -->
                 <InlineSentence :text="$t('If Remember Me is on, keep people signed in for %s days')">

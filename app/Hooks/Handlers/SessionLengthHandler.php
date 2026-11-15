@@ -105,20 +105,23 @@ class SessionLengthHandler
     {
         $pending = $this->pending;
         $this->pending = [];
-        if (!$user instanceof \WP_User || ($pending['user'] ?? 0) !== (int)$user->ID || headers_sent()) {
+        if (!$user instanceof \WP_User || ($pending['user'] ?? 0) !== (int)$user->ID || $this->headersSent()) {
             return;
         }
         // Core has already applied every cookie veto. Upgrade only headers it actually
         // emitted, keeping its exact payload, paths, domain, Secure and HttpOnly flags.
         $expire = $pending['expiration'] + 12 * HOUR_IN_SECONDS;
-        foreach (headers_list() as $header) {
+        foreach ($this->cookieHeaders() as $header) {
             foreach ($pending['cookies'] as $name => $cookie) {
-                $pair = 'Set-Cookie: ' . $name . '=' . urlencode($cookie);
-                if (strncasecmp($header, $pair . ';', strlen($pair) + 1) !== 0) {
+                $pair = $name . '=' . rawurlencode($cookie) . ';';
+                $formPair = $name . '=' . urlencode($cookie) . ';';
+                if (strncasecmp($header, 'Set-Cookie: ', 12) !== 0
+                    || (strncmp(substr($header, 12), $pair, strlen($pair)) !== 0
+                        && strncmp(substr($header, 12), $formPair, strlen($formPair)) !== 0)) {
                     continue;
                 }
                 $header = preg_replace('/;\s*(?:expires|max-age)=[^;]*/i', '', $header);
-                header($header . '; expires=' . gmdate('D, d M Y H:i:s', $expire) . ' GMT; Max-Age=' . max(0, $expire - time()), false);
+                $this->sendCookieHeader($header . '; expires=' . gmdate('D, d M Y H:i:s', $expire) . ' GMT; Max-Age=' . max(0, $expire - time()));
             }
         }
     }
@@ -138,7 +141,9 @@ class SessionLengthHandler
             || Helper::getSetting('persistent_login_renew') !== 'yes' || $this->headersSent() || !self::supportsRenewal()
             || ($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET' || wp_doing_ajax() || wp_doing_cron()
             || (defined('REST_REQUEST') && REST_REQUEST) || (defined('WP_CLI') && WP_CLI)
-            || (isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] !== 'document')
+            || ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? '') !== 'document'
+            || ($_SERVER['HTTP_SEC_FETCH_MODE'] ?? '') !== 'navigate'
+            || strcasecmp($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '', 'XMLHttpRequest') === 0
             || stripos(($_SERVER['HTTP_PURPOSE'] ?? '') . ($_SERVER['HTTP_SEC_PURPOSE'] ?? ''), 'prefetch') !== false) {
             return;
         }
@@ -214,6 +219,16 @@ class SessionLengthHandler
     protected function headersSent()
     {
         return headers_sent();
+    }
+
+    protected function cookieHeaders()
+    {
+        return headers_list();
+    }
+
+    protected function sendCookieHeader($header)
+    {
+        header($header, false);
     }
 
     public function filterLoginFormDefaults($defaults)
