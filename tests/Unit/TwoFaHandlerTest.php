@@ -172,6 +172,36 @@ class TwoFaHandlerTest extends BaseTestCase
         ];
     }
 
+    public function testAnOlderEmailCodeOnTheNewerPageSaysToUseTheNewestEmail()
+    {
+        $first = $this->issueCode();
+        $second = $this->issueCode();
+
+        $reply = $this->verify($first['code'], $second['hash']);
+
+        $this->assertStringContainsString('newest email', $reply['message']);
+        $this->assertSame('issued', $this->hashRow($first['hash'])->status, 'the older challenge is not touched');
+    }
+
+    public function testAWrongCodeWithOnlyOneEmailKeepsThePlainMessage()
+    {
+        $only = $this->issueCode();
+
+        $reply = $this->verify('000000' === $only['code'] ? '111111' : '000000', $only['hash']);
+
+        $this->assertStringNotContainsString('newest email', $reply['message']);
+    }
+
+    public function testTheOlderPageDoesNotSendPeopleToTheNewestEmail()
+    {
+        $first = $this->issueCode();
+        $second = $this->issueCode();
+
+        $reply = $this->verify($second['code'], $first['hash']);
+
+        $this->assertStringNotContainsString('newest email', $reply['message']);
+    }
+
     private function hashRow($hash)
     {
         return flsDb()->table('fls_login_hashes')->where('login_hash', $hash)->first();
