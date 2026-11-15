@@ -122,6 +122,67 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame('used', $this->rowFor($link)->status);
     }
 
+    private function signedInSessionLength()
+    {
+        $sessions = \WP_Session_Tokens::get_instance($this->user->ID)->get_all();
+        $this->assertCount(1, $sessions);
+
+        return reset($sessions)['expiration'] - time();
+    }
+
+    public function testAMagicLinkIsRememberedByDefault()
+    {
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+
+        $this->assertEqualsWithDelta(14 * DAY_IN_SECONDS, $this->signedInSessionLength(), 5);
+        $this->assertArrayNotHasKey('rememberme', $_REQUEST);
+    }
+
+    public function testAMagicLinkIsNotRememberedWhenTheOwnerTurnsTheDefaultOff()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['remember_default'] = 'no';
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+
+        $this->assertEqualsWithDelta(2 * DAY_IN_SECONDS, $this->signedInSessionLength(), 5);
+    }
+
+    public function testAMagicLinkThatOwesAFactorStaysRememberedAfterTheChallenge()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        $settings['totp_required_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $stop = function () {
+            throw new \RuntimeException('redirected to the challenge');
+        };
+        add_filter('wp_redirect', $stop);
+
+        try {
+            $this->handler->makeLogin($this->issueLink());
+            $this->fail('precondition: the link should hand over to a challenge');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('redirected to the challenge', $e->getMessage());
+        } finally {
+            remove_filter('wp_redirect', $stop);
+        }
+
+        $pending = flsDb()->table('fls_login_hashes')
+            ->where('user_id', $this->user->ID)
+            ->where('use_type', '!=', 'magic_login')
+            ->first();
+
+        $this->assertNotNull($pending, 'precondition: a challenge was raised');
+        $this->assertStringEndsWith('-auth', $pending->login_hash);
+        $this->assertArrayNotHasKey('rememberme', $_REQUEST);
+    }
+
     /**
      * The half the email promises out loud.
      */

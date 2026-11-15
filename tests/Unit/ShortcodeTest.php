@@ -109,6 +109,16 @@ class ShortcodeTest extends BaseTestCase
 
     // ------------------------------------------------------------ plain rendering
 
+    public function test_the_login_shortcode_checks_remember_me_from_the_setting()
+    {
+        $this->assertMatchesRegularExpression('/name="rememberme"[^>]*checked="checked"/', do_shortcode('[fluent_auth_login]'));
+
+        update_option('__fls_auth_settings', array_merge(Helper::getAuthSettings(), ['remember_default' => 'no']));
+        Helper::resetStatics();
+
+        $this->assertDoesNotMatchRegularExpression('/name="rememberme"[^>]*checked="checked"/', do_shortcode('[fluent_auth_login]'));
+    }
+
     public function test_the_login_shortcode_renders_the_form_the_front_end_js_binds_to()
     {
         $html = do_shortcode('[fluent_auth_login]');

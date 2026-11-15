@@ -145,7 +145,10 @@ class Helper
                 'subscriber'
             ],
             'trusted_proxies'         => '',
-            'proxy_ip_header'         => ''
+            'proxy_ip_header'         => '',
+            'session_days'            => 2,
+            'remember_days'           => 14,
+            'remember_default'        => 'yes'
         ];
 
         $settings = get_option('__fls_auth_settings');

@@ -238,7 +238,8 @@ class TransStrings
             'Block XML-RPC requests' => __('Block XML-RPC requests', 'fluent-security'),
             /* translators: %s is an IP address */
             'Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.' => __('Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.', 'fluent-security'),
-            'Block an IP address after' => __('Block an IP address after', 'fluent-security'),
+            /* translators: %1$s is a number field for failed attempts, %2$s a number field for minutes */
+            'Block an IP address after %1$s failed attempts within %2$s minutes' => __('Block an IP address after %1$s failed attempts within %2$s minutes', 'fluent-security'),
             'Block application passwords' => __('Block application passwords', 'fluent-security'),
             'Blocked' => __('Blocked', 'fluent-security'),
             'Blocked addresses' => __('Blocked addresses', 'fluent-security'),
@@ -260,7 +261,9 @@ class TransStrings
             'Change the wording, colours and images on your sign up page.' => __('Change the wording, colours and images on your sign up page.', 'fluent-security'),
             'Changed' => __('Changed', 'fluent-security'),
             'Changed since recorded' => __('Changed since recorded', 'fluent-security'),
+            'Changes apply to the next sign-in. People who are signed in now keep their current session.' => __('Changes apply to the next sign-in. People who are signed in now keep their current session.', 'fluent-security'),
             'Check PHP on your server' => __('Check PHP on your server', 'fluent-security'),
+            'Check Remember Me by default' => __('Check Remember Me by default', 'fluent-security'),
             'Check summary' => __('Check summary', 'fluent-security'),
             'Check who can change your site' => __('Check who can change your site', 'fluent-security'),
             'Checked' => __('Checked', 'fluent-security'),
@@ -284,6 +287,7 @@ class TransStrings
             'Clear filters' => __('Clear filters', 'fluent-security'),
             'Click Create. Then copy the site key and the secret key into the fields below.' => __('Click Create. Then copy the site key and the secret key into the fields below.', 'fluent-security'),
             'Close' => __('Close', 'fluent-security'),
+            'Closing the browser also signs people out, unless the browser reopens the last session.' => __('Closing the browser also signs people out, unless the browser reopens the last session.', 'fluent-security'),
             'Cloudflare Turnstile keys' => __('Cloudflare Turnstile keys', 'fluent-security'),
             'Cloudflare detected' => __('Cloudflare detected', 'fluent-security'),
             'Compare your WordPress files with the originals and flag any changes.' => __('Compare your WordPress files with the originals and flag any changes.', 'fluent-security'),
@@ -336,7 +340,8 @@ class TransStrings
             'Default text loaded. Save to keep it.' => __('Default text loaded. Save to keep it.', 'fluent-security'),
             'Delete all logs' => __('Delete all logs', 'fluent-security'),
             'Delete every log entry? This cannot be undone.' => __('Delete every log entry? This cannot be undone.', 'fluent-security'),
-            'Delete logs older than' => __('Delete logs older than', 'fluent-security'),
+            /* translators: %s is a number field for days */
+            'Delete logs older than %s days' => __('Delete logs older than %s days', 'fluent-security'),
             'Delete this entry' => __('Delete this entry', 'fluent-security'),
             'Delete this file' => __('Delete this file', 'fluent-security'),
             'Delete this file permanently?' => __('Delete this file permanently?', 'fluent-security'),
@@ -479,6 +484,7 @@ class TransStrings
             'Hide the side panel' => __('Hide the side panel', 'fluent-security'),
             'Hide usernames from the public' => __('Hide usernames from the public', 'fluent-security'),
             'How long logs are kept, and which roles can open wp-admin.' => __('How long logs are kept, and which roles can open wp-admin.', 'fluent-security'),
+            'How long people stay signed in before they must sign in again.' => __('How long people stay signed in before they must sign in again.', 'fluent-security'),
             'How many wrong passwords one IP address gets before it is blocked.' => __('How many wrong passwords one IP address gets before it is blocked.', 'fluent-security'),
             'How often' => __('How often', 'fluent-security'),
             'How the plugin tells one visitor from another. Most sites can leave this alone; it matters when traffic reaches your site through a proxy.' => __('How the plugin tells one visitor from another. Most sites can leave this alone; it matters when traffic reaches your site through a proxy.', 'fluent-security'),
@@ -493,6 +499,10 @@ class TransStrings
             /* translators: %s is the HTTP header name the visitor IP is read from, or Automatic */
             'IP header: %s' => __('IP header: %s', 'fluent-security'),
             'IP rules are switched off in wp-config.php' => __('IP rules are switched off in wp-config.php', 'fluent-security'),
+            /* translators: %s is a number field for days */
+            'If Remember Me is off, sign people out after %s days' => __('If Remember Me is off, sign people out after %s days', 'fluent-security'),
+            /* translators: %s is a number field for days */
+            'If Remember Me is on, keep people signed in for %s days' => __('If Remember Me is on, keep people signed in for %s days', 'fluent-security'),
             /* translators: %s is a line of PHP code to paste into wp-config.php */
             'If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.' => __('If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.', 'fluent-security'),
             'If this was not you, change the password on that account now.' => __('If this was not you, change the password on that account now.', 'fluent-security'),
@@ -571,6 +581,7 @@ class TransStrings
             'Looks like' => __('Looks like', 'fluent-security'),
             'Lost your password?' => __('Lost your password?', 'fluent-security'),
             'Magic Login' => __('Magic Login', 'fluent-security'),
+            'Magic links follow this choice too. On a login form, people can still uncheck the box.' => __('Magic links follow this choice too. On a login form, people can still uncheck the box.', 'fluent-security'),
             'Magic login' => __('Magic login', 'fluent-security'),
             'Make it required' => __('Make it required', 'fluent-security'),
             'Manage on their profile' => __('Manage on their profile', 'fluent-security'),
@@ -907,6 +918,7 @@ class TransStrings
             'Sign-in methods' => __('Sign-in methods', 'fluent-security'),
             /* translators: %s is a comma-separated list of user roles whose sign-ins trigger an alert */
             'Sign-ins by: %s' => __('Sign-ins by: %s', 'fluent-security'),
+            'Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.' => __('Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.', 'fluent-security'),
             'Signing in ends at the password' => __('Signing in ends at the password', 'fluent-security'),
             'Signing in from an emailed link instead of a password.' => __('Signing in from an emailed link instead of a password.', 'fluent-security'),
             'Signing up' => __('Signing up', 'fluent-security'),
@@ -931,6 +943,7 @@ class TransStrings
             'Start with the items marked Action needed.' => __('Start with the items marked Action needed.', 'fluent-security'),
             'Status' => __('Status', 'fluent-security'),
             'Stay updated' => __('Stay updated', 'fluent-security'),
+            'Staying Signed In' => __('Staying Signed In', 'fluent-security'),
             /* translators: %1$s is the current step number, %2$s the total number of steps */
             'Step %1$s of %2$s' => __('Step %1$s of %2$s', 'fluent-security'),
             'Stop bots from signing up, logging in and asking for password resets.' => __('Stop bots from signing up, logging in and asking for password resets.', 'fluent-security'),
@@ -1306,17 +1319,14 @@ class TransStrings
             /* translators: %s is how long ago, e.g. 3 days ago */
             'changed %s' => __('changed %s', 'fluent-security'),
             'click here' => __('click here', 'fluent-security'),
-            'days' => __('days', 'fluent-security'),
             'deleted' => __('deleted', 'fluent-security'),
             'e.g. 10.0.0.1, 192.168.1.0/24' => __('e.g. 10.0.0.1, 192.168.1.0/24', 'fluent-security'),
             'emailed codes' => __('emailed codes', 'fluent-security'),
-            'failed attempts within' => __('failed attempts within', 'fluent-security'),
             /* translators: %s is the number of plugins and themes with changed files */
             "in %s plugin or theme\x00in %s plugins and themes" => self::pluralForms(_n_noop('in %s plugin or theme', 'in %s plugins and themes', 'fluent-security')),
             'inside your network' => __('inside your network', 'fluent-security'),
             'is one of' => __('is one of', 'fluent-security'),
             'last checked' => __('last checked', 'fluent-security'),
-            'minutes' => __('minutes', 'fluent-security'),
             'modified' => __('modified', 'fluent-security'),
             'new' => __('new', 'fluent-security'),
             'new file' => __('new file', 'fluent-security'),

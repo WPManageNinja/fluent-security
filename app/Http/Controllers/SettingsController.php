@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Hooks\Handlers\ServerModeHandler;
+use FluentAuth\App\Hooks\Handlers\SessionLengthHandler;
 use FluentAuth\App\Services\ProxyDetection;
 use FluentAuth\App\Services\TwoFa\RivalTwoFa;
 use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
@@ -139,6 +140,14 @@ class SettingsController
          * because the handlers and anything filtering them read it by name.
          */
         $settings['disable_admin_bar'] = empty($settings['disable_bar_roles']) ? 'no' : 'yes';
+
+        $settings['session_days'] = SessionLengthHandler::clampDays(
+            Arr::get($settings, 'session_days'), SessionLengthHandler::WP_SESSION_DAYS
+        );
+        $settings['remember_days'] = max($settings['session_days'], SessionLengthHandler::clampDays(
+            Arr::get($settings, 'remember_days'), SessionLengthHandler::WP_REMEMBER_DAYS
+        ));
+        $settings['remember_default'] = Arr::get($settings, 'remember_default') === 'no' ? 'no' : 'yes';
 
         $errors = [];
 
