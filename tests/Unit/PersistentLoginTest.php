@@ -186,6 +186,25 @@ class PersistentLoginTest extends BaseTestCase
         $this->assertSame($before, $manager->get($token), 'Skip renewal on a conflicting token-map change.');
     }
 
+    public function testCaseOnlyMetadataConflictIsNotOverwritten()
+    {
+        list($manager, $token) = $this->arrived(['custom_metadata' => 'lowercase']);
+        $change = function ($query) use (&$change, $manager, $token) {
+            global $wpdb;
+            if (strpos($query, "UPDATE `{$wpdb->usermeta}`") === 0) {
+                remove_filter('query', $change);
+                $session = $manager->get($token);
+                $session['custom_metadata'] = 'LOWERCASE';
+                $manager->update($token, $session);
+            }
+            return $query;
+        };
+        add_filter('query', $change);
+        try { $this->handler->renew(); }
+        finally { remove_filter('query', $change); }
+        $this->assertSame('LOWERCASE', $manager->get($token)['custom_metadata']);
+    }
+
     /** @dataProvider foregroundGuards */
     public function testBackgroundAndPrefetchDoNotRenew($key, $value)
     {

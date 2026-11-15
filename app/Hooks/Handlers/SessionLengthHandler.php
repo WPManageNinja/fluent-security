@@ -174,9 +174,12 @@ class SessionLengthHandler
         $expiration = time() + $days * DAY_IN_SECONDS;
         $sessions[$key]['expiration'] = $expiration;
         $sessions[$key]['fls_renewed'] = time();
-        $changed = $wpdb->update($wpdb->usermeta, ['meta_value' => maybe_serialize($sessions)], [
-            'umeta_id' => $row->umeta_id, 'user_id' => $userId, 'meta_key' => 'session_tokens', 'meta_value' => $row->meta_value
-        ]);
+        // Usermeta commonly has a case-insensitive collation; CAS must compare bytes,
+        // including metadata supplied by other plugins, rather than collation weights.
+        $changed = $wpdb->query($wpdb->prepare(
+            "UPDATE `{$wpdb->usermeta}` SET meta_value = %s WHERE umeta_id = %d AND user_id = %d AND meta_key = %s AND BINARY meta_value = BINARY %s",
+            maybe_serialize($sessions), $row->umeta_id, $userId, 'session_tokens', $row->meta_value
+        ));
         if ($changed !== 1) {
             return;
         }
