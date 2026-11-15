@@ -23,12 +23,17 @@ class PersistentLoginTest extends BaseTestCase
         $_SERVER['REQUEST_METHOD'] = 'GET';
         wp_set_current_user(0);
         $this->user = $this->factory->user->create_and_get(['role' => 'subscriber']);
-        // CLI PHPUnit has already printed progress. Exercise renewal's state transition
-        // here; real HTTP specs separately verify headers and cookie persistence.
-        $this->handler = new class extends SessionLengthHandler {
+        $this->handler = $this->newHandler();
+        $this->settings();
+    }
+
+    private function newHandler()
+    {
+        // CLI PHPUnit has already printed progress. Keep headers writable for each
+        // simulated request; real HTTP specs verify actual headers separately.
+        return new class extends SessionLengthHandler {
             protected function headersSent() { return false; }
         };
-        $this->settings();
     }
 
     public function tearDown(): void
@@ -334,10 +339,10 @@ class PersistentLoginTest extends BaseTestCase
         add_filter('query', $observe);
         try {
             for ($i = 0; $i < 3; $i++) {
-                $handler = new SessionLengthHandler();
+                $handler = $this->newHandler();
                 $handler->noteAuthenticated($elements, $this->user);
                 $handler->renew();
-                (new SessionLengthHandler())->renew();
+                $this->newHandler()->renew();
             }
         } finally { remove_filter('query', $observe); }
         $this->assertSame(0, $writes);
