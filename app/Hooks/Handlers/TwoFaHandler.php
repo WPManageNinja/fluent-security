@@ -260,7 +260,8 @@ class TwoFaHandler
             $user,
             'url',
             $logHash->redirect_intend,
-            $alternative
+            $alternative,
+            (bool)strpos($logHash->login_hash, '-auth')
         );
 
         wp_safe_redirect($redirectTo ? $redirectTo : wp_login_url());
@@ -320,9 +321,11 @@ class TwoFaHandler
      * @param $return string 'url' or 'both'
      * @param $redirectIntend string|null explicit intent for callers that do not carry
      *                                    it in $_REQUEST, such as social login
+     * @param bool|null $remember trusted remembered-session choice; null keeps the
+     *                            current request-derived default
      * @return array|string|false
      */
-    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null)
+    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null, $remember = null)
     {
         /*
          * Passed unresolved: whether the account is under attack costs two queries over
@@ -352,7 +355,10 @@ class TwoFaHandler
             $redirectIntend = $this->resolveRedirectIntent();
         }
 
-        if (isset($_REQUEST['rememberme'])) {
+        if ($remember === null) {
+            $remember = isset($_REQUEST['rememberme']);
+        }
+        if ($remember) {
             $hash .= '-auth';
         }
 
@@ -918,15 +924,16 @@ class TwoFaHandler
      *
      * @param $user \WP_User
      * @param $redirectIntend string|null where to return the browser afterwards
+     * @param bool|null $remember whether the finished login is remembered; null reads the request
      * @return string|false the URL to send the browser to, or false if nothing is owed
      */
-    public function raiseChallengeForDirectLogin($user, $redirectIntend = null)
+    public function raiseChallengeForDirectLogin($user, $redirectIntend = null, $remember = null)
     {
         if (!$user instanceof \WP_User || self::$completingChallenge) {
             return false;
         }
 
-        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend);
+        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend, null, $remember);
 
         if (!$raised) {
             return false;

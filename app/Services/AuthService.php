@@ -140,7 +140,7 @@ class AuthService
 
         // Null rather than the '' this returns when there is no intent cookie: '' is an
         // answer, and it would stop the challenge reading the request for itself.
-        return $handler->sendAndGet2FaConfirmFormUrl($user, 'url', self::getIntentRedirect() ?: null);
+        return $handler->sendAndGet2FaConfirmFormUrl($user, 'url', self::getIntentRedirect() ?: null, null, true);
     }
 
     /**
@@ -218,7 +218,7 @@ class AuthService
          */
         $intendedRedirect = $provider ? self::getIntentRedirect() : '';
 
-        $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, $intendedRedirect ?: null);
+        $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, $intendedRedirect ?: null, true);
 
         if ($challengeUrl) {
             return new \WP_Error(

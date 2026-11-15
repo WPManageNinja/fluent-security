@@ -164,7 +164,7 @@ class CustomAuthHandler
             'redirect'          => $redirect,
             'force_redirect_to' => $requestedRedirectTo,
             'remember'          => true,
-            'value_remember'    => true,
+            'value_remember'    => SessionLengthHandler::rememberByDefault(),
             'action_url'        => site_url('/')
         ]);
 
@@ -1268,7 +1268,7 @@ class CustomAuthHandler
         $user = get_user_by('ID', $userId);
 
         if ($user) {
-            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, null, true);
 
             if ($challengeUrl) {
                 return $challengeUrl;
