@@ -146,6 +146,11 @@ class Helper
             ],
             'trusted_proxies'         => '',
             'proxy_ip_header'         => '',
+            'persistent_login'       => 'no',
+            'persistent_login_days'  => 30,
+            'persistent_login_scope' => 'selected',
+            'persistent_login_roles' => [],
+            'persistent_login_renew' => 'no',
             'session_days'            => 2,
             'remember_days'           => 14,
             'remember_default'        => 'yes'
