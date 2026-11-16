@@ -613,7 +613,9 @@ class SystemEmailsTest extends BaseTestCase
                     continue;
                 }
 
-                $parsed = $parser->parse($code, $user);
+                $parsed = $type === 'signup_verification_to_user'
+                    ? SystemEmailService::parseSignupEmail($code, ['first_name' => 'Sample', 'last_name' => 'User', 'email' => 'sample@example.test', 'username' => 'sample_user'], '123456')
+                    : $parser->parse($code, $user);
                 $this->assertNotSame($code, $parsed, $type . ' offers ' . $code . ', which is never replaced');
                 $this->assertNotSame('', $parsed, $type . ' offers ' . $code . ', which comes out empty');
             }
