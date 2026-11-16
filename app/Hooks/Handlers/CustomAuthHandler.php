@@ -594,10 +594,12 @@ class CustomAuthHandler
         $redirectTo = Arr::get($attributes, 'redirect_to');
 
         if ($redirectTo == 'self') {
-            // REQUEST_URI already holds any home subdirectory, so it goes on the origin, not on home_url().
+            // REQUEST_URI already holds any home subdirectory, so it goes on the origin, not on
+            // home_url(). A proxy that strips the subdirectory keeps the old home_url() form.
             $requestUri = (string)Arr::get($_SERVER, 'REQUEST_URI');
             $origin = self::siteOrigin();
-            $redirectTo = ($origin && strpos($requestUri, '/') === 0) ? $origin . $requestUri : home_url($requestUri);
+            $homePath = rtrim((string)wp_parse_url(home_url(), PHP_URL_PATH), '/') . '/';
+            $redirectTo = ($origin && strpos($requestUri, $homePath) === 0) ? $origin . $requestUri : home_url($requestUri);
             $attributes['redirect_to'] = $redirectTo;
         } else if ($redirectTo) {
             if (is_string($redirectTo) && strpos($redirectTo, '/') === 0 && strpos($redirectTo, '//') !== 0) {
