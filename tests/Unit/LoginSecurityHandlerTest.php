@@ -141,6 +141,109 @@ class LoginSecurityHandlerTest extends BaseTestCase
     }
 
     /**
+     * The handler keeps per-request state, so each simulated request gets a fresh one.
+     */
+    private function freshRegisteredHandler()
+    {
+        global $wp_filter;
+
+        foreach ($wp_filter as $tag => $hook) {
+            foreach ($hook->callbacks as $priority => $callbacks) {
+                foreach ($callbacks as $callback) {
+                    if (is_array($callback['function']) && $callback['function'][0] instanceof LoginSecurityHandler) {
+                        remove_filter($tag, $callback['function'], $priority);
+                    }
+                }
+            }
+        }
+
+        (new LoginSecurityHandler())->register();
+    }
+
+    /**
+     * wp_authenticate() (XML-RPC, Basic-auth plugins) also tests the account password, so a
+     * Basic header must not move those guesses onto the application-password count.
+     */
+    public function testAccountPasswordGuessesInsideWpAuthenticateStayOnTheOrdinaryLimit()
+    {
+        update_site_option('using_application_passwords', 1);
+        add_filter('application_password_is_api_request', '__return_true');
+        // Core only offers them over HTTPS or on a local site; the test site is neither.
+        add_filter('wp_is_application_passwords_available', '__return_true', 1);
+        $_SERVER['PHP_AUTH_USER'] = 'anything';
+        $_SERVER['PHP_AUTH_PW'] = 'anything';
+
+        self::factory()->user->create(['user_login' => 'xmlrpc_victim', 'user_pass' => 'right-password', 'role' => 'administrator']);
+
+        // A full application-password count from REST must not take over either.
+        $this->seedFailedAttempts(6, 'app_password');
+
+        try {
+            for ($i = 0; $i < 6; $i++) {
+                $this->freshRegisteredHandler();
+                $this->assertWPError(wp_authenticate('xmlrpc_victim', 'wrong-' . $i));
+            }
+
+            $this->freshRegisteredHandler();
+            $this->assertWPError(wp_authenticate('xmlrpc_victim', 'right-password'), 'the ordinary limit still blocks the IP');
+            $this->assertSame(6, (int)$GLOBALS['wpdb']->get_var("SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}fls_auth_logs WHERE `media` = 'app_password'"), 'nothing new on the application-password count');
+        } finally {
+            remove_filter('application_password_is_api_request', '__return_true');
+            remove_filter('wp_is_application_passwords_available', '__return_true', 1);
+            delete_site_option('using_application_passwords');
+            $this->freshRegisteredHandler();
+        }
+    }
+
+    public function testABlockListRefusalSaysSoAndOffersNoPasswordHelp()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notify_on_blocked'] = 'yes';
+        $settings['notification_email'] = 'owner@example.test';
+        update_option('__fls_auth_settings', $settings);
+        update_option(\FluentAuth\App\Services\IpRules::OPTION, [
+            'allow' => [],
+            'block' => [['ip' => Helper::getIp(), 'label' => 'Test', 'expires_at' => '']]
+        ], false);
+        Helper::resetStatics();
+        delete_option('fls_last_blocked_email_send_time');
+
+        $_SERVER['PHP_AUTH_USER'] = 'admin';
+        $_SERVER['PHP_AUTH_PW'] = 'wrong password';
+
+        $mail = null;
+        $capture = function ($short, $atts) use (&$mail) {
+            $mail = $atts;
+            return true;
+        };
+        add_filter('pre_wp_mail', $capture, 10, 2);
+
+        try {
+            $this->assertFalse($this->handler->maybeBlockAppPasswordAuth(true));
+        } finally {
+            remove_filter('pre_wp_mail', $capture, 10);
+            delete_option(\FluentAuth\App\Services\IpRules::OPTION);
+        }
+
+        $this->assertNotNull($mail);
+        $this->assertStringContainsString('block list', $mail['message']);
+        $this->assertStringNotContainsString('failed application password sign-ins', $mail['message']);
+        $this->assertStringNotContainsString('create a new application password', $mail['message']);
+    }
+
+    public function testApplicationPasswordFailuresDoNotBlockAPasswordReset()
+    {
+        $this->seedFailedAttempts(6, 'app_password');
+        $user = self::factory()->user->create_and_get();
+
+        $errors = new \WP_Error();
+        $this->assertSame($errors, $this->handler->maybeBlockPasswordReset($errors, $user));
+
+        $this->seedFailedAttempts(6, 'web');
+        $this->assertWPError($this->handler->maybeBlockPasswordReset(new \WP_Error(), $user));
+    }
+
+    /**
      * Core calls wp_is_application_passwords_available() more than once per request.
      * The block must be resolved once so a single attempt is not counted twice.
      */

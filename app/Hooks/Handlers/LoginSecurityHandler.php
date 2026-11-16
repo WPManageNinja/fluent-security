@@ -205,7 +205,7 @@ class LoginSecurityHandler
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
 
         $count = (int)$wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `user_id` = %d AND `created_at` > %s AND `status` IN ('failed','blocked')",
+            "SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `user_id` = %d AND `created_at` > %s AND `status` IN ('failed','blocked')" . self::attemptPathSql('web'),
             $user->ID,
             $dateTime
         ));
@@ -263,6 +263,12 @@ class LoginSecurityHandler
             return $status;
         }
 
+        // Inside wp_authenticate() (XML-RPC, Basic-auth plugins) the account password is
+        // tested too, so the ordinary attempt limit rules there, not this one.
+        if (doing_filter('authenticate')) {
+            return $status;
+        }
+
         /*
          * Core calls wp_is_application_passwords_available() more than once per request.
          * Resolve the block once, otherwise we would count the same attempt twice.
@@ -297,17 +303,22 @@ class LoginSecurityHandler
             return $status;
         }
 
-        $this->logBlockedAuth(
-            new \WP_Error('blocked', sprintf(
+        $ruleReason = $this->blockReason($isLimitExceeded);
+
+        if ($ruleReason) {
+            $refusal = __('A sign-in with an application password was refused. This IP address is on the site\'s block list.', 'fluent-security');
+            $help = '';
+        } else {
+            $refusal = sprintf(
                 /* translators: 1: the failed sign-in limit, 2: minutes */
                 __('A sign-in with an application password was refused. This IP address had %1$d or more failed application password sign-ins in the last %2$d minutes.', 'fluent-security'),
                 (int)Helper::getSetting('login_try_limit'),
                 (int)Helper::getSetting('login_try_timing')
-            )),
-            $username,
-            'app_password',
-            $this->blockReason($isLimitExceeded)
-        );
+            );
+            $help = __('If you do not use application passwords, turn on "Block application passwords" in FluentAuth Settings, under Core Security. If this is your own app, create a new application password for it under Users, Profile.', 'fluent-security');
+        }
+
+        $this->logBlockedAuth(new \WP_Error('blocked', $refusal), $username, 'app_password', $ruleReason, $help);
 
         return false;
     }
@@ -326,6 +337,13 @@ class LoginSecurityHandler
          * logging the same attempt twice.
          */
         if (!isset($_SERVER['PHP_AUTH_USER'])) {
+            return;
+        }
+
+        // Inside wp_authenticate() the account password was tested as well; wp_login_failed
+        // logs that attempt on the ordinary path. Counting it here would let account
+        // password guesses escape the ordinary limit.
+        if (doing_filter('authenticate')) {
             return;
         }
 
@@ -445,7 +463,7 @@ class LoginSecurityHandler
         $ip = Helper::getIp();
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
 
-        $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked', 'password_reset')", $ip, $dateTime));
+        $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked', 'password_reset')" . self::attemptPathSql('web'), $ip, $dateTime));
 
         if (!$count || $count < $limit) {
 
@@ -852,7 +870,7 @@ class LoginSecurityHandler
      *                       more useful than "blocked" - which rule matched, above all.
      * @return void
      */
-    private function logBlockedAuth($user, $username, $media = 'web', $reason = '')
+    private function logBlockedAuth($user, $username, $media = 'web', $reason = '', $help = '')
     {
         global $wpdb;
 
@@ -910,7 +928,7 @@ class LoginSecurityHandler
 
         $this->failedLogged = true;
 
-        $this->maybeSendBlockedEmail($user, $username, $media);
+        $this->maybeSendBlockedEmail($user, $username, $help);
     }
 
     /**
@@ -952,9 +970,11 @@ class LoginSecurityHandler
     }
 
     /**
-     * Application passwords are counted apart from every other sign-in. They cannot be
-     * guessed (24 random characters, and Basic auth accepts nothing else), and sharing one
-     * counter let an app retrying an old password lock its owner out of wp-admin.
+     * Application passwords sent over REST Basic auth are counted apart from every other
+     * sign-in. That path accepts only application passwords (24 random characters), so they
+     * cannot be guessed, and one shared counter let an app retrying an old password lock its
+     * owner out of wp-admin. Anything inside wp_authenticate() also tests the account
+     * password and stays on the ordinary count - see logFailedAppPasswordAuth().
      *
      * @param string $media
      * @return string a fixed SQL condition, no user input
@@ -1099,7 +1119,7 @@ class LoginSecurityHandler
      * @param $userName string
      * @return bool
      */
-    private function maybeSendBlockedEmail($user, $userName, $media = 'web')
+    private function maybeSendBlockedEmail($user, $userName, $help = '')
     {
         if (Helper::getSetting('notify_on_blocked') !== 'yes') {
             return false;
@@ -1160,8 +1180,8 @@ class LoginSecurityHandler
             $infoHtml
         ];
 
-        if ($media === 'app_password') {
-            $lines[] = '<p style="font-size: 14px; line-height: 22px;">' . esc_html__('If you do not use application passwords, turn on "Block application passwords" in FluentAuth Settings, under Core Security. If this is your own app, create a new application password for it under Users, Profile.', 'fluent-security') . '</p>';
+        if ($help) {
+            $lines[] = '<p style="font-size: 14px; line-height: 22px;">' . esc_html($help) . '</p>';
         }
 
         $siteName = get_bloginfo('name');
