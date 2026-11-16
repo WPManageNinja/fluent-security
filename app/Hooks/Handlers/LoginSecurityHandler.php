@@ -307,7 +307,6 @@ class LoginSecurityHandler
 
         if ($ruleReason) {
             $refusal = __('A sign-in with an application password was refused. This IP address is on the site\'s block list.', 'fluent-security');
-            $help = '';
         } else {
             $refusal = sprintf(
                 /* translators: 1: the failed sign-in limit, 2: minutes */
@@ -315,77 +314,11 @@ class LoginSecurityHandler
                 (int)Helper::getSetting('login_try_limit'),
                 (int)Helper::getSetting('login_try_timing')
             );
-            $help = $this->appPasswordHelp($appUser);
         }
 
-        $this->logBlockedAuth(new \WP_Error('blocked', $refusal), $username, 'app_password', $ruleReason, $help);
+        $this->logBlockedAuth(new \WP_Error('blocked', $refusal), $username, 'app_password', $ruleReason);
 
         return false;
-    }
-
-    /**
-     * Which of the account's apps is the likely cause. The refused password matches none
-     * of them, so it cannot be named; WordPress does record each one's last use and IP,
-     * and an app that last signed in from the blocked address is almost certainly the one
-     * still sending an old password.
-     *
-     * @param \WP_User|false $appUser
-     * @return string plain text, one line per entry
-     */
-    private function appPasswordHelp($appUser)
-    {
-        $blockSetting = __('If you do not use application passwords, turn on "Block application passwords" in FluentAuth Settings, under Core Security.', 'fluent-security');
-
-        if (!$appUser instanceof \WP_User || !class_exists('\WP_Application_Passwords')) {
-            return $blockSetting . ' ' . __('If this is your own app, create a new application password for it under Users, Profile.', 'fluent-security');
-        }
-
-        $passwords = \WP_Application_Passwords::get_user_application_passwords($appUser->ID);
-
-        if (!$passwords) {
-            /* translators: %s: username */
-            return sprintf(__('%s has no application passwords, so no real app can sign in as this account. This is probably someone guessing.', 'fluent-security'), $appUser->user_login)
-                . "\n" . $blockSetting;
-        }
-
-        $blockedIps = array_filter([Helper::getIp(), (string)Arr::get($_SERVER, 'REMOTE_ADDR')]);
-        $format = get_option('date_format') . ' ' . get_option('time_format');
-        $fromHere = false;
-
-        $lines = [sprintf(
-            /* translators: 1: username, 2: number of application passwords */
-            _n('%1$s has %2$d application password:', '%1$s has %2$d application passwords:', count($passwords), 'fluent-security'),
-            $appUser->user_login,
-            count($passwords)
-        )];
-
-        foreach ($passwords as $password) {
-            $name = (string)Arr::get($password, 'name');
-
-            if (empty($password['last_used'])) {
-                /* translators: %s: application password name */
-                $lines[] = sprintf(__('- %s: never used', 'fluent-security'), $name);
-                continue;
-            }
-
-            $lastUsed = (int)$password['last_used'];
-            $when = function_exists('wp_date') ? wp_date($format, $lastUsed) : date_i18n($format, $lastUsed + (int)(get_option('gmt_offset') * HOUR_IN_SECONDS));
-            $lastIp = (string)Arr::get($password, 'last_ip');
-            $isHere = $lastIp && in_array($lastIp, $blockedIps, true);
-            $fromHere = $fromHere || $isHere;
-
-            $lines[] = $isHere
-                /* translators: 1: application password name, 2: date and time, 3: IP address */
-                ? sprintf(__('- %1$s: last used %2$s from %3$s (the blocked address)', 'fluent-security'), $name, $when, $lastIp)
-                /* translators: 1: application password name, 2: date and time, 3: IP address */
-                : sprintf(__('- %1$s: last used %2$s from %3$s', 'fluent-security'), $name, $when, $lastIp);
-        }
-
-        $lines[] = $fromHere
-            ? __('An app that last signed in from the blocked address probably still has an old password. Create a new one for it under Users, Profile.', 'fluent-security')
-            : __('None of them last signed in from the blocked address, so this is probably not one of your apps.', 'fluent-security') . ' ' . $blockSetting;
-
-        return implode("\n", $lines);
     }
 
     /**
@@ -935,7 +868,7 @@ class LoginSecurityHandler
      *                       more useful than "blocked" - which rule matched, above all.
      * @return void
      */
-    private function logBlockedAuth($user, $username, $media = 'web', $reason = '', $help = '')
+    private function logBlockedAuth($user, $username, $media = 'web', $reason = '')
     {
         global $wpdb;
 
@@ -993,7 +926,7 @@ class LoginSecurityHandler
 
         $this->failedLogged = true;
 
-        $this->maybeSendBlockedEmail($user, $username, $help);
+        $this->maybeSendBlockedEmail($user, $username);
     }
 
     /**
@@ -1205,7 +1138,7 @@ class LoginSecurityHandler
      * @param $userName string
      * @return bool
      */
-    private function maybeSendBlockedEmail($user, $userName, $help = '')
+    private function maybeSendBlockedEmail($user, $userName)
     {
         if (Helper::getSetting('notify_on_blocked') !== 'yes') {
             return false;
@@ -1259,10 +1192,6 @@ class LoginSecurityHandler
             '<p style="font-size: 16px; line-height: 25px;">Hello there, <br />The following user has been blocked from logged in from your site. Here is the details:</p>',
             $infoHtml
         ];
-
-        if ($help) {
-            $lines[] = '<p style="font-size: 14px; line-height: 22px;">' . nl2br(esc_html($help)) . '</p>';
-        }
 
         // Stored with & already encoded; a mail subject is plain text.
         $siteName = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);

@@ -1257,7 +1257,7 @@ class CustomAuthHandler
 
         $data = [
             'body'        => $message,
-            'pre_header'  => 'reset your password',
+            'pre_header'  => __('Reset your password', 'fluent-security'),
             'show_footer' => false
         ];
 
