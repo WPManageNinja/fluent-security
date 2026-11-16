@@ -108,7 +108,7 @@ class SocialAuthApiController
                 'facebook_key_method'    => 'wp_config',
                 'facebook_client_id'     => '',
                 'facebook_client_secret' => '',
-                'facebook_api_version'   => 'v12.0'
+                'facebook_api_version'   => Helper::DEFAULT_FACEBOOK_API_VERSION
             ];
         }
 
@@ -176,7 +176,7 @@ class SocialAuthApiController
             $settings['facebook_key_method'] = 'wp_config';
             $settings['facebook_client_id'] = '';
             $settings['facebook_client_secret'] = '';
-            $settings['facebook_api_version'] = 'v12.0';
+            $settings['facebook_api_version'] = Helper::DEFAULT_FACEBOOK_API_VERSION;
         } else if ($settings['facebook_key_method'] == 'wp_config') {
             $settings['facebook_client_id'] = '';
             $settings['facebook_client_secret'] = '';
@@ -202,6 +202,10 @@ class SocialAuthApiController
                 ]);
             }
         }
+
+        $settings['facebook_api_version'] = Helper::normalizeFacebookApiVersion(
+            $settings['facebook_api_version'] ?? $oldSettings['facebook_api_version']
+        );
 
         return $settings;
     }
