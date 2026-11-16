@@ -16,7 +16,7 @@ class SettingsController
     public static function getSettings(\WP_REST_Request $request)
     {
         return [
-            'settings'            => Helper::getAuthSettings(),
+            'settings'            => Helper::getAuthSettings() + ['session_limit_supported' => SessionLengthHandler::supportsLimit()],
             'user_roles'          => Helper::getUserRoles(),
             'low_level_roles'     => Helper::getLowLevelRoles(),
             // wp-config.php wins over the saved settings, so say so in the UI.
@@ -80,7 +80,7 @@ class SettingsController
         }
 
         return [
-            'settings' => $settings,
+            'settings' => $settings + ['session_limit_supported' => SessionLengthHandler::supportsLimit()],
             'message'  => __('Settings have been updated', 'fluent-security')
         ];
     }
@@ -89,6 +89,7 @@ class SettingsController
     {
         $oldSettings = Helper::getAuthSettings();
 
+        $sessionLimit = Arr::get($settings, 'session_limit', Arr::get($oldSettings, 'session_limit', 0));
         $settings = Arr::only($settings, array_keys($oldSettings));
 
         $numericTypes = [
@@ -150,6 +151,11 @@ class SettingsController
         $settings['remember_default'] = Arr::get($settings, 'remember_default') === 'no' ? 'no' : 'yes';
 
         $errors = [];
+        if (!is_scalar($sessionLimit) || is_bool($sessionLimit)
+            || !ctype_digit((string)$sessionLimit) || (float)$sessionLimit > 100) {
+            $errors['session_limit'] = [__('Enter a whole number from 0 to 100 for the sign-in limit.', 'fluent-security')];
+        }
+        $settings['session_limit'] = (int)$sessionLimit;
 
         // Always required now: the attempt limit is no longer something that can be
         // switched off from the settings screen.

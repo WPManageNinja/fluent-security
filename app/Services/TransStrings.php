@@ -587,6 +587,7 @@ class TransStrings
             'Manage on their profile' => __('Manage on their profile', 'fluent-security'),
             'Managed in wp-config.php' => __('Managed in wp-config.php', 'fluent-security'),
             'Mark as expected' => __('Mark as expected', 'fluent-security'),
+            'Maximum simultaneous sign-ins per account' => __('Maximum simultaneous sign-ins per account', 'fluent-security'),
             'Menu' => __('Menu', 'fluent-security'),
             'Message' => __('Message', 'fluent-security'),
             'Method' => __('Method', 'fluent-security'),
@@ -1058,6 +1059,7 @@ class TransStrings
             'This emails a password reset link to every user on this site. Send it?' => __('This emails a password reset link to every user on this site. Send it?', 'fluent-security'),
             'This has to be added by hand' => __('This has to be added by hand', 'fluent-security'),
             'This hides the finding without fixing anything. You can bring it back from the Dismissed tab.' => __('This hides the finding without fixing anything. You can bring it back from the Dismissed tab.', 'fluent-security'),
+            'This limit requires a single-site WordPress installation with standard session storage.' => __('This limit requires a single-site WordPress installation with standard session storage.', 'fluent-security'),
             'This list is not being applied right now' => __('This list is not being applied right now', 'fluent-security'),
             'This month' => __('This month', 'fluent-security'),
             'This only skips the lockout. Two-factor still applies and every attempt is still logged.' => __('This only skips the lockout. Two-factor still applies and every attempt is still logged.', 'fluent-security'),
@@ -1127,6 +1129,7 @@ class TransStrings
             'Upload Image' => __('Upload Image', 'fluent-security'),
             /* translators: %s is the suggested proxy IP address */
             'Use %s' => __('Use %s', 'fluent-security'),
+            'Use 0 for unlimited. Each browser counts separately. A new sign-in signs out the oldest sessions when the limit is full.' => __('Use 0 for unlimited. Each browser counts separately. A new sign-in signs out the oldest sessions when the limit is full.', 'fluent-security'),
             'Use 0 to keep them forever.' => __('Use 0 to keep them forever.', 'fluent-security'),
             'Use a different method' => __('Use a different method', 'fluent-security'),
             'Use the default' => __('Use the default', 'fluent-security'),

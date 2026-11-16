@@ -147,6 +147,7 @@ class Helper
             'trusted_proxies'         => '',
             'proxy_ip_header'         => '',
             'session_days'            => 2,
+            'session_limit'           => 0,
             'remember_days'           => 14,
             'remember_default'        => 'yes'
         ];
