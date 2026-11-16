@@ -89,7 +89,7 @@ export default {
 
                 <SettingsCard id="sessions" :title="$t('Staying Signed In')"
                                  :description="$t('How long people stay signed in before they must sign in again.')">
-                    <SessionsSection :settings="settings"/>
+                    <SessionsSection :settings="settings" :user-roles="user_roles"/>
                 </SettingsCard>
 
                 <!--

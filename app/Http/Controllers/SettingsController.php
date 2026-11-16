@@ -16,7 +16,7 @@ class SettingsController
     public static function getSettings(\WP_REST_Request $request)
     {
         return [
-            'settings'            => Helper::getAuthSettings(),
+            'settings'            => Helper::getAuthSettings() + ['persistent_renewal_supported' => SessionLengthHandler::supportsRenewal()],
             'user_roles'          => Helper::getUserRoles(),
             'low_level_roles'     => Helper::getLowLevelRoles(),
             // wp-config.php wins over the saved settings, so say so in the UI.
@@ -80,7 +80,7 @@ class SettingsController
         }
 
         return [
-            'settings' => $settings,
+            'settings' => $settings + ['persistent_renewal_supported' => SessionLengthHandler::supportsRenewal()],
             'message'  => __('Settings have been updated', 'fluent-security')
         ];
     }
@@ -88,6 +88,32 @@ class SettingsController
     private static function validateSettings($settings)
     {
         $oldSettings = Helper::getAuthSettings();
+
+        // These additive fields survive an older client that does not send them.
+        $policy = array_intersect_key($oldSettings, array_flip([
+            'persistent_login', 'persistent_login_days', 'persistent_login_scope', 'persistent_login_roles', 'persistent_login_renew'
+        ]));
+        $policy = array_merge($policy, array_intersect_key((array)$settings, $policy));
+        // jQuery form encoding needs an explicit empty scalar to clear a role list.
+        if ($policy['persistent_login_roles'] === '') { $policy['persistent_login_roles'] = []; }
+        if (is_array($policy['persistent_login_roles']) && is_array($oldSettings['persistent_login_roles'])) {
+            // A removed role no longer matches anyone; do not trap an existing policy
+            // behind an unknown-role validation error on the next settings save.
+            $policy['persistent_login_roles'] = array_values(array_filter($policy['persistent_login_roles'], function ($role) use ($oldSettings) {
+                return !is_string($role) || get_role($role) || !in_array($role, $oldSettings['persistent_login_roles'], true);
+            }));
+        }
+        if (!in_array($policy['persistent_login'], ['yes', 'no'], true)
+            || !in_array($policy['persistent_login_renew'], ['yes', 'no'], true)
+            || !in_array($policy['persistent_login_days'], [30, 90, 180, '30', '90', '180'], true)
+            || !in_array($policy['persistent_login_scope'], ['selected', 'all'], true)
+            || !is_array($policy['persistent_login_roles'])
+            || array_filter($policy['persistent_login_roles'], function ($role) { return !is_string($role) || !get_role($role); })) {
+            return new \WP_Error('validation_error', __('Choose a valid persistent login duration, scope and roles.', 'fluent-security'));
+        }
+        $policy['persistent_login_days'] = (int)$policy['persistent_login_days'];
+        $policy['persistent_login_roles'] = array_values(array_unique($policy['persistent_login_roles']));
+        $settings = array_merge((array)$settings, $policy);
 
         $settings = Arr::only($settings, array_keys($oldSettings));
 
@@ -226,6 +252,7 @@ class SettingsController
             );
         }
 
+        $settings['persistent_login_days'] = (int)$settings['persistent_login_days'];
         return $settings;
 
     }
