@@ -399,6 +399,30 @@ class TwoFaHandler
         ];
     }
 
+    /**
+     * A double-submitted password form sends two emails, and the page shows the newer
+     * challenge. Checking the typed code against the older one would give a second guess
+     * per attempt, so this only asks whether this page is the newest of several open ones.
+     */
+    private function isNewestOfSeveralEmailChallenges($logHash, $method)
+    {
+        if (!$method instanceof EmailTwoFaMethod) {
+            return false;
+        }
+
+        $open = function ($operator) use ($logHash, $method) {
+            return (bool)flsDb()->table('fls_login_hashes')
+                ->where('user_id', $logHash->user_id)
+                ->whereIn('use_type', [$method->getKey(), $method->getChallengeKey()])
+                ->where('status', 'issued')
+                ->where('id', $operator, $logHash->id)
+                ->where('created_at', '>=', date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT))
+                ->first();
+        };
+
+        return $open('<') && !$open('>');
+    }
+
     public function verifyChallenge()
     {
         $hash = sanitize_text_field(Arr::get($_REQUEST, 'login_hash'));
@@ -491,8 +515,12 @@ class TwoFaHandler
         if (!$verified) {
             $this->recordFailedAttempt($logHash, $user, $method);
 
+            $message = $this->isNewestOfSeveralEmailChallenges($logHash, $method)
+                ? __('That code is not correct. If you got more than one email, use the code from the newest one.', 'fluent-security')
+                : __('That code is not correct. Please try again.', 'fluent-security');
+
             wp_send_json([
-                'message' => __('That code is not correct. Please try again.', 'fluent-security')
+                'message' => $message
             ], 422);
         }
 
