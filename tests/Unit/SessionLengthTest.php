@@ -463,6 +463,27 @@ class SessionLengthTest extends BaseTestCase
         $this->assertTrue(\WP_Session_Tokens::get_instance($user->ID)->verify($old));
     }
 
+    public function testSessionLimitAppliesAtTheVerifiedProviderCompletionBoundary()
+    {
+        $user = $this->factory->user->create_and_get();
+        $this->saveSettings(['session_limit' => 1]);
+        $old = $this->issueLimitedCookie($user->ID);
+        $this->assertInstanceOf(\WP_User::class, \FluentAuth\App\Services\AuthService::makeLogin($user, 'google'));
+        $this->assertFalse(\WP_Session_Tokens::get_instance($user->ID)->verify($old));
+        $this->assertCount(1, \WP_Session_Tokens::get_instance($user->ID)->get_all());
+    }
+
+    public function testSessionLimitPreservesTheRecoveryOperatorsReplacementLogin()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+        wp_set_current_user($user->ID);
+        $this->saveSettings(['session_limit' => 1]);
+        $old = $this->issueLimitedCookie($user->ID);
+        \FluentAuth\App\Services\Recovery\RecoveryService::secureNow(false);
+        $this->assertFalse(\WP_Session_Tokens::get_instance($user->ID)->verify($old));
+        $this->assertCount(1, \WP_Session_Tokens::get_instance($user->ID)->get_all());
+    }
+
     public function testSessionLimitStopsOnlyTheLoginAfterRepeatedStorageConflicts()
     {
         global $wpdb;
