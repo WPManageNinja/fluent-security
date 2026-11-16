@@ -4,6 +4,7 @@ namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\CustomAuthHandler;
+use FluentAuth\App\Hooks\Handlers\LoginCustomizerHandler;
 use FluentAuth\App\Http\Controllers\SystemEmailsController;
 use FluentAuth\App\Services\SystemEmailService;
 
@@ -189,6 +190,41 @@ class SignupEmailCustomizationTest extends BaseTestCase
                 $this->assertStringContainsString('Custom ' . $calls[1][2], $calls[1][1]);
             }
         }
+    }
+
+    public function test_native_registration_supplies_the_username_to_the_signup_template()
+    {
+        global $wp_actions;
+        $actions = $wp_actions;
+        try {
+            // Exercise this handler's deferred callback without unrelated page renderers.
+            remove_all_actions('register_form');
+            $wp_actions['login_init'] = 1;
+            unset($wp_actions['fluent_auth/after_signup_validation']);
+            update_option('__fls_auth_settings', ['secure_signup_form' => 'yes']);
+            Helper::resetStatics();
+            $_POST = ['user_full_name' => 'Native Signup', 'user_password' => 'fixture-pass', 'user_confirm_password' => 'fixture-pass', 'agree_terms' => 'agreed'];
+            $this->configure(['status' => 'active', 'email' => [
+                'subject' => 'Native {{signup.username}}',
+                'body' => '<p>Native ##signup.username## {{signup.verification_code}}</p>',
+            ]]);
+            $errors = (new LoginCustomizerHandler())->maybeInterceptRegistration(new \WP_Error(), 'native_signup_23297', 'native-signup@example.test');
+            ob_start();
+            do_action('register_form');
+            $html = ob_get_clean();
+        } finally {
+            $wp_actions = $actions;
+            $_POST = [];
+            delete_option('__fls_auth_settings');
+            remove_all_actions('register_form');
+            remove_all_actions('login_body_class');
+        }
+        $this->assertSame(['confirm_token'], $errors->get_error_codes());
+        $this->assertStringContainsString('fls_signup_verification', $html);
+        $this->assertCount(1, $this->sent);
+        $this->assertSame('Native native_signup_23297', $this->sent[0]['subject']);
+        $this->assertStringContainsString('Native native_signup_23297', $this->sent[0]['message']);
+        $this->assertFalse(get_user_by('email', 'native-signup@example.test'));
     }
 
     /** @dataProvider fallbackSettings */
