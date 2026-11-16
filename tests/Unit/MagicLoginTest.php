@@ -122,6 +122,67 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame('used', $this->rowFor($link)->status);
     }
 
+    private function signedInSessionLength()
+    {
+        $sessions = \WP_Session_Tokens::get_instance($this->user->ID)->get_all();
+        $this->assertCount(1, $sessions);
+
+        return reset($sessions)['expiration'] - time();
+    }
+
+    public function testAMagicLinkIsRememberedByDefault()
+    {
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+
+        $this->assertEqualsWithDelta(14 * DAY_IN_SECONDS, $this->signedInSessionLength(), 5);
+        $this->assertArrayNotHasKey('rememberme', $_REQUEST);
+    }
+
+    public function testAMagicLinkIsNotRememberedWhenTheOwnerTurnsTheDefaultOff()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['remember_default'] = 'no';
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+
+        $this->assertEqualsWithDelta(2 * DAY_IN_SECONDS, $this->signedInSessionLength(), 5);
+    }
+
+    public function testAMagicLinkThatOwesAFactorStaysRememberedAfterTheChallenge()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        $settings['totp_required_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $stop = function () {
+            throw new \RuntimeException('redirected to the challenge');
+        };
+        add_filter('wp_redirect', $stop);
+
+        try {
+            $this->handler->makeLogin($this->issueLink());
+            $this->fail('precondition: the link should hand over to a challenge');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('redirected to the challenge', $e->getMessage());
+        } finally {
+            remove_filter('wp_redirect', $stop);
+        }
+
+        $pending = flsDb()->table('fls_login_hashes')
+            ->where('user_id', $this->user->ID)
+            ->where('use_type', '!=', 'magic_login')
+            ->first();
+
+        $this->assertNotNull($pending, 'precondition: a challenge was raised');
+        $this->assertStringEndsWith('-auth', $pending->login_hash);
+        $this->assertArrayNotHasKey('rememberme', $_REQUEST);
+    }
+
     /**
      * The half the email promises out loud.
      */
@@ -435,6 +496,86 @@ class MagicLoginTest extends BaseTestCase
         remove_filter('login_redirect', $filter);
 
         $this->assertSame(home_url('/dashboard/'), $landed);
+    }
+
+    /** @dataProvider configuredMagicRedirects */
+    public function testAnUnspecifiedDestinationUsesTheConfiguredLoginRedirect($enabled, $default, $rules, $expected)
+    {
+        $absolute = home_url('/members/');
+        update_option('__fls_auth_forms_settings', [
+            'enabled' => 'yes', 'login_redirects' => $enabled,
+            'default_login_redirect' => $default === 'absolute' ? $absolute : $default,
+            'redirect_rules' => $rules
+        ]);
+        $target = $expected === 'home' ? site_url() : ($expected === 'absolute' ? $absolute : $expected);
+        $this->assertSame($target, $this->redeemAndCaptureRedirect($this->issueLink()));
+    }
+
+    public static function configuredMagicRedirects()
+    {
+        $role = ['conditions' => [['condition' => 'user_role', 'values' => ['subscriber']]], 'login' => '/role/'];
+        $other = ['conditions' => [['condition' => 'user_role', 'values' => ['editor']]], 'login' => '/editor/'];
+        return [
+            'absolute default' => ['yes', 'absolute', [], 'absolute'],
+            'relative default' => ['yes', '/members/', [], '/members/'],
+            'first matching role rule' => ['yes', '/members/', [$role, array_merge($role, ['login' => '/later/'])], '/role/'],
+            'disabled rules' => ['no', '/members/', [$role], 'home'],
+            'empty default' => ['yes', '', [], 'home'],
+            'unmatched role uses default' => ['yes', '/members/', [$other], '/members/'],
+            'unmatched role without default' => ['yes', '', [$other], 'home']
+        ];
+    }
+
+    public function testConfiguredMagicFallbackDoesNotReplaceAnExplicitDestination()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $this->assertSame(home_url('/account/'), $this->redeemAndCaptureRedirect($this->issueLinkTo(home_url('/account/'))));
+    }
+
+    public function testConfiguredMagicFallbackPreservesFrontendOverridePolicy()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        add_filter('fluent_auth/respect_front_login_url', '__return_false');
+        try {
+            $this->assertSame('/members/', $this->redeemAndCaptureRedirect($this->issueLinkTo(home_url('/account/'))));
+        } finally {
+            remove_filter('fluent_auth/respect_front_login_url', '__return_false');
+        }
+    }
+
+    public function testConfiguredMagicFallbackKeepsTrustedCookiePrecedence()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $_COOKIE['_fls_redirect_to'] = home_url('/checkout/');
+        try {
+            $this->assertSame(home_url('/checkout/'), $this->redeemAndCaptureRedirect($this->issueLink()));
+        } finally {
+            unset($_COOKIE['_fls_redirect_to']);
+        }
+    }
+
+    public function testAnEmptyRequestDestinationUsesTheConfiguredMagicFallback()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $request = $_REQUEST;
+        $_REQUEST['redirect_to'] = '';
+        try {
+            $this->assertSame('/members/', $this->redeemAndCaptureRedirect($this->issueLink()));
+        } finally {
+            $_REQUEST = $request;
+        }
+    }
+
+    public function testANonemptyRequestDestinationStillWinsOverTheMagicFallback()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $request = $_REQUEST;
+        $_REQUEST['redirect_to'] = home_url('/requested/');
+        try {
+            $this->assertSame(home_url('/requested/'), $this->redeemAndCaptureRedirect($this->issueLink()));
+        } finally {
+            $_REQUEST = $request;
+        }
     }
 
     /**

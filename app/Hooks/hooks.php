@@ -26,6 +26,7 @@ add_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeMigrateS
 (new \FluentAuth\App\Hooks\Handlers\CustomAuthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\LoginRoutingHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\LoginSecurityHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\SessionLengthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\MagicLoginHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\SocialAuthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\GoogleOneTapAuthHandler())->register();

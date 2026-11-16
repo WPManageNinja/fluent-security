@@ -260,7 +260,8 @@ class TwoFaHandler
             $user,
             'url',
             $logHash->redirect_intend,
-            $alternative
+            $alternative,
+            (bool)strpos($logHash->login_hash, '-auth')
         );
 
         wp_safe_redirect($redirectTo ? $redirectTo : wp_login_url());
@@ -320,9 +321,11 @@ class TwoFaHandler
      * @param $return string 'url' or 'both'
      * @param $redirectIntend string|null explicit intent for callers that do not carry
      *                                    it in $_REQUEST, such as social login
+     * @param bool|null $remember trusted remembered-session choice; null keeps the
+     *                            current request-derived default
      * @return array|string|false
      */
-    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null)
+    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null, $remember = null)
     {
         /*
          * Passed unresolved: whether the account is under attack costs two queries over
@@ -352,7 +355,10 @@ class TwoFaHandler
             $redirectIntend = $this->resolveRedirectIntent();
         }
 
-        if (isset($_REQUEST['rememberme'])) {
+        if ($remember === null) {
+            $remember = isset($_REQUEST['rememberme']);
+        }
+        if ($remember) {
             $hash .= '-auth';
         }
 
@@ -391,6 +397,30 @@ class TwoFaHandler
             'redirect_to' => $redirectTo,
             'login_hash'  => $hash
         ];
+    }
+
+    /**
+     * A double-submitted password form sends two emails, and the page shows the newer
+     * challenge. Checking the typed code against the older one would give a second guess
+     * per attempt, so this only asks whether this page is the newest of several open ones.
+     */
+    private function isNewestOfSeveralEmailChallenges($logHash, $method)
+    {
+        if (!$method instanceof EmailTwoFaMethod) {
+            return false;
+        }
+
+        $open = function ($operator) use ($logHash, $method) {
+            return (bool)flsDb()->table('fls_login_hashes')
+                ->where('user_id', $logHash->user_id)
+                ->whereIn('use_type', [$method->getKey(), $method->getChallengeKey()])
+                ->where('status', 'issued')
+                ->where('id', $operator, $logHash->id)
+                ->where('created_at', '>=', date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT))
+                ->first();
+        };
+
+        return $open('<') && !$open('>');
     }
 
     public function verifyChallenge()
@@ -485,8 +515,12 @@ class TwoFaHandler
         if (!$verified) {
             $this->recordFailedAttempt($logHash, $user, $method);
 
+            $message = $this->isNewestOfSeveralEmailChallenges($logHash, $method)
+                ? __('That code is not correct. If you got more than one email, use the code from the newest one.', 'fluent-security')
+                : __('That code is not correct. Please try again.', 'fluent-security');
+
             wp_send_json([
-                'message' => __('That code is not correct. Please try again.', 'fluent-security')
+                'message' => $message
             ], 422);
         }
 
@@ -918,15 +952,16 @@ class TwoFaHandler
      *
      * @param $user \WP_User
      * @param $redirectIntend string|null where to return the browser afterwards
+     * @param bool|null $remember whether the finished login is remembered; null reads the request
      * @return string|false the URL to send the browser to, or false if nothing is owed
      */
-    public function raiseChallengeForDirectLogin($user, $redirectIntend = null)
+    public function raiseChallengeForDirectLogin($user, $redirectIntend = null, $remember = null)
     {
         if (!$user instanceof \WP_User || self::$completingChallenge) {
             return false;
         }
 
-        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend);
+        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend, null, $remember);
 
         if (!$raised) {
             return false;

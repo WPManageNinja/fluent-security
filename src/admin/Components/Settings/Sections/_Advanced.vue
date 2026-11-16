@@ -1,5 +1,6 @@
 <script type="text/babel">
 import SettingRow from '../_SettingRow.vue';
+import InlineSentence from '../_InlineSentence.vue';
 
 /**
  * Keeping roles out of wp-admin used to be two settings: a switch, and the list of roles
@@ -10,7 +11,7 @@ import SettingRow from '../_SettingRow.vue';
  */
 export default {
     name: 'AdvancedSection',
-    components: {SettingRow},
+    components: {SettingRow, InlineSentence},
     props: {
         settings: {type: Object, required: true},
         low_level_roles: {type: Object, default: () => ({})}
@@ -22,11 +23,12 @@ export default {
     <div>
         <SettingRow :description="$t('Use 0 to keep them forever.')">
             <template #label>
-                <span class="fls_sentence">
-                    {{ $t('Delete logs older than') }}
-                    <el-input type="number" :min="0" v-model="settings.auto_delete_logs_day"/>
-                    {{ $t('days') }}
-                </span>
+                <!-- translators: %s is a number field for days -->
+                <InlineSentence :text="$t('Delete logs older than %s days')">
+                    <template #field1>
+                        <el-input type="number" :min="0" v-model="settings.auto_delete_logs_day"/>
+                    </template>
+                </InlineSentence>
             </template>
         </SettingRow>
 

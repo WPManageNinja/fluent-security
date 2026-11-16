@@ -708,15 +708,32 @@ class MagicLoginHandler
         add_filter('wordfence_ls_require_captcha', $noCaptcha);
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
 
+        $remember = SessionLengthHandler::rememberByDefault();
+
+        // A 2FA challenge raised inside wp_signon() reads the choice from the request.
+        $hadRemember = array_key_exists('rememberme', $_REQUEST);
+        $previousRemember = $hadRemember ? $_REQUEST['rememberme'] : null;
+        unset($_REQUEST['rememberme']);
+        if ($remember) {
+            $_REQUEST['rememberme'] = '1';
+        }
+
         try {
             $user = wp_signon(array(
                     'user_login'    => $user->user_login,
-                    'user_password' => ''
+                    'user_password' => '',
+                    'remember'      => $remember
                 )
             );
         } finally {
             remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
             remove_filter('wordfence_ls_require_captcha', $noCaptcha);
+
+            if ($hadRemember) {
+                $_REQUEST['rememberme'] = $previousRemember;
+            } else {
+                unset($_REQUEST['rememberme']);
+            }
         }
 
         Helper::setTokenVerifiedLogin(false);
@@ -777,7 +794,10 @@ class MagicLoginHandler
 
     private function getLoginRedirect($user)
     {
-        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : site_url();
+        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : '';
+        if (!$requested_redirect_to) {
+            $requested_redirect_to = (new CustomAuthHandler())->getDefaultLoginRedirectUrl($user) ?: site_url();
+        }
         return apply_filters('login_redirect', $requested_redirect_to, $requested_redirect_to, $user);
     }
 

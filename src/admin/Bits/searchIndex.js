@@ -151,6 +151,14 @@ export const searchIndex = (vm) => {
         },
         {
             group: 'Settings',
+            title: vm.$t('Staying Signed In'),
+            subtitle: vm.$t('In General Settings'),
+            to: {name: 'settings_general', query: {section: 'sessions'}},
+            keywords: ['remember me', 'session', 'session length', 'stay logged in',
+                'logged out', 'cookie', 'expire', 'timeout']
+        },
+        {
+            group: 'Settings',
             title: vm.$t('Passkeys'),
             subtitle: vm.$t('In General Settings'),
             to: {name: 'settings_general', query: {section: 'passkeys'}},

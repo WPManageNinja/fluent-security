@@ -5,6 +5,7 @@ import SettingsCard from '../_SettingsCard.vue';
 
 import CoreSecuritySection from '../Sections/_CoreSecurity.vue';
 import LoginSecuritySection from '../Sections/_LoginSecurity.vue';
+import SessionsSection from '../Sections/_Sessions.vue';
 import MagicLoginSection from '../Sections/_MagicLogin.vue';
 import NotificationsSection from '../Sections/_Notifications.vue';
 import AdvancedSection from '../Sections/_Advanced.vue';
@@ -28,6 +29,7 @@ export default {
         SettingsCard,
         CoreSecuritySection,
         LoginSecuritySection,
+        SessionsSection,
         MagicLoginSection,
         NotificationsSection,
         AdvancedSection,
@@ -83,6 +85,11 @@ export default {
                 <SettingsCard id="login_security" :title="$t('Login Security')"
                                  :description="$t('How many wrong passwords one IP address gets before it is blocked.')">
                     <LoginSecuritySection :settings="settings"/>
+                </SettingsCard>
+
+                <SettingsCard id="sessions" :title="$t('Staying Signed In')"
+                                 :description="$t('How long people stay signed in before they must sign in again.')">
+                    <SessionsSection :settings="settings"/>
                 </SettingsCard>
 
                 <!--
