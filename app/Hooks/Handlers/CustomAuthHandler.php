@@ -40,6 +40,54 @@ class CustomAuthHandler
         add_action('wp_ajax_nopriv_fluent_auth_signup', array($this, 'handleSignupAjax'));
         add_action('wp_ajax_nopriv_fluent_auth_rp', array($this, 'handlePasswordResentAjax'));
         add_action('fls_load_login_helper', array($this, 'loadAssets'));
+
+        // After social callbacks and pending second factors, which run at priority 1.
+        add_action('login_init', array($this, 'maybeRouteToLoginPage'), 5);
+    }
+
+    /**
+     * For developers and hosts: return a full on-site URL from `fluent_auth/login_page_url`,
+     * e.g. home_url('/sign-in/'), and a guest's plain visit to wp-login.php goes there,
+     * logouts included. POSTs and requests with an action or other query keys (2FA, magic
+     * links, password reset) stay with WordPress.
+     *
+     * - A safe `redirect_to` is appended to the URL. A `redirect_to` attribute on the
+     *   page's shortcode overrides it.
+     * - Links that WordPress prints still point at wp-login.php; filter `login_url` for those.
+     * - A visitor sent back to wp-login.php within 15 seconds (a force-login plugin) gets
+     *   WordPress's own form instead of a redirect loop.
+     */
+    public function maybeRouteToLoginPage()
+    {
+        if (is_user_logged_in() || Arr::get($_SERVER, 'REQUEST_METHOD') !== 'GET'
+            || array_diff(array_keys($_GET), ['redirect_to', 'reauth', 'loggedout', 'wp_lang'])) {
+            return;
+        }
+
+        $url = Helper::getValidatedRedirectUrl((string)apply_filters('fluent_auth/login_page_url', ''), '');
+        if (!$url) {
+            return;
+        }
+
+        // Back here within seconds of being sent to the page: something sent them back
+        // (a force-login or members-only plugin). Show core's form instead of looping.
+        if (!empty($_COOKIE['fls_login_routed'])) {
+            return;
+        }
+
+        $redirect = Arr::get($_GET, 'redirect_to');
+        $redirect = is_string($redirect) ? Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($redirect)), '') : '';
+        if ($redirect) {
+            $url = add_query_arg('redirect_to', rawurlencode($redirect), $url);
+        }
+
+        if (!headers_sent()) {
+            setcookie('fls_login_routed', '1', time() + 15, SITECOOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+        }
+
+        nocache_headers();
+        wp_safe_redirect($url);
+        exit;
     }
 
     public function alterLoginRedirectUrl($redirect_to, $intentRedirectTo, $user)
