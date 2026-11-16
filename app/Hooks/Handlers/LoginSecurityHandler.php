@@ -10,7 +10,15 @@ use FluentAuth\App\Services\SystemEmailService;
 
 class LoginSecurityHandler
 {
-    private $failedLogged = false;
+    /**
+     * Which attempt paths already have a row for this request, keyed by attemptPath().
+     * Per path, because one request can carry both: a Basic header checked at bootstrap
+     * and an account password checked later. One shared flag let the first silence the
+     * second.
+     *
+     * @var array
+     */
+    private $failedLogged = [];
 
     /**
      * Sign-ins this request can account for, by id: either the `authenticate` chain
@@ -49,10 +57,11 @@ class LoginSecurityHandler
         add_action('set_auth_cookie', [$this, 'noteDirectLogin'], 10, 4);
 
         /*
-         * Application Password auth (REST / XML-RPC over Basic auth) never runs through
-         * the `authenticate` filter chain: wp_validate_application_password() calls
-         * wp_authenticate_application_password() directly. Without these two hooks the
-         * attempt limit above simply does not apply to it and nothing gets logged.
+         * Basic-auth application passwords are checked at bootstrap by
+         * wp_validate_application_password(), outside the `authenticate` chain, so the
+         * attempt limit above never sees them. These two hooks give them their own count.
+         * Inside `authenticate` (XML-RPC, Basic-auth plugins) the account password is
+         * tested too, and both hooks step aside there - see attemptPathSql().
          */
         add_filter('wp_is_application_passwords_available', [$this, 'maybeBlockAppPasswordAuth'], 999);
         add_action('application_password_failed_authentication', [$this, 'logFailedAppPasswordAuth'], 10, 1);
@@ -515,7 +524,12 @@ class LoginSecurityHandler
      */
     public function logFailedAuth($username, $error, $media = '')
     {
-        if ($this->failedLogged || !Helper::isLoginSecurityEnabled()) {
+        if (!$media) {
+            // `wp_login_failed` passes no media, so honour whatever the flow set.
+            $media = Helper::getLoginMedia();
+        }
+
+        if (!empty($this->failedLogged[self::attemptPath($media)]) || !Helper::isLoginSecurityEnabled()) {
             return;
         }
 
@@ -540,11 +554,6 @@ class LoginSecurityHandler
          */
         if ($error->get_error_code() === 'fls_turnstile_failed') {
             return;
-        }
-
-        if (!$media) {
-            // `wp_login_failed` passes no media, so honour whatever the flow set.
-            $media = Helper::getLoginMedia();
         }
 
         global $wpdb;
@@ -581,7 +590,7 @@ class LoginSecurityHandler
 
         $wpdb->insert("{$wpdb->prefix}fls_auth_logs", $data);
 
-        $this->failedLogged = true;
+        $this->failedLogged[self::attemptPath($media)] = true;
     }
 
     /**
@@ -895,7 +904,7 @@ class LoginSecurityHandler
             ], [
                 'id' => $prev->id
             ]);
-            $this->failedLogged = true;
+            $this->failedLogged[self::attemptPath($media)] = true;
             return;
         }
 
@@ -924,7 +933,7 @@ class LoginSecurityHandler
 
         $wpdb->insert("{$wpdb->prefix}fls_auth_logs", $data);
 
-        $this->failedLogged = true;
+        $this->failedLogged[self::attemptPath($media)] = true;
 
         $this->maybeSendBlockedEmail($user, $username);
     }
@@ -979,9 +988,18 @@ class LoginSecurityHandler
      */
     private static function attemptPathSql($media)
     {
-        return $media === 'app_password'
+        return self::attemptPath($media) === 'app_password'
             ? " AND `media` = 'app_password'"
             : " AND (`media` IS NULL OR `media` != 'app_password')";
+    }
+
+    /**
+     * @param string $media
+     * @return string 'app_password' or 'web'
+     */
+    private static function attemptPath($media)
+    {
+        return $media === 'app_password' ? 'app_password' : 'web';
     }
 
     private function checkLoginAttempt($user, $userName, $media = 'web')

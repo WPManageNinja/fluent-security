@@ -6,9 +6,8 @@ use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\LoginSecurityHandler;
 
 /**
- * Application Password auth (REST / XML-RPC over Basic auth) bypasses the
- * `authenticate` filter chain entirely, so it needs its own wiring into the
- * login attempt limit. These tests pin that wiring down.
+ * The login attempt limit, and the separate count for Basic-auth application passwords,
+ * which core checks at bootstrap outside the `authenticate` chain.
  */
 class LoginSecurityHandlerTest extends BaseTestCase
 {
@@ -263,6 +262,123 @@ class LoginSecurityHandlerTest extends BaseTestCase
             delete_site_option('using_application_passwords');
             $this->freshRegisteredHandler();
         }
+    }
+
+    private function logRow($status, $media, $userId = 0)
+    {
+        global $wpdb;
+
+        $wpdb->insert("{$wpdb->prefix}fls_auth_logs", array_filter([
+            'username'   => 'someone',
+            'user_id'    => $userId,
+            'ip'         => Helper::getIp(),
+            'status'     => $status,
+            'media'      => $media,
+            'count'      => 1,
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql'),
+        ]));
+    }
+
+    private function rowCount($media)
+    {
+        global $wpdb;
+
+        return (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `media` = %s", $media));
+    }
+
+    /**
+     * Every request runs core's application-password check at bootstrap, outside
+     * `authenticate`. A blocked or failed row there must not stop the account-password
+     * failure later in the same request from being counted.
+     */
+    public function testABasicHeaderDoesNotSilenceAccountPasswordFailures()
+    {
+        add_filter('wp_is_application_passwords_available', '__return_true', 1);
+        $_SERVER['PHP_AUTH_USER'] = 'x';
+        $_SERVER['PHP_AUTH_PW'] = 'y';
+        self::factory()->user->create(['user_login' => 'boot_victim', 'user_pass' => 'right-password', 'role' => 'administrator']);
+        $this->seedFailedAttempts(6, 'app_password');
+
+        try {
+            for ($i = 0; $i < 6; $i++) {
+                $this->freshRegisteredHandler();
+                wp_is_application_passwords_available(); // what wp_validate_application_password() asks at bootstrap
+                $this->assertWPError(wp_authenticate('boot_victim', 'wrong-' . $i));
+            }
+
+            $this->assertGreaterThanOrEqual(5, $this->rowCount('web'), 'the account-password guesses were counted');
+
+            $this->freshRegisteredHandler();
+            wp_is_application_passwords_available();
+            $this->assertWPError(wp_authenticate('boot_victim', 'right-password'), 'the ordinary limit still blocks');
+        } finally {
+            remove_filter('wp_is_application_passwords_available', '__return_true', 1);
+            $this->freshRegisteredHandler();
+        }
+    }
+
+    public function testAnXmlRpcBootstrapFailureDoesNotMoveBodyGuessesToTheApplicationPasswordCount()
+    {
+        update_site_option('using_application_passwords', 1);
+        add_filter('application_password_is_api_request', '__return_true');
+        add_filter('wp_is_application_passwords_available', '__return_true', 1);
+        $_SERVER['PHP_AUTH_USER'] = 'nobody';
+        $_SERVER['PHP_AUTH_PW'] = 'y';
+        self::factory()->user->create(['user_login' => 'body_victim', 'user_pass' => 'right-password', 'role' => 'administrator']);
+
+        try {
+            for ($i = 0; $i < 5; $i++) {
+                $this->freshRegisteredHandler();
+                wp_validate_application_password(null);
+                $this->assertWPError(wp_authenticate('body_victim', 'wrong-' . $i));
+            }
+
+            $this->assertSame(5, $this->rowCount('web'));
+        } finally {
+            remove_filter('application_password_is_api_request', '__return_true');
+            remove_filter('wp_is_application_passwords_available', '__return_true', 1);
+            delete_site_option('using_application_passwords');
+            $this->freshRegisteredHandler();
+        }
+    }
+
+    public function testABlockedApplicationPasswordRowDoesNotBlockABrowserLogin()
+    {
+        $this->logRow('blocked', 'app_password');
+        $user = self::factory()->user->create_and_get(['user_login' => 'blocked_app_owner', 'user_pass' => 'right-password']);
+
+        $this->assertInstanceOf(\WP_User::class, wp_authenticate($user->user_login, 'right-password'));
+    }
+
+    public function testABlockOnOnePathDoesNotExtendTheOtherPathsBlockedRow()
+    {
+        $this->logRow('blocked', 'web');
+        $_SERVER['PHP_AUTH_USER'] = 'admin';
+        $_SERVER['PHP_AUTH_PW'] = 'wrong password';
+        $this->seedFailedAttempts(6, 'app_password');
+
+        $this->assertFalse($this->handler->maybeBlockAppPasswordAuth(true));
+
+        global $wpdb;
+        $this->assertSame(1, (int)$wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `status` = 'blocked' AND `media` = 'app_password'"));
+        $this->assertSame(1, (int)$wpdb->get_var("SELECT `count` FROM {$wpdb->prefix}fls_auth_logs WHERE `status` = 'blocked' AND `media` = 'web'"));
+    }
+
+    public function testApplicationPasswordFailuresDoNotTriggerTheLoginChallenge()
+    {
+        $user = self::factory()->user->create_and_get();
+        for ($i = 0; $i < 20; $i++) {
+            $this->logRow('failed', 'app_password', $user->ID);
+        }
+
+        $this->assertFalse($this->handler->maybeRequireLoginChallenge(false, $user));
+
+        for ($i = 0; $i < 20; $i++) {
+            $this->logRow('failed', 'web', $user->ID);
+        }
+
+        $this->assertTrue($this->handler->maybeRequireLoginChallenge(false, $user));
     }
 
     public function testABlockListRefusalSaysSo()
