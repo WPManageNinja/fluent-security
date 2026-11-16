@@ -580,6 +580,42 @@ class SessionLengthTest extends BaseTestCase
         $this->assertTrue($manager->verify($token));
     }
 
+    public function testNativeUpdateKeepsDuplicatesWhenMetadataDeletionIsVetoed()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $old = $manager->create(time() + DAY_IN_SECONDS);
+        add_user_meta($id, 'session_tokens', get_user_meta($id, 'session_tokens', true));
+        $veto = function ($check, $uid, $key) use ($id) { return (int)$uid === $id && $key === 'session_tokens' ? false : $check; };
+        add_filter('delete_user_metadata', $veto, 10, 3);
+        try { $fresh = $manager->create(time() + DAY_IN_SECONDS); } finally { remove_filter('delete_user_metadata', $veto); }
+        $this->assertCount(2, get_user_meta($id, 'session_tokens'), 'A vetoed deletion keeps the duplicate row');
+        $this->assertTrue($manager->verify($fresh)); $this->assertTrue($manager->verify($old));
+    }
+
+    public function testNativeDuplicateRemovalReportsNothingWhenAnotherWriterRemovedThemFirst()
+    {
+        global $wpdb;
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $manager->create(time() + DAY_IN_SECONDS);
+        add_user_meta($id, 'session_tokens', get_user_meta($id, 'session_tokens', true));
+        $deleted = [];
+        $listen = function ($ids, $uid, $key) use (&$deleted, $id) {
+            if ((int)$uid === $id && $key === 'session_tokens') { $deleted[] = $ids; }
+        };
+        $race = function ($sql) use (&$race, $wpdb, $id) {
+            if (preg_match("/^DELETE FROM {$wpdb->usermeta} .*umeta_id IN/s", $sql)) {
+                remove_filter('query', $race);
+                $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s ORDER BY umeta_id DESC LIMIT 1", $id, 'session_tokens'));
+            }
+            return $sql;
+        };
+        add_action('deleted_user_meta', $listen, 10, 3); add_filter('query', $race);
+        try { $fresh = $manager->create(time() + DAY_IN_SECONDS); }
+        finally { remove_filter('query', $race); remove_action('deleted_user_meta', $listen, 10); }
+        $this->assertSame([], $deleted, 'No deletion is reported for rows this write did not remove');
+        $this->assertTrue($manager->verify($fresh));
+    }
+
     public function testNativeRevocationOverlappingTheDuplicateRepairLeavesNoRevokedCopy()
     {
         global $wpdb;

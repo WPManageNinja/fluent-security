@@ -148,7 +148,7 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
             }
             $serialized = maybe_serialize($next);
             $canonical = array_shift($rows);
-            if ($rows && !$this->removeDuplicates($rows)) {
+            if ($rows && !$this->removeDuplicates($rows, $updating)) {
                 return false;
             }
             if ($updating && $canonical->meta_value === $serialized) {
@@ -182,10 +182,13 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
         return false;
     }
 
-    private function removeDuplicates($rows)
+    private function removeDuplicates($rows, $updating)
     {
         global $wpdb;
         $userId = (int)$this->user_id;
+        if ($updating && apply_filters('delete_user_metadata', null, $userId, 'session_tokens', '', false) !== null) {
+            return true;
+        }
         $ids = array_map(function ($row) { return (int)$row->umeta_id; }, $rows);
         do_action('delete_user_meta', $ids, $userId, 'session_tokens', '');
         $removed = $wpdb->query($wpdb->prepare(
@@ -195,8 +198,10 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
         if ($removed === false) {
             return false;
         }
-        wp_cache_delete($userId, 'user_meta');
-        do_action('deleted_user_meta', $ids, $userId, 'session_tokens', '');
+        if ($removed) {
+            wp_cache_delete($userId, 'user_meta');
+            do_action('deleted_user_meta', $ids, $userId, 'session_tokens', '');
+        }
         return true;
     }
 
