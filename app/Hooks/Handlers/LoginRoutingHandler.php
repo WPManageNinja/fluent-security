@@ -6,6 +6,8 @@ use FluentAuth\App\Helpers\Helper;
 
 class LoginRoutingHandler
 {
+    const ROUTED_COOKIE = 'fls_login_routed';
+
     public function register()
     {
         // Social callbacks and pending second factors run first, at priority 1.
@@ -17,6 +19,16 @@ class LoginRoutingHandler
         $url = $this->getRedirectUrl();
         if (!$url) {
             return;
+        }
+
+        // Back here within a minute of being sent to the page: something sent them back
+        // (a force-login or members-only plugin). Show core's form instead of looping.
+        if (!empty($_COOKIE[self::ROUTED_COOKIE])) {
+            return;
+        }
+
+        if (!headers_sent()) {
+            setcookie(self::ROUTED_COOKIE, '1', time() + 60, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
         }
 
         nocache_headers();

@@ -48,6 +48,30 @@ class LoginRoutingHandlerTest extends BaseTestCase
         $this->assertSame('retained', $stored['legacy_key']);
     }
 
+    public function test_a_visitor_sent_back_within_a_minute_gets_core_instead_of_a_loop()
+    {
+        $redirected = function ($location) {
+            throw new \RuntimeException($location);
+        };
+        add_filter('wp_redirect', $redirected);
+
+        try {
+            try {
+                (new LoginRoutingHandler())->maybeRedirect();
+                $this->fail('a first visit is routed to the page');
+            } catch (\RuntimeException $e) {
+                $this->assertSame(get_permalink($this->pageId), $e->getMessage());
+            }
+
+            $_COOKIE[LoginRoutingHandler::ROUTED_COOKIE] = '1';
+            (new LoginRoutingHandler())->maybeRedirect();
+            $this->addToAssertionCount(1);
+        } finally {
+            remove_filter('wp_redirect', $redirected);
+            unset($_COOKIE[LoginRoutingHandler::ROUTED_COOKIE]);
+        }
+    }
+
     public function test_enabled_routing_preserves_the_validated_destination()
     {
         $_GET['redirect_to'] = home_url('/members/');
