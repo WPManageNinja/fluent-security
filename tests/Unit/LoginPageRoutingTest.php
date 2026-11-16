@@ -59,11 +59,30 @@ class LoginPageRoutingTest extends BaseTestCase
     {
         $this->assertSame($this->loginPage, $this->route());
 
-        $_GET = ['redirect_to' => admin_url(), 'reauth' => '1'];
-        $this->assertSame(add_query_arg('redirect_to', rawurlencode(admin_url()), $this->loginPage), $this->route());
+        $_GET = ['redirect_to' => admin_url('post.php?post=5&action=edit'), 'reauth' => '1'];
+        $location = $this->route();
+        $this->assertSame($this->loginPage, strtok($location, '?'));
+        parse_str((string)wp_parse_url($location, PHP_URL_QUERY), $query);
+        $this->assertSame(['redirect_to' => admin_url('post.php?post=5&action=edit')], $query);
+
+        $_GET = ['loggedout' => 'true', 'wp_lang' => 'en_US'];
+        $this->assertSame($this->loginPage, $this->route(), 'logouts go to the page too');
 
         $_GET = ['redirect_to' => 'https://evil.example/'];
         $this->assertSame($this->loginPage, $this->route());
+    }
+
+    public function testItRunsOnLoginInitBeforeTheLoginScreenCustomizer()
+    {
+        global $wp_filter;
+
+        $found = false;
+        foreach ($wp_filter['login_init']->callbacks[5] ?? [] as $callback) {
+            $found = $found || (is_array($callback['function']) && $callback['function'][0] instanceof CustomAuthHandler
+                && $callback['function'][1] === 'maybeRouteToLoginPage');
+        }
+
+        $this->assertTrue($found, 'the plugin registers it on login_init at priority 5');
     }
 
     public function testNothingChangesWithoutTheFilterOrWithAnOffSiteUrl()
@@ -82,7 +101,7 @@ class LoginPageRoutingTest extends BaseTestCase
             'an action'                 => [function () { $_GET = ['action' => 'lostpassword']; }],
             'another query key'         => [function () { $_GET = ['fls_2fa' => 'x']; }],
             'signed in'                 => [function () { wp_set_current_user(1); }],
-            'sent back within a minute' => [function () { $_COOKIE['fls_login_routed'] = '1'; }],
+            'sent back within seconds'  => [function () { $_COOKIE['fls_login_routed'] = '1'; }],
         ];
     }
 

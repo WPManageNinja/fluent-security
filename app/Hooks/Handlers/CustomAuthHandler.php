@@ -46,14 +46,21 @@ class CustomAuthHandler
     }
 
     /**
-     * For developers and hosts: `fluent_auth/login_page_url` names an on-site login page,
-     * and a guest's plain visit to wp-login.php goes there. POSTs and anything with an
-     * action or other query keys (2FA, magic links, password reset) stay with WordPress.
+     * For developers and hosts: return a full on-site URL from `fluent_auth/login_page_url`,
+     * e.g. home_url('/sign-in/'), and a guest's plain visit to wp-login.php goes there,
+     * logouts included. POSTs and requests with an action or other query keys (2FA, magic
+     * links, password reset) stay with WordPress.
+     *
+     * - A safe `redirect_to` is appended to the URL. A `redirect_to` attribute on the
+     *   page's shortcode overrides it.
+     * - Links that WordPress prints still point at wp-login.php; filter `login_url` for those.
+     * - A visitor sent back to wp-login.php within 15 seconds (a force-login plugin) gets
+     *   WordPress's own form instead of a redirect loop.
      */
     public function maybeRouteToLoginPage()
     {
         if (is_user_logged_in() || Arr::get($_SERVER, 'REQUEST_METHOD') !== 'GET'
-            || array_diff(array_keys($_GET), ['redirect_to', 'reauth'])) {
+            || array_diff(array_keys($_GET), ['redirect_to', 'reauth', 'loggedout', 'wp_lang'])) {
             return;
         }
 
@@ -62,7 +69,7 @@ class CustomAuthHandler
             return;
         }
 
-        // Back here within a minute of being sent to the page: something sent them back
+        // Back here within seconds of being sent to the page: something sent them back
         // (a force-login or members-only plugin). Show core's form instead of looping.
         if (!empty($_COOKIE['fls_login_routed'])) {
             return;
@@ -75,7 +82,7 @@ class CustomAuthHandler
         }
 
         if (!headers_sent()) {
-            setcookie('fls_login_routed', '1', time() + 60, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+            setcookie('fls_login_routed', '1', time() + 15, SITECOOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
         }
 
         nocache_headers();
