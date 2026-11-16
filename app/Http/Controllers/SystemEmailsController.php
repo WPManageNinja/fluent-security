@@ -49,10 +49,15 @@ class SystemEmailsController
             $userSmartCodes = array_merge($contextSmartCodes, $userSmartCodes);
         }
 
+        $isSignup = $remailId === 'signup_verification_to_user';
+        if ($isSignup) {
+            $userSmartCodes = $contextSmartCodes;
+        }
+
         $editorCodes = [
             [
-                'key'        => 'user',
-                'title'      => __('User Data', 'fluent-security'),
+                'key'        => $isSignup ? 'signup' : 'user',
+                'title'      => $isSignup ? __('Signup Data', 'fluent-security') : __('User Data', 'fluent-security'),
                 'shortcodes' => apply_filters('fluentcrm_auth/email_smartcodes', $userSmartCodes)
             ],
             [
@@ -109,9 +114,16 @@ class SystemEmailsController
             define('FLUENTAUTH_PREVIEWING_EMAIL', true);
         }
 
-        $wpUser = get_user_by('ID', get_current_user_id());
-        $subject = (new SmartCodeParser())->parse($subject, $wpUser);
-        $body = (new SmartCodeParser())->parse($emailBody, $wpUser);
+        $wpUser = null;
+        if ($remailId === 'signup_verification_to_user') {
+            $sample = ['first_name' => 'Sample', 'last_name' => 'User', 'email' => 'sample@example.test', 'username' => 'sample_user'];
+            $subject = SystemEmailService::parseSignupEmail($subject, $sample, '123456');
+            $body = SystemEmailService::parseSignupEmail($emailBody, $sample, '123456', true);
+        } else {
+            $wpUser = get_user_by('ID', get_current_user_id());
+            $subject = (new SmartCodeParser())->parse($subject, $wpUser);
+            $body = (new SmartCodeParser())->parse($emailBody, $wpUser);
+        }
         $body = SystemEmailService::withHtmlTemplate($body, null, $wpUser);
 
         return [
@@ -139,6 +151,10 @@ class SystemEmailsController
         $allEmailSettings = SystemEmailService::getGlobalSettings();
 
         $settings = (array) $request->get_param('settings');
+
+        if ($emailId === 'signup_verification_to_user' && Arr::get($settings, 'status') === 'disabled') {
+            return new \WP_Error('invalid_email_settings', __('The signup verification email cannot be disabled.', 'fluent-security'), ['status' => 400]);
+        }
 
         if ($settings['status'] == 'active') {
             $allEmailSettings['emails'][$emailId]['status'] = 'active';

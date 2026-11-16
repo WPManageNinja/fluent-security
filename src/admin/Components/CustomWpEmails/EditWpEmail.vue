@@ -145,7 +145,7 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard v-if="settings.status == 'active'" :title="$t('Content')"
-                              :description="$t('Placeholders such as {{user.display_name}} and {{site.name}} are swapped for the real values when the email is sent. In a link or button address, write the same placeholder as ##user.password_reset_url##.')">
+                              :description="email_id === 'signup_verification_to_user' ? '' : $t('Placeholders such as {{user.display_name}} and {{site.name}} are swapped for the real values when the email is sent. In a link or button address, write the same placeholder as ##user.password_reset_url##.')">
                     <template #actions>
                         <el-button v-if="default_content?.email?.body" size="small" @click="setDefaultContent()">
                             {{ $t('Use the default text') }}
