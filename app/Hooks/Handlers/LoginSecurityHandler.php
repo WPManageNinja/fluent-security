@@ -1051,6 +1051,27 @@ class LoginSecurityHandler
     }
 
     /**
+     * The Browser line for the alert emails, plus the raw client name when the detector
+     * does not know it - an API client says what it is in its own user agent.
+     *
+     * @param string $agent
+     * @return string
+     */
+    private function browserLinesHtml($agent)
+    {
+        $detection = new \FluentAuth\App\Helpers\BrowserDetection();
+        $browser = $detection->getBrowser($agent)['browser_name'];
+
+        $html = '<li><b>Browser:</b> ' . esc_html($detection->getOS($agent)['os_family'] . ' / ' . $browser) . '</li>';
+
+        if ($agent && strtolower($browser) === 'unknown') {
+            $html .= '<li><b>' . esc_html__('Client', 'fluent-security') . ':</b> ' . esc_html($agent) . '</li>';
+        }
+
+        return $html;
+    }
+
+    /**
      * @param $user \WP_User
      * @return bool
      */
@@ -1074,7 +1095,6 @@ class LoginSecurityHandler
         $userEditLInk = add_query_arg('user_id', $user->ID, self_admin_url('user-edit.php'));
 
         $agent = $this->getUserAgent();
-        $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
 
         $userRoles = (array)$user->roles;
 
@@ -1082,16 +1102,16 @@ class LoginSecurityHandler
 
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
-        $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
+        $infoHtml .= '<li><b>Site URL:</b> <a href="' . esc_url(site_url()) . '">' . esc_html(site_url()) . '</a></li>';
         $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
-        $infoHtml .= '<li><b>User Role:</b> ' . $roleNames . '</li>';
+        $infoHtml .= '<li><b>User Role:</b> ' . esc_html($roleNames) . '</li>';
         if ($media && $media != 'web') {
-            $infoHtml .= '<li><b>Media:</b> ' . $media . '</li>';
+            $infoHtml .= '<li><b>Media:</b> ' . esc_html(Helper::getLoginMediaLabel($media)) . '</li>';
         }
-        $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
-        $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
-        $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
-        $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
+        $infoHtml .= '<li><b>Email:</b> ' . esc_html($user->user_email) . '</li>';
+        $infoHtml .= '<li><b>Name:</b> ' . esc_html(trim($user->first_name . ' ' . $user->last_name)) . '</li>';
+        $infoHtml .= '<li><b>Login IP Address:</b> <a href="' . esc_url('https://ipinfo.io/' . $ip) . '">' . esc_html($ip) . '</a></li>';
+        $infoHtml .= $this->browserLinesHtml($agent);
         $infoHtml .= '</ul>';
 
         $lines = [
@@ -1144,20 +1164,14 @@ class LoginSecurityHandler
         update_option('fls_last_blocked_email_send_time', time(), false);
 
         $agent = $this->getUserAgent();
-        $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
 
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
-        $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
+        $infoHtml .= '<li><b>Site URL:</b> <a href="' . esc_url(site_url()) . '">' . esc_html(site_url()) . '</a></li>';
         /* Typed by whoever was refused, and printed into an email to the site's owner. */
         $infoHtml .= '<li><b>Username:</b> ' . esc_html($userName) . '</li>';
-        $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
-        $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
-
-        // An API client is not a browser the detector knows, and its own name says what it is.
-        if ($agent && strtolower($browserDetection->getBrowser($agent)['browser_name']) === 'unknown') {
-            $infoHtml .= '<li><b>' . esc_html__('Client', 'fluent-security') . ':</b> ' . esc_html($agent) . '</li>';
-        }
+        $infoHtml .= '<li><b>Login IP Address:</b> <a href="' . esc_url('https://ipinfo.io/' . $ip) . '">' . esc_html($ip) . '</a></li>';
+        $infoHtml .= $this->browserLinesHtml($agent);
 
         // The path only: a query string can carry tokens.
         $requestPath = wp_parse_url((string)Arr::get($_SERVER, 'REQUEST_URI'), PHP_URL_PATH);
@@ -1170,8 +1184,8 @@ class LoginSecurityHandler
         } else if ($user instanceof \WP_User) {
             $userEditLInk = add_query_arg('user_id', $user->ID, self_admin_url('user-edit.php'));
             $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
-            $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
-            $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
+            $infoHtml .= '<li><b>Email:</b> ' . esc_html($user->user_email) . '</li>';
+            $infoHtml .= '<li><b>Name:</b> ' . esc_html(trim($user->first_name . ' ' . $user->last_name)) . '</li>';
         }
         $infoHtml .= '</ul>';
 

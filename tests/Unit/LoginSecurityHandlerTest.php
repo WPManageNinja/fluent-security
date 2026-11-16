@@ -140,6 +140,42 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertInstanceOf(\WP_User::class, wp_authenticate($user->user_login, 'right-password'));
     }
 
+    public function testTheLoginAlertEscapesUserFieldsAndNamesAnApiClient()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notification_user_roles'] = ['subscriber'];
+        $settings['notification_email'] = 'owner@example.test';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $user = self::factory()->user->create_and_get(['role' => 'subscriber', 'last_name' => 'Doe']);
+        // Written raw, as a plugin or an import can; wp_insert_user() would strip it.
+        update_user_meta($user->ID, 'first_name', '<img src=x onerror=alert(1)>');
+        $user = get_user_by('ID', $user->ID);
+
+        $server = $_SERVER;
+        $_SERVER['HTTP_USER_AGENT'] = 'python-requests/2.31';
+
+        $mail = null;
+        $capture = function ($short, $atts) use (&$mail) {
+            $mail = $atts;
+            return true;
+        };
+        add_filter('pre_wp_mail', $capture, 10, 2);
+
+        try {
+            $this->handler->logAuthSuccess($user->user_login, $user);
+        } finally {
+            remove_filter('pre_wp_mail', $capture, 10);
+            $_SERVER = $server;
+        }
+
+        $this->assertNotNull($mail, 'the owner is emailed');
+        $this->assertStringNotContainsString('<img src=x', $mail['message']);
+        $this->assertStringContainsString('&lt;img src=x onerror=alert(1)&gt; Doe', $mail['message']);
+        $this->assertStringContainsString('python-requests/2.31', $mail['message']);
+    }
+
     /**
      * The handler keeps per-request state, so each simulated request gets a fresh one.
      */
