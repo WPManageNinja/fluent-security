@@ -12,6 +12,16 @@ export default {
 
 <template>
     <div>
+        <SettingRow :label="$t('Maximum simultaneous sign-ins per account')"
+                    :description="$t('Use 0 for unlimited. Each browser counts separately. A new sign-in signs out the oldest sessions when the limit is full.')">
+            <el-input type="number" :min="0" :max="100" :step="1" v-model="settings.session_limit"
+                      :disabled="settings.session_limit_supported === false"
+                      :aria-label="$t('Maximum simultaneous sign-ins per account')"/>
+        </SettingRow>
+        <p v-if="settings.session_limit_supported === false" class="fls_note">
+            {{ $t('This limit requires a single-site WordPress installation with standard session storage.') }}
+        </p>
+
         <SettingRow :description="$t('Closing the browser also signs people out, unless the browser reopens the last session.')">
             <template #label>
                 <!-- translators: %s is a number field for days -->
