@@ -32,7 +32,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
         parent::tearDown();
     }
 
-    private function seedFailedAttempts($count)
+    private function seedFailedAttempts($count, $media = 'app_password')
     {
         global $wpdb;
 
@@ -41,7 +41,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
                 'username'   => 'admin',
                 'ip'         => Helper::getIp(),
                 'status'     => 'failed',
-                'media'      => 'app_password',
+                'media'      => $media,
                 'count'      => 1,
                 'created_at' => current_time('mysql'),
                 'updated_at' => current_time('mysql'),
@@ -113,12 +113,31 @@ class LoginSecurityHandlerTest extends BaseTestCase
 
         $this->assertNotNull($mail, 'the owner is emailed');
         $body = $mail['message'];
-        $this->assertStringContainsString('A sign-in with an application password was refused. This IP address had 5 or more failed sign-ins in the last 30 minutes.', $body);
+        $this->assertStringContainsString('A sign-in with an application password was refused. This IP address had 5 or more failed application password sign-ins in the last 30 minutes.', $body);
         $this->assertStringContainsString('WordPress/6.8; https://client.example', $body);
         $this->assertStringContainsString('/wp-json/wp/v2/posts', $body);
         $this->assertStringNotContainsString('secret-value', $body, 'the query string can carry tokens');
         $this->assertStringContainsString('Block application passwords', $body);
         $this->assertStringNotContainsString('Too many failed application password attempts', $body);
+    }
+
+    public function testApplicationPasswordFailuresAndWebFailuresAreCountedApart()
+    {
+        $_SERVER['PHP_AUTH_USER'] = 'admin';
+        $_SERVER['PHP_AUTH_PW'] = 'wrong password';
+
+        // Many failed web sign-ins from this IP do not stop the site's API clients.
+        $this->seedFailedAttempts(6, 'web');
+        $this->assertTrue($this->handler->maybeBlockAppPasswordAuth(true));
+
+        // Many failed application passwords do not stop the owner's browser sign-in.
+        global $wpdb;
+        $wpdb->query("DELETE FROM {$wpdb->prefix}fls_auth_logs");
+        $this->seedFailedAttempts(6, 'app_password');
+        unset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']);
+
+        $user = self::factory()->user->create_and_get(['user_login' => 'owner_' . wp_rand(), 'user_pass' => 'right-password']);
+        $this->assertInstanceOf(\WP_User::class, wp_authenticate($user->user_login, 'right-password'));
     }
 
     /**
@@ -247,7 +266,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
 
     public function testBlockedAttemptsOnTheWebLoginPathAreCountedOnceToo()
     {
-        $this->seedFailedAttempts(6);
+        $this->seedFailedAttempts(6, 'web');
 
         for ($i = 0; $i < 3; $i++) {
             $handler = new LoginSecurityHandler();
@@ -572,7 +591,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
      */
     public function testATokenVerifiedLoginIsNotStoppedByTheBlock()
     {
-        $this->seedFailedAttempts(20);
+        $this->seedFailedAttempts(20, 'web');
 
         $user = $this->factory->user->create_and_get(['role' => 'administrator']);
 
@@ -657,7 +676,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $ip = $this->fromPublicAddress();
         $user = $this->factory->user->create_and_get(['role' => 'administrator']);
 
-        $this->seedFailedAttempts(20);
+        $this->seedFailedAttempts(20, 'web');
 
         // Control: without the allow list this address is well past the limit.
         $this->assertWpErrorWithCode(

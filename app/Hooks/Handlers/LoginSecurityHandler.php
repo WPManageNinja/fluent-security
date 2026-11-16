@@ -289,7 +289,7 @@ class LoginSecurityHandler
             return false;
         }
 
-        $isLimitExceeded = $this->checkLoginAttempt(null, $username);
+        $isLimitExceeded = $this->checkLoginAttempt(null, $username, 'app_password');
 
         $this->appPasswordBlocked = is_wp_error($isLimitExceeded);
 
@@ -300,7 +300,7 @@ class LoginSecurityHandler
         $this->logBlockedAuth(
             new \WP_Error('blocked', sprintf(
                 /* translators: 1: the failed sign-in limit, 2: minutes */
-                __('A sign-in with an application password was refused. This IP address had %1$d or more failed sign-ins in the last %2$d minutes.', 'fluent-security'),
+                __('A sign-in with an application password was refused. This IP address had %1$d or more failed application password sign-ins in the last %2$d minutes.', 'fluent-security'),
                 (int)Helper::getSetting('login_try_limit'),
                 (int)Helper::getSetting('login_try_timing')
             )),
@@ -870,7 +870,7 @@ class LoginSecurityHandler
 
         // get previous blocked row for this ip within the block window
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
-        $prev = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked' LIMIT 1", $ipAddress, $dateTime));
+        $prev = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked'" . self::attemptPathSql($media) . " LIMIT 1", $ipAddress, $dateTime));
 
         if ($prev) {
             $wpdb->update($wpdb->prefix . 'fls_auth_logs', [
@@ -951,7 +951,22 @@ class LoginSecurityHandler
         );
     }
 
-    private function checkLoginAttempt($user, $userName)
+    /**
+     * Application passwords are counted apart from every other sign-in. They cannot be
+     * guessed (24 random characters, and Basic auth accepts nothing else), and sharing one
+     * counter let an app retrying an old password lock its owner out of wp-admin.
+     *
+     * @param string $media
+     * @return string a fixed SQL condition, no user input
+     */
+    private static function attemptPathSql($media)
+    {
+        return $media === 'app_password'
+            ? " AND `media` = 'app_password'"
+            : " AND (`media` IS NULL OR `media` != 'app_password')";
+    }
+
+    private function checkLoginAttempt($user, $userName, $media = 'web')
     {
         if (!Helper::isLoginSecurityEnabled()) {
             return true;
@@ -989,7 +1004,7 @@ class LoginSecurityHandler
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
 
         // check if already blocked then no need to create a new row
-        $blocked = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked' LIMIT 1", $ip, $dateTime));
+        $blocked = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked'" . self::attemptPathSql($media) . " LIMIT 1", $ip, $dateTime));
 
         if ($blocked) {
             /*
@@ -1004,7 +1019,7 @@ class LoginSecurityHandler
                 'id' => $blocked->id
             ]);
         } else {
-            $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked')", $ip, $dateTime));
+            $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked')" . self::attemptPathSql($media), $ip, $dateTime));
 
             if (!$count || $count < $limit) {
                 return true;
