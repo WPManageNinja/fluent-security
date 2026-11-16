@@ -537,16 +537,69 @@ class SessionLengthTest extends BaseTestCase
         finally { remove_filter('update_user_metadata', $race); }
     }
 
-    public function testNativeDuplicateRowsRemainConsistentAndAllAreRemovedOnLogout()
+    public function testNativeDuplicateRowsAreRemovedOnTheNextWriteAndAllAreRemovedOnLogout()
     {
         $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
         add_user_meta($id, 'session_tokens', null);
         $manager->create(time() + DAY_IN_SECONDS);
         add_user_meta($id, 'session_tokens', ['ignored' => ['expiration' => time() + DAY_IN_SECONDS]]);
         $this->saveSettings(['session_limit' => 1]); $incoming = $this->issueLimitedCookie($id);
-        $rows = get_user_meta($id, 'session_tokens'); $this->assertCount(2, $rows);
-        $this->assertSame($rows[0], $rows[1]); $this->assertTrue($manager->verify($incoming));
+        $this->assertCount(1, get_user_meta($id, 'session_tokens')); $this->assertTrue($manager->verify($incoming));
+        add_user_meta($id, 'session_tokens', ['ignored' => ['expiration' => time() + DAY_IN_SECONDS]]);
         $manager->destroy_all(); $this->assertFalse(metadata_exists('user', $id, 'session_tokens'));
+    }
+
+    public function unchangedWritesWithDivergedDuplicates()
+    {
+        return [
+            'absent logout' => [function ($manager, $token) { $manager->destroy('absent-token'); }],
+            'others with one session' => [function ($manager, $token) { $manager->destroy_others($token); }],
+            'unchanged update' => [function ($manager, $token) { $manager->update($token, $manager->get($token)); }],
+        ];
+    }
+
+    /** @dataProvider unchangedWritesWithDivergedDuplicates */
+    public function testNativeUnchangedWriteWithDivergedDuplicatesSucceedsAndRepairsThem($write)
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $token = $manager->create(time() + DAY_IN_SECONDS);
+        add_user_meta($id, 'session_tokens', ['stale' => ['expiration' => time() + DAY_IN_SECONDS]]);
+        $duplicate = (int)max(array_map('intval', $GLOBALS['wpdb']->get_col($GLOBALS['wpdb']->prepare(
+            "SELECT umeta_id FROM {$GLOBALS['wpdb']->usermeta} WHERE user_id = %d AND meta_key = %s", $id, 'session_tokens'
+        ))));
+        wp_cache_get($id, 'user_meta') ?: update_meta_cache('user', [$id]);
+        $deleted = [];
+        $listen = function ($ids, $uid, $key) use (&$deleted, $id) {
+            if ((int)$uid === $id && $key === 'session_tokens') { $deleted = array_merge($deleted, array_map('intval', (array)$ids)); }
+        };
+        add_action('deleted_user_meta', $listen, 10, 3);
+        try { $write($manager, $token); } finally { remove_action('deleted_user_meta', $listen, 10); }
+        $this->assertSame([$duplicate], $deleted, 'The removed duplicate is reported to metadata listeners');
+        $this->assertFalse(wp_cache_get($id, 'user_meta'), 'The user meta cache is invalidated');
+        $this->assertCount(1, get_user_meta($id, 'session_tokens'));
+        $this->assertTrue($manager->verify($token));
+    }
+
+    public function testNativeRevocationOverlappingTheDuplicateRepairLeavesNoRevokedCopy()
+    {
+        global $wpdb;
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $revoked = $manager->create(time() + DAY_IN_SECONDS);
+        add_user_meta($id, 'session_tokens', get_user_meta($id, 'session_tokens', true));
+        $fired = false;
+        $race = function ($sql) use (&$race, &$fired, $manager, $revoked, $wpdb) {
+            if (preg_match("/^(UPDATE|DELETE FROM) {$wpdb->usermeta} .*umeta_id (<>|IN)/s", $sql)) {
+                remove_filter('query', $race); $fired = true; $manager->destroy($revoked);
+            }
+            return $sql;
+        };
+        add_filter('query', $race);
+        try { $fresh = $manager->create(time() + DAY_IN_SECONDS); } finally { remove_filter('query', $race); }
+        $this->assertTrue($fired, 'The revocation ran at the duplicate repair of the overlapped operation');
+        $rows = get_user_meta($id, 'session_tokens');
+        $this->assertCount(1, $rows, 'No duplicate copy survives');
+        $this->assertArrayNotHasKey(hash('sha256', $revoked), $rows[0]);
+        $this->assertTrue($manager->verify($fresh)); $this->assertFalse($manager->verify($revoked));
     }
 
     public function testNativeMetadataHooksCacheAndVetoRemainEffective()

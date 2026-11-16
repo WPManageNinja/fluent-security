@@ -147,41 +147,57 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
                 return $inserted;
             }
             $serialized = maybe_serialize($next);
-            if ($updating && !array_filter($rows, function ($row) use ($serialized) { return $row->meta_value !== $serialized; })) {
-                return true;
-            }
-            $ids = array_map(function ($row) { return $row->umeta_id; }, $rows);
-            if ($updating) {
-                foreach ($ids as $id) { do_action('update_user_meta', $id, $userId, 'session_tokens', $next); }
-            } else {
-                do_action('delete_user_meta', $ids, $userId, 'session_tokens', '');
-            }
-            $canonical = $rows[0];
-            $duplicates = $wpdb->prepare('WHERE user_id = %d AND meta_key = %s AND umeta_id <> %d', $userId, 'session_tokens', $canonical->umeta_id);
-            if (!$updating && count($rows) > 1 && $wpdb->query("DELETE FROM {$wpdb->usermeta} " . $duplicates) === false) {
+            $canonical = array_shift($rows);
+            if ($rows && !$this->removeDuplicates($rows)) {
                 return false;
             }
-            $where = $wpdb->prepare('WHERE umeta_id = %d AND user_id = %d AND meta_key = %s AND ', $canonical->umeta_id, $userId, 'session_tokens');
+            if ($updating && $canonical->meta_value === $serialized) {
+                return true;
+            }
+            $id = (int)$canonical->umeta_id;
+            if ($updating) {
+                do_action('update_user_meta', $id, $userId, 'session_tokens', $next);
+            } else {
+                do_action('delete_user_meta', [$id], $userId, 'session_tokens', '');
+            }
+            $where = $wpdb->prepare('WHERE umeta_id = %d AND user_id = %d AND meta_key = %s AND ', $id, $userId, 'session_tokens');
             $where .= $canonical->meta_value === null ? 'meta_value IS NULL'
                 : $wpdb->prepare('BINARY meta_value = BINARY %s', $canonical->meta_value);
-            $set = $wpdb->prepare("UPDATE {$wpdb->usermeta} SET meta_value = %s ", $serialized);
-            $updated = $wpdb->query(($updating ? $set : "DELETE FROM {$wpdb->usermeta} ") . $where);
+            $sql = $updating ? $wpdb->prepare("UPDATE {$wpdb->usermeta} SET meta_value = %s ", $serialized) : "DELETE FROM {$wpdb->usermeta} ";
+            $updated = $wpdb->query($sql . $where);
             if ($updated === false) {
                 return false;
             }
             if (!$updated) {
                 continue;
             }
-            $synced = !$updating || count($rows) < 2 || $wpdb->query($set . $duplicates) !== false;
             wp_cache_delete($userId, 'user_meta');
             if ($updating) {
-                foreach ($ids as $id) { do_action('updated_user_meta', $id, $userId, 'session_tokens', $next); }
+                do_action('updated_user_meta', $id, $userId, 'session_tokens', $next);
             } else {
-                do_action('deleted_user_meta', $ids, $userId, 'session_tokens', '');
+                do_action('deleted_user_meta', [$id], $userId, 'session_tokens', '');
             }
-            return $synced;
+            return true;
         }
         return false;
+    }
+
+    private function removeDuplicates($rows)
+    {
+        global $wpdb;
+        $userId = (int)$this->user_id;
+        $ids = array_map(function ($row) { return (int)$row->umeta_id; }, $rows);
+        do_action('delete_user_meta', $ids, $userId, 'session_tokens', '');
+        $removed = $wpdb->query($wpdb->prepare(
+            "DELETE FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s AND umeta_id IN (" . implode(',', array_fill(0, count($ids), '%d')) . ')',
+            $userId, 'session_tokens', ...$ids
+        ));
+        if ($removed === false) {
+            return false;
+        }
+        wp_cache_delete($userId, 'user_meta');
+        do_action('deleted_user_meta', $ids, $userId, 'session_tokens', '');
+        return true;
     }
 
     private function insertFirstRow($sessions)
