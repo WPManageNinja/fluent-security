@@ -3,6 +3,7 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\NativeSessionTokens;
 
 class SessionLengthHandler
 {
@@ -17,6 +18,7 @@ class SessionLengthHandler
 
     public function register()
     {
+        add_filter('session_token_manager', [NativeSessionTokens::class, 'selectManager'], PHP_INT_MAX);
         add_filter('auth_cookie_expiration', [$this, 'filterExpiration'], 10, 3);
         add_filter('login_form_defaults', [$this, 'filterLoginFormDefaults']);
         add_action('login_footer', [$this, 'checkRememberMeOnWpLogin']);
@@ -29,7 +31,7 @@ class SessionLengthHandler
     {
         $userId = $userId ?: get_current_user_id();
         return !is_multisite()
-            && get_class(\WP_Session_Tokens::get_instance($userId)) === 'WP_User_Meta_Session_Tokens'
+            && get_class(\WP_Session_Tokens::get_instance($userId)) === NativeSessionTokens::class
             && apply_filters('get_user_metadata', null, $userId, 'session_tokens', true, 'user') === null;
     }
 
@@ -58,61 +60,21 @@ class SessionLengthHandler
             return $send;
         }
 
-        global $wpdb;
         list($userId, $token) = $candidate;
-        $key = hash('sha256', $token);
-        $loginId = null;
-        for ($attempt = 0; $attempt < 3; $attempt++) {
-            $row = $wpdb->get_row($wpdb->prepare(
-                "SELECT umeta_id, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s ORDER BY umeta_id LIMIT 1",
-                $userId, 'session_tokens'
-            ));
-            $sessions = $row ? maybe_unserialize($row->meta_value) : [];
-            $incoming = is_array($sessions) ? ($sessions[$key] ?? null) : null;
-            $ends = is_int($incoming) ? $incoming : ($incoming['expiration'] ?? 0);
-            if (!$ends || $ends < time()) {
-                return false; // A concurrent revoke must never be undone by issuing this cookie.
-            }
-            if ($attempt === 0) {
-                $loginId = $incoming['fls_login_id'] ?? '';
-                if (!isset($this->newSessions[$loginId])) {
-                    return $send; // Existing/supplied token reissue does not start a new sign-in.
-                }
-                unset($this->newSessions[$loginId]);
-            }
-
-            $others = [];
-            foreach ($sessions as $verifier => $session) {
-                $ends = is_int($session) ? $session : ($session['expiration'] ?? 0);
-                if ($verifier !== $key && $ends >= time()) {
-                    $others[$verifier] = (int)($session['login'] ?? 0);
-                }
-            }
-            if (count($others) < $limit) {
-                return $send;
-            }
-            uksort($others, function ($a, $b) use ($others) {
-                return ($others[$a] <=> $others[$b]) ?: strcmp($a, $b);
-            });
-            foreach (array_slice(array_keys($others), 0, count($others) - $limit + 1) as $old) {
-                unset($sessions[$old]);
-            }
-
-            // Match the exact snapshot: retry a competing login/logout instead of restoring its old tokens.
-            $updated = $wpdb->query($wpdb->prepare(
-                "UPDATE {$wpdb->usermeta} SET meta_value = %s WHERE umeta_id = %d AND BINARY meta_value = BINARY %s",
-                maybe_serialize($sessions), $row->umeta_id, $row->meta_value
-            ));
-            if ($updated === 1) {
-                wp_cache_delete($userId, 'user_meta');
-                return $send;
-            }
-            if ($updated === false) {
-                break;
-            }
+        $manager = \WP_Session_Tokens::get_instance($userId);
+        if (!($manager instanceof NativeSessionTokens)) {
+            return $send;
         }
-        // Only the sign-in is affected; normal authenticated traffic never reaches this path.
-        wp_die(esc_html__('We could not finish signing you in. Please try again.', 'fluent-security'), '', ['response' => 503]);
+        $session = $manager->get($token);
+        if (!$session) {
+            return false;
+        }
+        $loginId = $session['fls_login_id'] ?? '';
+        if (!isset($this->newSessions[$loginId])) {
+            return $send;
+        }
+        unset($this->newSessions[$loginId]);
+        return $manager->pruneForLogin($token, $limit) ? $send : false;
     }
 
     public function filterExpiration($length, $userId = 0, $remember = false)

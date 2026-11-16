@@ -371,7 +371,7 @@ class SessionLengthTest extends BaseTestCase
             }
             return $sql;
         };
-        add_filter('query', $race);
+        $arm = $this->armPruningRace($race);
         try {
             $incoming = $this->issueLimitedCookie($id);
             $this->assertTrue($interleaved, 'Revocation ran between the actual database read and conditional write');
@@ -380,6 +380,7 @@ class SessionLengthTest extends BaseTestCase
             $this->assertCount(1, $manager->get_all());
         } finally {
             remove_filter('query', $race);
+            remove_action('set_logged_in_cookie', $arm, PHP_INT_MAX);
         }
     }
 
@@ -428,14 +429,14 @@ class SessionLengthTest extends BaseTestCase
             }
             return $sql;
         };
-        add_filter('query', $race);
+        $arm = $this->armPruningRace($race);
         try {
             $loser = $this->issueLimitedCookie($id);
             $this->assertNotSame('', $winner, 'A second completed login interleaved at the actual conditional write');
             $this->assertFalse($manager->verify($loser));
             $this->assertTrue($manager->verify($winner));
             $this->assertCount(1, $manager->get_all());
-        } finally { remove_filter('query', $race); }
+        } finally { remove_filter('query', $race); remove_action('set_logged_in_cookie', $arm, PHP_INT_MAX); }
     }
 
     /** @dataProvider invalidSessionLimits */
@@ -461,6 +462,206 @@ class SessionLengthTest extends BaseTestCase
         $result = \FluentAuth\App\Services\AuthService::makeLogin($user);
         $this->assertWpErrorWithCode($result, 'fls_2fa_required');
         $this->assertTrue(\WP_Session_Tokens::get_instance($user->ID)->verify($old));
+    }
+
+    /** @dataProvider nativeLogoutCounts */
+    public function testSessionLimitSurvivesANativeLogoutFinishingAfterPruning($count)
+    {
+        $id = $this->factory->user->create();
+        $manager = \WP_Session_Tokens::get_instance($id);
+        $old = [];
+        for ($i = 0; $i < $count; $i++) { $old[] = $manager->create(time() + DAY_IN_SECONDS); }
+        $this->saveSettings(['session_limit' => 1]);
+        $incoming = '';
+        $hook = $count === 1 ? 'delete_user_metadata' : 'update_user_metadata';
+        $race = function ($check, $uid, $key) use (&$race, &$incoming, $id, $hook) {
+            if ($uid === $id && $key === 'session_tokens') {
+                remove_filter($hook, $race);
+                $incoming = $this->issueLimitedCookie($id);
+            }
+            return $check;
+        };
+        add_filter($hook, $race, 10, 3);
+        try {
+            $manager->destroy($old[$count - 1]);
+            $this->assertNotSame('', $incoming, 'A new sign-in completed before the old native logout write');
+            $this->assertTrue($manager->verify($incoming), 'Finishing the earlier logout must preserve the incoming login');
+            $this->assertFalse($manager->verify($old[0]), 'An evicted session must stay revoked');
+            $this->assertCount(1, $manager->get_all());
+        } finally { remove_filter($hook, $race); }
+    }
+
+    public function nativeLogoutCounts() { return [[1], [3]]; }
+
+    public function testNativeCoordinationIsSelectedWithEvictionDisabled()
+    {
+        $this->assertSame(\FluentAuth\App\Services\NativeSessionTokens::class, get_class(\WP_Session_Tokens::get_instance(1)));
+    }
+
+    public function testCustomDatabaseKeepsTheOriginalNativeManager()
+    {
+        global $wpdb; $original = $wpdb;
+        try { $wpdb = new class extends \wpdb { public function __construct() {} };
+            $this->assertSame('WP_User_Meta_Session_Tokens', get_class(\WP_Session_Tokens::get_instance(1)));
+        } finally { $wpdb = $original; }
+    }
+
+    public function testNativeUpdateDoesNotRestoreATokenRevokedDuringItsWrite()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $token = $manager->create(time() + DAY_IN_SECONDS);
+        $session = $manager->get($token); $session['extra'] = 'updated';
+        $race = function ($check, $uid, $key) use (&$race, $manager, $token, $id) {
+            if ($uid === $id && $key === 'session_tokens') {
+                remove_filter('update_user_metadata', $race); $manager->destroy($token);
+            }
+            return $check;
+        };
+        add_filter('update_user_metadata', $race, 10, 3);
+        try { $manager->update($token, $session); $this->assertFalse($manager->verify($token)); }
+        finally { remove_filter('update_user_metadata', $race); }
+    }
+
+    public function testNativeDestroyOthersDoesNotRestoreARevokedKeepToken()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $keep = $manager->create(time() + DAY_IN_SECONDS); $manager->create(time() + DAY_IN_SECONDS);
+        $race = function ($check, $uid, $key) use (&$race, $manager, $keep, $id) {
+            if ($uid === $id && $key === 'session_tokens') {
+                remove_filter('update_user_metadata', $race); $manager->destroy($keep);
+            }
+            return $check;
+        };
+        add_filter('update_user_metadata', $race, 10, 3);
+        try { $manager->destroy_others($keep); $this->assertFalse($manager->verify($keep)); $this->assertCount(0, $manager->get_all()); }
+        finally { remove_filter('update_user_metadata', $race); }
+    }
+
+    public function testNativeDuplicateRowsRemainConsistentAndAllAreRemovedOnLogout()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        add_user_meta($id, 'session_tokens', null);
+        $manager->create(time() + DAY_IN_SECONDS);
+        add_user_meta($id, 'session_tokens', ['ignored' => ['expiration' => time() + DAY_IN_SECONDS]]);
+        $this->saveSettings(['session_limit' => 1]); $incoming = $this->issueLimitedCookie($id);
+        $rows = get_user_meta($id, 'session_tokens'); $this->assertCount(2, $rows);
+        $this->assertSame($rows[0], $rows[1]); $this->assertTrue($manager->verify($incoming));
+        $manager->destroy_all(); $this->assertFalse(metadata_exists('user', $id, 'session_tokens'));
+    }
+
+    public function testNativeMetadataHooksCacheAndVetoRemainEffective()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $events = []; $listeners = [];
+        foreach (['add', 'added', 'update', 'updated', 'delete', 'deleted'] as $event) {
+            $listener = function (...$args) use (&$events, $id, $event) {
+                $offset = $event === 'add' ? 0 : 1;
+                if ((int)$args[$offset] === $id && $args[$offset + 1] === 'session_tokens') { $events[] = $event; }
+            };
+            add_action($event . '_user_meta', $listener, 10, 4); $listeners[$event] = $listener;
+        }
+        try {
+            $first = $manager->create(time() + DAY_IN_SECONDS); $manager->get_all();
+            $second = $manager->create(time() + DAY_IN_SECONDS);
+            $this->assertCount(2, $manager->get_all(), 'Committed writes invalidate the warmed metadata cache');
+            $veto = function ($check, $uid, $key) use ($id) { return $uid === $id && $key === 'session_tokens' ? false : $check; };
+            add_filter('update_user_metadata', $veto, 10, 3);
+            try { $blocked = $manager->create(time() + DAY_IN_SECONDS); $this->assertFalse($manager->verify($blocked)); }
+            finally { remove_filter('update_user_metadata', $veto); }
+            $session = $manager->get($first); $session['extra'] = 'keep\\value'; $manager->update($first, $session);
+            $this->assertSame('keep\\value', $manager->get($first)['extra']);
+            $manager->destroy($first); $manager->destroy($second);
+            $this->assertSame(['add', 'added', 'update', 'updated', 'update', 'updated', 'update', 'updated', 'delete', 'deleted'], $events);
+            $this->assertFalse(metadata_exists('user', $id, 'session_tokens'));
+            $denyAdd = function ($check, $uid, $key) use ($id) { return $uid === $id && $key === 'session_tokens' ? false : $check; };
+            add_filter('add_user_metadata', $denyAdd, 10, 3);
+            try { $this->assertFalse($manager->verify($manager->create(time() + DAY_IN_SECONDS))); }
+            finally { remove_filter('add_user_metadata', $denyAdd); }
+        } finally { foreach ($listeners as $event => $listener) { remove_action($event . '_user_meta', $listener); } }
+    }
+
+    public function testNativeReadOverrideStillDisablesTheCap()
+    {
+        $id = $this->factory->user->create(); $virtual = [];
+        $override = function ($value, $uid, $key) use ($id, &$virtual) { return $uid === $id && $key === 'session_tokens' ? [$virtual] : $value; };
+        $save = function ($value, $uid, $key, $next) use ($id, &$virtual) {
+            if ($uid === $id && $key === 'session_tokens') { $virtual = $next; return true; } return $value;
+        };
+        $erase = function ($value, $uid, $key) use ($id, &$virtual) {
+            if ($uid === $id && $key === 'session_tokens') { $virtual = []; return true; } return $value;
+        };
+        add_filter('get_user_metadata', $override, 10, 3);
+        add_filter('update_user_metadata', $save, 10, 4); add_filter('delete_user_metadata', $erase, 10, 3);
+        try {
+            $this->assertFalse(SessionLengthHandler::supportsLimit($id));
+            $manager = \WP_Session_Tokens::get_instance($id); $first = $manager->create(time() + DAY_IN_SECONDS);
+            $second = $manager->create(time() + DAY_IN_SECONDS); $this->assertCount(2, $manager->get_all());
+            $manager->destroy($first); $this->assertTrue($manager->verify($second));
+            $manager->destroy($second); $this->assertSame([], $virtual);
+        } finally { remove_filter('get_user_metadata', $override); remove_filter('update_user_metadata', $save); remove_filter('delete_user_metadata', $erase); }
+    }
+
+    public function testFirstNativeInsertDoesNotWaitForAnotherConnectionsLock()
+    {
+        global $wpdb;
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $other = new \wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST); $name = ''; $held = false;
+        $race = function ($sql) use (&$race, &$name, &$held, $other) {
+            if (preg_match("/SELECT GET_LOCK\\('([^']+)', 0\\)/", $sql, $match)) {
+                remove_filter('query', $race); $name = $match[1]; $held = (string)$other->get_var($sql) === '1';
+            }
+            return $sql;
+        };
+        add_filter('query', $race);
+        try {
+            try { $manager->create(time() + DAY_IN_SECONDS); $this->fail('Contending creation must report a retry'); }
+            catch (\WPDieException $e) { $this->assertStringContainsString('Please try again', $e->getMessage()); }
+            $this->assertTrue($held, 'A separate database connection acquired the initial-insertion lock');
+            $this->assertFalse(metadata_exists('user', $id, 'session_tokens'), 'A contending initial insert does not create another metadata row');
+        } finally { remove_filter('query', $race); if ($held) { $other->get_var($other->prepare('SELECT RELEASE_LOCK(%s)', $name)); } $other->close(); }
+        $this->assertTrue($manager->verify($manager->create(time() + DAY_IN_SECONDS)), 'A later attempt works after lock release');
+    }
+
+    public function testConcurrentNativeCreatesKeepBothSessions()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $old = $manager->create(time() + DAY_IN_SECONDS); $other = '';
+        $race = function ($check, $uid, $key) use (&$race, &$other, $manager, $id) {
+            if ($uid === $id && $key === 'session_tokens') { remove_filter('update_user_metadata', $race); $other = $manager->create(time() + DAY_IN_SECONDS); }
+            return $check;
+        };
+        add_filter('update_user_metadata', $race, 10, 3);
+        try {
+            $first = $manager->create(time() + DAY_IN_SECONDS);
+            $this->assertTrue($manager->verify($old)); $this->assertTrue($manager->verify($first)); $this->assertTrue($manager->verify($other));
+            $this->assertCount(3, $manager->get_all());
+        } finally { remove_filter('update_user_metadata', $race); }
+    }
+
+    public function testSessionMarkerDoesNotChangeRecoveryCountsOrSmartcodeSecrecy()
+    {
+        $user = $this->factory->user->create_and_get(); $this->saveSettings(['session_limit' => 1]);
+        $count = new \ReflectionMethod(\FluentAuth\App\Services\Recovery\RecoveryService::class, 'countSessions'); $count->setAccessible(true);
+        $before = $count->invoke(null); $this->issueLimitedCookie($user->ID);
+        $this->assertSame($before + 1, $count->invoke(null));
+        $this->assertSame('', (new \FluentAuth\App\Services\SmartCodeParser())->parse('{{user.meta.session_tokens}}', $user));
+    }
+
+    public function testNativeRevocationReportsPersistentWriteContention()
+    {
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $token = $manager->create(time() + DAY_IN_SECONDS); $manager->create(time() + DAY_IN_SECONDS);
+        $race = function ($check, $uid, $key) use (&$race, $manager, $id) {
+            if ($uid === $id && $key === 'session_tokens') {
+                remove_filter('update_user_metadata', $race); $manager->create(time() + DAY_IN_SECONDS); add_filter('update_user_metadata', $race, 10, 3);
+            }
+            return $check;
+        };
+        add_filter('update_user_metadata', $race, 10, 3);
+        try {
+            try { $manager->destroy($token); $this->fail('A failed revocation must not be reported as complete'); }
+            catch (\WPDieException $e) { $this->assertStringContainsString('Please try again', $e->getMessage()); }
+        } finally { remove_filter('update_user_metadata', $race); }
     }
 
     public function testSessionLimitAppliesAtTheVerifiedProviderCompletionBoundary()
@@ -499,14 +700,14 @@ class SessionLengthTest extends BaseTestCase
             }
             return $sql;
         };
-        add_filter('query', $race);
+        $arm = $this->armPruningRace($race);
         try {
             $this->issueLimitedCookie($id);
             $this->fail('A changing store must not produce an unbounded authenticated login');
         } catch (\WPDieException $e) {
             $this->assertStringContainsString('Please try again', $e->getMessage());
             $this->assertTrue($manager->verify($old), 'Failed admission must not evict existing sessions');
-        } finally { remove_filter('query', $race); }
+        } finally { remove_filter('query', $race); remove_action('set_logged_in_cookie', $arm, PHP_INT_MAX); }
     }
 
     public function testSessionLimitSurvivesAnOlderClientsSaveAndSupportedFlagIsNotStored()
@@ -550,6 +751,19 @@ class SessionLengthTest extends BaseTestCase
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $this->saveSettings(['remember_default' => 'no']);
         $this->assertSame('', $this->footer($handler));
+    }
+
+    private function armPruningRace($race)
+    {
+        $armed = false;
+        $arm = function () use ($race, &$armed) {
+            if (!$armed) {
+                $armed = true;
+                add_filter('query', $race);
+            }
+        };
+        add_action('set_logged_in_cookie', $arm, PHP_INT_MAX, 0);
+        return $arm;
     }
 
     private function footer(SessionLengthHandler $handler)
