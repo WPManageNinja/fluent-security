@@ -40,6 +40,47 @@ class CustomAuthHandler
         add_action('wp_ajax_nopriv_fluent_auth_signup', array($this, 'handleSignupAjax'));
         add_action('wp_ajax_nopriv_fluent_auth_rp', array($this, 'handlePasswordResentAjax'));
         add_action('fls_load_login_helper', array($this, 'loadAssets'));
+
+        // After social callbacks and pending second factors, which run at priority 1.
+        add_action('login_init', array($this, 'maybeRouteToLoginPage'), 5);
+    }
+
+    /**
+     * For developers and hosts: `fluent_auth/login_page_url` names an on-site login page,
+     * and a guest's plain visit to wp-login.php goes there. POSTs and anything with an
+     * action or other query keys (2FA, magic links, password reset) stay with WordPress.
+     */
+    public function maybeRouteToLoginPage()
+    {
+        if (is_user_logged_in() || Arr::get($_SERVER, 'REQUEST_METHOD') !== 'GET'
+            || array_diff(array_keys($_GET), ['redirect_to', 'reauth'])) {
+            return;
+        }
+
+        $url = Helper::getValidatedRedirectUrl((string)apply_filters('fluent_auth/login_page_url', ''), '');
+        if (!$url) {
+            return;
+        }
+
+        // Back here within a minute of being sent to the page: something sent them back
+        // (a force-login or members-only plugin). Show core's form instead of looping.
+        if (!empty($_COOKIE['fls_login_routed'])) {
+            return;
+        }
+
+        $redirect = Arr::get($_GET, 'redirect_to');
+        $redirect = is_string($redirect) ? Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($redirect)), '') : '';
+        if ($redirect) {
+            $url = add_query_arg('redirect_to', rawurlencode($redirect), $url);
+        }
+
+        if (!headers_sent()) {
+            setcookie('fls_login_routed', '1', time() + 60, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+        }
+
+        nocache_headers();
+        wp_safe_redirect($url);
+        exit;
     }
 
     public function alterLoginRedirectUrl($redirect_to, $intentRedirectTo, $user)
