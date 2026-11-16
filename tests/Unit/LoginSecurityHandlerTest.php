@@ -307,7 +307,8 @@ class LoginSecurityHandlerTest extends BaseTestCase
                 $this->assertWPError(wp_authenticate('boot_victim', 'wrong-' . $i));
             }
 
-            $this->assertGreaterThanOrEqual(5, $this->rowCount('web'), 'the account-password guesses were counted');
+            // 5 failed, then the 6th is refused by the limit: every guess has a row.
+            $this->assertSame(6, $this->rowCount('web'), 'the account-password guesses were counted');
 
             $this->freshRegisteredHandler();
             wp_is_application_passwords_available();
@@ -341,6 +342,22 @@ class LoginSecurityHandlerTest extends BaseTestCase
             delete_site_option('using_application_passwords');
             $this->freshRegisteredHandler();
         }
+    }
+
+    public function testOldRowsWithoutAMediaStillCountOnTheOrdinaryLimit()
+    {
+        global $wpdb;
+
+        for ($i = 0; $i < 6; $i++) {
+            $wpdb->query($wpdb->prepare(
+                "INSERT INTO {$wpdb->prefix}fls_auth_logs (`username`, `ip`, `status`, `media`, `count`, `created_at`, `updated_at`) VALUES ('someone', %s, 'failed', NULL, 1, %s, %s)",
+                Helper::getIp(), current_time('mysql'), current_time('mysql')
+            ));
+        }
+
+        $user = self::factory()->user->create_and_get(['user_login' => 'null_media_owner', 'user_pass' => 'right-password']);
+
+        $this->assertWPError(wp_authenticate($user->user_login, 'right-password'));
     }
 
     public function testABlockedApplicationPasswordRowDoesNotBlockABrowserLogin()
@@ -425,7 +442,9 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertSame($errors, $this->handler->maybeBlockPasswordReset($errors, $user));
 
         $this->seedFailedAttempts(6, 'web');
-        $this->assertWPError($this->handler->maybeBlockPasswordReset(new \WP_Error(), $user));
+        $refused = $this->handler->maybeBlockPasswordReset(new \WP_Error(), $user);
+        $this->assertWPError($refused);
+        $this->assertSame('blocked', $refused->get_error_code());
     }
 
     /**
