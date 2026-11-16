@@ -81,6 +81,46 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertSame(1, $this->countRows('blocked'));
     }
 
+    public function testTheBlockedAppPasswordEmailSaysWhatWasRefusedAndWhatToDo()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notify_on_blocked'] = 'yes';
+        $settings['notification_email'] = 'owner@example.test';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+        delete_option('fls_last_blocked_email_send_time');
+
+        $server = $_SERVER;
+        $_SERVER['PHP_AUTH_USER'] = 'admin';
+        $_SERVER['PHP_AUTH_PW'] = 'wrong password';
+        $_SERVER['HTTP_USER_AGENT'] = 'WordPress/6.8; https://client.example';
+        $_SERVER['REQUEST_URI'] = '/wp-json/wp/v2/posts?token=secret-value';
+
+        $mail = null;
+        $capture = function ($short, $atts) use (&$mail) {
+            $mail = $atts;
+            return true;
+        };
+        add_filter('pre_wp_mail', $capture, 10, 2);
+
+        try {
+            $this->seedFailedAttempts(6);
+            $this->assertFalse($this->handler->maybeBlockAppPasswordAuth(true));
+        } finally {
+            remove_filter('pre_wp_mail', $capture, 10);
+            $_SERVER = $server;
+        }
+
+        $this->assertNotNull($mail, 'the owner is emailed');
+        $body = $mail['message'];
+        $this->assertStringContainsString('A sign-in with an application password was refused. This IP address had 5 or more failed sign-ins in the last 30 minutes.', $body);
+        $this->assertStringContainsString('WordPress/6.8; https://client.example', $body);
+        $this->assertStringContainsString('/wp-json/wp/v2/posts', $body);
+        $this->assertStringNotContainsString('secret-value', $body, 'the query string can carry tokens');
+        $this->assertStringContainsString('Block application passwords', $body);
+        $this->assertStringNotContainsString('Too many failed application password attempts', $body);
+    }
+
     /**
      * Core calls wp_is_application_passwords_available() more than once per request.
      * The block must be resolved once so a single attempt is not counted twice.

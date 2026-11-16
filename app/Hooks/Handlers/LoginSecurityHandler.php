@@ -298,7 +298,12 @@ class LoginSecurityHandler
         }
 
         $this->logBlockedAuth(
-            new \WP_Error('blocked', __('Too many failed application password attempts', 'fluent-security')),
+            new \WP_Error('blocked', sprintf(
+                /* translators: 1: the failed sign-in limit, 2: minutes */
+                __('A sign-in with an application password was refused. This IP address had %1$d or more failed sign-ins in the last %2$d minutes.', 'fluent-security'),
+                (int)Helper::getSetting('login_try_limit'),
+                (int)Helper::getSetting('login_try_timing')
+            )),
             $username,
             'app_password',
             $this->blockReason($isLimitExceeded)
@@ -905,7 +910,7 @@ class LoginSecurityHandler
 
         $this->failedLogged = true;
 
-        $this->maybeSendBlockedEmail($user, $username);
+        $this->maybeSendBlockedEmail($user, $username, $media);
     }
 
     /**
@@ -1079,7 +1084,7 @@ class LoginSecurityHandler
      * @param $userName string
      * @return bool
      */
-    private function maybeSendBlockedEmail($user, $userName)
+    private function maybeSendBlockedEmail($user, $userName, $media = 'web')
     {
         if (Helper::getSetting('notify_on_blocked') !== 'yes') {
             return false;
@@ -1114,6 +1119,17 @@ class LoginSecurityHandler
         $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
         $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
 
+        // An API client is not a browser the detector knows, and its own name says what it is.
+        if ($agent && strtolower($browserDetection->getBrowser($agent)['browser_name']) === 'unknown') {
+            $infoHtml .= '<li><b>' . esc_html__('Client', 'fluent-security') . ':</b> ' . esc_html($agent) . '</li>';
+        }
+
+        // The path only: a query string can carry tokens.
+        $requestPath = wp_parse_url((string)Arr::get($_SERVER, 'REQUEST_URI'), PHP_URL_PATH);
+        if ($requestPath) {
+            $infoHtml .= '<li><b>' . esc_html__('Requested URL', 'fluent-security') . ':</b> ' . esc_html($requestPath) . '</li>';
+        }
+
         if (is_wp_error($user)) {
             $infoHtml .= '<li>' . wp_kses_post($user->get_error_message()) . '</li>';
         } else if ($user instanceof \WP_User) {
@@ -1128,6 +1144,10 @@ class LoginSecurityHandler
             '<p style="font-size: 16px; line-height: 25px;">Hello there, <br />The following user has been blocked from logged in from your site. Here is the details:</p>',
             $infoHtml
         ];
+
+        if ($media === 'app_password') {
+            $lines[] = '<p style="font-size: 14px; line-height: 22px;">' . esc_html__('If you do not use application passwords, turn on "Block application passwords" in FluentAuth Settings, under Core Security. If this is your own app, create a new application password for it under Users, Profile.', 'fluent-security') . '</p>';
+        }
 
         $siteName = get_bloginfo('name');
         $data = [
