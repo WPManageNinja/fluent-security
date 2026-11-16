@@ -176,6 +176,41 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertStringContainsString('python-requests/2.31', $mail['message']);
     }
 
+    public function testTheBlockedEmailEscapesAKnownAccountAndKeepsSubjectAndPreview()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notify_on_blocked'] = 'yes';
+        $settings['notification_email'] = 'owner@example.test';
+        update_option('__fls_auth_settings', $settings);
+        update_option('blogname', 'A & B');
+        Helper::resetStatics();
+        delete_option('fls_last_blocked_email_send_time');
+
+        $user = self::factory()->user->create_and_get(['last_name' => 'Doe']);
+        update_user_meta($user->ID, 'first_name', '<img src=x onerror=alert(1)>');
+        $user = get_user_by('ID', $user->ID);
+
+        $mail = null;
+        $capture = function ($short, $atts) use (&$mail) {
+            $mail = $atts;
+            return true;
+        };
+        add_filter('pre_wp_mail', $capture, 10, 2);
+
+        try {
+            $send = new \ReflectionMethod(LoginSecurityHandler::class, 'maybeSendBlockedEmail');
+            $send->setAccessible(true);
+            $send->invoke($this->handler, $user, $user->user_login);
+        } finally {
+            remove_filter('pre_wp_mail', $capture, 10);
+        }
+
+        $this->assertNotNull($mail);
+        $this->assertStringContainsString('&lt;img src=x onerror=alert(1)&gt; Doe', $mail['message']);
+        $this->assertStringStartsWith('[A & B] ', $mail['subject']);
+        $this->assertMatchesRegularExpression('/class="preheader"[^>]*>Blocked from login A &(amp;)? B</', $mail['message']);
+    }
+
     /**
      * The handler keeps per-request state, so each simulated request gets a fresh one.
      */

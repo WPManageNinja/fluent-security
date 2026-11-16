@@ -1119,7 +1119,8 @@ class LoginSecurityHandler
             $infoHtml
         ];
 
-        $siteName = get_bloginfo('name');
+        // Stored with & already encoded; a mail subject is plain text.
+        $siteName = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
         $data = [
             'body'        => implode('', $lines),
             'pre_header'  => 'Login success at ' . $siteName,
@@ -1198,7 +1199,8 @@ class LoginSecurityHandler
             $lines[] = '<p style="font-size: 14px; line-height: 22px;">' . esc_html($help) . '</p>';
         }
 
-        $siteName = get_bloginfo('name');
+        // Stored with & already encoded; a mail subject is plain text.
+        $siteName = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
         $data = [
             'body'        => implode('', $lines),
             'pre_header'  => 'Blocked from login ' . $siteName,
