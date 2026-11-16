@@ -21,7 +21,6 @@ export default {
             errors: false,
             roles: {},
             loginPages: [],
-            routingDisabled: false,
             design: null,
             savingDesign: false,
             shortcodes: [
@@ -96,7 +95,6 @@ export default {
                     this.settings = response.settings;
                     this.roles = response.roles;
                     this.loginPages = response.login_pages || [];
-                    this.routingDisabled = response.login_routing_disabled;
                 })
                 .catch((errors) => {
                     this.$handleError(errors)
@@ -164,19 +162,17 @@ export default {
 
                 <SettingsCard v-if="enabled" :title="$t('Login page')">
                     <SettingRow :label="$t('Login page')"
-                                :description="$t('Choose a published page with a FluentAuth login shortcode.')">
+                                :description="$t('Choose a page that has a FluentAuth login shortcode.')">
                         <el-select v-model="settings.login_page_id" :aria-label="$t('Login page')"
                                    clearable filterable @clear="clearLoginPage">
                             <el-option v-for="page in loginPages" :key="page.id" :value="page.id" :label="page.title"/>
                         </el-select>
                     </SettingRow>
                     <SettingRow :label="$t('Redirect login visits')"
-                                :description="$t('Send ordinary WordPress login visits to this page. Password submissions and account recovery continue to use WordPress.')">
+                                :description="$t('Send visits to the WordPress login screen to this page. Password resets and two-factor steps still use WordPress.')">
                         <el-switch v-model="settings.redirect_wp_login" active-value="yes" inactive-value="no"
-                                   :aria-label="$t('Redirect login visits')" :disabled="!settings.login_page_id || routingDisabled"/>
+                                   :aria-label="$t('Redirect login visits')" :disabled="!settings.login_page_id"/>
                     </SettingRow>
-                    <p v-if="routingDisabled">{{ $t('Login routing is disabled in wp-config.php.') }}</p>
-                    <p>{{ $t('To restore the standard login screen, set FLUENT_AUTH_DISABLE_LOGIN_ROUTING to true in wp-config.php.') }}</p>
                 </SettingsCard>
 
                 <SettingsCard v-if="enabled" :title="$t('Shortcodes')"

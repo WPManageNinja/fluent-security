@@ -40,6 +40,48 @@ class CustomAuthHandler
         add_action('wp_ajax_nopriv_fluent_auth_signup', array($this, 'handleSignupAjax'));
         add_action('wp_ajax_nopriv_fluent_auth_rp', array($this, 'handlePasswordResentAjax'));
         add_action('fls_load_login_helper', array($this, 'loadAssets'));
+
+        // After social callbacks and pending second factors, which run at priority 1.
+        add_action('login_init', array($this, 'maybeRouteToLoginPage'), 5);
+    }
+
+    /**
+     * Sends a guest's plain visit to wp-login.php to the owner's login page. POSTs and
+     * anything with an action or other query keys (2FA, magic links, password reset)
+     * stay with WordPress.
+     */
+    public function maybeRouteToLoginPage()
+    {
+        $settings = Helper::getAuthFormsSettings();
+        $pageId = (int)Arr::get($settings, 'login_page_id');
+
+        if (!$pageId || Arr::get($settings, 'redirect_wp_login') !== 'yes' || !$this->isEnabled()
+            || is_user_logged_in() || Arr::get($_SERVER, 'REQUEST_METHOD') !== 'GET'
+            || array_diff(array_keys($_GET), ['redirect_to', 'reauth'])
+            || get_post_status($pageId) !== 'publish') {
+            return;
+        }
+
+        // Back here within a minute of being sent to the page: something sent them back
+        // (a force-login or members-only plugin). Show core's form instead of looping.
+        if (!empty($_COOKIE['fls_login_routed'])) {
+            return;
+        }
+
+        $url = get_permalink($pageId);
+        $redirect = Arr::get($_GET, 'redirect_to');
+        $redirect = is_string($redirect) ? Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($redirect)), '') : '';
+        if ($redirect) {
+            $url = add_query_arg('redirect_to', rawurlencode($redirect), $url);
+        }
+
+        if (!headers_sent()) {
+            setcookie('fls_login_routed', '1', time() + 60, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+        }
+
+        nocache_headers();
+        wp_safe_redirect($url);
+        exit;
     }
 
     public function alterLoginRedirectUrl($redirect_to, $intentRedirectTo, $user)
