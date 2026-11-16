@@ -318,6 +318,17 @@ class ShortcodeTest extends BaseTestCase
         );
     }
 
+    public function test_self_shortcode_redirect_keeps_the_page_on_a_subdirectory_install()
+    {
+        update_option('home', 'https://example.org/blog');
+        $_SERVER['REQUEST_URI'] = '/blog/current/?step=2';
+
+        $this->assertSame(
+            ['https://example.org/blog/current/?step=2', 'https://example.org/blog/current/?step=2'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
     private function redirectInputsIn($html)
     {
         $document = new \DOMDocument();
