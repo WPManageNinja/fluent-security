@@ -67,11 +67,12 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
             return $sessions;
         });
         // A metadata short-circuit may have performed the write itself. Verify its actual result too.
-        $sessions = $this->sessionsFromRows($this->rows());
-        if (!isset($sessions[$key])) {
+        $rows = $this->rows();
+        $sessions = $rows === null ? null : $this->sessionsFromRows($rows);
+        if ($sessions !== null && !isset($sessions[$key])) {
             return false;
         }
-        if (count($sessions) > $limit) {
+        if ($sessions === null || count($sessions) > $limit) {
             wp_die(esc_html__('We could not finish signing you in. Please try again.', 'fluent-security'), '', ['response' => 503]);
         }
         return true;
@@ -91,10 +92,11 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
     private function rows()
     {
         global $wpdb;
-        return $wpdb->get_results($wpdb->prepare(
+        $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT umeta_id, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s ORDER BY umeta_id",
             $this->user_id, 'session_tokens'
-        )) ?: [];
+        ));
+        return $wpdb->last_error === '' && is_array($rows) ? $rows : null;
     }
 
     private function sessionsFromRows($rows)
@@ -119,6 +121,9 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
         $userId = (int)$this->user_id;
         for ($attempt = 0; $attempt < 3; $attempt++) {
             $rows = $this->rows();
+            if ($rows === null) {
+                return false;
+            }
             $candidate = $change($this->sessionsFromRows($rows));
             if ($candidate === null) {
                 return false;
@@ -151,29 +156,30 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
             } else {
                 do_action('delete_user_meta', $ids, $userId, 'session_tokens', '');
             }
-            // LIMIT prevents merging this derived snapshot into the UPDATE/DELETE target.
-            // Its single comparison applies atomically to every row, including legacy duplicates.
-            $where = $wpdb->prepare(
-                "WHERE user_id = %d AND meta_key = %s AND EXISTS (SELECT 1 FROM
-                (SELECT meta_value FROM {$wpdb->usermeta} WHERE umeta_id = %d LIMIT 1) AS fls_snapshot
-                WHERE ", $userId, 'session_tokens', $rows[0]->umeta_id
-            );
-            $where .= $rows[0]->meta_value === null ? 'meta_value IS NULL)'
-                : $wpdb->prepare('BINARY meta_value = BINARY %s)', $rows[0]->meta_value);
-            $sql = $updating ? $wpdb->prepare("UPDATE {$wpdb->usermeta} SET meta_value = %s ", $serialized) : "DELETE FROM {$wpdb->usermeta} ";
-            $updated = $wpdb->query($sql . $where);
-            if ($updated) {
-                wp_cache_delete($userId, 'user_meta');
-                if ($updating) {
-                    foreach ($ids as $id) { do_action('updated_user_meta', $id, $userId, 'session_tokens', $next); }
-                } else {
-                    do_action('deleted_user_meta', $ids, $userId, 'session_tokens', '');
-                }
-                return true;
+            $canonical = $rows[0];
+            $duplicates = $wpdb->prepare('WHERE user_id = %d AND meta_key = %s AND umeta_id <> %d', $userId, 'session_tokens', $canonical->umeta_id);
+            if (!$updating && count($rows) > 1 && $wpdb->query("DELETE FROM {$wpdb->usermeta} " . $duplicates) === false) {
+                return false;
             }
+            $where = $wpdb->prepare('WHERE umeta_id = %d AND user_id = %d AND meta_key = %s AND ', $canonical->umeta_id, $userId, 'session_tokens');
+            $where .= $canonical->meta_value === null ? 'meta_value IS NULL'
+                : $wpdb->prepare('BINARY meta_value = BINARY %s', $canonical->meta_value);
+            $set = $wpdb->prepare("UPDATE {$wpdb->usermeta} SET meta_value = %s ", $serialized);
+            $updated = $wpdb->query(($updating ? $set : "DELETE FROM {$wpdb->usermeta} ") . $where);
             if ($updated === false) {
                 return false;
             }
+            if (!$updated) {
+                continue;
+            }
+            $synced = !$updating || count($rows) < 2 || $wpdb->query($set . $duplicates) !== false;
+            wp_cache_delete($userId, 'user_meta');
+            if ($updating) {
+                foreach ($ids as $id) { do_action('updated_user_meta', $id, $userId, 'session_tokens', $next); }
+            } else {
+                do_action('deleted_user_meta', $ids, $userId, 'session_tokens', '');
+            }
+            return $synced;
         }
         return false;
     }
@@ -192,7 +198,11 @@ class NativeSessionTokens extends \WP_User_Meta_Session_Tokens
         }
         self::$creating[$userId] = true;
         try {
-            if ($this->rows()) {
+            $rows = $this->rows();
+            if ($rows === null) {
+                return false;
+            }
+            if ($rows) {
                 return null; // A competing initial insert won: recompute the delta against it.
             }
             $inserted = add_user_meta($userId, 'session_tokens', wp_slash($sessions));

@@ -753,6 +753,99 @@ class SessionLengthTest extends BaseTestCase
         $this->assertSame('', $this->footer($handler));
     }
 
+    // Another connection holds the stored row's lock and commits a revocation while the plugin's write waits on it.
+    public function testNativeWriteWaitingOnTheRowLockDoesNotRestoreARevocationCommittedMeanwhile()
+    {
+        global $wpdb;
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $revoked = $manager->create(time() + DAY_IN_SECONDS); $kept = $manager->create(time() + DAY_IN_SECONDS);
+        $row = $wpdb->get_row($wpdb->prepare("SELECT umeta_id, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key = %s ORDER BY umeta_id LIMIT 1", $id, 'session_tokens'));
+        $map = maybe_unserialize($row->meta_value); unset($map[hash('sha256', $revoked)]);
+        self::commit_transaction();
+        $isolation = str_replace('-', ' ', (string)$wpdb->get_var('SELECT @@SESSION.transaction_isolation'));
+        $wpdb->query('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED'); self::commit_transaction();
+        $holder = null; $pipes = [];
+        try {
+            $env = ['PATH' => (string)getenv('PATH'), 'FLS_H' => DB_HOST, 'FLS_U' => DB_USER, 'FLS_P' => DB_PASSWORD, 'FLS_D' => DB_NAME,
+                'FLS_T' => $wpdb->usermeta, 'FLS_I' => (string)$row->umeta_id, 'FLS_V' => base64_encode(maybe_serialize($map))];
+            $script = '$h = getenv("FLS_H"); $port = 3306; if (strpos($h, ":") !== false) { list($h, $port) = explode(":", $h, 2); }'
+                . '$m = new mysqli($h, getenv("FLS_U"), getenv("FLS_P"), getenv("FLS_D"), (int)$port); $m->query("START TRANSACTION");'
+                . '$v = base64_decode(getenv("FLS_V")); $i = (int)getenv("FLS_I");'
+                . '$s = $m->prepare("UPDATE `" . getenv("FLS_T") . "` SET meta_value = ? WHERE umeta_id = ?"); $s->bind_param("si", $v, $i); $s->execute();'
+                . 'echo "locked\n"; fflush(STDOUT); usleep(700000); $m->query("COMMIT"); echo "committed\n";';
+            $holder = proc_open([PHP_BINARY, '-r', $script], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
+            $this->assertSame("locked\n", fgets($pipes[1]), 'The other connection holds the stored row lock');
+            $started = microtime(true);
+            $fresh = $manager->create(time() + DAY_IN_SECONDS);
+            $this->assertGreaterThan(0.3, microtime(true) - $started, 'The plugin write waited on the other connection\'s row lock');
+            $this->assertSame("committed\n", fgets($pipes[1]));
+            $this->assertFalse($manager->verify($revoked), 'A revocation committed during the wait stays revoked');
+            $this->assertTrue($manager->verify($kept));
+            $this->assertTrue($manager->verify($fresh));
+        } finally {
+            if ($holder) { fclose($pipes[1]); fclose($pipes[2]); proc_close($holder); }
+            $wpdb->query("SET SESSION TRANSACTION ISOLATION LEVEL {$isolation}");
+            $wpdb->delete($wpdb->usermeta, ['user_id' => $id]); $wpdb->delete($wpdb->users, ['ID' => $id]);
+            self::commit_transaction(); clean_user_cache($id);
+        }
+    }
+
+    public function failedReadRevocations()
+    {
+        return [
+            'all' => [function ($manager, $token, $other) { $manager->destroy_all(); }],
+            'one' => [function ($manager, $token, $other) { $manager->destroy($token); }],
+            'others' => [function ($manager, $token, $other) { $manager->destroy_others($other); }],
+        ];
+    }
+
+    /** @dataProvider failedReadRevocations */
+    public function testNativeRevocationReportsAFailedSessionRead($revoke)
+    {
+        global $wpdb;
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $token = $manager->create(time() + DAY_IN_SECONDS); $other = $manager->create(time() + DAY_IN_SECONDS);
+        $break = function ($sql) use (&$break, $wpdb) {
+            if (strpos($sql, "SELECT umeta_id, meta_value FROM {$wpdb->usermeta} ") === 0) {
+                remove_filter('query', $break);
+                return str_replace("FROM {$wpdb->usermeta} ", "FROM {$wpdb->usermeta}_missing ", $sql);
+            }
+            return $sql;
+        };
+        $suppressed = $wpdb->suppress_errors(true);
+        add_filter('query', $break);
+        try {
+            try { $revoke($manager, $token, $other); $this->fail('A revocation whose session read failed must not report success'); }
+            catch (\WPDieException $e) { $this->assertStringContainsString('Please try again', $e->getMessage()); }
+        } finally { remove_filter('query', $break); $wpdb->suppress_errors($suppressed); }
+        $this->assertTrue($manager->verify($token), 'The stored session was not touched');
+    }
+
+    public function testSessionLimitStopsTheLoginWhenThePruningCheckCannotRead()
+    {
+        global $wpdb;
+        $id = $this->factory->user->create(); $manager = \WP_Session_Tokens::get_instance($id);
+        $old = $manager->create(time() + DAY_IN_SECONDS);
+        $this->saveSettings(['session_limit' => 1]);
+        $reads = 0;
+        $race = function ($sql) use (&$race, &$reads, $wpdb) {
+            if (strpos($sql, "SELECT umeta_id, meta_value FROM {$wpdb->usermeta} ") === 0 && ++$reads === 2) {
+                remove_filter('query', $race);
+                return str_replace("FROM {$wpdb->usermeta} ", "FROM {$wpdb->usermeta}_missing ", $sql);
+            }
+            return $sql;
+        };
+        $suppressed = $wpdb->suppress_errors(true);
+        $arm = $this->armPruningRace($race);
+        try {
+            $this->issueLimitedCookie($id);
+            $this->fail('A login whose limit could not be checked must not finish silently');
+        } catch (\WPDieException $e) {
+            $this->assertStringContainsString('Please try again', $e->getMessage());
+            $this->assertSame(2, $reads);
+        } finally { remove_filter('query', $race); remove_action('set_logged_in_cookie', $arm, PHP_INT_MAX); $wpdb->suppress_errors($suppressed); }
+    }
+
     private function armPruningRace($race)
     {
         $armed = false;
