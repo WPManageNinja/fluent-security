@@ -594,16 +594,19 @@ class CustomAuthHandler
         $redirectTo = Arr::get($attributes, 'redirect_to');
 
         if ($redirectTo == 'self') {
-            $redirectTo = home_url(Arr::get($_SERVER, 'REQUEST_URI'));
+            // REQUEST_URI already holds any home subdirectory, so it goes on the origin, not on
+            // home_url(). A proxy that strips the subdirectory keeps the old home_url() form.
+            $requestUri = (string)Arr::get($_SERVER, 'REQUEST_URI');
+            $origin = self::siteOrigin();
+            $homePath = rtrim((string)wp_parse_url(home_url(), PHP_URL_PATH), '/') . '/';
+            $redirectTo = ($origin && strpos($requestUri, $homePath) === 0) ? $origin . $requestUri : home_url($requestUri);
             $attributes['redirect_to'] = $redirectTo;
         } else if ($redirectTo) {
             if (is_string($redirectTo) && strpos($redirectTo, '/') === 0 && strpos($redirectTo, '//') !== 0) {
                 // Downstream auth flows expect an absolute URL. Keep root paths at the
                 // site's origin, including its port, without prepending a home subdirectory.
-                $home = wp_parse_url(home_url());
-                if (!empty($home['scheme']) && !empty($home['host'])) {
-                    $redirectTo = $home['scheme'] . '://' . $home['host']
-                        . (isset($home['port']) ? ':' . $home['port'] : '') . $redirectTo;
+                if ($origin = self::siteOrigin()) {
+                    $redirectTo = $origin . $redirectTo;
                     $attributes['redirect_to'] = $redirectTo;
                 }
             }
@@ -615,6 +618,22 @@ class CustomAuthHandler
         }
 
         return shortcode_atts($shortCodeDefaults, $attributes);
+    }
+
+    /**
+     * The home URL's scheme, host and port, without any subdirectory.
+     *
+     * @return string
+     */
+    private static function siteOrigin()
+    {
+        $home = wp_parse_url(home_url());
+
+        if (empty($home['scheme']) || empty($home['host'])) {
+            return '';
+        }
+
+        return $home['scheme'] . '://' . $home['host'] . (isset($home['port']) ? ':' . $home['port'] : '');
     }
 
     protected function handleAlreadyLoggedIn($attributes)

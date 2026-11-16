@@ -318,6 +318,53 @@ class ShortcodeTest extends BaseTestCase
         );
     }
 
+    public function test_self_shortcode_redirect_keeps_the_page_on_a_subdirectory_install()
+    {
+        update_option('home', 'https://example.org/blog');
+        $_SERVER['REQUEST_URI'] = '/blog/current/?step=2';
+
+        $this->assertSame(
+            ['https://example.org/blog/current/?step=2', 'https://example.org/blog/current/?step=2'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_keeps_the_subdirectory_when_a_proxy_strips_it()
+    {
+        update_option('home', 'https://example.org/blog');
+        $_SERVER['REQUEST_URI'] = '/current/';
+
+        $this->assertSame(
+            ['https://example.org/blog/current/', 'https://example.org/blog/current/'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_keeps_the_port()
+    {
+        update_option('home', 'https://example.org:8443');
+        $_SERVER['REQUEST_URI'] = '/current/';
+
+        $this->assertSame(
+            ['https://example.org:8443/current/', 'https://example.org:8443/current/'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_never_leaves_the_site_host()
+    {
+        foreach (['//evil.com/x', '/\\evil.com/x', 'http://evil.com/x'] as $requestUri) {
+            $_SERVER['REQUEST_URI'] = $requestUri;
+
+            $values = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'));
+            $this->assertNotEmpty($values, $requestUri);
+
+            foreach ($values as $value) {
+                $this->assertSame('example.org', wp_parse_url($value, PHP_URL_HOST), $requestUri);
+            }
+        }
+    }
+
     private function redirectInputsIn($html)
     {
         $document = new \DOMDocument();
