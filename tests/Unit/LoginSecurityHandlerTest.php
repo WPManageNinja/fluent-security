@@ -212,6 +212,74 @@ class LoginSecurityHandlerTest extends BaseTestCase
     }
 
     /**
+     * @return string the body of the email sent when $login is blocked on the application-password path
+     */
+    private function blockedAppPasswordEmailFor($login)
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notify_on_blocked'] = 'yes';
+        $settings['notification_email'] = 'owner@example.test';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+        delete_option('fls_last_blocked_email_send_time');
+
+        $_SERVER['PHP_AUTH_USER'] = $login;
+        $_SERVER['PHP_AUTH_PW'] = 'wrong password';
+        $this->seedFailedAttempts(6);
+
+        $mail = null;
+        $capture = function ($short, $atts) use (&$mail) {
+            $mail = $atts;
+            return true;
+        };
+        add_filter('pre_wp_mail', $capture, 10, 2);
+
+        try {
+            $this->assertFalse($this->handler->maybeBlockAppPasswordAuth(true));
+        } finally {
+            remove_filter('pre_wp_mail', $capture, 10);
+        }
+
+        $this->assertNotNull($mail);
+
+        return $mail['message'];
+    }
+
+    public function testTheBlockedEmailPointsAtTheAppThatLastSignedInFromTheBlockedAddress()
+    {
+        $server = $_SERVER;
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+        Helper::resetStatics();
+
+        $user = self::factory()->user->create_and_get(['user_login' => 'app_owner']);
+        list(, $syncApp) = \WP_Application_Passwords::create_new_application_password($user->ID, ['name' => 'Sync "Backup"']);
+        \WP_Application_Passwords::create_new_application_password($user->ID, ['name' => 'iPhone']);
+        \WP_Application_Passwords::record_application_password_usage($user->ID, $syncApp['uuid']);
+
+        try {
+            $body = $this->blockedAppPasswordEmailFor('app_owner');
+        } finally {
+            $_SERVER = $server;
+        }
+
+        $this->assertStringContainsString('app_owner has 2 application passwords:', $body);
+        $this->assertStringContainsString('- Sync &quot;Backup&quot;: last used', $body);
+        $this->assertStringContainsString('from 203.0.113.9 (the blocked address)', $body);
+        $this->assertStringContainsString('- iPhone: never used', $body);
+        $this->assertStringContainsString('probably still has an old password', $body);
+    }
+
+    public function testTheBlockedEmailSaysWhenTheAccountHasNoApplicationPasswords()
+    {
+        self::factory()->user->create(['user_login' => 'no_apps']);
+
+        $body = $this->blockedAppPasswordEmailFor('no_apps');
+
+        $this->assertStringContainsString('no_apps has no application passwords, so no real app can sign in as this account. This is probably someone guessing.', $body);
+        $this->assertStringContainsString('Block application passwords', $body);
+    }
+
+    /**
      * The handler keeps per-request state, so each simulated request gets a fresh one.
      */
     private function freshRegisteredHandler()
