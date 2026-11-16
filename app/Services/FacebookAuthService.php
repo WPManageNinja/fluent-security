@@ -11,7 +11,7 @@ class FacebookAuthService
     public static function getAuthRedirect($state = '')
     {
         $config = Helper::getSocialAuthSettings('edit');
-        $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
+        $apiVersion = $config['facebook_api_version'];
 
         $params = [
             'client_id'     => $config['facebook_client_id'],
@@ -26,8 +26,7 @@ class FacebookAuthService
 
     public static function getTokenByCode($code)
     {
-        $config = Helper::getSocialAuthSettings('edit');
-        $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
+        $apiVersion = Helper::getSocialAuthSettings('edit')['facebook_api_version'];
 
         $postUrl = "https://graph.facebook.com/{$apiVersion}/oauth/access_token";
         $params = self::getAuthConfirmParams($code);
@@ -67,8 +66,7 @@ class FacebookAuthService
 
     public static function getDataByAccessToken($token)
     {
-        $config = Helper::getSocialAuthSettings('edit');
-        $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
+        $apiVersion = Helper::getSocialAuthSettings('edit')['facebook_api_version'];
 
         $fields = 'id,name,email';
         $url = "https://graph.facebook.com/{$apiVersion}/me?fields={$fields}&access_token={$token}";
