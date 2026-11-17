@@ -74,19 +74,28 @@ export default {
             this.scrolled = window.scrollY > 10;
         },
         /**
-         * Publishes the width of wp-admin's menu as a CSS variable.
+         * Publishes wp-admin's content insets as CSS variables.
          *
          * The app bar and the settings pane are pinned to the viewport, which means they
-         * cannot inherit the page's left offset the way an in-flow element does - they
-         * have to be told where the menu ends. Measuring it beats hard-coding 160px:
-         * collapsing the menu, the automatic fold on a narrow window and the off-canvas
-         * menu on a phone all land on different widths, and all of them show up here.
+         * cannot inherit the page offset the way an in-flow element does - they have to
+         * be told where the menu ends. Measuring both edges handles WordPress's left-side
+         * menu in LTR and right-side menu in RTL, as well as the folded and off-canvas
+         * variants, without hard-coding their widths.
          */
         measureShell() {
             const content = document.getElementById('wpcontent');
-            const left = content ? content.getBoundingClientRect().left : 0;
+            const bounds = content ? content.getBoundingClientRect() : null;
+            const styles = content ? window.getComputedStyle(content) : null;
+            const viewportWidth = document.documentElement.clientWidth;
+            const left = bounds ? Math.max(0, bounds.left) : 0;
+            const right = bounds ? Math.max(0, viewportWidth - bounds.right) : 0;
+            const paddingLeft = styles ? parseFloat(styles.paddingLeft) || 0 : 0;
+            const paddingRight = styles ? parseFloat(styles.paddingRight) || 0 : 0;
 
             document.documentElement.style.setProperty('--fls-shell-left', left + 'px');
+            document.documentElement.style.setProperty('--fls-shell-right', right + 'px');
+            document.documentElement.style.setProperty('--fls-content-padding-left', paddingLeft + 'px');
+            document.documentElement.style.setProperty('--fls-content-padding-right', paddingRight + 'px');
         }
     },
     watch: {
