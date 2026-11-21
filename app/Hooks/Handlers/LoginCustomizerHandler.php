@@ -472,7 +472,21 @@ class LoginCustomizerHandler
             $action = 'checkemail';
         }
 
-        $default_actions = array(
+        if (!in_array($action, self::builtInActions(), true) && !isset(self::extraActions()[$action])) {
+            $action = '';
+        }
+
+        return $action;
+    }
+
+    /**
+     * The wp-login.php actions the designer dresses on its own.
+     *
+     * @return string[]
+     */
+    private static function builtInActions()
+    {
+        return array(
             'confirm_admin_email',
             'postpass',
             'logout',
@@ -492,12 +506,6 @@ class LoginCustomizerHandler
             TotpSetupPageHandler::LOGIN_ACTION,
             TwoFaService::LOGIN_ACTION
         );
-
-        if (!in_array($action, $default_actions, true) && !isset(self::extraActions()[$action])) {
-            $action = '';
-        }
-
-        return $action;
     }
 
     /**
@@ -520,10 +528,12 @@ class LoginCustomizerHandler
          */
         $actions = apply_filters('fluent_auth/login_designer_actions', []);
         $valid = [];
+        // Only new screens: a built-in screen keeps its own form type.
+        $builtIn = self::builtInActions();
 
         if (is_array($actions)) {
             foreach ($actions as $action => $type) {
-                if (is_string($action) && is_string($type) && preg_match('/^[a-z0-9_]{1,64}$/', $action) && preg_match('/^[a-z0-9_]{1,64}$/', $type)) {
+                if (is_string($action) && is_string($type) && !in_array($action, $builtIn, true) && preg_match('/^[a-z0-9_]{1,64}$/', $action) && preg_match('/^[a-z0-9_]{1,64}$/', $type)) {
                     $valid[$action] = $type;
                 }
             }

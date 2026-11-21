@@ -50,16 +50,39 @@ class LoginDesignerActionsTest extends BaseTestCase
         $this->assertSame('ai_connect', (new LoginCustomizerHandler())->getFormType('connect_ai'));
     }
 
-    public function test_the_plugins_own_actions_keep_their_form_types()
+    /**
+     * Every built-in screen keeps the form type it had without the filter,
+     * including logout and postpass, which have no case of their own.
+     */
+    public function test_no_built_in_action_can_be_remapped()
     {
-        add_filter('fluent_auth/login_designer_actions', function ($actions) {
-            $actions['register'] = 'not_signup';
+        $method = new \ReflectionMethod(LoginCustomizerHandler::class, 'builtInActions');
+        if (PHP_VERSION_ID < 80100) {
+            $method->setAccessible(true);
+        }
+        $builtIn = $method->invoke(null);
+        $this->assertContains('logout', $builtIn);
+        $this->assertContains('postpass', $builtIn);
+
+        $handler = new LoginCustomizerHandler();
+        $before = [];
+        foreach ($builtIn as $action) {
+            $before[$action] = $handler->getFormType($action);
+        }
+
+        add_filter('fluent_auth/login_designer_actions', function ($actions) use ($builtIn) {
+            foreach ($builtIn as $action) {
+                $actions[$action] = 'signup';
+            }
+            $actions['connect_ai'] = 'ai_connect';
 
             return $actions;
         });
 
-        $this->assertSame('signup', (new LoginCustomizerHandler())->getFormType('register'));
-        $this->assertSame('login', (new LoginCustomizerHandler())->getFormType('login'));
+        foreach ($builtIn as $action) {
+            $this->assertSame($before[$action], $handler->getFormType($action), $action);
+        }
+        $this->assertSame(['connect_ai' => 'ai_connect'], LoginCustomizerHandler::extraActions());
     }
 
     public function test_invalid_entries_are_ignored()
