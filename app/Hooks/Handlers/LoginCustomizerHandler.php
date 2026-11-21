@@ -484,11 +484,43 @@ class LoginCustomizerHandler
             TwoFaService::LOGIN_ACTION
         );
 
-        if (!in_array($action, $default_actions, true)) {
+        if (!in_array($action, $default_actions, true) && !isset(self::extraActions()[$action])) {
             $action = '';
         }
 
         return $action;
+    }
+
+    /**
+     * Login screens other plugins add to wp-login.php (an OAuth consent screen,
+     * for example), dressed like the plugin's own: action => form type.
+     *
+     * A form type with no saved settings takes the login form's colours and
+     * banner, with no title or description; the screen prints its own words.
+     *
+     * @return array<string, string>
+     */
+    public static function extraActions()
+    {
+        /**
+         * Filter the extra wp-login.php actions the login designer dresses.
+         *
+         * @param array<string, string> $actions action => form type, both
+         *                                       lowercase letters, digits and
+         *                                       underscores.
+         */
+        $actions = apply_filters('fluent_auth/login_designer_actions', []);
+        $valid = [];
+
+        if (is_array($actions)) {
+            foreach ($actions as $action => $type) {
+                if (is_string($action) && is_string($type) && preg_match('/^[a-z0-9_]{1,64}$/', $action) && preg_match('/^[a-z0-9_]{1,64}$/', $type)) {
+                    $valid[$action] = $type;
+                }
+            }
+        }
+
+        return $valid;
     }
 
     public function getFormType($action)
@@ -530,7 +562,9 @@ class LoginCustomizerHandler
                 $type = 'totp_setup';
                 break;
             default:
-                return 'login';
+                $extra = self::extraActions();
+
+                return isset($extra[$action]) ? $extra[$action] : 'login';
         }
 
         return $type;
