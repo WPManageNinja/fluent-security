@@ -96,7 +96,10 @@ class LoginCustomizerHandler
         $allSettings = $this->getSettings();
         $formSettings = Arr::get($allSettings, $formType, []);
 
-        if (!$formSettings) {
+        // Not every top-level key is a form: `status` holds 'yes' or 'no'. A
+        // form type another plugin added (extraActions()) can share such a
+        // name; it gets the login form's look like any type with no settings.
+        if (!is_array($formSettings) || !$formSettings) {
             $formSettings = Arr::get($allSettings, 'login', []);
 
             $formSettings['form']['title'] = '';
@@ -454,6 +457,12 @@ class LoginCustomizerHandler
     private function getCurrentAction()
     {
         $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : 'login';
+
+        // ?action[]=x makes it an array, which is no action this screen knows,
+        // and as an array key (below) a fatal TypeError.
+        if (!is_string($action)) {
+            return '';
+        }
 
         if (isset($_GET['key'])) {
             $action = 'resetpass';
