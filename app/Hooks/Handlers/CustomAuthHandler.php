@@ -387,13 +387,19 @@ class CustomAuthHandler
 
         $authForm = '<div class="fls_auth_wrapper">';
 
-        $authForm .= do_shortcode('[fluent_auth_login redirect_to="' . esc_url($atts['redirect_to']) . '" show-signup=true show-reset-password=true]');
+        // Never build shortcode text from redirect_to: with "self" it is the visitor's URL,
+        // and a ] in it would let them run any shortcode on the site.
+        $authForm .= $this->loginForm([
+            'redirect_to'         => $atts['redirect_to'],
+            'show-signup'         => 'true',
+            'show-reset-password' => 'true',
+        ]);
 
         if (get_option('users_can_register')) {
-            $authForm .= do_shortcode('[fluent_auth_signup redirect_to="' . esc_url($atts['redirect_to']) . '" hide=true]');
+            $authForm .= $this->registrationForm(['redirect_to' => $atts['redirect_to'], 'hide' => 'true']);
         }
 
-        $authForm .= do_shortcode('[fluent_auth_reset_password redirect_to="' . esc_url($atts['redirect_to']) . '" hide=true]');
+        $authForm .= $this->restPasswordForm(['redirect_to' => $atts['redirect_to'], 'hide' => 'true']);
 
         $authForm .= '</div>';
 
