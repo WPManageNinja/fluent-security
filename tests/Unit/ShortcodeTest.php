@@ -181,8 +181,8 @@ class ShortcodeTest extends BaseTestCase
     }
 
     /**
-     * [fluent_auth] is three shortcodes inside one, run through do_shortcode() again.
-     * A nested shortcode that stopped resolving would leave the raw text on the page.
+     * [fluent_auth] is the three forms in one. A child that stopped rendering, or came back
+     * as shortcode text, would leave the raw tag on the page.
      */
     public function test_the_combined_shortcode_resolves_all_three_of_its_children()
     {
@@ -362,6 +362,49 @@ class ShortcodeTest extends BaseTestCase
             foreach ($values as $value) {
                 $this->assertSame('example.org', wp_parse_url($value, PHP_URL_HOST), $requestUri);
             }
+        }
+    }
+
+    /**
+     * Patchstack report against 3.1.1: with "self", redirect_to is the visitor's URL. esc_url()
+     * leaves [ and ] alone when the site origin appears twice in it, so a ] in the query used to
+     * close the nested [fluent_auth_login] tag and run whatever shortcode followed.
+     */
+    public function test_the_combined_shortcode_runs_no_shortcode_from_the_requested_url()
+    {
+        update_option('users_can_register', 1);
+
+        $ran = [];
+        add_shortcode('fa_probe', function ($atts) use (&$ran) {
+            $ran[] = $atts;
+            return 'PROBE_RAN';
+        });
+
+        $_SERVER['REQUEST_URI'] = "/?page_id=6&q=][fa_probe/\u{00a0}src=https://example.org/x.mp3]";
+
+        try {
+            $html = do_shortcode('[fluent_auth redirect_to="self"]');
+        } finally {
+            remove_shortcode('fa_probe');
+        }
+
+        $this->assertSame([], $ran);
+        $this->assertStringNotContainsString('PROBE_RAN', $html);
+        $this->assertStringContainsString('id="loginform"', $html);
+        $this->assertStringContainsString('id="flsRegistrationForm"', $html);
+        $this->assertStringContainsString('id="flsResetPasswordForm"', $html);
+    }
+
+    public function test_the_combined_shortcode_keeps_every_query_argument_of_the_current_page()
+    {
+        update_option('users_can_register', 1);
+        $_SERVER['REQUEST_URI'] = '/current/?step=2&plan=pro';
+
+        $values = $this->redirectInputsIn(do_shortcode('[fluent_auth redirect_to="self"]'));
+
+        $this->assertNotEmpty($values);
+        foreach ($values as $value) {
+            $this->assertSame('https://example.org/current/?step=2&plan=pro', $value);
         }
     }
 
