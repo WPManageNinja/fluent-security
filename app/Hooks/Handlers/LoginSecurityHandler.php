@@ -391,11 +391,20 @@ class LoginSecurityHandler
          * reading their own inbox is not guessing. The address restriction is about *where*
          * they are, and a rule saying administrators may only sign in from the office is
          * worth nothing if asking the site to email you a link is a way around it.
+         *
+         * Both refusals below say "your password is correct" only once per block window.
+         * Said every time, an address that is refused anyway could test passwords without
+         * limit.
          */
         if (IpRules::deniesSignIn($user)) {
-            $this->logBlockedAuth($user, $username, 'web', 'Blocked: role restricted to the allow list');
+            if (Helper::isTokenVerifiedLogin() || !$this->recentBlockedRow()) {
+                $this->logBlockedAuth($user, $username, 'web', 'Blocked: role restricted to the allow list');
 
-            return new \WP_Error('login_error', $this->restrictedLocationMessage($user));
+                return new \WP_Error('login_error', $this->restrictedLocationMessage($user));
+            }
+
+            // Refused here before: answer exactly as a wrong password would.
+            $user = new \WP_Error('incorrect_password', '');
         }
 
         /*
@@ -413,9 +422,10 @@ class LoginSecurityHandler
         $blockRule = IpRules::blockingRule(Helper::getIp());
 
         if ($blockRule) {
+            $refusedBefore = (bool)$this->recentBlockedRow();
             $this->logBlockedAuth($user, $username, 'web', 'Blocked by IP rule ' . $blockRule);
 
-            return $this->blockedAddressError($user, $blockRule);
+            return $this->blockedAddressError($refusedBefore ? null : $user, $blockRule);
         }
 
         /*
@@ -434,7 +444,7 @@ class LoginSecurityHandler
 
         if (is_wp_error($user)) {
             $errorCode = $user->get_error_code();
-            if ($errorCode == 'invalid_username' || $errorCode == 'incorrect_password') {
+            if (in_array($errorCode, ['invalid_username', 'invalid_email', 'incorrect_password'], true)) {
                 return new \WP_Error(
                     $errorCode,
                     __('<strong>Error</strong>: That username and password do not match. Please try again.', 'fluent-security')
@@ -870,6 +880,29 @@ class LoginSecurityHandler
     }
 
     /**
+     * @param $media string
+     * @return object|null this IP's blocked row within the block window
+     */
+    private function recentBlockedRow($media = 'web')
+    {
+        global $wpdb;
+
+        /*
+         * Look back over the same window checkLoginAttempt() uses. With a fixed window
+         * the two lookups can disagree when login_try_timing is longer than it, and we
+         * would insert a second blocked row for an IP that is already blocked.
+         */
+        $minutes = (int)Helper::getSetting('login_try_timing');
+        if (!$minutes) {
+            $minutes = 60;
+        }
+
+        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
+
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked'" . self::attemptPathSql($media) . " LIMIT 1", Helper::getIp(), $dateTime));
+    }
+
+    /**
      * @param $user \WP_User | \WP_Error
      * @param $username string
      * @param $media string
@@ -883,19 +916,7 @@ class LoginSecurityHandler
 
         $ipAddress = Helper::getIp();
 
-        /*
-         * Look back over the same window checkLoginAttempt() uses. With a fixed window
-         * the two lookups can disagree when login_try_timing is longer than it, and we
-         * would insert a second blocked row for an IP that is already blocked.
-         */
-        $minutes = (int)Helper::getSetting('login_try_timing');
-        if (!$minutes) {
-            $minutes = 60;
-        }
-
-        // get previous blocked row for this ip within the block window
-        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
-        $prev = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked'" . self::attemptPathSql($media) . " LIMIT 1", $ipAddress, $dateTime));
+        $prev = $this->recentBlockedRow($media);
 
         if ($prev) {
             $wpdb->update($wpdb->prefix . 'fls_auth_logs', [

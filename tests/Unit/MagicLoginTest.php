@@ -371,6 +371,83 @@ class MagicLoginTest extends BaseTestCase
     }
 
     /**
+     * A role that cannot use sign-in links gets the same reply as an account that does not
+     * exist: anything else tells a stranger the account is there, and that it is a
+     * privileged one.
+     */
+    public function testARestrictedAccountGetsTheSameReplyAsAMissingOne()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['magic_restricted_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $restricted = $this->magicFormReply('magic_probe');
+        $missing = $this->magicFormReply('nobody_here_zz9');
+
+        $this->assertSame('Check your inbox', $missing['heading']);
+        $this->assertSame($missing['heading'], $restricted['heading']);
+        $this->assertSame($missing['result'], $restricted['result']);
+        $this->assertSame(0, flsDb()->table('fls_login_hashes')->where('user_id', $this->user->ID)->count(), 'and no link was issued');
+    }
+
+    public function testASiteCanStillTellARestrictedAccountWhy()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['magic_restricted_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $say = function () {
+            return 'Please use the normal login form.';
+        };
+        add_filter('fluent_auth/magic_login_error_message', $say);
+
+        try {
+            $reply = $this->magicFormReply('magic_probe');
+        } finally {
+            remove_filter('fluent_auth/magic_login_error_message', $say);
+        }
+
+        $this->assertSame('Please use the normal login form.', $reply['message']);
+        $this->assertArrayNotHasKey('heading', $reply);
+    }
+
+    /**
+     * @return array the decoded JSON reply
+     */
+    private function magicFormReply($email)
+    {
+        $_REQUEST = [
+            'email'  => $email,
+            '_nonce' => wp_create_nonce('fls_magic_logon_nonce')
+        ];
+
+        $die = function () {
+            return function () {
+                throw new \WPDieException('sent');
+            };
+        };
+
+        add_filter('wp_doing_ajax', '__return_true');
+        add_filter('wp_die_ajax_handler', $die);
+
+        ob_start();
+        try {
+            $this->handler->handleMagicLoginAjax();
+        } catch (\WPDieException $e) {
+            // Expected: wp_send_json() ends in wp_die().
+        } finally {
+            $output = ob_get_clean();
+            remove_filter('wp_doing_ajax', '__return_true');
+            remove_filter('wp_die_ajax_handler', $die);
+            $_REQUEST = [];
+        }
+
+        return (array)json_decode($output, true);
+    }
+
+    /**
      * The confirmation quotes back what was typed, and the browser puts that message into
      * innerHTML - so what may be quoted matters. Only a value that passes is_email() is,
      * and nothing carrying markup does; everything else gets the sentence with no address

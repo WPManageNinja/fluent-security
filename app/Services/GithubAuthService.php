@@ -16,7 +16,8 @@ class GithubAuthService
         $params = [
             'client_id'    => rawurlencode($config['github_client_id']),
             'redirect_uri' => rawurlencode(self::getAppRedirect()),
-            'scope'        => 'user',
+            // Read only: the profile and the email addresses, which is all the sign-in uses.
+            'scope'        => rawurlencode('read:user user:email'),
             'state'        => rawurlencode($state)
         ];
 

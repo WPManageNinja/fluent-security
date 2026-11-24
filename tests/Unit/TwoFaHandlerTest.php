@@ -1052,7 +1052,7 @@ class TwoFaHandlerTest extends BaseTestCase
      */
     public function testAnApplicationPasswordLoginIsNotRefused()
     {
-        $this->handler->rememberAppPasswordAuth();
+        $this->handler->rememberAppPasswordAuth($this->user);
 
         $result = $this->withHeadlessAjax(function () {
             return $this->handler->maybeDenyHeadlessLogin($this->user);
@@ -1060,6 +1060,22 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $this->assertSame($this->user, $result);
         $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    /**
+     * One account's application password in the header, another account's password in
+     * the body: the second account still owes its factor.
+     */
+    public function testAnApplicationPasswordDoesNotExemptAnotherAccount()
+    {
+        $other = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        $this->handler->rememberAppPasswordAuth($other);
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
     }
 
     /*
