@@ -31,6 +31,23 @@ class LoginSecurityHandlerTest extends BaseTestCase
         parent::tearDown();
     }
 
+    /**
+     * An unknown email, an unknown username and a wrong password read the same, or the
+     * login form tells a stranger which addresses have an account.
+     */
+    public function testAnUnknownEmailReadsLikeAWrongPassword()
+    {
+        $replies = [];
+
+        foreach (['invalid_email', 'invalid_username', 'incorrect_password'] as $code) {
+            $result = $this->handler->maybeCheckLoginAttempts(new \WP_Error($code, 'core says ' . $code), 'someone@example.test', 'pw');
+            $this->assertWpErrorWithCode($result, $code);
+            $replies[] = $result->get_error_message();
+        }
+
+        $this->assertCount(1, array_unique($replies));
+    }
+
     private function seedFailedAttempts($count, $media = 'app_password')
     {
         global $wpdb;
@@ -1093,6 +1110,22 @@ class LoginSecurityHandlerTest extends BaseTestCase
         );
     }
 
+    public function testABlockedAddressIsToldThePasswordIsRightOnlyOnce()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'administrator']);
+
+        $this->blockFromElsewhere('45.148.10.0/24');
+        $this->arriveFrom('45.148.10.72');
+
+        $first = (new LoginSecurityHandler())->maybeCheckLoginAttempts($user, $user->user_login, 'pw');
+        $this->assertStringContainsString('password are correct', $first->get_error_message());
+
+        foreach ([$user, new \WP_Error('incorrect_password', 'no')] as $attempt) {
+            $again = (new LoginSecurityHandler())->maybeCheckLoginAttempts($attempt, $user->user_login, 'pw');
+            $this->assertSame('Logins from your network are not permitted on this site.', $again->get_error_message());
+        }
+    }
+
     // ------------------------------------------------ restricting a role by address
 
     /**
@@ -1137,6 +1170,56 @@ class LoginSecurityHandlerTest extends BaseTestCase
             'login_error'
         );
         $this->assertEquals(1, $this->countRows('blocked'));
+    }
+
+    public function testARestrictedRoleIsToldThePasswordIsRightOnlyOnce()
+    {
+        $admin = $this->restrictRoleToOfficeAddress();
+        $this->arriveFrom('45.148.10.72');
+
+        $first = (new LoginSecurityHandler())->maybeCheckLoginAttempts($admin, $admin->user_login, 'pw');
+        $this->assertStringContainsString('password are correct', $first->get_error_message());
+
+        $this->assertRightAndWrongPasswordsReadTheSame($admin);
+    }
+
+    public function testARestrictedRoleIsToldOnceEvenWithTheAttemptLimitOff()
+    {
+        $admin = $this->restrictRoleToOfficeAddress();
+
+        $settings = get_option('__fls_auth_settings');
+        $settings['login_try_limit'] = 0;
+        $settings['login_try_timing'] = 0;
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $this->arriveFrom('45.148.10.72');
+
+        $first = (new LoginSecurityHandler())->maybeCheckLoginAttempts($admin, $admin->user_login, 'pw');
+        $this->assertStringContainsString('password are correct', $first->get_error_message());
+
+        $this->assertRightAndWrongPasswordsReadTheSame($admin);
+    }
+
+    /**
+     * After the first refusal, a right and a wrong password must get the same reply, or
+     * the reply is a way to test passwords.
+     */
+    private function assertRightAndWrongPasswordsReadTheSame($user)
+    {
+        foreach (range(1, 3) as $round) {
+            $right = (new LoginSecurityHandler())->maybeCheckLoginAttempts($user, $user->user_login, 'pw');
+            $wrong = (new LoginSecurityHandler())->maybeCheckLoginAttempts(
+                new \WP_Error('incorrect_password', 'core says no'),
+                $user->user_login,
+                'pw'
+            );
+
+            $this->assertInstanceOf(\WP_Error::class, $right, "round $round");
+            $this->assertSame($wrong->get_error_code(), $right->get_error_code(), "round $round");
+            $this->assertSame($wrong->get_error_message(), $right->get_error_message(), "round $round");
+            $this->assertStringNotContainsString('correct', $right->get_error_message());
+        }
     }
 
     public function testAnUnrestrictedRoleSignsInFromAnywhere()

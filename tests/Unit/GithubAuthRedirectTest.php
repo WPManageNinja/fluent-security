@@ -39,7 +39,7 @@ class GithubAuthRedirectTest extends BaseTestCase
         $this->assertSame(
             'https://github.com/login/oauth/authorize?client_id=Ov23liTestClient'
             . '&redirect_uri=' . rawurlencode(wp_login_url() . '?fs_auth=github')
-            . '&scope=user&state=st4te',
+            . '&scope=read%3Auser%20user%3Aemail&state=st4te',
             GithubAuthService::getAuthRedirect('st4te')
         );
     }

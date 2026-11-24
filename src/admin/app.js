@@ -11,6 +11,13 @@ import {CloseBold, ArrowLeftBold, View} from '@element-plus/icons-vue';
 
 require('./app.scss');
 
+// Error text can come from a remote service, so it is escaped before it is shown as HTML.
+function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
 function convertToText(obj) {
     const string = [];
     if (typeof (obj) === 'object' && (obj.join === undefined)) {
@@ -24,7 +31,7 @@ function convertToText(obj) {
     } else if (typeof (obj) === 'function') {
 
     } else if (typeof (obj) === 'string') {
-        string.push(obj)
+        string.push(escapeHtml(obj))
     }
 
     return string.join('<br />')
@@ -56,9 +63,9 @@ app.mixin({
         $handleError(response) {
             let errorMessage = '';
             if (typeof response === 'string') {
-                errorMessage = response;
+                errorMessage = escapeHtml(response);
             } else if (response && response.message) {
-                errorMessage = response.message;
+                errorMessage = escapeHtml(response.message);
             } else {
                 errorMessage = convertToText(response);
             }

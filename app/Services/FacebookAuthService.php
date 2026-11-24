@@ -86,6 +86,7 @@ class FacebookAuthService
         $body = wp_remote_retrieve_body($response);
         $userData = json_decode($body, true);
 
+        // Facebook returns only a confirmed email; it has no flag to check, unlike Google and GitHub.
         if (empty($userData['email'])) {
             return new \WP_Error('payload_error', __('Sorry! There was an error when fetching data for Facebook authentication. Please try again', 'fluent-security'));
         }

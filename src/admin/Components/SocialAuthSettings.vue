@@ -58,17 +58,6 @@ export default {
                 .finally(() => {
                     this.loading = false;
                 });
-        },
-        convertToText(error) {
-            if (typeof error === 'string') {
-                return error;
-            }
-
-            if (Array.isArray(error)) {
-                return error.join('<br />');
-            }
-
-            return JSON.stringify(error);
         }
     },
     mounted() {
