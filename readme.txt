@@ -318,6 +318,11 @@ It is not a malware scanner. It tells you which files no longer match the offici
 
 == Changelog ==
 
+= 3.1.2 - Date: Unreleased =
+* Security: Hardening for login replies, two-factor method switching, server-mode sign-in links, admin error messages and the quarantine folder.
+* Change: GitHub login now asks only to read your profile and email addresses.
+* Developer: fluent_auth/magic_login_error_message now starts from an empty message, so a role that cannot use sign-in links gets the same "Check your inbox" reply as anyone else. Return a message from the filter to show it instead, with the 422 response used before.
+
 = 3.1.1 - Date: Nov 3, 2026 =
 * Fix: Magic link and signup email limits now work for visitors on IPv6.
 * Fix: The security scan now checks PHP files inside the node_modules folders of plugins and themes.
