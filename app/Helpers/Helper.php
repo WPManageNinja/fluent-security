@@ -811,8 +811,7 @@ class Helper
             'enable_facebook'        => 'no',
             'facebook_key_method'    => 'wp_config',
             'facebook_client_id'     => '',
-            'facebook_client_secret' => '',
-            'facebook_api_version'   => self::DEFAULT_FACEBOOK_API_VERSION
+            'facebook_client_secret' => ''
         ];
 
         $settings = get_option('__fls_social_auth_settings');
@@ -823,7 +822,6 @@ class Helper
         }
 
         $settings = wp_parse_args($settings, $defaults);
-        $settings['facebook_api_version'] = self::normalizeFacebookApiVersion($settings['facebook_api_version']);
 
         if ($context == 'edit') {
             if ($settings['google_key_method'] == 'wp_config') {
@@ -842,18 +840,6 @@ class Helper
         }
 
         return $settings;
-    }
-
-    public static function normalizeFacebookApiVersion($version)
-    {
-        $version = is_string($version) ? trim($version) : '';
-
-        // Existing installations may still store the retired default.
-        if ($version === 'v12.0' || !preg_match('/\Av[1-9][0-9]*\.[0-9]+\z/', $version)) {
-            return self::DEFAULT_FACEBOOK_API_VERSION;
-        }
-
-        return $version;
     }
 
     public static function getAuthFormsSettings()
