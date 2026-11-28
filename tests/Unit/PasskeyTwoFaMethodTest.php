@@ -3,6 +3,8 @@
 namespace FluentAuth\Tests\Unit;
 
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Hooks\Handlers\TwoFaHandler;
+use FluentAuth\App\Services\TwoFa\TotpProvider;
 use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\RecoveryCodes;
 use FluentAuth\App\Services\TwoFa\TotpTwoFaMethod;
@@ -373,6 +375,177 @@ class PasskeyTwoFaMethodTest extends BaseTestCase
         $logHash = (object)$method->prepareChallenge($user)['columns'];
 
         $this->assertWpErrorWithCode($method->verifyProof($user, $logHash, []), 'passkey_missing');
+    }
+
+    // ------------------------------------------------------------- switching method
+
+    public function test_switching_method_keeps_the_wrong_guesses()
+    {
+        $this->setSettings([
+            'totp_2fa'       => 'yes',
+            'totp_2fa_roles' => ['administrator']
+        ]);
+
+        $user = $this->makeAdmin();
+        $this->enrol($user);
+        TotpTwoFaMethod::activate($user, TotpProvider::generateSecret());
+
+        $handler = new TwoFaHandler();
+        $first = $handler->sendAndGet2FaConfirmFormUrl($user, 'both', null, null, false);
+
+        flsDb()->table('fls_login_hashes')
+            ->where('login_hash', $first['login_hash'])
+            ->update(['used_count' => 3]);
+
+        $firstType = flsDb()->table('fls_login_hashes')
+            ->where('login_hash', $first['login_hash'])
+            ->first()->use_type;
+
+        $toTotp = $this->switchFrom($handler, $first['login_hash']);
+        $this->assertNotSame($firstType, $toTotp->use_type);
+        $this->assertEquals(3, $toTotp->used_count);
+
+        $back = $this->switchFrom($handler, $toTotp->login_hash);
+        $this->assertSame($firstType, $back->use_type);
+        $this->assertEquals(3, $back->used_count);
+    }
+
+    public function test_switching_before_any_wrong_guess_starts_at_zero()
+    {
+        $this->setSettings([
+            'totp_2fa'       => 'yes',
+            'totp_2fa_roles' => ['administrator']
+        ]);
+
+        $user = $this->makeAdmin();
+        $this->enrol($user);
+        TotpTwoFaMethod::activate($user, TotpProvider::generateSecret());
+
+        $handler = new TwoFaHandler();
+        $first = $handler->sendAndGet2FaConfirmFormUrl($user, 'both', null, null, false);
+
+        $this->assertEquals(0, $this->switchFrom($handler, $first['login_hash'])->used_count);
+    }
+
+    public function test_a_switch_that_loses_the_race_opens_no_challenge()
+    {
+        list($handler, $hash) = $this->userWithBothMethods();
+
+        // Another switch closes the row between this one reading it and closing it.
+        $this->beforeTheSwitchCloses(function ($wpdb, $table) use ($hash) {
+            $wpdb->query($wpdb->prepare("UPDATE {$table} SET status = 'failed' WHERE login_hash = %s", $hash));
+        });
+
+        $this->runSwitch($handler, $hash);
+
+        $this->assertSame(0, flsDb()->table('fls_login_hashes')->where('status', 'issued')->count());
+    }
+
+    public function test_a_guess_made_during_the_switch_is_carried_over()
+    {
+        list($handler, $hash) = $this->userWithBothMethods();
+
+        // Two wrong guesses land after the switch read the row, before it closed it.
+        $this->beforeTheSwitchCloses(function ($wpdb, $table) use ($hash) {
+            $wpdb->query($wpdb->prepare("UPDATE {$table} SET used_count = used_count + 2 WHERE login_hash = %s", $hash));
+        });
+
+        $this->runSwitch($handler, $hash);
+
+        $row = flsDb()->table('fls_login_hashes')->where('status', 'issued')->first();
+        $this->assertEquals(2, $row->used_count);
+    }
+
+    /**
+     * @return array [TwoFaHandler, string the first challenge's hash]
+     */
+    private function userWithBothMethods()
+    {
+        $this->setSettings([
+            'totp_2fa'       => 'yes',
+            'totp_2fa_roles' => ['administrator']
+        ]);
+
+        $user = $this->makeAdmin();
+        $this->enrol($user);
+        TotpTwoFaMethod::activate($user, TotpProvider::generateSecret());
+
+        $handler = new TwoFaHandler();
+        $first = $handler->sendAndGet2FaConfirmFormUrl($user, 'both', null, null, false);
+
+        return [$handler, $first['login_hash']];
+    }
+
+    /**
+     * Runs $change once, just before switchMethod() closes the old row: the moment a
+     * parallel request could get there first.
+     */
+    private function beforeTheSwitchCloses(callable $change)
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'fls_login_hashes';
+        $done = false;
+
+        add_filter('query', function ($query) use (&$done, $change, $wpdb, $table) {
+            if (!$done && preg_match('/^UPDATE\s+`?' . preg_quote($table, '/') . '`?\s+SET.*status`?\s*=\s*\'failed\'/is', $query)) {
+                $done = true;
+                $change($wpdb, $table);
+            }
+            return $query;
+        });
+    }
+
+    private function runSwitch(TwoFaHandler $handler, $hash)
+    {
+        $_REQUEST['login_hash'] = $hash;
+
+        $stop = function () {
+            throw new \RuntimeException('redirected');
+        };
+        add_filter('wp_redirect', $stop);
+
+        try {
+            $handler->switchMethod();
+        } catch (\RuntimeException $e) {
+            // The exit() after the redirect.
+        } finally {
+            remove_filter('wp_redirect', $stop);
+            remove_all_filters('query');
+            unset($_REQUEST['login_hash']);
+        }
+    }
+
+    /**
+     * @return object the challenge row the switch issued
+     */
+    private function switchFrom(TwoFaHandler $handler, $hash)
+    {
+        $_REQUEST['login_hash'] = $hash;
+
+        $stop = function () {
+            throw new \RuntimeException('redirected');
+        };
+        add_filter('wp_redirect', $stop);
+
+        try {
+            $handler->switchMethod();
+            $this->fail('Expected a redirect.');
+        } catch (\RuntimeException $e) {
+            // The exit() after the redirect.
+        } finally {
+            remove_filter('wp_redirect', $stop);
+            unset($_REQUEST['login_hash']);
+        }
+
+        $row = flsDb()->table('fls_login_hashes')
+            ->where('status', 'issued')
+            ->orderBy('id', 'DESC')
+            ->first();
+
+        $this->assertNotNull($row, 'the switch should issue a new challenge');
+        $this->assertNotSame($hash, $row->login_hash);
+
+        return $row;
     }
 
     // ----------------------------------------------------------------- scaffolding

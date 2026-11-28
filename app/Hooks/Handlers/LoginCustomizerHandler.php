@@ -96,7 +96,10 @@ class LoginCustomizerHandler
         $allSettings = $this->getSettings();
         $formSettings = Arr::get($allSettings, $formType, []);
 
-        if (!$formSettings) {
+        // Not every top-level key is a form: `status` holds 'yes' or 'no'. A
+        // form type another plugin added (extraActions()) can share such a
+        // name; it gets the login form's look like any type with no settings.
+        if (!is_array($formSettings) || !$formSettings) {
             $formSettings = Arr::get($allSettings, 'login', []);
 
             $formSettings['form']['title'] = '';
@@ -455,6 +458,12 @@ class LoginCustomizerHandler
     {
         $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : 'login';
 
+        // ?action[]=x makes it an array, which is no action this screen knows,
+        // and as an array key (below) a fatal TypeError.
+        if (!is_string($action)) {
+            return '';
+        }
+
         if (isset($_GET['key'])) {
             $action = 'resetpass';
         }
@@ -463,7 +472,21 @@ class LoginCustomizerHandler
             $action = 'checkemail';
         }
 
-        $default_actions = array(
+        if (!in_array($action, self::builtInActions(), true) && !isset(self::extraActions()[$action])) {
+            $action = '';
+        }
+
+        return $action;
+    }
+
+    /**
+     * The wp-login.php actions the designer dresses on its own.
+     *
+     * @return string[]
+     */
+    private static function builtInActions()
+    {
+        return array(
             'confirm_admin_email',
             'postpass',
             'logout',
@@ -483,12 +506,40 @@ class LoginCustomizerHandler
             TotpSetupPageHandler::LOGIN_ACTION,
             TwoFaService::LOGIN_ACTION
         );
+    }
 
-        if (!in_array($action, $default_actions, true)) {
-            $action = '';
+    /**
+     * Login screens other plugins add to wp-login.php (an OAuth consent screen,
+     * for example), dressed like the plugin's own: action => form type.
+     *
+     * A form type with no saved settings takes the login form's colours and
+     * banner, with no title or description; the screen prints its own words.
+     *
+     * @return array<string, string>
+     */
+    public static function extraActions()
+    {
+        /**
+         * Filter the extra wp-login.php actions the login designer dresses.
+         *
+         * @param array<string, string> $actions action => form type, both
+         *                                       lowercase letters, digits and
+         *                                       underscores.
+         */
+        $actions = apply_filters('fluent_auth/login_designer_actions', []);
+        $valid = [];
+        // Only new screens: a built-in screen keeps its own form type.
+        $builtIn = self::builtInActions();
+
+        if (is_array($actions)) {
+            foreach ($actions as $action => $type) {
+                if (is_string($action) && is_string($type) && !in_array($action, $builtIn, true) && preg_match('/^[a-z0-9_]{1,64}$/', $action) && preg_match('/^[a-z0-9_]{1,64}$/', $type)) {
+                    $valid[$action] = $type;
+                }
+            }
         }
 
-        return $action;
+        return $valid;
     }
 
     public function getFormType($action)
@@ -530,7 +581,9 @@ class LoginCustomizerHandler
                 $type = 'totp_setup';
                 break;
             default:
-                return 'login';
+                $extra = self::extraActions();
+
+                return isset($extra[$action]) ? $extra[$action] : 'login';
         }
 
         return $type;

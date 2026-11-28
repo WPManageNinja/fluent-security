@@ -174,6 +174,7 @@ Nothing below leaves your site unless you turn that feature on.
 
 * **File scanning** compares your files against the official copies, so it fetches them from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org`) and the official WordPress mirror on GitHub (`raw.githubusercontent.com`). Only the name, version and file path of the item being checked is sent. [WordPress.org privacy](https://wordpress.org/about/privacy/) · GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
 * **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, your plugin and theme versions, and your PHP and WordPress versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
+* **Product update emails** (`dash.fluentauth.com`, run by WPManageNinja LLC). Off until you subscribe on the setup wizard or the dashboard. Sends your name, email and site address. If you also tick the box to send your site's versions, it sends your PHP, MySQL and WordPress versions too. Nothing about your plugins, your database or your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
 * **Social login** contacts Google, GitHub or Facebook only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)).
 * **Cloudflare Turnstile** (`challenges.cloudflare.com`) checks for bots on the forms you choose: signup, login and password reset, or WooCommerce's account forms. Off until you add your keys and pick a form. On those forms the visitor's browser loads Cloudflare's script, which collects signals from the browser to tell people from bots. When the form is sent, your site sends the result to Cloudflare to confirm it. [Turnstile privacy addendum](https://www.cloudflare.com/turnstile-privacy-policy/) · [Cloudflare terms](https://www.cloudflare.com/website-terms/).
 
@@ -276,7 +277,7 @@ Yes. You can pick which roles may set up a second factor and which roles must ha
 
 No. Two-factor authentication, passkeys, audit logs, login limits and the rest all run on your own site.
 
-Three things can reach out. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. There is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. And if you turn on Cloudflare Turnstile for bot protection, the forms you pick use Cloudflare's check. See the External Services section above.
+A few things can reach out, and each one is off until you turn it on. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. There is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. If you turn on Cloudflare Turnstile for bot protection, the forms you pick use Cloudflare's check. Social login talks to Google, GitHub or Facebook when a user clicks that button. And if you subscribe to product update emails, your name, email and site address go to our mailing list. See the External Services section above.
 
 = Is it GDPR compliant? =
 
@@ -316,6 +317,11 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.1.2 - Date: Unreleased =
+* Security: Hardening for login replies, two-factor method switching, server-mode sign-in links, admin error messages and the quarantine folder.
+* Change: GitHub login now asks only to read your profile and email addresses.
+* Developer: fluent_auth/magic_login_error_message now starts from an empty message, so a role that cannot use sign-in links gets the same "Check your inbox" reply as anyone else. Return a message from the filter to show it instead, with the 422 response used before.
 
 = 3.1.1 - Date: Nov 3, 2026 =
 * Fix: Magic link and signup email limits now work for visitors on IPv6.

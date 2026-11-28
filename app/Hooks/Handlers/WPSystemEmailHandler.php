@@ -259,8 +259,11 @@ class WPSystemEmailHandler
 
         $to = $userObj->user_email;
 
-        if ($userObj->display_name) {
-            $to = $userObj->display_name . ' <' . $userObj->user_email . '>';
+        // wp_mail() splits on commas, so these would let a display name add a recipient.
+        $name = trim(str_replace([',', ';', '<', '>', '"', "\r", "\n"], '', (string)$userObj->display_name));
+
+        if ($name) {
+            $to = $name . ' <' . $userObj->user_email . '>';
         }
 
         wp_mail($to, $subject, $emailBody, $headers);
