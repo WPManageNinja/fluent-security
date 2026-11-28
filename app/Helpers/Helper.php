@@ -4,6 +4,8 @@ namespace FluentAuth\App\Helpers;
 
 class Helper
 {
+    const DEFAULT_FACEBOOK_API_VERSION = 'v27.0';
+
     private static $loginMedia = 'web';
     private static $authSettings = null;
     private static $socialAuthSettings = null;
@@ -809,8 +811,7 @@ class Helper
             'enable_facebook'        => 'no',
             'facebook_key_method'    => 'wp_config',
             'facebook_client_id'     => '',
-            'facebook_client_secret' => '',
-            'facebook_api_version'   => 'v12.0'
+            'facebook_client_secret' => ''
         ];
 
         $settings = get_option('__fls_social_auth_settings');
@@ -835,7 +836,6 @@ class Helper
             if ($settings['facebook_key_method'] == 'wp_config') {
                 $settings['facebook_client_id'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID')) ? FLUENT_AUTH_FACEBOOK_CLIENT_ID : '';
                 $settings['facebook_client_secret'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) ? FLUENT_AUTH_FACEBOOK_CLIENT_SECRET : '';
-                $settings['facebook_api_version'] = sanitize_text_field($settings['facebook_api_version']);
             }
         }
 
