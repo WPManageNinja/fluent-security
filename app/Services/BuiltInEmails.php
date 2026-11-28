@@ -151,9 +151,14 @@ class BuiltInEmails
                 return self::html($email);
 
             case 'signup_verification_to_user':
-                $email = self::signupCode(['first_name' => $user->first_name ?: $user->display_name], '123456');
-                $email['body'] = self::signupLayout($email['body']);
-                return self::html($email);
+                $formData = ['first_name' => $user->first_name ?: $user->display_name, 'email' => $user->user_email, 'username' => $user->user_login];
+                $email = self::signupCode($formData, '123456');
+
+                // The same developer filters CustomAuthHandler::sendSignupEmailVerificationHtml() runs.
+                return self::html([
+                    'subject' => apply_filters('fluent_auth/signup_verification_mail_subject', $email['subject']),
+                    'body'    => self::signupLayout(apply_filters('fluent_auth/signup_verification_email_body', $email['body'], '123456', $formData))
+                ]);
 
             case 'user_registration_to_user':
                 return self::text(self::wpLoginDetails($user, $siteName, $sampleKey));

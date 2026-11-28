@@ -94,6 +94,28 @@ class BuiltInEmailsTest extends BaseTestCase
         $this->assertStringContainsString('originated from the IP address 192.0.2.10.', $body);
     }
 
+    public function test_the_signup_preview_runs_the_developer_filters_the_send_path_runs()
+    {
+        $subject = function () {
+            return 'Filtered subject';
+        };
+        $body = function ($message, $code) {
+            return '<p>Filtered body ' . $code . '</p>';
+        };
+        add_filter('fluent_auth/signup_verification_mail_subject', $subject);
+        add_filter('fluent_auth/signup_verification_email_body', $body, 10, 2);
+
+        try {
+            $preview = BuiltInEmails::preview('signup_verification_to_user', $this->admin);
+        } finally {
+            remove_filter('fluent_auth/signup_verification_mail_subject', $subject);
+            remove_filter('fluent_auth/signup_verification_email_body', $body, 10);
+        }
+
+        $this->assertSame('Filtered subject', $preview['subject']);
+        $this->assertStringContainsString('Filtered body 123456', $preview['body']);
+    }
+
     public function test_fluentauth_emails_are_the_same_html_that_is_sent()
     {
         $preview = BuiltInEmails::preview('two_fa_email_to_user', $this->admin);
