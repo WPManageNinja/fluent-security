@@ -220,8 +220,17 @@ If you use FluentAuth, you do not need these:
 * Report a bug or contribute on [GitHub](https://github.com/WPManageNinja/fluent-security/)
 
 == Other Plugins By The Same Team ==
-
-[FluentSMTP](https://wordpress.org/plugins/fluent-smtp/), [FluentCRM](https://wordpress.org/plugins/fluent-crm/), [Fluent Forms](https://wordpress.org/plugins/fluentform/), [FluentCart](https://wordpress.org/plugins/fluent-cart/) and more. FluentAuth > About installs them in one click.
+<ul>
+	<li><a href="https://wordpress.org/plugins/fluent-cart/" target="_blank">FluentCart A New Era of eCommerce – Faster, Lighter, and Simpler</a></li>
+	<li><a href="https://wordpress.org/plugins/fluent-crm/" target="_blank">FluentCRM – Email Marketing, Newsletter, Email Automation and CRM Plugin for WordPress</a></li>
+	<li><a href="https://wordpress.org/plugins/fluentform/" target="_blank">Fluent Forms – Fastest WordPress Form Builder Plugin</a></li>
+	<li><a href="https://wordpress.org/plugins/ninja-tables/" target="_blank">Ninja Tables – Best WP DataTables Plugin for WordPress</a></li>
+	<li><a href="https://wordpress.org/plugins/ninja-charts/" target="_blank">Ninja Charts – Best WP Charts Plugin for WordPress</a></li>
+	<li><a href="https://wordpress.org/plugins/wp-payment-form/" target="_blank">WPPayForm - Stripe Payments Plugin for WordPress</a></li>
+	<li><a href="https://wordpress.org/plugins/mautic-for-fluent-forms/" target="_blank">Mautic Integration For Fluent Forms</a></li>
+	<li><a href="https://wordpress.org/plugins/fluentforms-pdf/" target="_blank">Fluent Forms PDF - PDF Entries for Fluent Forms</a></li>
+	<li><a href="https://wordpress.org/plugins/fluent-smtp/" target="_blank">FluentSMTP - WordPress Mail SMTP, SES, SendGrid, MailGun Plugin</a></li>
+</ul>
 
 == Installation ==
 
