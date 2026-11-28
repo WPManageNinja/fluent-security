@@ -21,6 +21,7 @@ import RegisterPromt from './Components/SecurityScan/RegisterPromt.vue';
 import AuthCustomizer from './Components/AuthCustomizer/AuthCustomizer.vue';
 import ServerMode from './Components/ServerMode/ServerMode.vue';
 import OnboardingWizard from './Components/Onboarding/Wizard.vue';
+import AboutPage from './Components/About/About.vue';
 
 /*
  * Everything configurable is a child of /settings, so the sidebar is the one place to
@@ -148,6 +149,15 @@ export var routes = [
         meta: {
             active: 'dashboard',
             title: 'Dashboard'
+        }
+    },
+    {
+        path: '/about',
+        name: 'about',
+        component: AboutPage,
+        meta: {
+            active: 'about',
+            title: 'About FluentAuth'
         }
     },
     {

@@ -24,7 +24,8 @@ export default {
                 {route: 'dashboard', title: this.$t('Dashboard')},
                 {route: 'logs', title: this.$t('Logs')},
                 {route: 'security_findings', title: this.$t('Security'), match: 'security'},
-                {route: 'settings_general', title: this.$t('Settings'), match: 'settings'}
+                {route: 'settings_general', title: this.$t('Settings'), match: 'settings'},
+                {route: 'about', title: this.$t('About')}
             ]
         }
     },

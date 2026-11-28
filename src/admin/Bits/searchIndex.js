@@ -58,6 +58,14 @@ export const searchIndex = (vm) => {
             keywords: ['recovery', 'compromised', 'cleanup', 'lock everyone out', 'emergency']
         },
 
+        {
+            group: 'Pages',
+            title: vm.$t('About FluentAuth'),
+            subtitle: vm.$t('The team, help links and our other plugins'),
+            to: {name: 'about'},
+            keywords: ['about', 'help', 'support', 'documentation', 'contributors', 'plugins', 'fluentsmtp', 'fluentcrm']
+        },
+
         /* ------------------------------------------------------ settings screens */
 
         {

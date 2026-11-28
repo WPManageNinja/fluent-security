@@ -90,5 +90,8 @@
   "The card the message sits on.": "The card the message sits on.",
   "The message text.": "The message text.",
   "Behind the box.": "Behind the box.",
-  "Text inside the box.": "Text inside the box."
+  "Text inside the box.": "Text inside the box.",
+  "__about_story_1__": "Most hacked WordPress sites are broken into through the login page. Someone guesses a weak password, or uses one that leaked from another website. FluentAuth protects that page. It limits login attempts, adds two-factor sign-in, magic links and social login, and keeps a log of who signed in. It also checks your files for changes.",
+  "__about_story_2__": "FluentAuth is made by %1$s. We also make %2$s, %3$s, %4$s and %5$s.",
+  "__about_story_3__": "FluentAuth is free and open source. If something is broken or confusing, tell us on GitHub or in our community."
 }
