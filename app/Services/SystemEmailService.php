@@ -105,6 +105,21 @@ class SystemEmailService
                     '##user.profile_edit_url##' => __('User Profile Edit URL', 'fluent-security'),
                 ]
             ],
+            'signup_verification_to_user'                => [
+                'name'                  => 'signup_verification_to_user',
+                'title'                 => __('Signup Verification Code Email', 'fluent-security'),
+                'description'           => __('Sent before an account is created to verify the email address entered on the signup form.', 'fluent-security'),
+                'recipient'             => 'user',
+                'hook'                  => 'fluent_auth/signup_verification_email_body',
+                'required_smartcodes'   => ['signup.verification_code'],
+                'additional_smartcodes' => [
+                    '##signup.verification_code##' => __('Verification Code', 'fluent-security'),
+                    '{{signup.first_name}}'        => __('First Name', 'fluent-security'),
+                    '{{signup.last_name}}'         => __('Last Name', 'fluent-security'),
+                    '{{signup.email}}'             => __('Email', 'fluent-security'),
+                    '{{signup.username}}'          => __('Username', 'fluent-security'),
+                ]
+            ],
             'two_fa_email_to_user'                        => [
                 'name'                  => 'two_fa_email_to_user',
                 'title'                 => __('Two-Factor Authentication (2FA) Code Email', 'fluent-security'),
@@ -256,6 +271,14 @@ class SystemEmailService
                     'body'    => self::getDefaultEmailBody('password_change_to_admin'),
                 ]
             ],
+            'signup_verification_to_user'                => [
+                'status' => 'system',
+                'email'  => [
+                    // translators: %s: Site Name placeholder.
+                    'subject' => sprintf(__('Your registration verification code for %s', 'fluent-security'), '{{site.name}}'),
+                    'body'    => self::getDefaultEmailBody('signup_verification_to_user'),
+                ]
+            ],
             'two_fa_email_to_user'                        => [
                 'status' => 'system',
                 'email'  => [
@@ -275,6 +298,18 @@ class SystemEmailService
 
     public static function getDefaultEmailBody($type = '')
     {
+        if ($type === 'signup_verification_to_user') {
+            // Use the same wording as the built-in signup verification message.
+            /* translators: %s: First Name placeholder. */
+            $greeting = sprintf(__('Hello %s,', 'fluent-security'), '{{signup.first_name}}');
+            /* translators: %s: Verification code placeholder. */
+            $code = sprintf(__('Verification Code: %s', 'fluent-security'), '{{signup.verification_code}}');
+            return '<p>' . $greeting . '</p>' .
+                '<p>' . __('Thanks for signing up. Enter the code below on the registration page to finish setting up your account.', 'fluent-security') . '</p>' .
+                '<p><b>' . $code . '</b></p>' .
+                '<p>' . __('The code works for 10 minutes. If you did not ask for it, you can ignore this email.', 'fluent-security') . '</p>';
+        }
+
         if ($type == 'user_registration_to_user') {
             ob_start();
             ?>
@@ -535,6 +570,22 @@ class SystemEmailService
         }
 
         return $headers;
+    }
+
+    /** Render signup values without looking up a user who does not exist yet. */
+    public static function parseSignupEmail($template, $formData, $code, $html = false)
+    {
+        $replaces = [];
+        foreach (['first_name', 'last_name', 'email', 'username', 'verification_code'] as $key) {
+            $value = $key === 'verification_code' ? $code : Arr::get($formData, $key, '');
+            $value = is_scalar($value) ? sanitize_text_field(wp_unslash((string)$value)) : '';
+            $value = $html ? esc_html($value) : $value;
+            $replaces['{{signup.' . $key . '}}'] = $value;
+            $replaces['##signup.' . $key . '##'] = $value;
+        }
+
+        // Parse site/account tokens first: signup input must never become a smartcode.
+        return strtr((new SmartCodeParser())->parse($template, null), $replaces);
     }
 
     public static function withHtmlTemplate($body, $footer = null, $wpUser = null)

@@ -286,6 +286,7 @@ class LoginCustomizerHandler
 
         $formData = [
             'email'      => $user_email,
+            'username'   => $sanitized_user_login,
             'first_name' => $firstName,
             'last_name'  => $lastName,
         ];

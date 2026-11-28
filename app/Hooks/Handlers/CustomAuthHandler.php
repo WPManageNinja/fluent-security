@@ -1552,7 +1552,7 @@ class CustomAuthHandler
             ->insert($data);
 
         /* translators: %s: Site Name */
-        $mailSubject = apply_filters("fluent_auth/signup_verification_mail_subject", sprintf(__('Your registration verification code for %s', 'fluent-security'), get_bloginfo('name')));
+        $mailSubject = sprintf(__('Your registration verification code for %s', 'fluent-security'), get_bloginfo('name'));
 
         $pStart = '<p style="font-family: Arial, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;">';
 
@@ -1566,6 +1566,20 @@ class CustomAuthHandler
             '<br />' .
             $pStart . __('The code works for 10 minutes. If you did not ask for it, you can ignore this email.', 'fluent-security') . '</p>';
 
+        $customSetting = SystemEmailService::getEmailSettingsByType('signup_verification_to_user');
+        $customSubject = Arr::get($customSetting, 'email.subject');
+        $customBody = Arr::get($customSetting, 'email.body');
+        $useCustom = Arr::get($customSetting, 'status') === 'active'
+            && is_string($customSubject) && trim($customSubject) !== ''
+            && is_string($customBody)
+            && (strpos($customBody, '{{signup.verification_code}}') !== false || strpos($customBody, '##signup.verification_code##') !== false);
+
+        if ($useCustom) {
+            $mailSubject = SystemEmailService::parseSignupEmail($customSubject, $formData, $verifcationCode);
+            $message = SystemEmailService::parseSignupEmail($customBody, $formData, $verifcationCode, true);
+        }
+
+        $mailSubject = apply_filters('fluent_auth/signup_verification_mail_subject', $mailSubject);
         $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData);
 
         $data = [
@@ -1574,7 +1588,7 @@ class CustomAuthHandler
             'show_footer' => false
         ];
 
-        $message = Helper::loadView('notification', $data);
+        $message = $useCustom ? SystemEmailService::withHtmlTemplate($message) : Helper::loadView('notification', $data);
         $headers = SystemEmailService::getEmailHeaders();
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
