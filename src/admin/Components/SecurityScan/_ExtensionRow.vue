@@ -146,6 +146,7 @@ export default {
                 return (this.result && this.result.reason_label) || this.$t('Could not be checked');
             }
 
+            // translators: %s is the number of changed files in this plugin or theme
             return this.$_n('%s change', '%s changes', this.counts.active);
         },
         statusTag() {
@@ -227,13 +228,14 @@ export default {
 
             if (this.state === 'suspicious') {
                 lines.push(this.$t(
-                    '%1s is on version %2s, which WordPress.org never published, so it will be replaced with the current release instead.',
+                    '%1$s is on version %2$s, which WordPress.org never published, so it will be replaced with the current release instead.',
                     this.item.name,
                     this.item.version
                 ));
             } else {
+                // translators: %1$s is a plugin or theme name, %2$s its version number
                 lines.push(this.$t(
-                    'This downloads %1s %2s from WordPress.org and replaces its folder.',
+                    'This downloads %1$s %2$s from WordPress.org and replaces its folder.',
                     this.item.name,
                     this.item.version
                 ));
@@ -344,6 +346,7 @@ export default {
             <template v-if="state === 'suspicious' || state === 'expected'">
                 <div class="fls_scan_explain">
                     <p>
+                        <!-- translators: %s is the version number of the plugin or theme -->
                         {{ $t('__unpublished_version_desc__', item.version) }}
                     </p>
                     <p class="fls_scan_explain_path">{{ rootPath }}</p>

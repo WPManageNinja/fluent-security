@@ -244,7 +244,7 @@ class SiteActivityHandler
      */
     private function write($event, $description)
     {
-        $user = wp_get_current_user();
+        $user = function_exists('wp_get_current_user') ? wp_get_current_user() : null;
         $agent = $this->getUserAgent();
 
         $data = [

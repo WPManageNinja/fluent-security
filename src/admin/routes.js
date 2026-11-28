@@ -5,6 +5,7 @@ import SettingsLayout from './Components/Settings/SettingsLayout.vue';
 import GeneralSettings from './Components/Settings/Pages/General.vue';
 import EnrolledUsers from './Components/TwoFa/EnrolledUsers.vue';
 import IpRulesSettings from './Components/Settings/Pages/IpRules.vue';
+import BotProtectionSettings from './Components/Settings/Pages/BotProtection.vue';
 
 import AuthShortcodes from './Components/AuthShortcodes.vue';
 import LoginRedirects from './Components/Redirects/LoginRedirects.vue';
@@ -53,6 +54,12 @@ const settingsChildren = [
         name: 'settings_ip_rules',
         component: IpRulesSettings,
         meta: {title: 'IP Access Rules'}
+    },
+    {
+        path: 'bot-protection',
+        name: 'settings_bot_protection',
+        component: BotProtectionSettings,
+        meta: {title: 'Bot Protection'}
     },
     {
         path: 'social-login',

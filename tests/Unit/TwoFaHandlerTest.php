@@ -172,6 +172,74 @@ class TwoFaHandlerTest extends BaseTestCase
         ];
     }
 
+    public function testAnOlderEmailCodeOnTheNewerPageSaysToUseTheNewestEmail()
+    {
+        $first = $this->issueCode();
+        $second = $this->issueCode();
+
+        $reply = $this->verify($first['code'], $second['hash']);
+
+        $this->assertStringContainsString('newest one', $reply['message']);
+        $this->assertSame('issued', $this->hashRow($first['hash'])->status, 'the older challenge is not touched');
+    }
+
+    public function testAWrongCodeWithOnlyOneEmailKeepsThePlainMessage()
+    {
+        $only = $this->issueCode();
+
+        $reply = $this->verify($this->wrongCodeFor($only), $only['hash']);
+
+        $this->assertStringNotContainsString('newest one', $reply['message']);
+    }
+
+    public function testTheOlderPageDoesNotSendPeopleToTheNewestEmail()
+    {
+        $first = $this->issueCode();
+        $second = $this->issueCode();
+
+        $reply = $this->verify($second['code'], $first['hash']);
+
+        $this->assertStringNotContainsString('newest one', $reply['message']);
+    }
+
+    private function wrongCodeFor($issued)
+    {
+        return $issued['code'] === '000000' ? '111111' : '000000';
+    }
+
+    public function testThreeOpenChallengesGiveTheHintOnlyOnTheNewestPage()
+    {
+        $a = $this->issueCode();
+        $b = $this->issueCode();
+        $c = $this->issueCode();
+
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($b), $b['hash'])['message']);
+        $this->assertStringContainsString('newest one', $this->verify($this->wrongCodeFor($c), $c['hash'])['message']);
+    }
+
+    public function testOlderChallengesThatAreClosedOrTooOldOrSomeoneElsesGiveNoHint()
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'fls_login_hashes';
+
+        $older = $this->issueCode();
+        $newer = $this->issueCode();
+        $olderId = $this->hashRow($older['hash'])->id;
+
+        $wpdb->update($table, ['status' => 'failed'], ['id' => $olderId]);
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($newer), $newer['hash'])['message'], 'closed');
+
+        $wpdb->update($table, [
+            'status'     => 'issued',
+            'created_at' => date('Y-m-d H:i:s', current_time('timestamp') - TwoFaHandler::PENDING_TIMEOUT - 60)
+        ], ['id' => $olderId]);
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($newer), $newer['hash'])['message'], 'too old');
+
+        $otherUser = $this->factory->user->create(['role' => 'administrator']);
+        $wpdb->update($table, ['created_at' => current_time('mysql'), 'user_id' => $otherUser], ['id' => $olderId]);
+        $this->assertStringNotContainsString('newest one', $this->verify($this->wrongCodeFor($newer), $newer['hash'])['message'], 'other user');
+    }
+
     private function hashRow($hash)
     {
         return flsDb()->table('fls_login_hashes')->where('login_hash', $hash)->first();
@@ -984,7 +1052,7 @@ class TwoFaHandlerTest extends BaseTestCase
      */
     public function testAnApplicationPasswordLoginIsNotRefused()
     {
-        $this->handler->rememberAppPasswordAuth();
+        $this->handler->rememberAppPasswordAuth($this->user);
 
         $result = $this->withHeadlessAjax(function () {
             return $this->handler->maybeDenyHeadlessLogin($this->user);
@@ -992,6 +1060,22 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $this->assertSame($this->user, $result);
         $this->assertNull($this->pendingRowFor($this->user));
+    }
+
+    /**
+     * One account's application password in the header, another account's password in
+     * the body: the second account still owes its factor.
+     */
+    public function testAnApplicationPasswordDoesNotExemptAnotherAccount()
+    {
+        $other = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        $this->handler->rememberAppPasswordAuth($other);
+
+        $result = $this->withHeadlessAjax(function () {
+            return $this->handler->maybeDenyHeadlessLogin($this->user);
+        });
+
+        $this->assertWpErrorWithCode($result, 'fls_2fa_required');
     }
 
     /*
@@ -1214,6 +1298,81 @@ class TwoFaHandlerTest extends BaseTestCase
         // Even the genuine code is dead now.
         $response = $this->verify($issued['code'], $issued['hash']);
         $this->assertArrayNotHasKey('redirect', $response);
+    }
+
+    /**
+     * A parallel guess claims its attempt while this one is still comparing. The old code
+     * wrote back its own stale count + 1 over it, so parallel guesses cost one attempt
+     * between them.
+     */
+    public function testAParallelGuessIsNotOverwritten()
+    {
+        global $wpdb;
+
+        $issued = $this->issueCode();
+
+        $parallel = function ($check) use ($wpdb, $issued) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET used_count = used_count + 1 WHERE login_hash = %s",
+                $issued['hash']
+            ));
+
+            return $check;
+        };
+
+        add_filter('check_password', $parallel);
+
+        try {
+            $this->verify('000000', $issued['hash']);
+        } finally {
+            remove_filter('check_password', $parallel);
+        }
+
+        $this->assertSame(2, (int)$this->hashRow($issued['hash'])->used_count);
+    }
+
+    /* An empty submit is malformed input, not a guess - see BaseTwoFaMethod::verifyProof. */
+    public function testAnEmptySubmitDoesNotSpendAnAttempt()
+    {
+        $issued = $this->issueCode();
+
+        for ($i = 0; $i < TwoFaHandler::MAX_VERIFY_ATTEMPTS + 1; $i++) {
+            $this->verify('', $issued['hash']);
+        }
+
+        $row = $this->hashRow($issued['hash']);
+        $this->assertSame(0, (int)$row->used_count);
+        $this->assertSame('issued', $row->status);
+
+        $this->assertArrayHasKey('redirect', $this->verify($issued['code'], $issued['hash']));
+    }
+
+    /* A parallel request with the same right code finished first; this one must not sign in too. */
+    public function testARightCodeSignsInOnlyOnce()
+    {
+        global $wpdb;
+
+        $issued = $this->issueCode();
+
+        $winner = function ($check) use ($wpdb, $issued) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'used' WHERE login_hash = %s",
+                $issued['hash']
+            ));
+
+            return $check;
+        };
+
+        add_filter('check_password', $winner);
+
+        try {
+            $response = $this->verify($issued['code'], $issued['hash']);
+        } finally {
+            remove_filter('check_password', $winner);
+        }
+
+        $this->assertArrayNotHasKey('redirect', $response);
+        $this->assertSame('used', $this->hashRow($issued['hash'])->status);
     }
 
     public function testFurtherGuessesAfterTheCapDoNotKeepIncrementing()
@@ -1440,5 +1599,43 @@ class TwoFaHandlerTest extends BaseTestCase
 
         $this->assertArrayNotHasKey('redirect', $this->verify('000000', $issued['hash']));
         $this->assertArrayHasKey('redirect', $this->verify($issued['code'], $issued['hash']));
+    }
+
+    /*
+     * An emailed code proves the inbox it went to. Bound to that address, it stops working
+     * once the account email changes, so a changed address cannot borrow the old proof.
+     */
+    public function testACodeStopsWorkingWhenTheAccountEmailChanges()
+    {
+        $issued = $this->issueCode();
+
+        add_filter('send_email_change_email', '__return_false');
+        wp_update_user(['ID' => $this->user->ID, 'user_email' => 'moved-' . $this->user->ID . '@example.test']);
+        remove_filter('send_email_change_email', '__return_false');
+
+        $response = $this->verify($issued['code'], $issued['hash']);
+
+        $this->assertArrayNotHasKey('redirect', $response);
+        $this->assertSame('issued', $this->hashRow($issued['hash'])->status);
+        $this->assertSame(0, get_current_user_id());
+    }
+
+    public function testAnEmailCodeSignInReportsTheEmailAsVerified()
+    {
+        $issued = $this->issueCode();
+
+        $seen = [];
+        $spy = function ($user) use (&$seen) {
+            $seen[] = [$user->ID, $user->user_email];
+        };
+        add_action('fluent_auth/email_verified', $spy, 10, 1);
+
+        try {
+            $this->verify($issued['code'], $issued['hash']);
+        } finally {
+            remove_action('fluent_auth/email_verified', $spy, 10);
+        }
+
+        $this->assertSame([[$this->user->ID, $this->user->user_email]], $seen);
     }
 }

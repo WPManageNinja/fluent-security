@@ -1,107 +1,147 @@
-<?php 
+<?php
 
 namespace FluentAuth\App\Services;
 
-//This is a auto-generated file. Please do not modify
+// This is an auto-generated file (node i18n.node.js). Please do not edit manually.
+// Source: literal $t() / $_n() / $_x() calls in the directories listed in i18n.config.json, plus reserved18n.json.
 class TransStrings
 {
+    // admin: src/admin
     public static function getStrings()
     {
         return [
-            '%1s They belong to %2s people, so tell them first.' => __('%1s They belong to %2s people, so tell them first.', 'fluent-security'),
-            '%1s is on version %2s, which WordPress.org never published, so it will be replaced with the current release instead.' => __('%1s is on version %2s, which WordPress.org never published, so it will be replaced with the current release instead.', 'fluent-security'),
-            '%1s of %2s' => __('%1s of %2s', 'fluent-security'),
-            '%1s of %2s sent' => __('%1s of %2s sent', 'fluent-security'),
-            '%1s of %2s users set up' => __('%1s of %2s users set up', 'fluent-security'),
-            '%1s of %2s users who can use %3s have set one up' => __('%1s of %2s users who can use %3s have set one up', 'fluent-security'),
-            '%1s who can %2s' => __('%1s who can %2s', 'fluent-security'),
-            '%1s-%2s of %3s' => __('%1s-%2s of %3s', 'fluent-security'),
-            '%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.' => __('%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.', 'fluent-security'),
-            '%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.' => __('%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.', 'fluent-security'),
+            "\x00plural_index" => self::pluralRule('fluent-security')['index'],
+            /* translators: %1$s is the preceding sentence about application passwords being deleted, %2$s the number of people who own them */
+            '%1$s They belong to %2$s people, so tell them first.' => __('%1$s They belong to %2$s people, so tell them first.', 'fluent-security'),
+            /* translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes */
+            '%1$s failed attempts within %2$s minutes' => __('%1$s failed attempts within %2$s minutes', 'fluent-security'),
+            /* translators: %1$s is a plugin or theme name, %2$s its installed version number */
+            '%1$s is on version %2$s, which WordPress.org never published, so it will be replaced with the current release instead.' => __('%1$s is on version %2$s, which WordPress.org never published, so it will be replaced with the current release instead.', 'fluent-security'),
+            /* translators: %1$s is the number of plugins and themes checked, %2$s the number installed */
+            '%1$s of %2$s' => __('%1$s of %2$s', 'fluent-security'),
+            /* translators: %1$s is the number of plugins or themes checked, %2$s the total in this list */
+            '%1$s of %2$s checked' => __('%1$s of %2$s checked', 'fluent-security'),
+            /* translators: %1$s is the number of checks matching the search and filter, %2$s the number of checks in this view */
+            '%1$s of %2$s checks' => __('%1$s of %2$s checks', 'fluent-security'),
+            /* translators: %1$s is how many password reset emails have been sent so far, %2$s how many will be sent in total */
+            '%1$s of %2$s sent' => __('%1$s of %2$s sent', 'fluent-security'),
+            /* translators: %1$s is how many users have set up two-factor, %2$s how many users there are */
+            '%1$s of %2$s users set up' => __('%1$s of %2$s users set up', 'fluent-security'),
+            /* translators: %1$s is how many users have set one up, %2$s how many could, %3$s the sign-in methods, e.g. "an authenticator app or a passkey" */
+            '%1$s of %2$s users who can use %3$s have set one up' => __('%1$s of %2$s users who can use %3$s have set one up', 'fluent-security'),
+            /* translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes */
+            '%1$s tries in %2$s min' => __('%1$s tries in %2$s min', 'fluent-security'),
+            /* translators: %1$s is a list of user roles, %2$s a list of capabilities, e.g. "Editor who can edit_posts" */
+            '%1$s who can %2$s' => __('%1$s who can %2$s', 'fluent-security'),
+            /* translators: %1$s is the number of the first entry shown, %2$s the last one, %3$s the total number of entries */
+            '%1$s-%2$s of %3$s' => __('%1$s-%2$s of %3$s', 'fluent-security'),
+            /* translators: %1$s is the name of a security setting, %2$s is On or Off */
+            '%1$s: %2$s' => __('%1$s: %2$s', 'fluent-security'),
+            /* translators: %d is the number of users whose authenticator app setup cannot be decrypted */
+            "%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.\x00%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again." => self::pluralForms(_n_noop('%d authenticator app cannot be read. That user is not locked out, but they will need to set the app up again.', '%d authenticator apps cannot be read. Those users are not locked out, but they will need to set the app up again.', 'fluent-security')),
+            /* translators: %s is the button label, e.g. Turn on or Set up */
             '%s (opens in a new tab)' => __('%s (opens in a new tab)', 'fluent-security'),
-            '%s administrator accounts were created in the last week.' => __('%s administrator accounts were created in the last week.', 'fluent-security'),
+            /* translators: %s is the number of administrator accounts created in the last 7 days */
+            "%s administrator account was created in the last week.\x00%s administrator accounts were created in the last week." => self::pluralForms(_n_noop('%s administrator account was created in the last week.', '%s administrator accounts were created in the last week.', 'fluent-security')),
+            /* translators: %s is a time span, e.g. 5 mins or 2 hours */
             '%s ago' => __('%s ago', 'fluent-security'),
+            /* translators: %s is a comma-separated list of user role names */
             '%s already get an emailed code, so nothing changes for them. Choose the first option to make them set up a passkey or the app instead.' => __('%s already get an emailed code, so nothing changes for them. Choose the first option to make them set up a passkey or the app instead.', 'fluent-security'),
-            '%s change' => __('%s change', 'fluent-security'),
-            '%s changed' => __('%s changed', 'fluent-security'),
-            '%s changed since your snapshot' => __('%s changed since your snapshot', 'fluent-security'),
-            '%s changes' => __('%s changes', 'fluent-security'),
-            '%s check passed' => __('%s check passed', 'fluent-security'),
-            '%s checks passed' => __('%s checks passed', 'fluent-security'),
+            /* translators: %s is a plugin name, like Fluent Forms */
+            '%s already has Turnstile keys' => __('%s already has Turnstile keys', 'fluent-security'),
+            /* translators: %s is the number of changed files in this plugin or theme */
+            "%s change\x00%s changes" => self::pluralForms(_n_noop('%s change', '%s changes', 'fluent-security')),
+            /* translators: %s is the number of changed files in this plugin or theme */
+            "%s changed\x00%s changed" => self::pluralForms(_n_noop('%s changed', '%s changed', 'fluent-security')),
+            /* translators: %s is the number of files changed since the site owner's snapshot */
+            "%s changed since your snapshot\x00%s changed since your snapshot" => self::pluralForms(_n_noop('%s changed since your snapshot', '%s changed since your snapshot', 'fluent-security')),
+            /* translators: %s is the number of checks that passed */
+            "%s check passed\x00%s checks passed" => self::pluralForms(_n_noop('%s check passed', '%s checks passed', 'fluent-security')),
+            /* translators: %s is a comma-separated list of file paths */
             '%s could not be moved to quarantine and may still be on the server.' => __('%s could not be moved to quarantine and may still be on the server.', 'fluent-security'),
-            '%s could not be sent' => __('%s could not be sent', 'fluent-security'),
-            '%s day' => __('%s day', 'fluent-security'),
-            '%s days' => __('%s days', 'fluent-security'),
-            '%s failed attempts within %s minutes' => __('%s failed attempts within %s minutes', 'fluent-security'),
-            '%s file' => __('%s file', 'fluent-security'),
-            '%s file changed' => __('%s file changed', 'fluent-security'),
-            '%s file has changed since your snapshot' => __('%s file has changed since your snapshot', 'fluent-security'),
-            '%s file is new or changed since it was recorded' => __('%s file is new or changed since it was recorded', 'fluent-security'),
-            '%s file is not being watched because one plugin or theme is too large to record in full.' => __('%s file is not being watched because one plugin or theme is too large to record in full.', 'fluent-security'),
-            '%s file missing' => __('%s file missing', 'fluent-security'),
-            '%s file recorded' => __('%s file recorded', 'fluent-security'),
-            '%s file that is not part of WordPress will be moved to quarantine first.' => __('%s file that is not part of WordPress will be moved to quarantine first.', 'fluent-security'),
-            '%s file that is not part of it will be moved to quarantine first.' => __('%s file that is not part of it will be moved to quarantine first.', 'fluent-security'),
-            '%s files' => __('%s files', 'fluent-security'),
-            '%s files are new or changed since they were recorded' => __('%s files are new or changed since they were recorded', 'fluent-security'),
-            '%s files are not being watched because some plugins or themes are too large to record in full.' => __('%s files are not being watched because some plugins or themes are too large to record in full.', 'fluent-security'),
-            '%s files changed' => __('%s files changed', 'fluent-security'),
-            '%s files have changed since your snapshot' => __('%s files have changed since your snapshot', 'fluent-security'),
-            '%s files missing' => __('%s files missing', 'fluent-security'),
-            '%s files recorded' => __('%s files recorded', 'fluent-security'),
-            '%s files that are not part of WordPress will be moved to quarantine first.' => __('%s files that are not part of WordPress will be moved to quarantine first.', 'fluent-security'),
-            '%s files that are not part of it will be moved to quarantine first.' => __('%s files that are not part of it will be moved to quarantine first.', 'fluent-security'),
-            '%s finding needs action' => __('%s finding needs action', 'fluent-security'),
-            '%s finding to review' => __('%s finding to review', 'fluent-security'),
-            '%s findings need action' => __('%s findings need action', 'fluent-security'),
-            '%s findings to review' => __('%s findings to review', 'fluent-security'),
-            '%s folder' => __('%s folder', 'fluent-security'),
-            '%s folders' => __('%s folders', 'fluent-security'),
-            '%s ignored' => __('%s ignored', 'fluent-security'),
+            /* translators: %s is the number of password reset emails that failed to send */
+            "%s could not be sent\x00%s could not be sent" => self::pluralForms(_n_noop('%s could not be sent', '%s could not be sent', 'fluent-security')),
+            /* translators: %s is the number of days activity logs are kept */
+            "%s day\x00%s days" => self::pluralForms(_n_noop('%s day', '%s days', 'fluent-security')),
+            /* translators: %s is a number of files */
+            "%s file\x00%s files" => self::pluralForms(_n_noop('%s file', '%s files', 'fluent-security')),
+            /* translators: %s is the number of files that differ from the official copy */
+            "%s file changed\x00%s files changed" => self::pluralForms(_n_noop('%s file changed', '%s files changed', 'fluent-security')),
+            /* translators: %s is the number of files */
+            "%s file has changed since your snapshot\x00%s files have changed since your snapshot" => self::pluralForms(_n_noop('%s file has changed since your snapshot', '%s files have changed since your snapshot', 'fluent-security')),
+            /* translators: %s is the number of must-use plugin files */
+            "%s file is new or changed since it was recorded\x00%s files are new or changed since they were recorded" => self::pluralForms(_n_noop('%s file is new or changed since it was recorded', '%s files are new or changed since they were recorded', 'fluent-security')),
+            /* translators: %s is the number of files, already formatted with thousands separators */
+            "%s file is not being watched because one plugin or theme is too large to record in full.\x00%s files are not being watched because some plugins or themes are too large to record in full." => self::pluralForms(_n_noop('%s file is not being watched because one plugin or theme is too large to record in full.', '%s files are not being watched because some plugins or themes are too large to record in full.', 'fluent-security')),
+            /* translators: %s is the number of official files missing from the site */
+            "%s file missing\x00%s files missing" => self::pluralForms(_n_noop('%s file missing', '%s files missing', 'fluent-security')),
+            /* translators: %s is the number of files, already formatted with thousands separators */
+            "%s file recorded\x00%s files recorded" => self::pluralForms(_n_noop('%s file recorded', '%s files recorded', 'fluent-security')),
+            /* translators: %s is the number of files to be moved to quarantine */
+            "%s file that is not part of WordPress will be moved to quarantine first.\x00%s files that are not part of WordPress will be moved to quarantine first." => self::pluralForms(_n_noop('%s file that is not part of WordPress will be moved to quarantine first.', '%s files that are not part of WordPress will be moved to quarantine first.', 'fluent-security')),
+            /* translators: %s is the number of files to be moved to quarantine; "it" is the plugin or theme */
+            "%s file that is not part of it will be moved to quarantine first.\x00%s files that are not part of it will be moved to quarantine first." => self::pluralForms(_n_noop('%s file that is not part of it will be moved to quarantine first.', '%s files that are not part of it will be moved to quarantine first.', 'fluent-security')),
+            /* translators: %s is the number of findings that need action */
+            "%s finding needs action\x00%s findings need action" => self::pluralForms(_n_noop('%s finding needs action', '%s findings need action', 'fluent-security')),
+            /* translators: %s is the number of findings to review */
+            "%s finding to review\x00%s findings to review" => self::pluralForms(_n_noop('%s finding to review', '%s findings to review', 'fluent-security')),
+            /* translators: %s is the number of changed WordPress core folders */
+            "%s folder\x00%s folders" => self::pluralForms(_n_noop('%s folder', '%s folders', 'fluent-security')),
+            /* translators: %s is a number of files or items the site owner chose to ignore */
+            "%s ignored\x00%s ignored" => self::pluralForms(_n_noop('%s ignored', '%s ignored', 'fluent-security')),
+            /* translators: %s is the name of another two-factor plugin */
             '%s is also enforcing two-factor login' => __('%s is also enforcing two-factor login', 'fluent-security'),
+            /* translators: %s is the PHP constant name FLUENT_AUTH_DISABLE_TURNSTILE */
+            '%s is set in wp-config.php, so no form checks for bots. Remove that line once your keys are fixed.' => __('%s is set in wp-config.php, so no form checks for bots. Remove that line once your keys are fixed.', 'fluent-security'),
+            /* translators: %s is the PHP constant name FLUENT_AUTH_DISABLE_IP_RESTRICTION */
             '%s is set in wp-config.php, so the block list and the role restriction below are not being applied. Remove that line once your lists are fixed.' => __('%s is set in wp-config.php, so the block list and the role restriction below are not being applied. Remove that line once your lists are fixed.', 'fluent-security'),
-            '%s item is not from WordPress.org, so there is no official copy to compare it with.' => __('%s item is not from WordPress.org, so there is no official copy to compare it with.', 'fluent-security'),
-            '%s item needs attention' => __('%s item needs attention', 'fluent-security'),
-            '%s items are not from WordPress.org, so there is no official copy to compare them with.' => __('%s items are not from WordPress.org, so there is no official copy to compare them with.', 'fluent-security'),
-            '%s items need attention' => __('%s items need attention', 'fluent-security'),
-            '%s more item to review' => __('%s more item to review', 'fluent-security'),
-            '%s more items to review' => __('%s more items to review', 'fluent-security'),
-            '%s not yet recorded' => __('%s not yet recorded', 'fluent-security'),
-            '%s of %s' => __('%s of %s', 'fluent-security'),
-            '%s of %s checked' => __('%s of %s checked', 'fluent-security'),
-            '%s of %s checks' => __('%s of %s checks', 'fluent-security'),
-            '%s optional recommendation' => __('%s optional recommendation', 'fluent-security'),
-            '%s optional recommendations' => __('%s optional recommendations', 'fluent-security'),
+            /* translators: %s is the number of plugins and themes */
+            "%s item is not from WordPress.org, so there is no official copy to compare it with.\x00%s items are not from WordPress.org, so there is no official copy to compare them with." => self::pluralForms(_n_noop('%s item is not from WordPress.org, so there is no official copy to compare it with.', '%s items are not from WordPress.org, so there is no official copy to compare them with.', 'fluent-security')),
+            /* translators: %s is the number of open security issues */
+            "%s item needs attention\x00%s items need attention" => self::pluralForms(_n_noop('%s item needs attention', '%s items need attention', 'fluent-security')),
+            /* translators: %s is the number of further security issues not listed above */
+            "%s more item to review\x00%s more items to review" => self::pluralForms(_n_noop('%s more item to review', '%s more items to review', 'fluent-security')),
+            /* translators: %s is the number of plugins and themes not in the snapshot yet */
+            "%s not yet recorded\x00%s not yet recorded" => self::pluralForms(_n_noop('%s not yet recorded', '%s not yet recorded', 'fluent-security')),
+            /* translators: %s is the number of optional security recommendations */
+            "%s optional recommendation\x00%s optional recommendations" => self::pluralForms(_n_noop('%s optional recommendation', '%s optional recommendations', 'fluent-security')),
+            /* translators: %s is the number of passkeys this user has, always 2 or more */
             '%s passkeys' => __('%s passkeys', 'fluent-security'),
-            '%s plugin or theme' => __('%s plugin or theme', 'fluent-security'),
-            '%s plugin or theme recorded' => __('%s plugin or theme recorded', 'fluent-security'),
-            '%s plugins and themes' => __('%s plugins and themes', 'fluent-security'),
-            '%s plugins and themes recorded' => __('%s plugins and themes recorded', 'fluent-security'),
-            '%s reinstalled.' => __('%s reinstalled.', 'fluent-security'),
-            '%s to check' => __('%s to check', 'fluent-security'),
-            '%s tries in %s min' => __('%s tries in %s min', 'fluent-security'),
-            '%s unexpected file' => __('%s unexpected file', 'fluent-security'),
-            '%s unexpected files' => __('%s unexpected files', 'fluent-security'),
-            '%s username tried' => __('%s username tried', 'fluent-security'),
-            '%s usernames tried' => __('%s usernames tried', 'fluent-security'),
-            '%s version not on WordPress.org' => __('%s version not on WordPress.org', 'fluent-security'),
-            '%s versions not on WordPress.org' => __('%s versions not on WordPress.org', 'fluent-security'),
-            '%s will have to set one up the next time they sign in. Anyone already signed in is locked out of the admin area until they do.' => __('%s will have to set one up the next time they sign in. Anyone already signed in is locked out of the admin area until they do.', 'fluent-security'),
-            '%s with changes' => __('%s with changes', 'fluent-security'),
-            '%s with no official copy' => __('%s with no official copy', 'fluent-security'),
-            '%s: %s' => __('%s: %s', 'fluent-security'),
+            /* translators: %s is the number of plugins and themes in the snapshot */
+            "%s plugin or theme\x00%s plugins and themes" => self::pluralForms(_n_noop('%s plugin or theme', '%s plugins and themes', 'fluent-security')),
+            /* translators: %s is the number of plugins and themes in the snapshot */
+            "%s plugin or theme recorded\x00%s plugins and themes recorded" => self::pluralForms(_n_noop('%s plugin or theme recorded', '%s plugins and themes recorded', 'fluent-security')),
+            /* translators: %s is the number of plugins and themes reinstalled */
+            "%s reinstalled.\x00%s reinstalled." => self::pluralForms(_n_noop('%s reinstalled.', '%s reinstalled.', 'fluent-security')),
+            /* translators: %s is a number of items waiting to be checked */
+            "%s to check\x00%s to check" => self::pluralForms(_n_noop('%s to check', '%s to check', 'fluent-security')),
+            /* translators: %s is the number of files that are not part of the official copy */
+            "%s unexpected file\x00%s unexpected files" => self::pluralForms(_n_noop('%s unexpected file', '%s unexpected files', 'fluent-security')),
+            /* translators: %s is the number of different usernames this IP address tried */
+            "%s username tried\x00%s usernames tried" => self::pluralForms(_n_noop('%s username tried', '%s usernames tried', 'fluent-security')),
+            /* translators: %s is the number of plugins or themes whose installed version is not published on WordPress.org */
+            "%s version not on WordPress.org\x00%s versions not on WordPress.org" => self::pluralForms(_n_noop('%s version not on WordPress.org', '%s versions not on WordPress.org', 'fluent-security')),
+            /* translators: %s is a comma-separated list of user role names */
+            '%s will have to set one up the next time they sign in. Anyone already signed in sees a reminder in the admin area until they do.' => __('%s will have to set one up the next time they sign in. Anyone already signed in sees a reminder in the admin area until they do.', 'fluent-security'),
+            /* translators: %s is the number of plugins or themes with changed files */
+            "%s with changes\x00%s with changes" => self::pluralForms(_n_noop('%s with changes', '%s with changes', 'fluent-security')),
+            /* translators: %s is the number of premium or custom plugins and themes */
+            "%s with no official copy\x00%s with no official copy" => self::pluralForms(_n_noop('%s with no official copy', '%s with no official copy', 'fluent-security')),
+            /* translators: %s is the name of the admin screen, e.g. "Dashboard" */
+            '%s | FluentAuth' => __('%s | FluentAuth', 'fluent-security'),
             '2FA Enrollment' => __('2FA Enrollment', 'fluent-security'),
             'A code from an app on the user\'s phone. Once someone sets it up, they are asked for it every time they sign in.' => __('A code from an app on the user\'s phone. Once someone sets it up, they are asked for it every time they sign in.', 'fluent-security'),
             'A code from an app on their phone, such as Google Authenticator or Authy. No email needed.' => __('A code from an app on their phone, such as Google Authenticator or Authy. No email needed.', 'fluent-security'),
             'A code sent to the user\'s email address when they sign in. There is nothing for them to install.' => __('A code sent to the user\'s email address when they sign in. There is nothing for them to install.', 'fluent-security'),
             'A code sent to their email address each time they sign in. Nothing to set up.' => __('A code sent to their email address each time they sign in. Nothing to set up.', 'fluent-security'),
             'A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.' => __('A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.', 'fluent-security'),
-            'A file has changed since your snapshot' => __('A file has changed since your snapshot', 'fluent-security'),
+            "A file has changed since your snapshot\x00Files have changed since your snapshot" => self::pluralForms(_n_noop('A file has changed since your snapshot', 'Files have changed since your snapshot', 'fluent-security')),
+            'A fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each person sets theirs up from their profile page.' => __('A fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each person sets theirs up from their profile page.', 'fluent-security'),
             'A firewall, CDN or similar service sits in front of this site. You will add its address next.' => __('A firewall, CDN or similar service sits in front of this site. You will add its address next.', 'fluent-security'),
             'A full address, or a path like /members/.' => __('A full address, or a path like /members/.', 'fluent-security'),
             'A key is already in your wp-config.php. Switch this on to encrypt the app data.' => __('A key is already in your wp-config.php. Switch this on to encrypt the app data.', 'fluent-security'),
             'A passkey or the authenticator app only' => __('A passkey or the authenticator app only', 'fluent-security'),
-            'A plugin or theme is on a version WordPress.org has never released' => __('A plugin or theme is on a version WordPress.org has never released', 'fluent-security'),
+            "A plugin or theme is on a version WordPress.org has never released\x00Some plugins or themes are on versions WordPress.org has never released" => self::pluralForms(_n_noop('A plugin or theme is on a version WordPress.org has never released', 'Some plugins or themes are on versions WordPress.org has never released', 'fluent-security')),
             'A proxy sits in front of this site' => __('A proxy sits in front of this site', 'fluent-security'),
             'A step-by-step page for signing everyone out, putting files back and resetting passwords.' => __('A step-by-step page for signing everyone out, putting files back and resetting passwords.', 'fluent-security'),
             'API Key' => __('API Key', 'fluent-security'),
@@ -121,41 +161,45 @@ class TransStrings
             'Add it' => __('Add it', 'fluent-security'),
             'Add rule' => __('Add rule', 'fluent-security'),
             'Add the address of the proxy in front of this site.' => __('Add the address of the proxy in front of this site.', 'fluent-security'),
+            'Add the new domain to your widget in Cloudflare before you move. Otherwise nobody can log in with a password. Passkeys, magic links and social login still work.' => __('Add the new domain to your widget in Cloudflare before you move. Otherwise nobody can log in with a password. Passkeys, magic links and social login still work.', 'fluent-security'),
             'Add to Ignore List' => __('Add to Ignore List', 'fluent-security'),
             'Add to wp-config.php' => __('Add to wp-config.php', 'fluent-security'),
             'Add your own address to the allow list' => __('Add your own address to the allow list', 'fluent-security'),
+            /* translators: %s is how long ago the account was created, e.g. 3 days ago */
             'Added %s' => __('Added %s', 'fluent-security'),
             'Address' => __('Address', 'fluent-security'),
             'Address headers on this request' => __('Address headers on this request', 'fluent-security'),
             'Address of the service in front of this site' => __('Address of the service in front of this site', 'fluent-security'),
             'Addresses always allowed, and always blocked' => __('Addresses always allowed, and always blocked', 'fluent-security'),
             'Addresses that are never locked out, and addresses that are never let in.' => __('Addresses that are never locked out, and addresses that are never let in.', 'fluent-security'),
+            'Adds a "Sign in with a passkey" button to the login form, so a passkey alone gets them in. Anyone without one signs in as before. While this is on, every role can set up a passkey.' => __('Adds a "Sign in with a passkey" button to the login form, so a passkey alone gets them in. Anyone without one signs in as before. While this is on, every role can set up a passkey.', 'fluent-security'),
             'Adds a button to the login page that emails the user a sign-in link instead of asking for a password.' => __('Adds a button to the login page that emails the user a sign-in link instead of asking for a password.', 'fluent-security'),
             'Administrator' => __('Administrator', 'fluent-security'),
             'Administrators' => __('Administrators', 'fluent-security'),
             'Advanced' => __('Advanced', 'fluent-security'),
             'After signing in' => __('After signing in', 'fluent-security'),
             'After signing out' => __('After signing out', 'fluent-security'),
+            'After their password, people confirm it is them with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.' => __('After their password, people confirm it is them with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.', 'fluent-security'),
             'After too many failed attempts' => __('After too many failed attempts', 'fluent-security'),
             'Alerts go to' => __('Alerts go to', 'fluent-security'),
             'All' => __('All', 'fluent-security'),
-            'All %s application passwords on this site will be deleted for good.' => __('All %s application passwords on this site will be deleted for good.', 'fluent-security'),
             'All Emails' => __('All Emails', 'fluent-security'),
             'All categories' => __('All categories', 'fluent-security'),
             'All events' => __('All events', 'fluent-security'),
             'All time' => __('All time', 'fluent-security'),
             'Allow passkeys' => __('Allow passkeys', 'fluent-security'),
             'Allowed addresses' => __('Allowed addresses', 'fluent-security'),
+            'Also let people skip the password' => __('Also let people skip the password', 'fluent-security'),
             'Also replace this site\'s security keys' => __('Also replace this site\'s security keys', 'fluent-security'),
             'An older way for apps to sign in, now used mostly for guessing passwords. The WordPress mobile app may still need it.' => __('An older way for apps to sign in, now used mostly for guessing passwords. The WordPress mobile app may still need it.', 'fluent-security'),
             'Any method, including an emailed code' => __('Any method, including an emailed code', 'fluent-security'),
             'Anyone in these roles is refused from any other address, however they sign in.' => __('Anyone in these roles is refused from any other address, however they sign in.', 'fluent-security'),
+            /* translators: %s is a list of capabilities, e.g. "edit_posts or publish_posts" */
             'Anyone who can %s' => __('Anyone who can %s', 'fluent-security'),
             'Anyone who can read the user\'s inbox can read the code. Roles without emailed codes switched on above still need a passkey or the app.' => __('Anyone who can read the user\'s inbox can read the code. Roles without emailed codes switched on above still need a passkey or the app.', 'fluent-security'),
             'Anything about your visitors or their activity' => __('Anything about your visitors or their activity', 'fluent-security'),
             'Anything connected with an application password will stop working' => __('Anything connected with an application password will stop working', 'fluent-security'),
             'Anything from your database, including users and passwords' => __('Anything from your database, including users and passwords', 'fluent-security'),
-            'Anything left as the WordPress default keeps sending exactly as it does today.' => __('Anything left as the WordPress default keeps sending exactly as it does today.', 'fluent-security'),
             'Anything on a version WordPress.org never published is replaced with the current release instead.' => __('Anything on a version WordPress.org never published is replaced with the current release instead.', 'fluent-security'),
             'App' => __('App', 'fluent-security'),
             'Applies to no one' => __('Applies to no one', 'fluent-security'),
@@ -187,18 +231,24 @@ class TransStrings
             'Behind the message.' => __('Behind the message.', 'fluent-security'),
             'Behind the side panel, under any background image.' => __('Behind the side panel, under any background image.', 'fluent-security'),
             'Behind the sign-in form.' => __('Behind the sign-in form.', 'fluent-security'),
+            /* translators: %s is an IP address */
             'Block %s' => __('Block %s', 'fluent-security'),
             'Block IP' => __('Block IP', 'fluent-security'),
             'Block XML-RPC requests' => __('Block XML-RPC requests', 'fluent-security'),
+            /* translators: %s is an IP address */
             'Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.' => __('Block all sign-ins from %s? Anyone else sharing this address will be blocked too. You can undo this under IP Rules.', 'fluent-security'),
-            'Block an IP address after' => __('Block an IP address after', 'fluent-security'),
+            /* translators: %1$s is a number field for failed attempts, %2$s a number field for minutes */
+            'Block an IP address after %1$s failed attempts within %2$s minutes' => __('Block an IP address after %1$s failed attempts within %2$s minutes', 'fluent-security'),
             'Block application passwords' => __('Block application passwords', 'fluent-security'),
             'Blocked' => __('Blocked', 'fluent-security'),
             'Blocked addresses' => __('Blocked addresses', 'fluent-security'),
             'Body' => __('Body', 'fluent-security'),
             'Bold' => __('Bold', 'fluent-security'),
+            'Bot Protection' => __('Bot Protection', 'fluent-security'),
+            'Bot protection is switched off in wp-config.php' => __('Bot protection is switched off in wp-config.php', 'fluent-security'),
             'Browser' => __('Browser', 'fluent-security'),
             'Browser details' => __('Browser details', 'fluent-security'),
+            'Built-in' => __('Built-in', 'fluent-security'),
             'Button' => __('Button', 'fluent-security'),
             'Button Background' => __('Button Background', 'fluent-security'),
             'Button Preview' => __('Button Preview', 'fluent-security'),
@@ -211,10 +261,15 @@ class TransStrings
             'Change the wording, colours and images on your sign up page.' => __('Change the wording, colours and images on your sign up page.', 'fluent-security'),
             'Changed' => __('Changed', 'fluent-security'),
             'Changed since recorded' => __('Changed since recorded', 'fluent-security'),
+            'Changes apply to the next sign-in. People who are signed in now keep their current session.' => __('Changes apply to the next sign-in. People who are signed in now keep their current session.', 'fluent-security'),
+            'Check PHP on your server' => __('Check PHP on your server', 'fluent-security'),
+            'Check Remember Me by default' => __('Check Remember Me by default', 'fluent-security'),
             'Check summary' => __('Check summary', 'fluent-security'),
             'Check who can change your site' => __('Check who can change your site', 'fluent-security'),
             'Checked' => __('Checked', 'fluent-security'),
+            /* translators: %s is a time span, e.g. 5 mins or 2 hours */
             'Checked %s ago. Each reinstall replaces every file with a fresh copy from WordPress.org, and once they are all done, sign everyone out again.' => __('Checked %s ago. Each reinstall replaces every file with a fresh copy from WordPress.org, and once they are all done, sign everyone out again.', 'fluent-security'),
+            /* translators: %s is a time span, e.g. 5 mins or 2 hours */
             'Checked %s ago. Every WordPress file, and every plugin and theme from WordPress.org, matched the official copy.' => __('Checked %s ago. Every WordPress file, and every plugin and theme from WordPress.org, matched the official copy.', 'fluent-security'),
             'Checking WordPress core…' => __('Checking WordPress core…', 'fluent-security'),
             'Checking against your snapshot…' => __('Checking against your snapshot…', 'fluent-security'),
@@ -230,14 +285,19 @@ class TransStrings
             'Choose the layout, background and wording for the login and sign-up screens.' => __('Choose the layout, background and wording for the login and sign-up screens.', 'fluent-security'),
             'Clear' => __('Clear', 'fluent-security'),
             'Clear filters' => __('Clear filters', 'fluent-security'),
+            'Click Create. Then copy the site key and the secret key into the fields below.' => __('Click Create. Then copy the site key and the secret key into the fields below.', 'fluent-security'),
             'Close' => __('Close', 'fluent-security'),
+            'Closing the browser also signs people out, unless the browser reopens the last session.' => __('Closing the browser also signs people out, unless the browser reopens the last session.', 'fluent-security'),
+            'Cloudflare Turnstile keys' => __('Cloudflare Turnstile keys', 'fluent-security'),
             'Cloudflare detected' => __('Cloudflare detected', 'fluent-security'),
             'Compare your WordPress files with the originals and flag any changes.' => __('Compare your WordPress files with the originals and flag any changes.', 'fluent-security'),
             'Comparing your files with the official copies on WordPress.org.' => __('Comparing your files with the official copies on WordPress.org.', 'fluent-security'),
             'Comparing your premium and custom plugins and themes with your snapshot.' => __('Comparing your premium and custom plugins and themes with your snapshot.', 'fluent-security'),
+            'Complete this check so we know the keys work on this site. Then save.' => __('Complete this check so we know the keys work on this site. Then save.', 'fluent-security'),
             'Configuration' => __('Configuration', 'fluent-security'),
             'Confirm block' => __('Confirm block', 'fluent-security'),
             'Confirm email address' => __('Confirm email address', 'fluent-security'),
+            'Confirm with your passkey: a fingerprint, face or PIN.' => __('Confirm with your passkey: a fingerprint, face or PIN.', 'fluent-security'),
             'Connect a site' => __('Connect a site', 'fluent-security'),
             'Connect and run the first scan' => __('Connect and run the first scan', 'fluent-security'),
             'Connect this site to scan on a schedule and get an email when a file changes.' => __('Connect this site to scan on a schedule and get an email when a file changes.', 'fluent-security'),
@@ -252,11 +312,14 @@ class TransStrings
             'Copied to clipboard' => __('Copied to clipboard', 'fluent-security'),
             'Copy' => __('Copy', 'fluent-security'),
             'Copy it from the Remote Auth screen on the site you are connecting.' => __('Copy it from the Remote Auth screen on the site you are connecting.', 'fluent-security'),
+            'Copy this line into your wp-config.php, above the line that says "That\'s all, stop editing". Save the file, then come back here and switch this on.' => __('Copy this line into your wp-config.php, above the line that says "That\'s all, stop editing". Save the file, then come back here and switch this on.', 'fluent-security'),
             'Core' => __('Core', 'fluent-security'),
             'Core Security' => __('Core Security', 'fluent-security'),
             'Corner rounding' => __('Corner rounding', 'fluent-security'),
             'Could not be checked' => __('Could not be checked', 'fluent-security'),
             'Could not copy to clipboard' => __('Could not copy to clipboard', 'fluent-security'),
+            /* translators: %s is the browser's error message */
+            'Could not copy to clipboard: %s' => __('Could not copy to clipboard: %s', 'fluent-security'),
             'Could not load security checks' => __('Could not load security checks', 'fluent-security'),
             'Could not load the security checks.' => __('Could not load the security checks.', 'fluent-security'),
             'Could not load your dashboard. Please try again.' => __('Could not load your dashboard. Please try again.', 'fluent-security'),
@@ -277,7 +340,8 @@ class TransStrings
             'Default text loaded. Save to keep it.' => __('Default text loaded. Save to keep it.', 'fluent-security'),
             'Delete all logs' => __('Delete all logs', 'fluent-security'),
             'Delete every log entry? This cannot be undone.' => __('Delete every log entry? This cannot be undone.', 'fluent-security'),
-            'Delete logs older than' => __('Delete logs older than', 'fluent-security'),
+            /* translators: %s is a number field for days */
+            'Delete logs older than %s days' => __('Delete logs older than %s days', 'fluent-security'),
             'Delete this entry' => __('Delete this entry', 'fluent-security'),
             'Delete this file' => __('Delete this file', 'fluent-security'),
             'Delete this file permanently?' => __('Delete this file permanently?', 'fluent-security'),
@@ -294,11 +358,13 @@ class TransStrings
             'Dismiss finding' => __('Dismiss finding', 'fluent-security'),
             'Dismissed' => __('Dismissed', 'fluent-security'),
             'Do not send a summary' => __('Do not send a summary', 'fluent-security'),
+            /* translators: %s is the user's login name */
             'Do this if %s has lost the device the app was on. They can set up a new one from their profile.' => __('Do this if %s has lost the device the app was on. They can set up a new one from their profile.', 'fluent-security'),
             'Does this look right?' => __('Does this look right?', 'fluent-security'),
             'Done' => __('Done', 'fluent-security'),
             'Each visitor is seen at their own address.' => __('Each visitor is seen at their own address.', 'fluent-security'),
             'Edit' => __('Edit', 'fluent-security'),
+            /* translators: %s is the name of a login screen field, such as Logo */
             'Edit %s' => __('Edit %s', 'fluent-security'),
             'Edit Email' => __('Edit Email', 'fluent-security'),
             'Email' => __('Email', 'fluent-security'),
@@ -310,11 +376,13 @@ class TransStrings
             'Email design' => __('Email design', 'fluent-security'),
             'Email me about sign-ins' => __('Email me about sign-ins', 'fluent-security'),
             'Emailed code' => __('Emailed code', 'fluent-security'),
-            'Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.' => __('Emailed codes are on, which needs nothing from the people signing in. Add the authenticator app if it suits your users, then choose who gets the second step.', 'fluent-security'),
+            'Emailed codes are on. People need nothing set up to use them. Add the authenticator app if it suits your users, then choose who gets the second step.' => __('Emailed codes are on. People need nothing set up to use them. Add the authenticator app if it suits your users, then choose who gets the second step.', 'fluent-security'),
+            'Emailed codes are on. People need nothing set up to use them. Add the authenticator app or passkeys if they suit your users, then choose who gets the second step.' => __('Emailed codes are on. People need nothing set up to use them. Add the authenticator app or passkeys if they suit your users, then choose who gets the second step.', 'fluent-security'),
             'Emailed codes are the weakest option' => __('Emailed codes are the weakest option', 'fluent-security'),
             'Emailed codes do not count here' => __('Emailed codes do not count here', 'fluent-security'),
             'Emailed codes only. Nobody can set up an authenticator app or a passkey until one of those is switched on.' => __('Emailed codes only. Nobody can set up an authenticator app or a passkey until one of those is switched on.', 'fluent-security'),
             'Emails a sign-in link. The heading between the tags is yours to change or remove.' => __('Emails a sign-in link. The heading between the tags is yours to change or remove.', 'fluent-security'),
+            'Emails left on Built-in keep sending exactly as they do today.' => __('Emails left on Built-in keep sending exactly as they do today.', 'fluent-security'),
             'Emails you when the plugin blocks a login attempt. No more than one a minute, however many are blocked.' => __('Emails you when the plugin blocks a login attempt. No more than one a minute, however many are blocked.', 'fluent-security'),
             'Enable magic login' => __('Enable magic login', 'fluent-security'),
             'Encrypt authenticator app data' => __('Encrypt authenticator app data', 'fluent-security'),
@@ -324,7 +392,8 @@ class TransStrings
             'Enter reply-to name' => __('Enter reply-to name', 'fluent-security'),
             'Enter the code from your authenticator app, or the one we emailed you.' => __('Enter the code from your authenticator app, or the one we emailed you.', 'fluent-security'),
             'Entries are kept until you delete them.' => __('Entries are kept until you delete them.', 'fluent-security'),
-            'Entries older than %s days are deleted automatically.' => __('Entries older than %s days are deleted automatically.', 'fluent-security'),
+            /* translators: %s is the number of days activity logs are kept */
+            "Entries older than %s day are deleted automatically.\x00Entries older than %s days are deleted automatically." => self::pluralForms(_n_noop('Entries older than %s day are deleted automatically.', 'Entries older than %s days are deleted automatically.', 'fluent-security')),
             'Event' => __('Event', 'fluent-security'),
             'Every 12 hours' => __('Every 12 hours', 'fluent-security'),
             'Every 6 hours' => __('Every 6 hours', 'fluent-security'),
@@ -360,18 +429,17 @@ class TransStrings
             'Facebook App Secret' => __('Facebook App Secret', 'fluent-security'),
             'Failed & blocked' => __('Failed & blocked', 'fluent-security'),
             'Failed attempts' => __('Failed attempts', 'fluent-security'),
+            /* translators: %s is the single IP address every visitor currently appears to come from */
             'Failed logins are counted per address. While every visitor looks like %s, one person\'s failed attempts can lock everyone out.' => __('Failed logins are counted per address. While every visitor looks like %s, one person\'s failed attempts can lock everyone out.', 'fluent-security'),
             'File integrity scans and alerts' => __('File integrity scans and alerts', 'fluent-security'),
             'File monitoring' => __('File monitoring', 'fluent-security'),
             'Files' => __('Files', 'fluent-security'),
-            'Files have changed since your snapshot' => __('Files have changed since your snapshot', 'fluent-security'),
             'Filled in from your own visit. Check it, then save.' => __('Filled in from your own visit. Check it, then save.', 'fluent-security'),
             'Fills in the fields below from your own visit. Nothing changes until you save.' => __('Fills in the fields below from your own visit. Nothing changes until you save.', 'fluent-security'),
             'Filter by category' => __('Filter by category', 'fluent-security'),
             'Finding status' => __('Finding status', 'fluent-security'),
             'Findings' => __('Findings', 'fluent-security'),
             'Findings you have set aside. Restore one to see it in the list again.' => __('Findings you have set aside. Restore one to see it in the list again.', 'fluent-security'),
-            'FluentAuth' => __('FluentAuth', 'fluent-security'),
             'Folder' => __('Folder', 'fluent-security'),
             'Folders WordPress did not put here' => __('Folders WordPress did not put here', 'fluent-security'),
             'Font Style' => __('Font Style', 'fluent-security'),
@@ -394,10 +462,14 @@ class TransStrings
             'GitHub Client ID' => __('GitHub Client ID', 'fluent-security'),
             'GitHub Client Secret' => __('GitHub Client Secret', 'fluent-security'),
             'Give the button a label and a link address.' => __('Give the button a label and a link address.', 'fluent-security'),
+            'Give the widget any name, such as the name of your site.' => __('Give the widget any name, such as the name of your site.', 'fluent-security'),
             'Go back' => __('Go back', 'fluent-security'),
             'Go to the dashboard' => __('Go to the dashboard', 'fluent-security'),
+            /* translators: %s is the signed-in user's full name */
             'Good afternoon %s' => __('Good afternoon %s', 'fluent-security'),
+            /* translators: %s is the signed-in user's full name */
             'Good evening %s' => __('Good evening %s', 'fluent-security'),
+            /* translators: %s is the signed-in user's full name */
             'Good morning %s' => __('Good morning %s', 'fluent-security'),
             'Google' => __('Google', 'fluent-security'),
             'Google Client ID' => __('Google Client ID', 'fluent-security'),
@@ -409,12 +481,15 @@ class TransStrings
             'Header your proxy puts the visitor\'s address in' => __('Header your proxy puts the visitor\'s address in', 'fluent-security'),
             'Hide' => __('Hide', 'fluent-security'),
             'Hide details' => __('Hide details', 'fluent-security'),
+            'Hide the setup steps' => __('Hide the setup steps', 'fluent-security'),
             'Hide the side panel' => __('Hide the side panel', 'fluent-security'),
             'Hide usernames from the public' => __('Hide usernames from the public', 'fluent-security'),
             'How long logs are kept, and which roles can open wp-admin.' => __('How long logs are kept, and which roles can open wp-admin.', 'fluent-security'),
+            'How long people stay signed in before they must sign in again.' => __('How long people stay signed in before they must sign in again.', 'fluent-security'),
             'How many wrong passwords one IP address gets before it is blocked.' => __('How many wrong passwords one IP address gets before it is blocked.', 'fluent-security'),
             'How often' => __('How often', 'fluent-security'),
             'How the plugin tells one visitor from another. Most sites can leave this alone; it matters when traffic reaches your site through a proxy.' => __('How the plugin tells one visitor from another. Most sites can leave this alone; it matters when traffic reaches your site through a proxy.', 'fluent-security'),
+            'How to set up the widget in Cloudflare' => __('How to set up the widget in Cloudflare', 'fluent-security'),
             'How to set up this app' => __('How to set up this app', 'fluent-security'),
             'How wp-login.php looks' => __('How wp-login.php looks', 'fluent-security'),
             'I agree to the terms and conditions' => __('I agree to the terms and conditions', 'fluent-security'),
@@ -422,11 +497,20 @@ class TransStrings
             'ID' => __('ID', 'fluent-security'),
             'IP Access Rules' => __('IP Access Rules', 'fluent-security'),
             'IP Address' => __('IP Address', 'fluent-security'),
+            /* translators: %s is the HTTP header name the visitor IP is read from, or Automatic */
             'IP header: %s' => __('IP header: %s', 'fluent-security'),
             'IP rules are switched off in wp-config.php' => __('IP rules are switched off in wp-config.php', 'fluent-security'),
+            /* translators: %s is a number field for days */
+            'If Remember Me is off, sign people out after %s days' => __('If Remember Me is off, sign people out after %s days', 'fluent-security'),
+            /* translators: %s is a number field for days */
+            'If Remember Me is on, keep people signed in for %s days' => __('If Remember Me is on, keep people signed in for %s days', 'fluent-security'),
+            /* translators: %s is a line of PHP code to paste into wp-config.php */
             'If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.' => __('If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.', 'fluent-security'),
             'If this was not you, change the password on that account now.' => __('If this was not you, change the password on that account now.', 'fluent-security'),
+            /* translators: %s is a line of PHP code to paste into wp-config.php */
+            'If you are ever locked out, add %s to wp-config.php to switch bot protection off and get back in.' => __('If you are ever locked out, add %s to wp-config.php to switch bot protection off and get back in.', 'fluent-security'),
             'If you contact support, quote this connection ID:' => __('If you contact support, quote this connection ID:', 'fluent-security'),
+            'If you move this site to a new domain, update Turnstile first' => __('If you move this site to a new domain, update Turnstile first', 'fluent-security'),
             'If you skip this, the app data stays unencrypted, as it is now. Everything keeps working.' => __('If you skip this, the app data stays unencrypted, as it is now. Everything keeps working.', 'fluent-security'),
             'If you use Jetpack, a mobile app, or a tool that posts to this site for you, leave XML-RPC unblocked.' => __('If you use Jetpack, a mobile app, or a tool that posts to this site for you, leave XML-RPC unblocked.', 'fluent-security'),
             'Ignored' => __('Ignored', 'fluent-security'),
@@ -451,21 +535,28 @@ class TransStrings
             'Last changed (UTC)' => __('Last changed (UTC)', 'fluent-security'),
             'Last file check' => __('Last file check', 'fluent-security'),
             'Last file scan' => __('Last file scan', 'fluent-security'),
-            'Last used %1s by %2s' => __('Last used %1s by %2s', 'fluent-security'),
-            'Last used %s, outside the dashboard' => __('Last used %s, outside the dashboard', 'fluent-security'),
+            /* translators: %1$s is the date and time, %2$s the user's name */
+            'Last used %1$s by %2$s' => __('Last used %1$s by %2$s', 'fluent-security'),
+            /* translators: %s is the date and time the action was last run, by a scheduled task or WP-CLI */
+            'Last used %s by a scheduled task or the command line' => __('Last used %s by a scheduled task or the command line', 'fluent-security'),
+            /* translators: %s is the selected date range, such as Last 7 days */
             'Latest entries · %s' => __('Latest entries · %s', 'fluent-security'),
             'Learn More' => __('Learn More', 'fluent-security'),
+            'Learn more' => __('Learn more', 'fluent-security'),
+            'Leave "Skip future security rule challenges" off. You do not need it.' => __('Leave "Skip future security rule challenges" off. You do not need it.', 'fluent-security'),
             'Leave empty to offer it to everyone.' => __('Leave empty to offer it to everyone.', 'fluent-security'),
             'Leave empty to use the site\'s admin email address.' => __('Leave empty to use the site\'s admin email address.', 'fluent-security'),
             'Leave this as the default and they go where everyone else does.' => __('Leave this as the default and they go where everyone else does.', 'fluent-security'),
             'Leave this empty unless your host has told you otherwise.' => __('Leave this empty unless your host has told you otherwise.', 'fluent-security'),
             'Let WordPress decide' => __('Let WordPress decide', 'fluent-security'),
             'Let people sign in to your other sites with the accounts on this one.' => __('Let people sign in to your other sites with the accounts on this one.', 'fluent-security'),
-            'Let people sign in with a passkey' => __('Let people sign in with a passkey', 'fluent-security'),
             'Let people sign in with an account they already have.' => __('Let people sign in with an account they already have.', 'fluent-security'),
             'Lets people request a reset link and choose a new password.' => __('Lets people request a reset link and choose a new password.', 'fluent-security'),
             'Light' => __('Light', 'fluent-security'),
             'Link address' => __('Link address', 'fluent-security'),
+            'LinkedIn' => __('LinkedIn', 'fluent-security'),
+            'LinkedIn Client ID' => __('LinkedIn Client ID', 'fluent-security'),
+            'LinkedIn Client Secret' => __('LinkedIn Client Secret', 'fluent-security'),
             'Loading file…' => __('Loading file…', 'fluent-security'),
             'Loading setup' => __('Loading setup', 'fluent-security'),
             'Loading…' => __('Loading…', 'fluent-security'),
@@ -479,6 +570,8 @@ class TransStrings
             'Login activity' => __('Login activity', 'fluent-security'),
             'Login activity and security status' => __('Login activity and security status', 'fluent-security'),
             'Login alerts, magic links and two-factor codes all go out by email. FluentSMTP sends your site\'s email through a mail service you choose, which is far more reliable than the web server.' => __('Login alerts, magic links and two-factor codes all go out by email. FluentSMTP sends your site\'s email through a mail service you choose, which is far more reliable than the web server.', 'fluent-security'),
+            'Login and password reset forms' => __('Login and password reset forms', 'fluent-security'),
+            'Login and signup on the My Account page. Checkout is not changed.' => __('Login and signup on the My Account page. Checkout is not changed.', 'fluent-security'),
             'Login form' => __('Login form', 'fluent-security'),
             'Login only' => __('Login only', 'fluent-security'),
             'Login page' => __('Login page', 'fluent-security'),
@@ -492,6 +585,7 @@ class TransStrings
             'Looks like' => __('Looks like', 'fluent-security'),
             'Lost your password?' => __('Lost your password?', 'fluent-security'),
             'Magic Login' => __('Magic Login', 'fluent-security'),
+            'Magic links follow this choice too. On a login form, people can still uncheck the box.' => __('Magic links follow this choice too. On a login form, people can still uncheck the box.', 'fluent-security'),
             'Magic login' => __('Magic login', 'fluent-security'),
             'Make it required' => __('Make it required', 'fluent-security'),
             'Manage on their profile' => __('Manage on their profile', 'fluent-security'),
@@ -511,12 +605,16 @@ class TransStrings
             'Move down' => __('Move down', 'fluent-security'),
             'Move up' => __('Move up', 'fluent-security'),
             'Must-Use Plugins' => __('Must-Use Plugins', 'fluent-security'),
+            'My host confirmed this is patched' => __('My host confirmed this is patched', 'fluent-security'),
+            'Needs an app from the LinkedIn Developer Portal.' => __('Needs an app from the LinkedIn Developer Portal.', 'fluent-security'),
             'Needs an app from the Meta developer dashboard.' => __('Needs an app from the Meta developer dashboard.', 'fluent-security'),
             'Needs an app from your GitHub developer settings.' => __('Needs an app from your GitHub developer settings.', 'fluent-security'),
             'Needs an app you create in Google Cloud Console.' => __('Needs an app you create in Google Cloud Console.', 'fluent-security'),
             'Needs attention' => __('Needs attention', 'fluent-security'),
+            /* translators: %s is an IP address */
             'Never lock out %s' => __('Never lock out %s', 'fluent-security'),
             'New' => __('New', 'fluent-security'),
+            /* translators: %s is the site name */
             'New sign-in to %s' => __('New sign-in to %s', 'fluent-security'),
             'New since recorded' => __('New since recorded', 'fluent-security'),
             'New users get a code by email and must enter it before the account is created.' => __('New users get a code by email and must enter it before the account is created.', 'fluent-security'),
@@ -542,12 +640,13 @@ class TransStrings
             'No sign-in notifications' => __('No sign-in notifications', 'fluent-security'),
             'No sites have been connected yet' => __('No sites have been connected yet', 'fluent-security'),
             'No successful sign-ins in this period' => __('No successful sign-ins in this period', 'fluent-security'),
+            'No summary report' => __('No summary report', 'fluent-security'),
             'No thanks' => __('No thanks', 'fluent-security'),
             'No username' => __('No username', 'fluent-security'),
             'No users match this filter' => __('No users match this filter', 'fluent-security'),
             'No, that is not my address' => __('No, that is not my address', 'fluent-security'),
             'Nobody has set up two-factor sign-in yet' => __('Nobody has set up two-factor sign-in yet', 'fluent-security'),
-            'Nobody is locked out by this. Setting up an app stays optional until you make it required in Settings.' => __('Nobody is locked out by this. Setting up an app stays optional until you make it required in Settings.', 'fluent-security'),
+            'Nobody is locked out by this. Setting up an app or a passkey stays optional until you make it required in Settings.' => __('Nobody is locked out by this. Setting up an app or a passkey stays optional until you make it required in Settings.', 'fluent-security'),
             'Nobody is required' => __('Nobody is required', 'fluent-security'),
             'Nobody yet' => __('Nobody yet', 'fluent-security'),
             'None' => __('None', 'fluent-security'),
@@ -567,6 +666,7 @@ class TransStrings
             'Nothing' => __('Nothing', 'fluent-security'),
             'Nothing detected' => __('Nothing detected', 'fluent-security'),
             'Nothing has changed in the files we checked.' => __('Nothing has changed in the files we checked.', 'fluent-security'),
+            /* translators: %s is the search text the user typed */
             'Nothing here matches “%s”.' => __('Nothing here matches “%s”.', 'fluent-security'),
             'Nothing is saved until you apply these.' => __('Nothing is saved until you apply these.', 'fluent-security'),
             'Nothing is saved until you review and apply it at the end.' => __('Nothing is saved until you review and apply it at the end.', 'fluent-security'),
@@ -576,17 +676,20 @@ class TransStrings
             'Nothing picked here, so this line is ignored.' => __('Nothing picked here, so this line is ignored.', 'fluent-security'),
             'Nothing to require yet' => __('Nothing to require yet', 'fluent-security'),
             'Nothing to set up here unless another proxy sits between Cloudflare and your server.' => __('Nothing to set up here unless another proxy sits between Cloudflare and your server.', 'fluent-security'),
+            /* translators: %s is the IP address your own visit came from */
             'Nothing to set up here. Your own visit arrived from %s.' => __('Nothing to set up here. Your own visit arrived from %s.', 'fluent-security'),
             'Nothing to show yet. Sign-ins, failed attempts and site changes will appear here as they happen.' => __('Nothing to show yet. Sign-ins, failed attempts and site changes will appear here as they happen.', 'fluent-security'),
             'Notifications' => __('Notifications', 'fluent-security'),
             'Off' => __('Off', 'fluent-security'),
+            /* translators: %s is a comma-separated list of user roles */
             'Offered to: %s' => __('Offered to: %s', 'fluent-security'),
             'On' => __('On', 'fluent-security'),
             'Once people sign in, this shows which methods they used.' => __('Once people sign in, this shows which methods they used.', 'fluent-security'),
             'Once you add the proxy address, visitors will be told apart again.' => __('Once you add the proxy address, visitors will be told apart again.', 'fluent-security'),
+            /* translators: %s is the maximum number of entries allowed in the list */
             'One address or range per line, at most %s.' => __('One address or range per line, at most %s.', 'fluent-security'),
+            /* translators: %s is the maximum number of entries allowed in the list */
             'One address or range per line, up to %s. The dashboard shows the addresses with the most failed logins and a Block button next to each.' => __('One address or range per line, up to %s. The dashboard shows the addresses with the most failed logins and a Block button next to each.', 'fluent-security'),
-            'One administrator account was created in the last week.' => __('One administrator account was created in the last week.', 'fluent-security'),
             'One last step' => __('One last step', 'fluent-security'),
             'One message per sign-in, for the roles you pick below.' => __('One message per sign-in, for the roles you pick below.', 'fluent-security'),
             'One set of colours for every email you have set to Your own. The preview updates as you pick.' => __('One set of colours for every email you have set to Your own. The preview updates as you pick.', 'fluent-security'),
@@ -597,7 +700,9 @@ class TransStrings
             'Only the roles named above are held to this. It does not change what anybody else is offered.' => __('Only the roles named above are held to this. It does not change what anybody else is offered.', 'fluent-security'),
             'Only these roles can set one up. Pick none and nobody can.' => __('Only these roles can set one up. Pick none and nobody can.', 'fluent-security'),
             'Open' => __('Open', 'fluent-security'),
+            'Open Cloudflare Turnstile' => __('Open Cloudflare Turnstile', 'fluent-security'),
             'Open Monitoring' => __('Open Monitoring', 'fluent-security'),
+            'Open Turnstile in your Cloudflare account and click Add widget.' => __('Open Turnstile in your Cloudflare account and click Add widget.', 'fluent-security'),
             'Open Updates' => __('Open Updates', 'fluent-security'),
             'Open its settings' => __('Open its settings', 'fluent-security'),
             'Open plugins' => __('Open plugins', 'fluent-security'),
@@ -641,6 +746,7 @@ class TransStrings
             'Prefer not to connect?' => __('Prefer not to connect?', 'fluent-security'),
             'Premium & Custom Extensions' => __('Premium & Custom Extensions', 'fluent-security'),
             'Preview' => __('Preview', 'fluent-security'),
+            /* translators: %s is the list of trusted proxy addresses */
             'Proxy address: %s' => __('Proxy address: %s', 'fluent-security'),
             'Put a sign-in form on any page of your site.' => __('Put a sign-in form on any page of your site.', 'fluent-security'),
             'Put changed files back' => __('Put changed files back', 'fluent-security'),
@@ -675,9 +781,12 @@ class TransStrings
             'Registration confirmation will be emailed to you.' => __('Registration confirmation will be emailed to you.', 'fluent-security'),
             'Registration only' => __('Registration only', 'fluent-security'),
             'Reinstall' => __('Reinstall', 'fluent-security'),
+            /* translators: %s is a plugin or theme name */
             'Reinstall %s?' => __('Reinstall %s?', 'fluent-security'),
             'Reinstall WordPress' => __('Reinstall WordPress', 'fluent-security'),
+            /* translators: %s is a WordPress version number, e.g. 6.6.2 */
             'Reinstall WordPress %s?' => __('Reinstall WordPress %s?', 'fluent-security'),
+            /* translators: %s is the number of plugins and themes to reinstall */
             'Reinstall all %s' => __('Reinstall all %s', 'fluent-security'),
             'Reinstall all of them?' => __('Reinstall all of them?', 'fluent-security'),
             'Reinstall from WordPress.org' => __('Reinstall from WordPress.org', 'fluent-security'),
@@ -688,6 +797,8 @@ class TransStrings
             'Remove' => __('Remove', 'fluent-security'),
             'Remove from Ignore List' => __('Remove from Ignore List', 'fluent-security'),
             'Remove it' => __('Remove it', 'fluent-security'),
+            'Remove keys' => __('Remove keys', 'fluent-security'),
+            'Remove the Turnstile keys?' => __('Remove the Turnstile keys?', 'fluent-security'),
             'Remove the authenticator app?' => __('Remove the authenticator app?', 'fluent-security'),
             'Remove their authenticator app' => __('Remove their authenticator app', 'fluent-security'),
             'Remove this condition' => __('Remove this condition', 'fluent-security'),
@@ -699,6 +810,7 @@ class TransStrings
             'Replaces the standard WordPress login screen with one you design.' => __('Replaces the standard WordPress login screen with one you design.', 'fluent-security'),
             'Reply-to address' => __('Reply-to address', 'fluent-security'),
             'Reply-to name' => __('Reply-to name', 'fluent-security'),
+            'Require two-factor for administrators' => __('Require two-factor for administrators', 'fluent-security'),
             'Required, not set up' => __('Required, not set up', 'fluent-security'),
             'Reset' => __('Reset', 'fluent-security'),
             'Reset colours' => __('Reset colours', 'fluent-security'),
@@ -731,6 +843,8 @@ class TransStrings
             'Save Changes' => __('Save Changes', 'fluent-security'),
             'Save and set it up now' => __('Save and set it up now', 'fluent-security'),
             'Save it in your password manager before you go on. If this value is ever lost, every authenticator app on the site stops working and each user has to set theirs up again.' => __('Save it in your password manager before you go on. If this value is ever lost, every authenticator app on the site stops working and each user has to set theirs up again.', 'fluent-security'),
+            'Save working keys first. Until then, these settings do nothing.' => __('Save working keys first. Until then, these settings do nothing.', 'fluent-security'),
+            /* translators: %s is your current IP address */
             'Saving this would lock you out straight away, so it will be refused. Add %s to the allowed addresses first.' => __('Saving this would lock you out straight away, so it will be refused. Add %s to the allowed addresses first.', 'fluent-security'),
             'Scan Alerts' => __('Scan Alerts', 'fluent-security'),
             'Scan again' => __('Scan again', 'fluent-security'),
@@ -744,6 +858,7 @@ class TransStrings
             'Search by username, IP address or how they signed in. Press Enter to search.' => __('Search by username, IP address or how they signed in. Press Enter to search.', 'fluent-security'),
             'Search checks' => __('Search checks', 'fluent-security'),
             'Search settings and pages' => __('Search settings and pages', 'fluent-security'),
+            'Secret key' => __('Secret key', 'fluent-security'),
             'Security' => __('Security', 'fluent-security'),
             'Security Findings' => __('Security Findings', 'fluent-security'),
             'Security checks' => __('Security checks', 'fluent-security'),
@@ -758,6 +873,7 @@ class TransStrings
             'Send particular people somewhere else instead.' => __('Send particular people somewhere else instead.', 'fluent-security'),
             'Send reset links?' => __('Send reset links?', 'fluent-security'),
             'Send them to' => __('Send them to', 'fluent-security'),
+            /* translators: %s is an email address */
             'Send to: %s' => __('Send to: %s', 'fluent-security'),
             'Sender' => __('Sender', 'fluent-security'),
             'Sent to the admin email address set under Settings > General.' => __('Sent to the admin email address set under Settings > General.', 'fluent-security'),
@@ -772,6 +888,7 @@ class TransStrings
             'Set up scheduled scans' => __('Set up scheduled scans', 'fluent-security'),
             'Set up the proxy' => __('Set up the proxy', 'fluent-security'),
             'Set up two-factor authentication' => __('Set up two-factor authentication', 'fluent-security'),
+            'Set up your own method first, then make it required for the roles that matter.' => __('Set up your own method first, then make it required for the roles that matter.', 'fluent-security'),
             'Settings' => __('Settings', 'fluent-security'),
             'Settings could not be loaded. Reload the page to try again.' => __('Settings could not be loaded. Reload the page to try again.', 'fluent-security'),
             'Setup' => __('Setup', 'fluent-security'),
@@ -784,14 +901,16 @@ class TransStrings
             'Shortcode forms' => __('Shortcode forms', 'fluent-security'),
             'Shortcodes' => __('Shortcodes', 'fluent-security'),
             'Shortcodes for front-end auth forms' => __('Shortcodes for front-end auth forms', 'fluent-security'),
-            'Show %s details' => __('Show %s details', 'fluent-security'),
-            'Show %s more' => __('Show %s more', 'fluent-security'),
-            'Show detail' => __('Show detail', 'fluent-security'),
+            /* translators: %s is the number of detail lines under this finding */
+            "Show %s detail\x00Show %s details" => self::pluralForms(_n_noop('Show %s detail', 'Show %s details', 'fluent-security')),
+            /* translators: %s is the number of plugins or themes hidden from the list */
+            "Show %s more\x00Show %s more" => self::pluralForms(_n_noop('Show %s more', 'Show %s more', 'fluent-security')),
             'Show fewer' => __('Show fewer', 'fluent-security'),
             'Show the link form first' => __('Show the link form first', 'fluent-security'),
             'Show the side panel' => __('Show the side panel', 'fluent-security'),
             'Showing the last loaded results. Use Recheck to try again.' => __('Showing the last loaded results. Use Recheck to try again.', 'fluent-security'),
-            'Shown after %s failed attempts within %s minutes.' => __('Shown after %s failed attempts within %s minutes.', 'fluent-security'),
+            /* translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes */
+            'Shown after %1$s failed attempts within %2$s minutes.' => __('Shown after %1$s failed attempts within %2$s minutes.', 'fluent-security'),
             'Shown under the message in every email set to Your own. Leave it empty for no footer.' => __('Shown under the message in every email set to Your own. Leave it empty for no footer.', 'fluent-security'),
             'Side panel' => __('Side panel', 'fluent-security'),
             'Sign Up' => __('Sign Up', 'fluent-security'),
@@ -799,16 +918,19 @@ class TransStrings
             'Sign everyone out' => __('Sign everyone out', 'fluent-security'),
             'Sign everyone out?' => __('Sign everyone out?', 'fluent-security'),
             'Sign in against another site' => __('Sign in against another site', 'fluent-security'),
-            'Sign in with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.' => __('Sign in with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.', 'fluent-security'),
             'Sign-in alerts off' => __('Sign-in alerts off', 'fluent-security'),
             'Sign-in code' => __('Sign-in code', 'fluent-security'),
             'Sign-in methods' => __('Sign-in methods', 'fluent-security'),
+            /* translators: %s is a comma-separated list of user roles whose sign-ins trigger an alert */
             'Sign-ins by: %s' => __('Sign-ins by: %s', 'fluent-security'),
+            'Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.' => __('Sign-ins with Google, GitHub, Facebook or a passkey always use this length. So do new accounts after sign-up.', 'fluent-security'),
             'Signing in ends at the password' => __('Signing in ends at the password', 'fluent-security'),
             'Signing in from an emailed link instead of a password.' => __('Signing in from an emailed link instead of a password.', 'fluent-security'),
             'Signing up' => __('Signing up', 'fluent-security'),
             'Signing up, with the code step' => __('Signing up, with the code step', 'fluent-security'),
+            'Signup forms' => __('Signup forms', 'fluent-security'),
             'Site URL' => __('Site URL', 'fluent-security'),
+            'Site key' => __('Site key', 'fluent-security'),
             'Site token' => __('Site token', 'fluent-security'),
             'Snapshot' => __('Snapshot', 'fluent-security'),
             'So the attempt limit can never lock you out of your own site.' => __('So the attempt limit can never lock you out of your own site.', 'fluent-security'),
@@ -816,8 +938,8 @@ class TransStrings
             'Social Login Settings' => __('Social Login Settings', 'fluent-security'),
             'Social login' => __('Social login', 'fluent-security'),
             'Some files differ from the official copies on WordPress.org' => __('Some files differ from the official copies on WordPress.org', 'fluent-security'),
-            'Some plugins or themes are on versions WordPress.org has never released' => __('Some plugins or themes are on versions WordPress.org has never released', 'fluent-security'),
             'Some sign-in methods are off' => __('Some sign-in methods are off', 'fluent-security'),
+            /* translators: %s is the site name */
             'Someone just signed in to %s.' => __('Someone just signed in to %s.', 'fluent-security'),
             'Someone who was sent to the login page from a public page still goes back there afterwards.' => __('Someone who was sent to the login page from a public page still goes back there afterwards.', 'fluent-security'),
             'Something is passing visitors on' => __('Something is passing visitors on', 'fluent-security'),
@@ -826,7 +948,10 @@ class TransStrings
             'Start with the items marked Action needed.' => __('Start with the items marked Action needed.', 'fluent-security'),
             'Status' => __('Status', 'fluent-security'),
             'Stay updated' => __('Stay updated', 'fluent-security'),
-            'Step %s of %s' => __('Step %s of %s', 'fluent-security'),
+            'Staying Signed In' => __('Staying Signed In', 'fluent-security'),
+            /* translators: %1$s is the current step number, %2$s the total number of steps */
+            'Step %1$s of %2$s' => __('Step %1$s of %2$s', 'fluent-security'),
+            'Stop bots from signing up, logging in and asking for password resets.' => __('Stop bots from signing up, logging in and asking for password resets.', 'fluent-security'),
             'Stop treating as expected' => __('Stop treating as expected', 'fluent-security'),
             'Strict' => __('Strict', 'fluent-security'),
             'Strong' => __('Strong', 'fluent-security'),
@@ -839,6 +964,8 @@ class TransStrings
             'Suits most sites.' => __('Suits most sites.', 'fluent-security'),
             'Summary email' => __('Summary email', 'fluent-security'),
             'Summary report' => __('Summary report', 'fluent-security'),
+            /* translators: %s is how often the summary report is sent, such as Weekly */
+            'Summary report: %s' => __('Summary report: %s', 'fluent-security'),
             'Sunday' => __('Sunday', 'fluent-security'),
             'Swap sides' => __('Swap sides', 'fluent-security'),
             'Switch on the methods this site offers, then choose who must hold one. Each method names the roles it applies to; the last block names the roles that cannot sign in without one.' => __('Switch on the methods this site offers, then choose who must hold one. Each method names the roles it applies to; the last block names the roles that cannot sign in without one.', 'fluent-security'),
@@ -852,19 +979,24 @@ class TransStrings
             'Tell me when someone is blocked' => __('Tell me when someone is blocked', 'fluent-security'),
             'Tell me when these roles sign in' => __('Tell me when these roles sign in', 'fluent-security'),
             'Template Design' => __('Template Design', 'fluent-security'),
+            'Test the keys' => __('Test the keys', 'fluent-security'),
             'Text' => __('Text', 'fluent-security'),
             'Text Color' => __('Text Color', 'fluent-security'),
             'Text inside the box.' => __('Text inside the box.', 'fluent-security'),
             'Text size' => __('Text size', 'fluent-security'),
             'That does not look like an email address.' => __('That does not look like an email address.', 'fluent-security'),
-            'The %s application password on this site will be deleted for good.' => __('The %s application password on this site will be deleted for good.', 'fluent-security'),
-            'The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. If you have the old value but not the line, add any new key line first, then come back to move the data across.' => __('The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. If you have the old value but not the line, add any new key line first, then come back to move the data across.', 'fluent-security'),
+            /* translators: %s is the number of application passwords on this site */
+            "The %s application password on this site will be deleted for good.\x00All %s application passwords on this site will be deleted for good." => self::pluralForms(_n_noop('The %s application password on this site will be deleted for good.', 'All %s application passwords on this site will be deleted for good.', 'fluent-security')),
+            /* translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key */
+            'The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. Do you have the old value but not the line? Then add a new key line first. After that, come back here to move the data across.' => __('The %s line is no longer in your wp-config.php. Put the same line back, with the same value, and every authenticator app will work again. Do you have the old value but not the line? Then add a new key line first. After that, come back here to move the data across.', 'fluent-security'),
+            /* translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key */
             'The %s value in your wp-config.php is not the one the app data was encrypted with. If you still have the old value, paste it below and everything will be moved to the new one.' => __('The %s value in your wp-config.php is not the one the app data was encrypted with. If you still have the old value, paste it below and everything will be moved to the new one.', 'fluent-security'),
             'The Recommendations tab has optional extras you can look at.' => __('The Recommendations tab has optional extras you can look at.', 'fluent-security'),
             'The addresses your proxy connects from, usually listed in your host\'s documentation. One per line; a range like 10.0.0.0/8 works too.' => __('The addresses your proxy connects from, usually listed in your host\'s documentation. One per line; a range like 10.0.0.0/8 works too.', 'fluent-security'),
             'The app data goes back to being stored unencrypted. Nobody has to set anything up again.' => __('The app data goes back to being stored unencrypted. Nobody has to set anything up again.', 'fluent-security'),
             'The built-in email goes out unchanged. Switch to Your own to write it yourself.' => __('The built-in email goes out unchanged. Switch to Your own to write it yourself.', 'fluent-security'),
             'The card the message sits on.' => __('The card the message sits on.', 'fluent-security'),
+            'The check could not load. The site key may be wrong, or this domain is not added to the widget in Cloudflare.' => __('The check could not load. The site key may be wrong, or this domain is not added to the widget in Cloudflare.', 'fluent-security'),
             'The contents of any file' => __('The contents of any file', 'fluent-security'),
             'The details that pair each authenticator app with this site are stored in your database. Encrypt them, and a stolen copy of the database cannot be used to make login codes.' => __('The details that pair each authenticator app with this site are stored in your database. Encrypt them, and a stolen copy of the database cannot be used to make login codes.', 'fluent-security'),
             'The email, as it arrives' => __('The email, as it arrives', 'fluent-security'),
@@ -877,6 +1009,7 @@ class TransStrings
             'The heading on the side panel.' => __('The heading on the side panel.', 'fluent-security'),
             'The label on the sign-in button.' => __('The label on the sign-in button.', 'fluent-security'),
             'The last file check found changes.' => __('The last file check found changes.', 'fluent-security'),
+            'The login and password reset shortcodes, and wp-login.php.' => __('The login and password reset shortcodes, and wp-login.php.', 'fluent-security'),
             'The login page opens on the email-a-link form. The password form is one click away.' => __('The login page opens on the email-a-link form. The password form is one click away.', 'fluent-security'),
             'The look and sender of every email you have set to Your own. Emails left at the default are not affected.' => __('The look and sender of every email you have set to Your own. Emails left at the default are not affected.', 'fluent-security'),
             'The mail WordPress sends, rewritten' => __('The mail WordPress sends, rewritten', 'fluent-security'),
@@ -888,16 +1021,18 @@ class TransStrings
             'The shaded boxes that hold details like a username or a link.' => __('The shaded boxes that hold details like a username or a link.', 'fluent-security'),
             'The shortcodes below only work while this is on. With it off, they show nothing.' => __('The shortcodes below only work while this is on. With it off, they show nothing.', 'fluent-security'),
             'The sign-in button itself.' => __('The sign-in button itself.', 'fluent-security'),
+            'The signup shortcode and the WordPress registration page.' => __('The signup shortcode and the WordPress registration page.', 'fluent-security'),
             'The small print below the message.' => __('The small print below the message.', 'fluent-security'),
             'The text under the heading, and the field labels.' => __('The text under the heading, and the field labels.', 'fluent-security'),
             'The text under the heading.' => __('The text under the heading.', 'fluent-security'),
             'Theme' => __('Theme', 'fluent-security'),
+            /* translators: %s is the selected color theme (Light, Dark or System) */
             'Theme: %s' => __('Theme: %s', 'fluent-security'),
             'Themes' => __('Themes', 'fluent-security'),
-            'There are %s administrators on this site.' => __('There are %s administrators on this site.', 'fluent-security'),
-            'There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.' => __('There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security'),
-            'There is %s administrator on this site.' => __('There is %s administrator on this site.', 'fluent-security'),
-            'There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.' => __('There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security'),
+            /* translators: %s is the number of administrators on this site */
+            "There is %s administrator on this site.\x00There are %s administrators on this site." => self::pluralForms(_n_noop('There is %s administrator on this site.', 'There are %s administrators on this site.', 'fluent-security')),
+            /* translators: %s is the number of signed-in sessions on this site */
+            "There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.\x00There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again." => self::pluralForms(_n_noop('There is %s open session and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'There are %s open sessions and no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security')),
             'There is no official copy of these to compare against. Open each one and look for anything you did not put there.' => __('There is no official copy of these to compare against. Open each one and look for anything you did not put there.', 'fluent-security'),
             'These addresses are never locked out after too many failed logins.' => __('These addresses are never locked out after too many failed logins.', 'fluent-security'),
             'These addresses are not on this site, so nobody is sent to them. People land on the dashboard instead. Change them to an address on this site, or a path such as /members/.' => __('These addresses are not on this site, so nobody is sent to them. People land on the dashboard instead. Change them to an address on this site, or a path such as /members/.', 'fluent-security'),
@@ -913,29 +1048,32 @@ class TransStrings
             'They land on the front page instead, with no admin bar. Anyone who can publish posts still gets in.' => __('They land on the front page instead, with no admin bar. Anyone who can publish posts still gets in.', 'fluent-security'),
             'Things WordPress allows out of the box that most sites never use.' => __('Things WordPress allows out of the box that most sites never use.', 'fluent-security'),
             'Think somebody has been in?' => __('Think somebody has been in?', 'fluent-security'),
-            'This downloads %1s %2s from WordPress.org and replaces all of its files.' => __('This downloads %1s %2s from WordPress.org and replaces all of its files.', 'fluent-security'),
-            'This downloads %1s %2s from WordPress.org and replaces its folder.' => __('This downloads %1s %2s from WordPress.org and replaces its folder.', 'fluent-security'),
+            /* translators: %1$s is a plugin or theme name, %2$s its version number */
+            'This downloads %1$s %2$s from WordPress.org and replaces all of its files.' => __('This downloads %1$s %2$s from WordPress.org and replaces all of its files.', 'fluent-security'),
+            /* translators: %1$s is a plugin or theme name, %2$s its version number */
+            'This downloads %1$s %2$s from WordPress.org and replaces its folder.' => __('This downloads %1$s %2$s from WordPress.org and replaces its folder.', 'fluent-security'),
+            /* translators: %s is a WordPress version number, e.g. 6.6.2 */
             'This downloads WordPress %s from WordPress.org and replaces every WordPress file. Your content, plugins, themes and wp-config.php are not touched.' => __('This downloads WordPress %s from WordPress.org and replaces every WordPress file. Your content, plugins, themes and wp-config.php are not touched.', 'fluent-security'),
             'This email' => __('This email', 'fluent-security'),
             'This email cannot be saved until it includes one of these placeholders' => __('This email cannot be saved until it includes one of these placeholders', 'fluent-security'),
             'This email is not sent at all. Nobody is told when the event happens.' => __('This email is not sent at all. Nobody is told when the event happens.', 'fluent-security'),
             'This emails a link. It does not stop the old password working until somebody uses it, so do step 1 first.' => __('This emails a link. It does not stop the old password working until somebody uses it, so do step 1 first.', 'fluent-security'),
-            'This emails a password reset link to %s administrator. Send it?' => __('This emails a password reset link to %s administrator. Send it?', 'fluent-security'),
-            'This emails a password reset link to %s administrators. Send it?' => __('This emails a password reset link to %s administrators. Send it?', 'fluent-security'),
+            /* translators: %s is the number of administrators */
+            "This emails a password reset link to %s administrator. Send it?\x00This emails a password reset link to %s administrators. Send it?" => self::pluralForms(_n_noop('This emails a password reset link to %s administrator. Send it?', 'This emails a password reset link to %s administrators. Send it?', 'fluent-security')),
             'This emails a password reset link to every user on this site. Send it?' => __('This emails a password reset link to every user on this site. Send it?', 'fluent-security'),
             'This has to be added by hand' => __('This has to be added by hand', 'fluent-security'),
             'This hides the finding without fixing anything. You can bring it back from the Dismissed tab.' => __('This hides the finding without fixing anything. You can bring it back from the Dismissed tab.', 'fluent-security'),
             'This list is not being applied right now' => __('This list is not being applied right now', 'fluent-security'),
             'This month' => __('This month', 'fluent-security'),
-            'This one is already on.' => __('This one is already on.', 'fluent-security'),
             'This only skips the lockout. Two-factor still applies and every attempt is still logged.' => __('This only skips the lockout. Two-factor still applies and every attempt is still logged.', 'fluent-security'),
             'This records things as they are now. You will hear about it again only if something changes.' => __('This records things as they are now. You will hear about it again only if something changes.', 'fluent-security'),
-            'This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.' => __('This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'fluent-security'),
-            'This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.' => __('This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'fluent-security'),
+            /* translators: %s is the number of plugins and themes to reinstall */
+            "This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.\x00This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first." => self::pluralForms(_n_noop('This reinstalls %s plugin or theme from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'This reinstalls %s plugins and themes from WordPress.org, one after another, moving any file that is not part of the official copy to quarantine first.', 'fluent-security')),
             'This request carried the kind of information a proxy adds, but anyone can send that, so it proves nothing. Only list a proxy below if you know one is there.' => __('This request carried the kind of information a proxy adds, but anyone can send that, so it proves nothing. Only list a proxy below if you know one is there.', 'fluent-security'),
             'This server cannot encrypt' => __('This server cannot encrypt', 'fluent-security'),
             'This site cannot use passkeys yet' => __('This site cannot use passkeys yet', 'fluent-security'),
             'This site does not let plugins edit its files, so the line has to be added by hand.' => __('This site does not let plugins edit its files, so the line has to be added by hand.', 'fluent-security'),
+            /* translators: %s is the sign-in methods that are switched off, e.g. "an authenticator app, passkeys or emailed codes" */
             'This site does not offer %s, so nobody can set that up.' => __('This site does not offer %s, so nobody can set that up.', 'fluent-security'),
             'This site has no application passwords, so nothing here is permanent. Everyone just signs in again.' => __('This site has no application passwords, so nothing here is permanent. Everyone just signs in again.', 'fluent-security'),
             'This site is behind a proxy' => __('This site is behind a proxy', 'fluent-security'),
@@ -948,13 +1086,17 @@ class TransStrings
             'Title' => __('Title', 'fluent-security'),
             'Title Color' => __('Title Color', 'fluent-security'),
             'To' => __('To', 'fluent-security'),
+            /* translators: %s is who this email is sent to (an email address or a description of the recipient) */
             'To: %s' => __('To: %s', 'fluent-security'),
             'Today' => __('Today', 'fluent-security'),
-            'Too many failed attempts. Try again in %s minutes.' => __('Too many failed attempts. Try again in %s minutes.', 'fluent-security'),
+            /* translators: %s is the number of minutes */
+            "Too many failed attempts. Try again in %s minute.\x00Too many failed attempts. Try again in %s minutes." => self::pluralForms(_n_noop('Too many failed attempts. Try again in %s minute.', 'Too many failed attempts. Try again in %s minutes.', 'fluent-security')),
             'Top sources of failed & blocked attempts' => __('Top sources of failed & blocked attempts', 'fluent-security'),
             'Top sources of failed and blocked attempts' => __('Top sources of failed and blocked attempts', 'fluent-security'),
             'Totals for the selected period' => __('Totals for the selected period', 'fluent-security'),
+            /* translators: %s is the IP address the connection to this site came from */
             'Traffic arrives from %s, and a proxy is listed below. Check that the address recorded for you looks right.' => __('Traffic arrives from %s, and a proxy is listed below. Check that the address recorded for you looks right.', 'fluent-security'),
+            /* translators: %s is a private IP address inside the server network that traffic arrives from */
             'Traffic reaches this site from %s, an address inside your own server\'s network, so a proxy is passing it on. Until that proxy is listed below, every visitor looks like the same person.' => __('Traffic reaches this site from %s, an address inside your own server\'s network, so a proxy is passing it on. Until that proxy is listed below, every visitor looks like the same person.', 'fluent-security'),
             'Trusted proxies' => __('Trusted proxies', 'fluent-security'),
             'Try again' => __('Try again', 'fluent-security'),
@@ -962,37 +1104,49 @@ class TransStrings
             'Tuesday' => __('Tuesday', 'fluent-security'),
             'Turn it off' => __('Turn it off', 'fluent-security'),
             'Turn it off in:' => __('Turn it off in:', 'fluent-security'),
+            'Turn it on only where bots are a problem.' => __('Turn it on only where bots are a problem.', 'fluent-security'),
             'Turn off' => __('Turn off', 'fluent-security'),
             'Turn off encryption?' => __('Turn off encryption?', 'fluent-security'),
             'Turn on' => __('Turn on', 'fluent-security'),
             'Turn on scheduled scans' => __('Turn on scheduled scans', 'fluent-security'),
+            'Turnstile is a free check from Cloudflare. Most people never see a puzzle.' => __('Turnstile is a free check from Cloudflare. Most people never see a puzzle.', 'fluent-security'),
             'Two-Factor Authentication' => __('Two-Factor Authentication', 'fluent-security'),
             'Two-Factor Enrollment' => __('Two-Factor Enrollment', 'fluent-security'),
             'Two-Factor Users' => __('Two-Factor Users', 'fluent-security'),
             'Two-factor method' => __('Two-factor method', 'fluent-security'),
             'Two-factor sign-in is off' => __('Two-factor sign-in is off', 'fluent-security'),
+            /* translators: %s is the confirmation word the user must type, e.g. SIGN OUT */
             'Type %s to confirm.' => __('Type %s to confirm.', 'fluent-security'),
             'Unable to load security checks. Please try again.' => __('Unable to load security checks. Please try again.', 'fluent-security'),
             'Unable to load setup. Check your connection and try again.' => __('Unable to load setup. Check your connection and try again.', 'fluent-security'),
             'Unavailable' => __('Unavailable', 'fluent-security'),
+            'Under Hostnames, add the address of this site:' => __('Under Hostnames, add the address of this site:', 'fluent-security'),
+            'Under Widget Mode, choose Managed. It is the recommended mode. Choose Invisible if you do not want visitors to see anything.' => __('Under Widget Mode, choose Managed. It is the recommended mode. Choose Invisible if you do not want visitors to see anything.', 'fluent-security'),
             'Underline' => __('Underline', 'fluent-security'),
+            'Update PHP on your server' => __('Update PHP on your server', 'fluent-security'),
             'Update record' => __('Update record', 'fluent-security'),
             'Update snapshot' => __('Update snapshot', 'fluent-security'),
+            /* translators: %s is a clock time, e.g. 10:42 AM */
             'Updated at %s' => __('Updated at %s', 'fluent-security'),
             'Updates as you make your choices.' => __('Updates as you make your choices.', 'fluent-security'),
             'Upload Image' => __('Upload Image', 'fluent-security'),
+            /* translators: %s is the suggested proxy IP address */
             'Use %s' => __('Use %s', 'fluent-security'),
             'Use 0 to keep them forever.' => __('Use 0 to keep them forever.', 'fluent-security'),
             'Use a different method' => __('Use a different method', 'fluent-security'),
             'Use the default' => __('Use the default', 'fluent-security'),
             'Use the default text' => __('Use the default text', 'fluent-security'),
+            /* translators: %s is a plugin name, like Fluent Forms */
+            'Use the keys from %s' => __('Use the keys from %s', 'fluent-security'),
             'Used on the WordPress emails you have set to Your own. Leave these empty to keep whatever WordPress or your mail plugin already sends from.' => __('Used on the WordPress emails you have set to Your own. Leave these empty to keep whatever WordPress or your mail plugin already sends from.', 'fluent-security'),
             'User' => __('User', 'fluent-security'),
+            /* translators: %s is a numeric user ID */
             'User #%s' => __('User #%s', 'fluent-security'),
             'Username' => __('Username', 'fluent-security'),
             'Username or Email Address' => __('Username or Email Address', 'fluent-security'),
             'Users' => __('Users', 'fluent-security'),
             'Users in these roles cannot sign in until they have set one up. Leave it empty and it stays optional for everyone.' => __('Users in these roles cannot sign in until they have set one up. Leave it empty and it stays optional for everyone.', 'fluent-security'),
+            /* translators: %s is the name of the PHP constant in wp-config.php that holds the encryption key */
             'Uses the %s value in your wp-config.php. Keep a copy of that value somewhere safe.' => __('Uses the %s value in your wp-config.php. Keep a copy of that value somewhere safe.', 'fluent-security'),
             'Verification code' => __('Verification code', 'fluent-security'),
             'Verify' => __('Verify', 'fluent-security'),
@@ -1009,11 +1163,12 @@ class TransStrings
             'Visitors connect directly, so their addresses are already correct and there is nothing to set up.' => __('Visitors connect directly, so their addresses are already correct and there is nothing to set up.', 'fluent-security'),
             'Visitors connect to this site directly' => __('Visitors connect to this site directly', 'fluent-security'),
             'Watching' => __('Watching', 'fluent-security'),
-            'Watching %s file' => __('Watching %s file', 'fluent-security'),
-            'Watching %s file against your snapshot' => __('Watching %s file against your snapshot', 'fluent-security'),
-            'Watching %s files' => __('Watching %s files', 'fluent-security'),
-            'Watching %s files against your snapshot' => __('Watching %s files against your snapshot', 'fluent-security'),
-            'Watching %s of %s' => __('Watching %s of %s', 'fluent-security'),
+            /* translators: %1$s is the number of files watched, %2$s the total files in this plugin or theme */
+            'Watching %1$s of %2$s' => __('Watching %1$s of %2$s', 'fluent-security'),
+            /* translators: %s is the number of must-use plugin files being watched */
+            "Watching %s file\x00Watching %s files" => self::pluralForms(_n_noop('Watching %s file', 'Watching %s files', 'fluent-security')),
+            /* translators: %s is the number of files, already formatted with thousands separators */
+            "Watching %s file against your snapshot\x00Watching %s files against your snapshot" => self::pluralForms(_n_noop('Watching %s file against your snapshot', 'Watching %s files against your snapshot', 'fluent-security')),
             'We have emailed you a code. It expires in a few minutes.' => __('We have emailed you a code. It expires in a few minutes.', 'fluent-security'),
             'We sent a code to that address. Enter it to confirm the address is yours.' => __('We sent a code to that address. Enter it to confirm the address is yours.', 'fluent-security'),
             'Wednesday' => __('Wednesday', 'fluent-security'),
@@ -1036,6 +1191,7 @@ class TransStrings
             'Where replies land when someone answers the email.' => __('Where replies land when someone answers the email.', 'fluent-security'),
             'Where they go' => __('Where they go', 'fluent-security'),
             'Where to keep the ID and secret' => __('Where to keep the ID and secret', 'fluent-security'),
+            'Where to use it' => __('Where to use it', 'fluent-security'),
             'Who gets the second step' => __('Who gets the second step', 'fluent-security'),
             'Who has set up an authenticator app' => __('Who has set up an authenticator app', 'fluent-security'),
             'Who it applies to' => __('Who it applies to', 'fluent-security'),
@@ -1044,10 +1200,11 @@ class TransStrings
             'With this off, WordPress decides where people go, which is usually the dashboard.' => __('With this off, WordPress decides where people go, which is usually the dashboard.', 'fluent-security'),
             'With this off, none of the sign-in buttons below appear on the login page, whatever their own switches say.' => __('With this off, none of the sign-in buttons below appear on the login page, whatever their own switches say.', 'fluent-security'),
             'Within (minutes)' => __('Within (minutes)', 'fluent-security'),
+            'WooCommerce account forms' => __('WooCommerce account forms', 'fluent-security'),
+            /* translators: %s is a WordPress version number, e.g. 6.6.2 */
             'WordPress %s' => __('WordPress %s', 'fluent-security'),
             'WordPress Core' => __('WordPress Core', 'fluent-security'),
             'WordPress cannot write to your wp-config.php, which is normal on managed hosting. The line has to be added by hand.' => __('WordPress cannot write to your wp-config.php, which is normal on managed hosting. The line has to be added by hand.', 'fluent-security'),
-            'WordPress default' => __('WordPress default', 'fluent-security'),
             'Worth doing next' => __('Worth doing next', 'fluent-security'),
             'Yes, Remove' => __('Yes, Remove', 'fluent-security'),
             'Yes, Reset' => __('Yes, Reset', 'fluent-security'),
@@ -1063,6 +1220,8 @@ class TransStrings
             'You' => __('You', 'fluent-security'),
             'You can add your own address to the allow list later, so this can never shut you out of your own site.' => __('You can add your own address to the allow list later, so this can never shut you out of your own site.', 'fluent-security'),
             'You can change any of this later in Settings.' => __('You can change any of this later in Settings.', 'fluent-security'),
+            'You can use the same keys here. You do not need new ones from Cloudflare.' => __('You can use the same keys here. You do not need new ones from Cloudflare.', 'fluent-security'),
+            /* translators: %s is a line of PHP code to paste into wp-config.php */
             'You cannot block your own address. If you are ever locked out anyway, add %s to wp-config.php to switch every IP rule off and get back in.' => __('You cannot block your own address. If you are ever locked out anyway, add %s to wp-config.php to switch every IP rule off and get back in.', 'fluent-security'),
             'You get an email each time someone with one of these roles signs in.' => __('You get an email each time someone with one of these roles signs in.', 'fluent-security'),
             'You will need one yourself' => __('You will need one yourself', 'fluent-security'),
@@ -1070,12 +1229,16 @@ class TransStrings
             'Your Email Address' => __('Your Email Address', 'fluent-security'),
             'Your Full Name' => __('Your Full Name', 'fluent-security'),
             'Your Name' => __('Your Name', 'fluent-security'),
+            'Your PHP and WordPress versions' => __('Your PHP and WordPress versions', 'fluent-security'),
             'Your Snapshot' => __('Your Snapshot', 'fluent-security'),
             'Your address is correct. Nothing to change.' => __('Your address is correct. Nothing to change.', 'fluent-security'),
             'Your address, as this site sees it' => __('Your address, as this site sees it', 'fluent-security'),
             'Your choices are saved. The security checklist shows what is still worth doing.' => __('Your choices are saved. The security checklist shows what is still worth doing.', 'fluent-security'),
+            /* translators: %s is your current IP address */
             'Your current address is %s, and it is on this list.' => __('Your current address is %s, and it is on this list.', 'fluent-security'),
+            /* translators: %s is your current IP address */
             'Your current address is %s.' => __('Your current address is %s.', 'fluent-security'),
+            'Your forms will stop checking for bots. You can add keys again at any time.' => __('Your forms will stop checking for bots. You can add keys again at any time.', 'fluent-security'),
             'Your name and email address' => __('Your name and email address', 'fluent-security'),
             'Your own' => __('Your own', 'fluent-security'),
             'Your own address is not on the allowed list' => __('Your own address is not on the allowed list', 'fluent-security'),
@@ -1087,93 +1250,95 @@ class TransStrings
             'Your site or company name' => __('Your site or company name', 'fluent-security'),
             'Your site will show a maintenance notice for a few seconds.' => __('Your site will show a maintenance notice for a few seconds.', 'fluent-security'),
             'Your site’s login activity and security status, in one place.' => __('Your site’s login activity and security status, in one place.', 'fluent-security'),
-            'Your subject and body below are sent instead of the WordPress default.' => __('Your subject and body below are sent instead of the WordPress default.', 'fluent-security'),
+            'Your subject and body below are sent instead of the built-in email.' => __('Your subject and body below are sent instead of the built-in email.', 'fluent-security'),
             '__2fa_conflict_blocking_desc__' => __('Two plugins cannot both finish a login, so sign-ins get stuck. Please use just one.', 'fluent-security'),
+            /* translators: %s is the email address the key was sent to */
             '__api_key_email_sent__' => __('We just sent you an email with the API key. Please check your <b>email (%s) inbox</b> and provide the API key.', 'fluent-security'),
+            /* translators: %s is a link to the privacy policy and terms and conditions */
             '__api_key_form_consent__' => __('Provide a valid email to receive your free API key and security notifications. By submitting, you agree to our %s. Your email will only be used for API key generation and security updates.', 'fluent-security'),
             '__api_key_spam_check__' => __('You should receive the API key in your email. If you don\'t see it, please check your spam folder. If you still don\'t see it, please', 'fluent-security'),
             '__autoscan_active_desc__' => __('You will get an email when a scan finds a change you have not accepted.', 'fluent-security'),
             '__autoscan_promo__' => __('Scan this site on a schedule and get an email when a file changes.', 'fluent-security'),
             '__baseline_active_desc__' => __('Each scan compares these files with your snapshot and reports any change that was not part of an update.', 'fluent-security'),
-            '__baseline_aside_promo__' => __('Nothing is recorded yet. The premium and custom extensions list below offers a snapshot — it is the only way to check files WordPress.org has no copy of.', 'fluent-security'),
+            '__baseline_aside_promo__' => __('Nothing is recorded yet. The premium and custom plugins and themes list below offers a snapshot. It is the only way to check files that WordPress.org has no copy of.', 'fluent-security'),
             '__baseline_changed_note__' => __('These files can run code, and nothing about the plugin or theme they belong to says it was updated. If you did not edit them yourself, treat this as somebody else having done so.', 'fluent-security'),
             '__baseline_clear_confirm__' => __('This deletes your snapshot, so nothing will be watching these plugins and themes until you take another one. Are you sure?', 'fluent-security'),
             '__baseline_partial_desc__' => __('Some plugins or themes have more files than a snapshot can hold, so part of them is not watched. A clean result only covers the files that were checked.', 'fluent-security'),
             '__baseline_promo__' => __('A snapshot records these files as they are now, so later scans can tell you if any of them change. Updating a plugin or theme is never reported as a change.', 'fluent-security'),
             '__baseline_unit_missing__' => __('This is not in your snapshot, so nothing is watching its files. It was probably installed after the snapshot was taken.', 'fluent-security'),
-            '__baseline_unit_partial__' => __('This extension has %1s files that can run code, which is more than one snapshot holds, so only %2s of them are being watched. The rest are not checked by anything. Splitting it up is rarely possible — if you need the whole of it covered, raise the limit with the fluent_auth/baseline_max_files filter.', 'fluent-security'),
+            /* translators: %1$s is the number of files in this plugin or theme that can run code, %2$s how many of them are watched */
+            '__baseline_unit_partial__' => __('This has %1$s files that can run code. That is more than one snapshot can hold, so only %2$s of them are watched. Nothing checks the rest. To cover all of them, a developer can raise the limit with the fluent_auth/baseline_max_files filter.', 'fluent-security'),
             '__baseline_when_clean__' => __('Your last scan was clean, so now is a good time to take one.', 'fluent-security'),
             '__baseline_when_unclean__' => __('Take one after a scan you are happy with. A snapshot taken on a site that has already been broken into would treat the break-in as normal.', 'fluent-security'),
+            /* translators: %s is the path of the file to delete */
             '__delete_file_confirm__' => __('%s will be deleted from the server. This cannot be undone - restore it from a backup if you need it again.', 'fluent-security'),
-            '__disconnect_confirm__' => __('Scheduled scanning stops and no more alert emails are sent. Your key is destroyed here and at the service, and there is no way back to it: reconnecting means registering again and confirming a new key by email. Scanning this site by hand is not affected. Disconnect anyway?', 'fluent-security'),
+            '__disconnect_confirm__' => __('Scheduled scans and alert emails stop. Your key is deleted here and at the service, and it cannot be recovered. To reconnect, you must register again and confirm a new key by email. You can still scan this site by hand. Disconnect anyway?', 'fluent-security'),
             '__disconnect_note__' => __('This site sends its scan results to your alerts dashboard, which emails you when a file changes.', 'fluent-security'),
-            '__email_default_system_desc__' => __('This email will use the system default content. If you want to customize the email subject and body, please switch to Customized Content.', 'fluent-security'),
             '__file_change_detected__' => __('Open each item below to see which files changed. Most changes are innocent, so look before you act.', 'fluent-security'),
-            '__file_change_recovery_note__' => __('If you did not make these changes yourself, treat this as a break-in. Putting the files back does not sign out whoever made them, reset a password they know, or remove an account they added - that is what the next screen is for.', 'fluent-security'),
+            '__file_change_recovery_note__' => __('If you did not make these changes yourself, treat this as a break-in. Putting the files back does not sign out the person who made them. It also does not reset a password they know or remove an account they added. The next screen does those things.', 'fluent-security'),
             '__file_deleted_note__' => __('This file has been deleted from the server. Run the scan again to confirm it has gone.', 'fluent-security'),
-            '__fluentsmtp_promo_desc__' => __('Stop losing emails to spam or undelivered inboxes. FluentSMTP connects WordPress to your favorite email service (Gmail, Outlook, Amazon SES, SendGrid, Mailgun, etc.) in just 60 seconds — no more headaches with wp_mail().', 'fluent-security'),
             '__free_api_desc__' => __('Enter your name and email and we will send you a free key. Once it is in, this site scans on a schedule and emails you when a file changes.', 'fluent-security'),
+            /* translators: %s is how long ago the last scan ran, e.g. 3 days */
             '__last_scan_warning__' => __('Your last scan found some file changes <b>%s ago</b>. What it found is listed below. Run a check now to see whether it is still the case.', 'fluent-security'),
-            '__login_try_limit_desc__' => __('If a user fails to log in %1s times within %2s minutes, the system will block the user for %3s minutes.', 'fluent-security'),
-            '__mu_plugins_note__' => __('These files run on every request and cannot be switched off from the plugins screen. Plenty of hosts and plugins put their own here, so this is a listing rather than a warning — but nobody can tell a legitimate one from a planted one without reading it, so they are here to read.', 'fluent-security'),
+            '__mu_plugins_note__' => __('These files run on every request to your site, and you cannot switch them off from the Plugins screen. Many hosts and plugins put their own files here, so this list is not a warning. But only reading a file tells you if it is legitimate or planted. That is why they are listed here.', 'fluent-security'),
             '__mu_plugins_record_note__' => __('Recorded automatically the first time this site was checked. If you have since read these files yourself and are happy with them, record them again so the watching starts from a state you have actually seen.', 'fluent-security'),
             '__mu_plugins_unrecorded_note__' => __('Open each one and read it before recording. A file that arrived here without you putting it there is one of the most common ways a way back in is left behind.', 'fluent-security'),
+            /* translators: %s is how long ago the files were recorded, e.g. 3 days */
             '__mu_plugins_watched_note__' => __('These files run on every request and cannot be switched off from the plugins screen. They were recorded <b>%s ago</b> and are checked on every scan, so anything new or changed since then is listed below.', 'fluent-security'),
             '__optin_intro__' => __('Get an email when there is a new FluentAuth release, plus the occasional WordPress security tip. No more than a few a month, and you can unsubscribe from any of them. We store your name, your email address and this site\'s address.', 'fluent-security'),
             '__optin_share__' => __('Optional: also send the PHP and WordPress versions this site runs, so we know which versions to keep supporting.', 'fluent-security'),
             '__optin_share_details__' => __('What is sent: your PHP version, your MySQL version and your WordPress version. Nothing else - not your plugins, nothing from your database, and nothing about your visitors.', 'fluent-security'),
             '__recovery_logged__' => __('Every action on this page is written to the activity log with your name, so a colleague can see what was done and when.', 'fluent-security'),
             '__recovery_salts_safe__' => __('FluentAuth is not affected either way: the security scanner stays connected to the alerts service, and everyone\'s authenticator apps and recovery codes keep working. Neither is encrypted against these keys, deliberately.', 'fluent-security'),
-            '__recovery_salts_signout__' => __('You will be signed out along with everyone else — there is no staying signed in through this one — so have your password to hand and sign back in straight away.', 'fluent-security'),
-            '__recovery_salts_warning__' => __('This cannot be undone. Any OTHER plugin that encrypted something with a key derived from these — an SMTP password, a payment gateway secret, a stored API token — will not be able to read it again, and there is no list of which plugins did that. You find out the next time one of them tries to use what it stored.', 'fluent-security'),
+            '__recovery_salts_signout__' => __('You will be signed out too, along with everyone else. You cannot stay signed in through this step. Have your password ready and sign back in straight away.', 'fluent-security'),
+            '__recovery_salts_warning__' => __('This cannot be undone. Other plugins may have encrypted data with a key made from these salts, such as an SMTP password, a payment gateway secret or a stored API token. That data cannot be read again. No list shows which plugins did this. You find out the next time one of them tries to use what it stored.', 'fluent-security'),
             '__recovery_secure_desc__' => __('Destroys every session on this site, so everyone is signed out on every device, and deletes every application password. You stay signed in here, and nobody is emailed about it.', 'fluent-security'),
-            '__recovery_secure_keeps__' => __('Nothing else is touched. Your content, your accounts and your passwords stay exactly as they are, and so do the keys and salts in wp-config.php unless you ask for those to be replaced when you confirm — so anything another plugin encrypted with them, such as SMTP or payment credentials, keeps working.', 'fluent-security'),
+            '__recovery_secure_keeps__' => __('Nothing else changes. Your content, accounts and passwords stay as they are. The keys and salts in wp-config.php also stay, unless you choose to replace them when you confirm. So anything another plugin encrypted with them, such as SMTP or payment credentials, keeps working.', 'fluent-security'),
             '__recovery_secure_keyword__' => __('SIGN OUT', 'fluent-security'),
-            '__reinstall_extension_desc__' => __('Downloads this version from WordPress.org and replaces the whole folder, so a changed file you cannot see is put back along with the ones you can. Settings are kept. Anything here that is not part of the official copy is moved to quarantine first.', 'fluent-security'),
+            '__reinstall_extension_desc__' => __('Downloads this version from WordPress.org and replaces the whole folder. This also restores changed files that you cannot see. Your settings are kept. Before the folder is replaced, anything that is not in the official copy is moved to quarantine.', 'fluent-security'),
             '__relay_disabled_desc__' => __('This site is switched off on your alerts dashboard, so no emails are going out. Switch it back on there, then press the button below.', 'fluent-security'),
-            '__relay_legacy_desc__' => __('The alerts service moved to a new home, and connections made before the move could not be carried over. Nothing is wrong with this site — scanning here has been working all along, and still is. Connect again to start getting scheduled scans and alert emails.', 'fluent-security'),
+            '__relay_legacy_desc__' => __('The alerts service moved to a new home, and connections made before the move could not be carried over. Nothing is wrong with this site. Scanning here has worked all along and still works. Connect again to get scheduled scans and alert emails.', 'fluent-security'),
             '__relay_legacy_title__' => __('The alerts service has moved', 'fluent-security'),
             '__relay_reason_removed__' => __('This site was removed from your alerts dashboard, so it has been disconnected here.', 'fluent-security'),
-            '__relay_reason_superseded__' => __('The alerts service has this site connected from somewhere else. The usual cause is a copy — a staging or backup clone made from the database, which keeps the original site address and so looks like the same site connecting again. Give the copy its own address before reconnecting it, or the two will keep taking the connection from each other.', 'fluent-security'),
+            '__relay_reason_superseded__' => __('The alerts service has this site connected from another place. This is usually a copy of the site, such as a staging or backup clone made from the database. The copy keeps the original site address, so it looks like the same site connecting again. Give the copy its own address before you reconnect it. If you do not, the two sites will keep taking the connection from each other.', 'fluent-security'),
             '__relay_revoked_desc__' => __('Your alerts dashboard no longer recognises this site, usually because it was deleted there. Scanning still works here, and you can connect again to get scheduled scans and emails back.', 'fluent-security'),
             '__restore_file_confirm__' => __('This replaces the file on your server with the copy WordPress.org published for this version. Any change made to it here is lost. Put it back?', 'fluent-security'),
             '__scan_without_connecting__' => __('You can still run a scan here whenever you like. You just will not get scheduled scans or an email when something changes.', 'fluent-security'),
-            '__scanner_desc__' => __('You can scan your site to detect unauthorized changes in your WordPress core files, plugins and themes. Everything is compared against the official release on WordPress.org, and anything that differs is listed for you to review.', 'fluent-security'),
             '__scanner_result_dec_normal__' => __('Everything found is on your ignore list. Open the items below if you want to review them again.', 'fluent-security'),
-            '__server_mode_desc__' => __('You can use this site as the main Register/Login provider for your child sites. Please read %s for the full documentation.', 'fluent-security'),
-            '__unpublished_version_desc__' => __('This extension comes from the WordPress.org directory, but version %s has never been published there — so there is no official copy of its files to compare against. If you did not install a beta or a patched build on purpose, treat this as a sign the files were replaced: check it against the vendor, then reinstall it from WordPress.org.', 'fluent-security'),
+            /* translators: %s is the version number of the plugin or theme */
+            '__unpublished_version_desc__' => __('WordPress.org lists this in its directory, but it has never published version %s. So there is no official copy of its files to compare with. Did you install a beta or a patched build on purpose? If not, treat this as a sign that the files were replaced. Check the version with the vendor, then reinstall it from WordPress.org.', 'fluent-security'),
             '__unverifiable_extensions_desc__' => __('These did not come from WordPress.org, so there is no official copy to compare them with. That is normal for paid and custom plugins and themes, but it means a scan cannot check their files on its own.', 'fluent-security'),
-            '__wp_config_instruction__' => __('Please add the following code to your wp-config.php file (replace the *** with your app values).', 'fluent-security'),
             'a moment' => __('a moment', 'fluent-security'),
             'a passkey' => __('a passkey', 'fluent-security'),
             'an authenticator app' => __('an authenticator app', 'fluent-security'),
             'and' => __('and', 'fluent-security'),
+            /* translators: %s is the number of further changed files not counted in this list */
             'and %s more' => __('and %s more', 'fluent-security'),
-            'and %s more file' => __('and %s more file', 'fluent-security'),
-            'and %s more files' => __('and %s more files', 'fluent-security'),
+            /* translators: %s is the number of further changed files not listed */
+            "and %s more file\x00and %s more files" => self::pluralForms(_n_noop('and %s more file', 'and %s more files', 'fluent-security')),
             'and compare it with the one above.' => __('and compare it with the one above.', 'fluent-security'),
             'attempts' => __('attempts', 'fluent-security'),
             'capability' => __('capability', 'fluent-security'),
             'changed' => __('changed', 'fluent-security'),
+            /* translators: %s is how long ago, e.g. 3 days ago */
             'changed %s' => __('changed %s', 'fluent-security'),
             'click here' => __('click here', 'fluent-security'),
-            'days' => __('days', 'fluent-security'),
             'deleted' => __('deleted', 'fluent-security'),
             'e.g. 10.0.0.1, 192.168.1.0/24' => __('e.g. 10.0.0.1, 192.168.1.0/24', 'fluent-security'),
             'emailed codes' => __('emailed codes', 'fluent-security'),
-            'failed attempts within' => __('failed attempts within', 'fluent-security'),
-            'in %s plugin or theme' => __('in %s plugin or theme', 'fluent-security'),
-            'in %s plugins and themes' => __('in %s plugins and themes', 'fluent-security'),
+            /* translators: %s is the number of plugins and themes with changed files */
+            "in %s plugin or theme\x00in %s plugins and themes" => self::pluralForms(_n_noop('in %s plugin or theme', 'in %s plugins and themes', 'fluent-security')),
             'inside your network' => __('inside your network', 'fluent-security'),
             'is one of' => __('is one of', 'fluent-security'),
             'last checked' => __('last checked', 'fluent-security'),
-            'minutes' => __('minutes', 'fluent-security'),
             'modified' => __('modified', 'fluent-security'),
             'new' => __('new', 'fluent-security'),
             'new file' => __('new file', 'fluent-security'),
+            /* translators: %s is the total number of recommended checks; the number addressed is shown just before this text */
             'of %s addressed' => __('of %s addressed', 'fluent-security'),
             'or' => __('or', 'fluent-security'),
             'passkeys' => __('passkeys', 'fluent-security'),
+            'privacy policy and terms and conditions' => __('privacy policy and terms and conditions', 'fluent-security'),
             'role' => __('role', 'fluent-security'),
             'signs in to' => __('signs in to', 'fluent-security'),
             'signs out to' => __('signs out to', 'fluent-security'),
@@ -1187,7 +1352,63 @@ class TransStrings
             'your administrator address' => __('your administrator address', 'fluent-security'),
             'your site' => __('your site', 'fluent-security'),
             '{admin_email} is the admin email from your site\'s General Settings. Separate several addresses with commas.' => __('{admin_email} is the admin email from your site\'s General Settings. Separate several addresses with commas.', 'fluent-security'),
-            '← Go to Website' => __('← Go to Website', 'fluent-security')
-];
+            '← Go to Website' => __('← Go to Website', 'fluent-security'),
+        ];
+    }
+
+    /**
+     * Every translated form of a $_n() string, in the order of the site language's plural rule.
+     *
+     * @param array $noop From _n_noop()
+     * @return string[]
+     */
+    private static function pluralForms($noop)
+    {
+        $samples = self::pluralRule($noop['domain'])['samples'];
+        $forms = [];
+        foreach ($samples as $count) {
+            $forms[] = translate_nooped_plural($noop, $count, $noop['domain']);
+        }
+        return $forms;
+    }
+
+    /**
+     * The plural form index for counts 0..199 (`index`) and the first count of each form (`samples`).
+     *
+     * @param string $domain Text domain
+     * @return array{index: int[], samples: int[]}
+     */
+    public static function pluralRule($domain)
+    {
+        static $rules = [];
+        if (isset($rules[$domain])) {
+            return $rules[$domain];
+        }
+
+        $expression = 'n != 1';
+        $translations = get_translations_for_domain($domain);
+        foreach ((array) $translations->headers as $name => $value) {
+            if (strtolower($name) === 'plural-forms' && preg_match('/plural\s*=\s*(.+)$/', (string) $value, $match)) {
+                $expression = rtrim(trim($match[1]), ';');
+            }
+        }
+        try {
+            $rule = new \Plural_Forms($expression);
+        } catch (\Exception $e) {
+            $rule = new \Plural_Forms('n != 1');
+        }
+
+        $index = [];
+        $samples = [];
+        for ($count = 0; $count < 200; $count++) {
+            $form = (int) $rule->get($count);
+            $index[] = $form;
+            if (!isset($samples[$form])) {
+                $samples[$form] = $count;
+            }
+        }
+        ksort($samples);
+
+        return $rules[$domain] = ['index' => $index, 'samples' => array_values($samples)];
     }
 }

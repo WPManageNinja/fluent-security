@@ -106,7 +106,7 @@ export default {
         /** Whether this step's answer currently turns its protection on. */
         isOn() {
             if (this.kind === 'two_factor') {
-                return !!(this.answer.totp || this.answer.email);
+                return !!(this.answer.totp || this.answer.email || this.passkeyOnly);
             }
 
             if (this.kind === 'signup') {
@@ -120,9 +120,19 @@ export default {
          * screen it really is rather than as an extra field on the first one, because that
          * is the part an administrator has not pictured.
          */
+        /** A passkey asks for a touch, not for a code, so there is no field to show. */
+        passkeyOnly() {
+            return !!(this.answer.passkey && this.appVars.passkey_supported
+                && !this.answer.totp && !this.answer.email);
+        },
         twoFactorFields() {
             if (!this.isOn) {
                 return null;
+            }
+
+            // Empty rather than null: null would bring back the username and password.
+            if (this.passkeyOnly) {
+                return [];
             }
 
             return [
@@ -134,6 +144,10 @@ export default {
             ];
         },
         twoFactorNotice() {
+            if (this.passkeyOnly) {
+                return this.$t('Confirm with your passkey: a fingerprint, face or PIN.');
+            }
+
             if (this.answer.totp && this.answer.email) {
                 return this.$t('Enter the code from your authenticator app, or the one we emailed you.');
             }
@@ -222,9 +236,8 @@ export default {
                            :settings="design" tab="login">
                     <template #notice>
                         <div class="fls_onb_note is-blocked">
-                            {{
-                                $t('Too many failed attempts. Try again in %s minutes.', lockoutMinutes)
-                            }}
+                            <!-- translators: %s is the number of minutes -->
+                            {{ $_n('Too many failed attempts. Try again in %s minute.', 'Too many failed attempts. Try again in %s minutes.', lockoutMinutes) }}
                         </div>
                     </template>
                 </component>
@@ -244,9 +257,8 @@ export default {
         </div>
 
         <p v-if="kind === 'lockout'" class="fls_onb_stage_foot">
-            {{
-                $t('Shown after %s failed attempts within %s minutes.', lockoutAttempts, lockoutMinutes)
-            }}
+            <!-- translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes -->
+            {{ $t('Shown after %1$s failed attempts within %2$s minutes.', lockoutAttempts, lockoutMinutes) }}
         </p>
     </div>
 </template>

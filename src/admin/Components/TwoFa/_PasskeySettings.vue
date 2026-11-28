@@ -70,7 +70,7 @@ export default {
                     <strong>{{ $t('Allow passkeys') }}</strong>
                     <span class="fls_tag is_round is_success">{{ $t('Strongest') }}</span>
                     <p>
-                        {{ $t('Sign in with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.') }}
+                        {{ $t('After their password, people confirm it is them with a fingerprint, face or PIN through Touch ID, Windows Hello, a password manager or a security key. Each user sets up their own from their profile page.') }}
                     </p>
                 </div>
                 <el-switch v-model="settings.passkey_2fa" active-value="yes" inactive-value="no"
@@ -91,11 +91,18 @@ export default {
 
             <div v-else-if="settings.passkey_2fa === 'yes'" class="fls_2fa_method_body">
                 <el-form-item>
+                    <!--
+                        Read against the switch above, which puts a passkey after the
+                        password. This one lets it replace the password, and that difference
+                        is the whole label - "Let people sign in with a passkey" said what
+                        the switch already seemed to say, and left people unsure why both
+                        were there.
+                    -->
                     <el-checkbox v-model="settings.passkey_primary_login" true-value="yes" false-value="no">
-                        {{ $t('Let people sign in with a passkey') }}
+                        {{ $t('Also let people skip the password') }}
                     </el-checkbox>
                     <p>
-                        {{ $t('Adds a "Sign in with a passkey" button to the login form. Anyone without a passkey signs in as before.') }}
+                        {{ $t('Adds a "Sign in with a passkey" button to the login form, so a passkey alone gets them in. Anyone without one signs in as before. While this is on, every role can set up a passkey.') }}
                     </p>
                 </el-form-item>
 

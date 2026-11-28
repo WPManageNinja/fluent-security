@@ -58,17 +58,6 @@ export default {
                 .finally(() => {
                     this.loading = false;
                 });
-        },
-        convertToText(error) {
-            if (typeof error === 'string') {
-                return error;
-            }
-
-            if (Array.isArray(error)) {
-                return error.join('<br />');
-            }
-
-            return JSON.stringify(error);
         }
     },
     mounted() {
@@ -123,6 +112,13 @@ export default {
                                     :id-label="$t('Facebook App ID')"
                                     :secret-label="$t('Facebook App Secret')"
                                     :info="auth_info.facebook"/>
+
+                    <SocialProvider :settings="settings" provider="linkedin"
+                                    :title="$t('LinkedIn')"
+                                    :description="$t('Needs an app from the LinkedIn Developer Portal.')"
+                                    :id-label="$t('LinkedIn Client ID')"
+                                    :secret-label="$t('LinkedIn Client Secret')"
+                                    :info="auth_info.linkedin"/>
                 </template>
 
                 <div class="fls_errors" v-if="errors">

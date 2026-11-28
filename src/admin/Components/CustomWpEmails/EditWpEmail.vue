@@ -43,7 +43,7 @@ export default {
                 return this.$t('This email is not sent at all. Nobody is told when the event happens.');
             }
 
-            return this.$t('Your subject and body below are sent instead of the WordPress default.');
+            return this.$t('Your subject and body below are sent instead of the built-in email.');
         }
     },
     methods: {
@@ -129,6 +129,7 @@ export default {
                 <SettingsCard :title="$t('This email')">
                     <template #actions>
                         <el-tag type="info" disable-transitions>
+                            <!-- translators: %s is who this email is sent to (an email address or a description of the recipient) -->
                             {{ $t('To: %s', email.recipient) }}
                         </el-tag>
                     </template>
@@ -136,7 +137,7 @@ export default {
                     <SettingRow :label="$t('What to send')" :description="statusNote">
                         <el-radio-group v-model="settings.status">
                             <el-radio-button value="active" :label="$t('Your own')"/>
-                            <el-radio-button value="system" :label="$t('WordPress default')"/>
+                            <el-radio-button value="system" :label="$t('Built-in')"/>
                             <el-radio-button v-if="email.can_disable == 'yes'" value="disabled"
                                              :label="$t('Nothing')"/>
                         </el-radio-group>
@@ -144,7 +145,7 @@ export default {
                 </SettingsCard>
 
                 <SettingsCard v-if="settings.status == 'active'" :title="$t('Content')"
-                              :description="$t('Placeholders such as {{user.display_name}} and {{site.name}} are swapped for the real values when the email is sent. In a link or button address, write the same placeholder as ##user.password_reset_url##.')">
+                              :description="email_id === 'signup_verification_to_user' ? '' : $t('Placeholders such as {{user.display_name}} and {{site.name}} are swapped for the real values when the email is sent. In a link or button address, write the same placeholder as ##user.password_reset_url##.')">
                     <template #actions>
                         <el-button v-if="default_content?.email?.body" size="small" @click="setDefaultContent()">
                             {{ $t('Use the default text') }}

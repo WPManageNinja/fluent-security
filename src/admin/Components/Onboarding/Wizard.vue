@@ -267,7 +267,7 @@ export default {
         <main v-else-if="current" class="fls_onb_body">
             <form class="fls_onb_ask" @submit.prevent="goNext">
                 <div :key="current.id" class="fls_onb_ask_inner">
-                    <p class="fls_eyebrow">{{ $t('Step %s of %s', index + 1, railSteps.length) }} <span aria-hidden="true"> / </span> {{ current.title }}</p>
+                    <p class="fls_eyebrow">{{ /* translators: %1$s is the current step number, %2$s the total number of steps */ $t('Step %1$s of %2$s', index + 1, railSteps.length) }} <span aria-hidden="true"> / </span> {{ current.title }}</p>
                     <h1 class="fls_onb_headline" tabindex="-1">{{ current.headline }}</h1>
                     <p class="fls_onb_why">{{ current.why }}</p>
 

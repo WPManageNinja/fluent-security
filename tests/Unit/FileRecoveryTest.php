@@ -342,6 +342,10 @@ class FileRecoveryTest extends BaseTestCase
 
         $manifest = json_decode(file_get_contents(dirname(dirname($moved)) . '/manifest.json'), true);
         $this->assertSame(['wp-includes/fls-test-planted.php'], $manifest['files']);
+        $this->assertArrayNotHasKey('by', $manifest, 'nginx can serve this file, so it names nobody');
+
+        // nginx ignores the .htaccess, so the folder name must not be guessable from the time.
+        $this->assertMatchesRegularExpression('/^\d{8}-\d{6}-core-[A-Za-z0-9]{12}$/', basename(dirname(dirname($moved))));
 
         $this->assertFileExists(FileRecovery::quarantinePath() . '/.htaccess');
         $this->assertFileExists(FileRecovery::quarantinePath() . '/index.php');

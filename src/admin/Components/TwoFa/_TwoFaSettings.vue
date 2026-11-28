@@ -285,14 +285,14 @@ export default {
                     they are not will not go looking for the ones that got through.
                 -->
                 <p v-if="requirementEnforceable && requiredRoleTitles.length && !emailCanSatisfy" class="fls_2fa_note is_warn">
-                    {{
-                        $t('%s will have to set one up the next time they sign in. Anyone already signed in is locked out of the admin area until they do.', requiredRoleTitles.join(', '))
+                    <!-- translators: %s is a comma-separated list of user role names -->
+                    {{ $t('%s will have to set one up the next time they sign in. Anyone already signed in sees a reminder in the admin area until they do.', requiredRoleTitles.join(', '))
                     }}
                 </p>
 
                 <p v-if="requirementEnforceable && requiredRoleTitles.length && emailCanSatisfy" class="fls_2fa_note">
-                    {{
-                        $t('%s already get an emailed code, so nothing changes for them. Choose the first option to make them set up a passkey or the app instead.', requiredRoleTitles.join(', '))
+                    <!-- translators: %s is a comma-separated list of user role names -->
+                    {{ $t('%s already get an emailed code, so nothing changes for them. Choose the first option to make them set up a passkey or the app instead.', requiredRoleTitles.join(', '))
                     }}
                 </p>
 

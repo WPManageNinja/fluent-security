@@ -85,7 +85,7 @@ export const searchIndex = (vm) => {
             title: vm.$t('Social Login'),
             subtitle: vm.$t('Google, GitHub and Facebook sign-in'),
             to: {name: 'settings_social_login'},
-            keywords: ['google', 'github', 'facebook', 'oauth', 'one tap', 'sso']
+            keywords: ['google', 'github', 'facebook', 'linkedin', 'oauth', 'one tap', 'sso']
         },
         {
             group: 'Settings',
@@ -148,6 +148,14 @@ export const searchIndex = (vm) => {
             to: {name: 'settings_general', query: {section: 'login_security'}},
             keywords: ['brute force', 'failed attempts', 'lockout', 'rate limit',
                 'login attempts', 'block duration', 'captcha', 'recaptcha', 'turnstile']
+        },
+        {
+            group: 'Settings',
+            title: vm.$t('Staying Signed In'),
+            subtitle: vm.$t('In General Settings'),
+            to: {name: 'settings_general', query: {section: 'sessions'}},
+            keywords: ['remember me', 'session', 'session length', 'stay logged in',
+                'logged out', 'cookie', 'expire', 'timeout']
         },
         {
             group: 'Settings',

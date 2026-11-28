@@ -226,6 +226,7 @@ export default {
                 </template>
 
                 <p v-else class="fls_search_empty">
+                    <!-- translators: %s is the search text the user typed -->
                     {{ $t('Nothing here matches “%s”.', query) }}
                 </p>
             </div>

@@ -4,6 +4,7 @@ namespace FluentAuth\App\Services;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\WebAuthn\RelyingParty;
 
 /**
  * The first run: what it asks, and what an answer means.
@@ -229,15 +230,18 @@ class Onboarding
                 'checks'   => ['two_fa'],
                 'answer'   => function ($settings, $recommended) {
                     $configured = Arr::get($settings, 'totp_2fa') === 'yes'
-                        || Arr::get($settings, 'email2fa') === 'yes';
+                        || Arr::get($settings, 'email2fa') === 'yes'
+                        || Arr::get($settings, 'passkey_2fa') === 'yes';
 
                     if ($configured) {
                         return [
-                            'totp'  => Arr::get($settings, 'totp_2fa') === 'yes',
-                            'email' => Arr::get($settings, 'email2fa') === 'yes',
-                            'roles' => array_values(array_unique(array_merge(
+                            'totp'    => Arr::get($settings, 'totp_2fa') === 'yes',
+                            'email'   => Arr::get($settings, 'email2fa') === 'yes',
+                            'passkey' => Arr::get($settings, 'passkey_2fa') === 'yes',
+                            'roles'   => array_values(array_unique(array_merge(
                                 (array)Arr::get($settings, 'totp_2fa_roles', []),
-                                (array)Arr::get($settings, 'email2fa_roles', [])
+                                (array)Arr::get($settings, 'email2fa_roles', []),
+                                (array)Arr::get($settings, 'passkey_2fa_roles', [])
                             )))
                         ];
                     }
@@ -251,9 +255,10 @@ class Onboarding
                      * reader sees is the list of people who will start getting a code.
                      */
                     return [
-                        'totp'  => Arr::get($recommended, 'totp_2fa') === 'yes',
-                        'email' => Arr::get($recommended, 'email2fa') === 'yes',
-                        'roles' => (array)Arr::get(
+                        'totp'    => Arr::get($recommended, 'totp_2fa') === 'yes',
+                        'email'   => Arr::get($recommended, 'email2fa') === 'yes',
+                        'passkey' => false,
+                        'roles'   => (array)Arr::get(
                             $recommended,
                             Arr::get($recommended, 'email2fa') === 'yes' ? 'email2fa_roles' : 'totp_2fa_roles',
                             []
@@ -309,16 +314,22 @@ class Onboarding
 
             'alerts'      => [
                 'title'    => __('Alerts', 'fluent-security'),
-                'headline' => __('Want an email when important accounts sign in?', 'fluent-security'),
+                'headline' => __('What should we email you about?', 'fluent-security'),
                 'why'      => __('A sign-in you did not make is the first sign of a stolen account, and an email is how you find out the same day.', 'fluent-security'),
                 'preview'  => 'email',
                 'checks'   => ['notifications'],
                 'answer'   => function ($settings, $recommended) {
                     $roles = (array)Arr::get($settings, 'notification_user_roles', []);
 
+                    /*
+                     * The summary report is on for a new install before anybody is asked
+                     * (see Helper::getAuthSettings()), so it is shown here as it stands
+                     * rather than left to be discovered in the first month's inbox.
+                     */
                     return [
                         'enabled' => true,
                         'roles'   => $roles ?: (array)Arr::get($recommended, 'notification_user_roles', []),
+                        'digest'  => (string)Arr::get($settings, 'digest_summary', ''),
                         'email'   => Arr::get($settings, 'notification_email')
                             ?: Arr::get($recommended, 'notification_email', '{admin_email}')
                     ];
@@ -376,6 +387,15 @@ class Onboarding
             foreach ($result['applied'] as $line) {
                 $applied[] = $line;
             }
+        }
+
+        /*
+         * A new install sends its default report before anyone opens the wizard. A new
+         * frequency starts from now, as on the settings screen, or that earlier send
+         * swallows the first weekly report.
+         */
+        if (Arr::get($settings, 'digest_summary') !== Helper::getSetting('digest_summary')) {
+            delete_option('_fls_last_digest_sent');
         }
 
         /*
@@ -453,8 +473,10 @@ class Onboarding
                 $roles = self::sanitizeRoles(Arr::get($answer, 'roles', []));
                 $totp = Arr::isTrue($answer, 'totp');
                 $email = Arr::isTrue($answer, 'email');
+                // Not offered on a site that cannot run the ceremony, so not written there either.
+                $passkey = Arr::isTrue($answer, 'passkey') && RelyingParty::isSupported();
 
-                if (($totp || $email) && !$roles) {
+                if (($totp || $email || $passkey) && !$roles) {
                     return new \WP_Error(
                         'roles_required',
                         __('Choose at least one role to get the second step.', 'fluent-security'),
@@ -473,6 +495,18 @@ class Onboarding
                 if ($email) {
                     $settings['email2fa_roles'] = $roles;
                     $applied[] = __('Turned on emailed sign-in codes.', 'fluent-security');
+                }
+
+                /*
+                 * As a second step only. `passkey_primary_login` - the button that skips the
+                 * password - is left to the settings screen, where its effect on the role
+                 * list is spelled out.
+                 */
+                $settings['passkey_2fa'] = $passkey ? 'yes' : 'no';
+
+                if ($passkey) {
+                    $settings['passkey_2fa_roles'] = $roles;
+                    $applied[] = __('Turned on passkeys.', 'fluent-security');
                 }
 
                 /*
@@ -524,15 +558,28 @@ class Onboarding
                 break;
 
             case 'alerts':
-                if (!Arr::isTrue($answer, 'enabled')) {
+                $enabled = Arr::isTrue($answer, 'enabled');
+                $digests = self::digestFrequencies();
+                $digest = (string)Arr::get($answer, 'digest', '');
+
+                if (!isset($digests[$digest])) {
+                    $digest = '';
+                }
+
+                $settings['digest_summary'] = $digest;
+
+                if (!$enabled) {
                     $settings['notification_user_roles'] = [];
+                }
+
+                if (!$enabled && !$digest) {
                     break;
                 }
 
                 $roles = self::sanitizeRoles(Arr::get($answer, 'roles', []));
                 $email = trim((string)Arr::get($answer, 'email', ''));
 
-                if (!$roles) {
+                if ($enabled && !$roles) {
                     return new \WP_Error(
                         'roles_required',
                         __('Choose at least one role to be alerted about, or turn alerts off.', 'fluent-security'),
@@ -552,10 +599,20 @@ class Onboarding
                     );
                 }
 
-                $settings['notification_user_roles'] = $roles;
                 $settings['notification_email'] = $email ?: Arr::get($recommended, 'notification_email', '{admin_email}');
 
-                $applied[] = __('Turned on sign-in alerts.', 'fluent-security');
+                if ($enabled) {
+                    $settings['notification_user_roles'] = $roles;
+                    $applied[] = __('Turned on sign-in alerts.', 'fluent-security');
+                }
+
+                if ($digest) {
+                    $applied[] = sprintf(
+                        /* translators: %s: how often the report is sent, e.g. "every Monday" */
+                        __('Set the sign-in summary report to arrive %s.', 'fluent-security'),
+                        $digests[$digest]
+                    );
+                }
                 break;
         }
 
@@ -579,6 +636,28 @@ class Onboarding
         Helper::resetStatics();
 
         return ['settings' => Helper::getAuthSettings()];
+    }
+
+    /**
+     * The summary report's frequencies, as BasicTasksHandler::maybeSendDigestEMail() reads
+     * them, each said the way the summary screen finishes its sentence.
+     *
+     * @return array
+     */
+    private static function digestFrequencies()
+    {
+        return [
+            ''        => '',
+            'daily'   => __('every day', 'fluent-security'),
+            'sun'     => __('every Sunday', 'fluent-security'),
+            'mon'     => __('every Monday', 'fluent-security'),
+            'tue'     => __('every Tuesday', 'fluent-security'),
+            'wed'     => __('every Wednesday', 'fluent-security'),
+            'thu'     => __('every Thursday', 'fluent-security'),
+            'fri'     => __('every Friday', 'fluent-security'),
+            'sat'     => __('every Saturday', 'fluent-security'),
+            'monthly' => __('on the 1st of each month', 'fluent-security')
+        ];
     }
 
     /**

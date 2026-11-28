@@ -421,6 +421,42 @@ class PasskeyLoginTest extends BaseTestCase
         remove_filter('login_form_bottom', [$handler, 'maybeRenderOnCustomForm'], 9);
     }
 
+    public function test_the_button_still_answers_once_the_browser_is_signed_in_elsewhere()
+    {
+        $handler = new PasskeyLoginHandler();
+        $handler->register();
+
+        foreach ([PasskeyLoginHandler::CHALLENGE_ACTION => 'handleChallenge', PasskeyLoginHandler::VERIFY_ACTION => 'handleVerify'] as $action => $method) {
+            foreach (['wp_ajax_nopriv_', 'wp_ajax_'] as $prefix) {
+                $this->assertNotFalse(has_action($prefix . $action, [$handler, $method]), $prefix . $action);
+                remove_action($prefix . $action, [$handler, $method]);
+            }
+        }
+
+        remove_action('login_form', [$handler, 'maybeRenderOnLoginPage'], 9);
+        remove_filter('login_form_bottom', [$handler, 'maybeRenderOnCustomForm'], 9);
+    }
+
+    /**
+     * The page's nonce was made for a logged-out visitor, so once the browser carries a
+     * login cookie it can no longer pass. That refusal is the intended answer: letting the
+     * signed-in path skip the nonce would let another site post its own passkey assertion
+     * through this browser and sign it into the wrong account.
+     */
+    public function test_a_signed_in_browser_is_told_to_reload_and_gets_no_challenge()
+    {
+        wp_set_current_user(0);
+        $nonce = wp_create_nonce(PasskeyLoginHandler::NONCE_ACTION);
+
+        wp_set_current_user($this->makeUser('administrator')->ID);
+
+        $reply = $this->challengeReply($nonce);
+
+        $this->assertFalse($reply['success']);
+        $this->assertSame('This page has expired. Please reload it and try again.', $reply['data']['message']);
+        $this->assertArrayNotHasKey('token', (array)$reply['data']);
+    }
+
     public function test_nothing_is_rendered_while_the_button_is_switched_off()
     {
         $this->setSettings(['passkey_primary_login' => 'no']);
@@ -578,6 +614,40 @@ class PasskeyLoginTest extends BaseTestCase
 
         $this->assertFalse($reply['success']);
         $this->assertArrayNotHasKey('redirect', (array)$reply['data']);
+    }
+
+    /**
+     * handleChallenge() terminates through wp_send_json_*(); capture what it emitted.
+     *
+     * @return array
+     */
+    private function challengeReply($nonce)
+    {
+        $_POST['_nonce'] = $nonce;
+
+        $die = function () {
+            return function ($message = '') {
+                throw new \WPDieException((string)$message);
+            };
+        };
+
+        add_filter('wp_doing_ajax', '__return_true');
+        add_filter('wp_die_ajax_handler', $die);
+
+        ob_start();
+        try {
+            (new PasskeyLoginHandler())->handleChallenge();
+        } catch (\WPDieException $e) {
+            // expected: wp_send_json_*() ends the request
+        }
+        $output = ob_get_clean();
+
+        remove_filter('wp_doing_ajax', '__return_true');
+        remove_filter('wp_die_ajax_handler', $die);
+
+        unset($_POST['_nonce']);
+
+        return (array)json_decode($output, true);
     }
 
     /**

@@ -362,8 +362,8 @@ class BasicTasksHandlerTest extends BaseTestCase
         $this->assertNotNull($first);
         $this->assertSame(get_option('admin_email'), $first['to']);
         $this->assertStringContainsString('Daily', $first['subject']);
-        $this->assertStringContainsString('Here is your daily digest report', $first['message']);
-        $this->assertStringContainsString('Auth Report for', $first['message']);
+        $this->assertStringContainsString('Here is the daily report of sign-in activity', $first['message']);
+        $this->assertStringContainsString('Sign-in report for', $first['message']);
 
         $this->assertNull($this->runDigest(), 'Already sent for this window');
     }

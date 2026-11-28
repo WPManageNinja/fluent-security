@@ -1,5 +1,6 @@
 <script type="text/babel">
 import SettingRow from '../_SettingRow.vue';
+import InlineSentence from '../_InlineSentence.vue';
 
 /**
  * The attempt limit is two numbers that mean nothing apart, so it is set as the one
@@ -13,7 +14,7 @@ import SettingRow from '../_SettingRow.vue';
  */
 export default {
     name: 'LoginSecuritySection',
-    components: {SettingRow},
+    components: {SettingRow, InlineSentence},
     props: {settings: {type: Object, required: true}}
 };
 </script>
@@ -21,13 +22,15 @@ export default {
 <template>
     <SettingRow :description="$t('Counted per IP address. Each new attempt while blocked restarts the clock.')">
         <template #label>
-            <span class="fls_sentence">
-                {{ $t('Block an IP address after') }}
-                <el-input type="number" :min="1" v-model="settings.login_try_limit"/>
-                {{ $t('failed attempts within') }}
-                <el-input type="number" :min="1" v-model="settings.login_try_timing"/>
-                {{ $t('minutes') }}
-            </span>
+            <!-- translators: %1$s is a number field for failed attempts, %2$s a number field for minutes -->
+            <InlineSentence :text="$t('Block an IP address after %1$s failed attempts within %2$s minutes')">
+                <template #field1>
+                    <el-input type="number" :min="1" v-model="settings.login_try_limit"/>
+                </template>
+                <template #field2>
+                    <el-input type="number" :min="1" v-model="settings.login_try_timing"/>
+                </template>
+            </InlineSentence>
         </template>
     </SettingRow>
 </template>

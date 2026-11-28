@@ -4,6 +4,8 @@ namespace FluentAuth\App\Helpers;
 
 class Helper
 {
+    const DEFAULT_FACEBOOK_API_VERSION = 'v27.0';
+
     private static $loginMedia = 'web';
     private static $authSettings = null;
     private static $socialAuthSettings = null;
@@ -83,6 +85,15 @@ class Helper
         return self::$tokenVerifiedLogin;
     }
 
+    /**
+     * Binds an emailed secret to the address it was mailed to, so it stops working once the
+     * account email changes. Hashed first because some password hashers read only 72 bytes.
+     */
+    public static function emailBoundSecret($secret, $email)
+    {
+        return hash('sha256', $secret . '|' . strtolower(trim((string)$email)));
+    }
+
     public static function getAuthSettings()
     {
         if (self::$authSettings) {
@@ -136,7 +147,10 @@ class Helper
                 'subscriber'
             ],
             'trusted_proxies'         => '',
-            'proxy_ip_header'         => ''
+            'proxy_ip_header'         => '',
+            'session_days'            => 2,
+            'remember_days'           => 14,
+            'remember_default'        => 'yes'
         ];
 
         $settings = get_option('__fls_auth_settings');
@@ -349,6 +363,7 @@ class Helper
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),
             'facebook'    => __('Facebook', 'fluent-security'),
+            'linkedin'    => __('LinkedIn', 'fluent-security'),
 
             /*
              * The log keeps more than logins, and the same column has to name those rows.
@@ -798,7 +813,10 @@ class Helper
             'facebook_key_method'    => 'wp_config',
             'facebook_client_id'     => '',
             'facebook_client_secret' => '',
-            'facebook_api_version'   => 'v12.0'
+            'enable_linkedin'        => 'no',
+            'linkedin_key_method'    => 'wp_config',
+            'linkedin_client_id'     => '',
+            'linkedin_client_secret' => ''
         ];
 
         $settings = get_option('__fls_social_auth_settings');
@@ -823,7 +841,11 @@ class Helper
             if ($settings['facebook_key_method'] == 'wp_config') {
                 $settings['facebook_client_id'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID')) ? FLUENT_AUTH_FACEBOOK_CLIENT_ID : '';
                 $settings['facebook_client_secret'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) ? FLUENT_AUTH_FACEBOOK_CLIENT_SECRET : '';
-                $settings['facebook_api_version'] = sanitize_text_field($settings['facebook_api_version']);
+            }
+
+            if ($settings['linkedin_key_method'] == 'wp_config') {
+                $settings['linkedin_client_id'] = (defined('FLUENT_AUTH_LINKEDIN_CLIENT_ID')) ? FLUENT_AUTH_LINKEDIN_CLIENT_ID : '';
+                $settings['linkedin_client_secret'] = (defined('FLUENT_AUTH_LINKEDIN_CLIENT_SECRET')) ? FLUENT_AUTH_LINKEDIN_CLIENT_SECRET : '';
             }
         }
 
@@ -954,6 +976,11 @@ class Helper
 
         // false on malformed input, differing lengths means v4 against v6.
         if ($ipBin === false || $subnetBin === false || strlen($ipBin) !== strlen($subnetBin)) {
+            return false;
+        }
+
+        // (int) would turn "/", "/foo" or "/ 24" into /0, which matches every address.
+        if (!preg_match('/^\d+$/', $bits)) {
             return false;
         }
 

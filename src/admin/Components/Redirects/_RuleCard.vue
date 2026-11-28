@@ -1,6 +1,7 @@
 <script type="text/babel">
 import SettingRow from '../Settings/_SettingRow.vue';
 import Destination from './_Destination.vue';
+import formatList from '../../Bits/formatList';
 
 /**
  * One redirect rule: who it applies to, and where they go.
@@ -59,14 +60,16 @@ export default {
                 (condition.condition === 'user_capability' ? capabilities : roles).push(this.joinAny(values));
             });
 
-            const who = roles.join(' ' + this.$t('and') + ' ');
-            const can = capabilities.join(' ' + this.$t('and') + ' ');
+            const who = formatList(roles);
+            const can = formatList(capabilities);
 
             if (who && can) {
-                return this.$t('%1s who can %2s', who, can);
+                // translators: %1$s is a list of user roles, %2$s a list of capabilities, e.g. "Editor who can edit_posts"
+                return this.$t('%1$s who can %2$s', who, can);
             }
 
             if (can) {
+                // translators: %s is a list of capabilities, e.g. "edit_posts or publish_posts"
                 return this.$t('Anyone who can %s', can);
             }
 
@@ -108,13 +111,9 @@ export default {
         }
     },
     methods: {
-        /* Any one of these will do, so the list is joined with "or" rather than commas. */
+        /* Any one of these will do, so the list is joined with "or". */
         joinAny(values) {
-            if (values.length < 2) {
-                return values[0] || '';
-            }
-
-            return values.slice(0, -1).join(', ') + ' ' + this.$t('or') + ' ' + values[values.length - 1];
+            return formatList(values, 'disjunction');
         },
         namesFor(type) {
             return type === 'user_capability' ? this.capabilities : this.roles;

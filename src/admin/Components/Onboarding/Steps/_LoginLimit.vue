@@ -119,7 +119,8 @@ export default {
                     </span>
                 </span>
                 <span class="fls_onb_preset_val">
-                    {{ $t('%s tries in %s min', preset.limit, preset.timing) }}
+                    <!-- translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes -->
+                    {{ $t('%1$s tries in %2$s min', preset.limit, preset.timing) }}
                 </span>
                 <span class="fls_onb_preset_note">{{ preset.note }}</span>
             </button>

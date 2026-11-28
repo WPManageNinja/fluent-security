@@ -109,6 +109,16 @@ class ShortcodeTest extends BaseTestCase
 
     // ------------------------------------------------------------ plain rendering
 
+    public function test_the_login_shortcode_checks_remember_me_from_the_setting()
+    {
+        $this->assertMatchesRegularExpression('/name="rememberme"[^>]*checked="checked"/', do_shortcode('[fluent_auth_login]'));
+
+        update_option('__fls_auth_settings', array_merge(Helper::getAuthSettings(), ['remember_default' => 'no']));
+        Helper::resetStatics();
+
+        $this->assertDoesNotMatchRegularExpression('/name="rememberme"[^>]*checked="checked"/', do_shortcode('[fluent_auth_login]'));
+    }
+
     public function test_the_login_shortcode_renders_the_form_the_front_end_js_binds_to()
     {
         $html = do_shortcode('[fluent_auth_login]');
@@ -171,8 +181,8 @@ class ShortcodeTest extends BaseTestCase
     }
 
     /**
-     * [fluent_auth] is three shortcodes inside one, run through do_shortcode() again.
-     * A nested shortcode that stopped resolving would leave the raw text on the page.
+     * [fluent_auth] is the three forms in one. A child that stopped rendering, or came back
+     * as shortcode text, would leave the raw tag on the page.
      */
     public function test_the_combined_shortcode_resolves_all_three_of_its_children()
     {
@@ -199,6 +209,216 @@ class ShortcodeTest extends BaseTestCase
 
         $this->assertStringContainsString('id="fls_magic_login"', $html);
         $this->assertStringContainsString('id="fls_magic_logon_nonce"', $html);
+    }
+
+    /** @dataProvider rootRelativeRedirects */
+    public function test_root_relative_redirects_reach_every_shortcode_form($redirect, $home, $expected)
+    {
+        update_option('home', $home);
+        update_option('users_can_register', 1);
+        $this->setSettings(['magic_login' => 'yes']);
+
+        foreach (['fluent_auth', 'fluent_auth_login', 'fluent_auth_signup', 'fluent_auth_reset_password', 'fluent_auth_magic_login'] as $tag) {
+            $html = do_shortcode('[' . $tag . ' redirect_to="' . $redirect . '"]');
+            $inputs = $this->redirectInputsIn($html);
+            $count = $tag === 'fluent_auth' ? 4 : ($tag === 'fluent_auth_login' ? 2 : 1);
+            $this->assertCount($count, $inputs, $tag . ' must carry the explicit destination');
+            foreach ($inputs as $input) {
+                $this->assertSame($expected, $input, $tag . ' changed or discarded the destination');
+            }
+            remove_all_filters('fluent_auth/social_redirect_to');
+        }
+    }
+
+    public function rootRelativeRedirects()
+    {
+        return [
+            'portal' => ['/portal/', 'https://example.org', 'https://example.org/portal/'],
+            'root' => ['/', 'https://example.org', 'https://example.org/'],
+            'query and fragment' => ['/portal/?step=2&next=%2Fmembers%2F#ready', 'https://example.org', 'https://example.org/portal/?step=2&next=%2Fmembers%2F#ready'],
+            'zero values' => ['/0?0#0', 'https://example.org', 'https://example.org/0?0#0'],
+            'subdirectory and port' => ['/portal/', 'https://example.org:8443/blog', 'https://example.org:8443/portal/'],
+            'encoded unicode' => ['/caf%C3%A9/', 'https://example.org', 'https://example.org/caf%C3%A9/']
+        ];
+    }
+
+    /** @dataProvider existingShortcodeRedirects */
+    public function test_existing_shortcode_redirect_inputs_keep_their_behavior($redirect, $expected)
+    {
+        $inputs = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="' . $redirect . '"]'));
+        $this->assertSame($expected ? [$expected, $expected] : [''], $inputs);
+    }
+
+    public function existingShortcodeRedirects()
+    {
+        return [
+            'absolute' => ['https://example.org/portal/?step=2#ready', 'https://example.org/portal/?step=2#ready'],
+            'external absolute' => ['https://other.example/portal/', 'https://other.example/portal/'],
+            'empty' => ['', ''],
+            'protocol relative' => ['//other.example/portal/', ''],
+            'invalid' => ['not a URL', ''],
+            'page relative' => ['portal/', '']
+        ];
+    }
+
+    public function test_root_relative_signup_redirect_reaches_social_buttons_and_respects_overrides()
+    {
+        update_option('users_can_register', 1);
+        (new SocialAuthHandler())->register();
+        $this->enableSocialAuth();
+
+        $shortcode = '[fluent_auth_signup redirect_to="/portal/?step=2#ready"]';
+        $this->assertSame('https://example.org/portal/?step=2#ready', $this->socialIntentIn(do_shortcode($shortcode)));
+
+        add_filter('fluent_auth/social_redirect_to', function () { return 'https://example.org/override/'; });
+        $this->assertSame('https://example.org/override/', $this->socialIntentIn(do_shortcode($shortcode)));
+    }
+
+    public function test_root_relative_login_destination_survives_submission()
+    {
+        $this->setSettings(['email2fa' => 'no', 'email2fa_roles' => []]);
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        wp_set_password('correct-horse', $user->ID);
+        $inputs = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="/portal/"]'));
+        $_REQUEST['redirect_to'] = end($inputs);
+        $_REQUEST['force_redirect_to'] = reset($inputs);
+        try {
+            $response = $this->postLogin($user, 'correct-horse');
+            $this->assertSame('https://example.org/portal/', $response['redirect']);
+        } finally {
+            unset($_REQUEST['redirect_to'], $_REQUEST['force_redirect_to']);
+        }
+    }
+
+    public function test_root_relative_login_destination_is_retained_by_the_second_factor()
+    {
+        global $wpdb;
+        $user = $this->userWithEmail2Fa();
+        $inputs = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="/portal/"]'));
+        $_REQUEST['redirect_to'] = end($inputs);
+        $_REQUEST['force_redirect_to'] = reset($inputs);
+        try {
+            $response = $this->postLogin($user, 'correct-horse');
+            $this->assertSame('yes', $response['load_2fa']);
+            $this->assertSame('https://example.org/portal/', $wpdb->get_var($wpdb->prepare(
+                "SELECT redirect_intend FROM {$wpdb->prefix}fls_login_hashes WHERE user_id = %d ORDER BY id DESC LIMIT 1",
+                $user->ID
+            )));
+        } finally {
+            unset($_REQUEST['redirect_to'], $_REQUEST['force_redirect_to']);
+        }
+    }
+
+    public function test_self_shortcode_redirect_remains_the_current_page()
+    {
+        $_SERVER['REQUEST_URI'] = '/current/?step=2';
+        $this->assertSame(
+            ['https://example.org/current/?step=2', 'https://example.org/current/?step=2'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_keeps_the_page_on_a_subdirectory_install()
+    {
+        update_option('home', 'https://example.org/blog');
+        $_SERVER['REQUEST_URI'] = '/blog/current/?step=2';
+
+        $this->assertSame(
+            ['https://example.org/blog/current/?step=2', 'https://example.org/blog/current/?step=2'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_keeps_the_subdirectory_when_a_proxy_strips_it()
+    {
+        update_option('home', 'https://example.org/blog');
+        $_SERVER['REQUEST_URI'] = '/current/';
+
+        $this->assertSame(
+            ['https://example.org/blog/current/', 'https://example.org/blog/current/'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_keeps_the_port()
+    {
+        update_option('home', 'https://example.org:8443');
+        $_SERVER['REQUEST_URI'] = '/current/';
+
+        $this->assertSame(
+            ['https://example.org:8443/current/', 'https://example.org:8443/current/'],
+            $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'))
+        );
+    }
+
+    public function test_self_shortcode_redirect_never_leaves_the_site_host()
+    {
+        foreach (['//evil.com/x', '/\\evil.com/x', 'http://evil.com/x'] as $requestUri) {
+            $_SERVER['REQUEST_URI'] = $requestUri;
+
+            $values = $this->redirectInputsIn(do_shortcode('[fluent_auth_login redirect_to="self"]'));
+            $this->assertNotEmpty($values, $requestUri);
+
+            foreach ($values as $value) {
+                $this->assertSame('example.org', wp_parse_url($value, PHP_URL_HOST), $requestUri);
+            }
+        }
+    }
+
+    /**
+     * Patchstack report against 3.1.1: with "self", redirect_to is the visitor's URL. esc_url()
+     * leaves [ and ] alone when the site origin appears twice in it, so a ] in the query used to
+     * close the nested [fluent_auth_login] tag and run whatever shortcode followed.
+     */
+    public function test_the_combined_shortcode_runs_no_shortcode_from_the_requested_url()
+    {
+        update_option('users_can_register', 1);
+
+        $ran = [];
+        add_shortcode('fa_probe', function ($atts) use (&$ran) {
+            $ran[] = $atts;
+            return 'PROBE_RAN';
+        });
+
+        $_SERVER['REQUEST_URI'] = "/?page_id=6&q=][fa_probe/\u{00a0}src=https://example.org/x.mp3]";
+
+        try {
+            $html = do_shortcode('[fluent_auth redirect_to="self"]');
+        } finally {
+            remove_shortcode('fa_probe');
+        }
+
+        $this->assertSame([], $ran);
+        $this->assertStringNotContainsString('PROBE_RAN', $html);
+        $this->assertStringContainsString('id="loginform"', $html);
+        $this->assertStringContainsString('id="flsRegistrationForm"', $html);
+        $this->assertStringContainsString('id="flsResetPasswordForm"', $html);
+    }
+
+    public function test_the_combined_shortcode_keeps_every_query_argument_of_the_current_page()
+    {
+        update_option('users_can_register', 1);
+        $_SERVER['REQUEST_URI'] = '/current/?step=2&plan=pro';
+
+        $values = $this->redirectInputsIn(do_shortcode('[fluent_auth redirect_to="self"]'));
+
+        $this->assertNotEmpty($values);
+        foreach ($values as $value) {
+            $this->assertSame('https://example.org/current/?step=2&plan=pro', $value);
+        }
+    }
+
+    private function redirectInputsIn($html)
+    {
+        $document = new \DOMDocument();
+        @$document->loadHTML($html);
+        $values = [];
+        foreach ($document->getElementsByTagName('input') as $input) {
+            if (in_array($input->getAttribute('name'), ['redirect_to', 'force_redirect_to', '__redirect_to'], true)) {
+                $values[] = $input->getAttribute('value');
+            }
+        }
+        return $values;
     }
 
     // --------------------------------------------------------- the social buttons
@@ -599,6 +819,50 @@ class ShortcodeTest extends BaseTestCase
         ));
 
         Helper::resetStatics();
+    }
+
+    /**
+     * Two different sentences for "no such account" and "wrong password" answer the
+     * question the login form must not answer: does this account exist?
+     */
+    public function testAnUnknownUserAndAWrongPasswordGetTheSameReply()
+    {
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        wp_set_password('correct-horse', $user->ID);
+
+        $wrongPassword = $this->postLogin(get_user_by('ID', $user->ID), 'wrong-password');
+        $unknownUser = $this->postLogin((object)['user_login' => 'nobody-here'], 'wrong-password');
+
+        $this->assertArrayHasKey('message', $wrongPassword);
+        $this->assertSame($unknownUser, $wrongPassword);
+    }
+
+    /* An unknown account used to skip the attempt limit, so a locked-out visitor could still probe. */
+    public function testAnUnknownUserMeetsTheAttemptLimitToo()
+    {
+        global $wpdb;
+
+        $this->setSettings(['login_try_limit' => 2, 'login_try_timing' => 30]);
+
+        foreach ([1, 2] as $i) {
+            $wpdb->insert($wpdb->prefix . 'fls_auth_logs', [
+                'username'   => 'someone',
+                'ip'         => Helper::getIp(),
+                'status'     => 'failed',
+                'media'      => 'web',
+                'count'      => 1,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            ]);
+        }
+
+        $user = $this->factory->user->create_and_get(['role' => 'subscriber']);
+
+        $unknownUser = $this->postLogin((object)['user_login' => 'nobody-here'], 'wrong-password');
+        $realUser = $this->postLogin(get_user_by('ID', $user->ID), 'wrong-password');
+
+        $this->assertStringContainsString('Too many tries', $unknownUser['message']);
+        $this->assertSame($realUser, $unknownUser);
     }
 
     private function userWithEmail2Fa()

@@ -173,7 +173,8 @@ class ExtensionChecker
      */
     protected function getThemeManifest(array $target)
     {
-        $cacheKey = 'fls_theme_hashes_' . md5($target['slug'] . '|' . $target['version']);
+        // v2: manifests cached before PHP inside node_modules was scanned left those files out.
+        $cacheKey = 'fls_theme_hashes_v2_' . md5($target['slug'] . '|' . $target['version']);
         $cached = get_transient($cacheKey);
 
         if (is_array($cached) && !empty($cached['files'])) {
@@ -333,6 +334,14 @@ class ExtensionChecker
 
     protected function isIgnoredPath($relativePath)
     {
+        /*
+         * node_modules is build noise, but PHP dropped inside it runs like any other PHP.
+         * PHP only: node-gyp alone ships hundreds of .py files, which would flood the scan.
+         */
+        if (preg_match('#(^|/)node_modules/#i', $relativePath) && preg_match('#\.(php\d?|phtml|pht)$#i', $relativePath)) {
+            return false;
+        }
+
         foreach (self::getIgnorePatterns() as $pattern) {
             if (preg_match('#' . $pattern . '#i', $relativePath)) {
                 return true;

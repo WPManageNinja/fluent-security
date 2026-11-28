@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.0.5
+Stable tag: 3.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,7 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 - Magic Login links by email, with no password
 - Limit Login Attempts and block brute force attacks
 - IP allow list and IP block list
+- Bot protection for signup, login and WooCommerce account forms, with Cloudflare Turnstile
 - Security checklist that finds problems and fixes them
 - WordPress core, plugin and theme file change scanning
 - Audit log of every login, failed attempt and plugin change
@@ -80,6 +81,10 @@ Block brute force attacks by counting failed logins. Set how many attempts are a
 Two simple lists, one address or range per line. The block list refuses a login from those addresses outright. The allow list skips the attempt limit for addresses you trust, such as your office.
 
 You can also require that a role only signs in from an allow listed address. FluentAuth detects reverse proxies and Cloudflare, so the address it acts on is the real visitor address and not your proxy.
+
+= Bot Protection with Cloudflare Turnstile =
+
+Stop spam signups before your site sends them an email. Turn on Cloudflare Turnstile for the signup forms, the login and password reset forms, or WooCommerce's My Account forms. Each one has its own switch. If Fluent Forms or FluentCart already has Turnstile keys, you can use the same keys with one click. Checkout is never changed. If a site move ever leaves you locked out, adding `define('FLUENT_AUTH_DISABLE_TURNSTILE', true);` to wp-config.php switches it off.
 
 = Security Checklist =
 
@@ -168,8 +173,10 @@ Another plugin can put its own login screen on FluentAuth's flows. It registers 
 Nothing below leaves your site unless you turn that feature on.
 
 * **File scanning** compares your files against the official copies, so it fetches them from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org`) and the official WordPress mirror on GitHub (`raw.githubusercontent.com`). Only the name, version and file path of the item being checked is sent. [WordPress.org privacy](https://wordpress.org/about/privacy/) · GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
-* **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, and your plugin and theme versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
+* **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, your plugin and theme versions, and your PHP and WordPress versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
+* **Product update emails** (`dash.fluentauth.com`, run by WPManageNinja LLC). Off until you subscribe on the setup wizard or the dashboard. Sends your name, email and site address. If you also tick the box to send your site's versions, it sends your PHP, MySQL and WordPress versions too. Nothing about your plugins, your database or your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
 * **Social login** contacts Google, GitHub or Facebook only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)).
+* **Cloudflare Turnstile** (`challenges.cloudflare.com`) checks for bots on the forms you choose: signup, login and password reset, or WooCommerce's account forms. Off until you add your keys and pick a form. On those forms the visitor's browser loads Cloudflare's script, which collects signals from the browser to tell people from bots. When the form is sent, your site sends the result to Cloudflare to confirm it. [Turnstile privacy addendum](https://www.cloudflare.com/turnstile-privacy-policy/) · [Cloudflare terms](https://www.cloudflare.com/website-terms/).
 
 == Why FluentAuth? ==
 
@@ -270,11 +277,11 @@ Yes. You can pick which roles may set up a second factor and which roles must ha
 
 No. Two-factor authentication, passkeys, audit logs, login limits and the rest all run on your own site.
 
-Two things do reach out. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. And there is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. See the External Services section above.
+A few things can reach out, and each one is off until you turn it on. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. There is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. If you turn on Cloudflare Turnstile for bot protection, the forms you pick use Cloudflare's check. Social login talks to Google, GitHub or Facebook when a user clicks that button. And if you subscribe to product update emails, your name, email and site address go to our mailing list. See the External Services section above.
 
 = Is it GDPR compliant? =
 
-Yes. All of your data stays in your WordPress database unless you choose to connect the optional alerts service, and what that sends is listed above in the External Services section.
+Yes. All of your data stays in your WordPress database unless you choose to connect the optional alerts service or turn on Cloudflare Turnstile. What each of those sends is listed above in the External Services section.
 
 = Does it work with WooCommerce and membership plugins? =
 
@@ -310,6 +317,30 @@ It is not a malware scanner. It tells you which files no longer match the offici
 13. Security Checklist With One-Click Fixes
 
 == Changelog ==
+
+= 3.1.2 - Date: Unreleased =
+* Security: Hardening for login replies, two-factor method switching, server-mode sign-in links, admin error messages and the quarantine folder.
+* Change: GitHub login now asks only to read your profile and email addresses.
+* Developer: fluent_auth/magic_login_error_message now starts from an empty message, so a role that cannot use sign-in links gets the same "Check your inbox" reply as anyone else. Return a message from the filter to show it instead, with the 422 response used before.
+
+= 3.1.1 - Date: Nov 3, 2026 =
+* Fix: Magic link and signup email limits now work for visitors on IPv6.
+* Fix: The security scan now checks PHP files inside the node_modules folders of plugins and themes.
+* Fix: The passkey button on a login page left open after signing in now says the page has expired.
+* Fix: Some text boxes and buttons were hard to read in dark mode, and warning and info boxes in light mode.
+* Improvement: The PHP security warning now says your server "may" be affected when your host could have patched PHP without changing its version. Once your host confirms the patch, you can dismiss the warning.
+* Developer: New fluent_auth/email_verified action, fired when a magic link or an emailed code signs someone in.
+* Security: Hardening for sign-in links and codes, login attempts, trusted proxies, multisite permissions and deleted users.
+
+= 3.1.0 - Date: Oct 23, 2026 =
+* New: Cloudflare Turnstile bot protection for the signup, login and password reset forms, and WooCommerce's account forms.
+* New: A warning in wp-admin and on the dashboard when your server's PHP has the critical php2shell security hole (CVE-2026-109618, CVE-2026-109619), with the PHP version to ask your host for.
+* Fix: Magic login links now work for Outlook, Hotmail and Live users. Microsoft's link scanner opened the link first and used it up.
+* Improvement: The setup wizard offers passkeys and the summary report, and links to requiring two-factor.
+* Improvement: A summary report frequency chosen in the setup wizard starts counting from that day.
+* Improvement: Clearer admin text throughout, with notes for translators.
+* Fix: Switched-on toggles look on in dark mode.
+* Change: Scan reports to the FluentAuth Alerts Service now include your PHP and WordPress versions.
 
 = 3.0.5 - Date: Oct 7, 2026 =
 * Fix: Names with a hyphen or an apostrophe, such as Mary-Jane or O'Brien, can now sign up.

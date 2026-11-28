@@ -64,7 +64,8 @@ export default {
          * out of twenty-six installed plugins would be a true sentence and a misleading one.
          */
         coverageLabel() {
-            return this.$t('%s of %s', this.coverage.checked, this.coverage.total);
+            // translators: %1$s is the number of plugins and themes checked, %2$s the number installed
+            return this.$t('%1$s of %2$s', this.coverage.checked, this.coverage.total);
         },
         isScheduled() {
             return this.settings.status === 'active' && this.settings.auto_scan === 'yes';
@@ -434,6 +435,7 @@ export default {
             </ul>
 
             <p v-if="coverage.unverifiable" class="fls_note">
+                <!-- translators: %s is the number of plugins and themes -->
                 {{ $_n('%s item is not from WordPress.org, so there is no official copy to compare it with.', '%s items are not from WordPress.org, so there is no official copy to compare them with.', coverage.unverifiable) }}
             </p>
         </div>

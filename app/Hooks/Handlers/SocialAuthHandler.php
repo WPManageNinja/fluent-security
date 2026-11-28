@@ -7,6 +7,7 @@ use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\FacebookAuthService;
 use FluentAuth\App\Services\GithubAuthService;
 use FluentAuth\App\Services\GoogleAuthService;
+use FluentAuth\App\Services\LinkedInAuthService;
 use FluentAuth\App\Helpers\Arr;
 
 class SocialAuthHandler
@@ -90,6 +91,12 @@ class SocialAuthHandler
                     return false;
                 }
                 return $this->handleFacebookActions($_REQUEST);
+
+            case 'linkedin':
+                if (!$this->isEnabled('linkedin')) {
+                    return false;
+                }
+                return $this->handleLinkedInActions($_REQUEST);
         }
         return false;
 
@@ -99,11 +106,12 @@ class SocialAuthHandler
     {
         $actionType = Arr::get($data, 'fs_type');
 
-        if ($actionType === 'redirect' || empty($data['code'])) {
+        if ($actionType === 'redirect') {
             return $this->redirectToGithub();
         }
 
-        if (isset($data['code'])) {
+        // A cancelled consent comes back with error= and no code: show the login page.
+        if (!empty($data['code'])) {
             $redirectUrl = $this->handleGithubConfirm($data);
             if ($redirectUrl && !is_wp_error($redirectUrl)) {
                 wp_safe_redirect($redirectUrl);
@@ -142,12 +150,35 @@ class SocialAuthHandler
     {
         $actionType = Arr::get($data, 'fs_type');
 
-        if ($actionType === 'redirect' || empty($data['code'])) {
+        if ($actionType === 'redirect') {
             return $this->redirectToFacebook();
         }
 
-        if (isset($data['code'])) {
+        // A cancelled consent comes back with error= and no code: show the login page.
+        if (!empty($data['code'])) {
             $redirectUrl = $this->handleFacebookConfirm($data);
+            if ($redirectUrl && !is_wp_error($redirectUrl)) {
+                wp_safe_redirect($redirectUrl);
+                exit();
+            }
+
+            add_filter('wp_login_errors', function ($errors) use ($redirectUrl) {
+                return $redirectUrl;
+            });
+        }
+    }
+
+    private function handleLinkedInActions($data)
+    {
+        $actionType = Arr::get($data, 'fs_type');
+
+        if ($actionType === 'redirect') {
+            return $this->redirectToLinkedIn();
+        }
+
+        // A cancelled consent comes back with error= and no code: show the login page.
+        if (!empty($data['code'])) {
+            $redirectUrl = $this->handleLinkedInConfirm($data);
             if ($redirectUrl && !is_wp_error($redirectUrl)) {
                 wp_safe_redirect($redirectUrl);
                 exit();
@@ -176,6 +207,13 @@ class SocialAuthHandler
     private function redirectToFacebook()
     {
         $url = FacebookAuthService::getAuthRedirect(AuthService::setStateToken());
+        wp_redirect($url);
+        exit();
+    }
+
+    private function redirectToLinkedIn()
+    {
+        $url = LinkedInAuthService::getAuthRedirect(AuthService::setStateToken());
         wp_redirect($url);
         exit();
     }
@@ -382,6 +420,75 @@ class SocialAuthHandler
         return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
     }
 
+    private function handleLinkedInConfirm($data)
+    {
+        $state = Arr::get($data, 'state');
+
+        // Timing safe, and spent immediately so the callback cannot be replayed.
+        $stateValid = AuthService::verifyStateToken($state);
+        AuthService::clearStateToken();
+
+        if (!$stateValid) {
+            return new \WP_Error('state_mismatch', __('Sorry! we could not authenticate you via LinkedIn', 'fluent-security'));
+        }
+
+        $token = LinkedInAuthService::getTokenByCode(Arr::get($data, 'code'));
+
+        if (is_wp_error($token)) {
+            return $token;
+        }
+
+        $userData = LinkedInAuthService::getDataByAccessToken($token);
+
+        if (is_wp_error($userData)) {
+            return $userData;
+        }
+
+        if (is_user_logged_in()) {
+            $existingUser = get_user_by('ID', get_current_user_id());
+            if ($existingUser->user_email !== $userData['email']) {
+                return new \WP_Error('email_mismatch', __('Your LinkedIn email address does not match with your current account email address. Please use the same email address', 'fluent-security'));
+            }
+        }
+
+        if (empty($userData['email']) || !is_email($userData['email'])) {
+            return new \WP_Error('email_error', __('Sorry! we could not find your valid email from LinkedIn API', 'fluent-security'));
+        }
+
+        $existingUser = get_user_by('email', $userData['email']);
+        if ($existingUser) {
+            if ($redirectUrl = AuthService::getSocialTwoFaRedirect($existingUser)) {
+                wp_redirect($redirectUrl);
+                exit();
+            }
+        }
+
+        $user = AuthService::doUserAuth($userData, 'linkedin');
+
+        if (is_wp_error($user)) {
+            return $user;
+        }
+
+        $intentRedirectTo = AuthService::getIntentRedirect();
+        if ($intentRedirectTo) {
+            $redirect_to = $intentRedirectTo;
+        } else {
+            if (is_multisite() && !get_active_blog_for_user($user->ID) && !is_super_admin($user->ID)) {
+                $redirect_to = user_admin_url();
+            } elseif (is_multisite() && !$user->has_cap('read')) {
+                $redirect_to = get_dashboard_url($user->ID);
+            } elseif (!$user->has_cap('edit_posts')) {
+                $redirect_to = $user->has_cap('read') ? admin_url('profile.php') : home_url();
+            } else {
+                $redirect_to = admin_url();
+            }
+        }
+
+        update_user_meta($user->ID, '_fls_login_linkedin', $userData['email']);
+
+        return apply_filters('login_redirect', $redirect_to, $intentRedirectTo, $user);
+    }
+
     public function pushLoginWithButtons()
     {
         if (!$this->isEnabled()) {
@@ -410,6 +517,9 @@ class SocialAuthHandler
         }
         if (!$this->isEnabled('facebook')) {
             unset($buttons['facebook']);
+        }
+        if (!$this->isEnabled('linkedin')) {
+            unset($buttons['linkedin']);
         }
 
         $this->loadButtons($buttons);
@@ -450,6 +560,17 @@ class SocialAuthHandler
                 'title'      => \sprintf(__('%s Facebook', 'fluent-security'), $buttonText),
                 'url'        => add_query_arg([
                     'fs_auth'            => 'facebook',
+                    'fs_type'            => 'redirect',
+                    'intent_redirect_to' => urlencode($redirect_to)
+                ], wp_login_url())
+            ],
+            'linkedin' => [
+                'link_class' => 'fs_auth_btn fs_auth_linkedin',
+                'icon'       => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#ffffff"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.137 1.445-2.137 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+                // @translators: %s is replaced with Login with or Signup with
+                'title'      => \sprintf(__('%s LinkedIn', 'fluent-security'), $buttonText),
+                'url'        => add_query_arg([
+                    'fs_auth'            => 'linkedin',
                     'fs_type'            => 'redirect',
                     'intent_redirect_to' => urlencode($redirect_to)
                 ], wp_login_url())
@@ -503,6 +624,7 @@ class SocialAuthHandler
     private function initSignupButtonLoads($selector = 'fm_signup_with_wrap', $display = 'block', $redirect = '')
     {
         // The filter has the last word, as it does for the login buttons.
+        // The filter has the last word, as it does for the login buttons.
         $redirect = apply_filters('fluent_auth/social_redirect_to', $redirect ?: admin_url());
 
         $buttons = $this->getSocialAuthButtons($redirect, __('Signup with', 'fluent-security'));
@@ -516,6 +638,9 @@ class SocialAuthHandler
         }
         if (!$this->isEnabled('facebook')) {
             unset($buttons['facebook']);
+        }
+        if (!$this->isEnabled('linkedin')) {
+            unset($buttons['linkedin']);
         }
 
         $this->loadButtons($buttons, $selector, $display);
@@ -626,6 +751,25 @@ class SocialAuthHandler
                 fill: #4267B2 !important;
             }
 
+            .fs_auth_btn.fs_auth_linkedin {
+                background-color: #0A66C2;
+                color: white;
+                border: 1px solid #0A66C2;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin:hover {
+                background-color: white;
+                color: #0A66C2;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin svg {
+                fill: white !important;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin:hover svg {
+                fill: #0A66C2 !important;
+            }
+
         </style>
         <?php
     }
@@ -660,6 +804,9 @@ class SocialAuthHandler
         }
         if (!$this->isEnabled('facebook')) {
             unset($buttons['facebook']);
+        }
+        if (!$this->isEnabled('linkedin')) {
+            unset($buttons['linkedin']);
         }
 
         if (empty($buttons)) {
@@ -750,6 +897,24 @@ class SocialAuthHandler
 
             .fs_auth_btn.fs_auth_facebook:hover svg {
                 fill: #365899 !important;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin {
+                background-color: #0A66C2;
+                color: white;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin:hover {
+                background-color: white;
+                color: #0A66C2;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin svg {
+                fill: white !important;
+            }
+
+            .fs_auth_btn.fs_auth_linkedin:hover svg {
+                fill: #0A66C2 !important;
             }
 
             @media only screen and (max-width: 600px) {

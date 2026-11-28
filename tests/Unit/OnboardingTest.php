@@ -200,6 +200,74 @@ class OnboardingTest extends BaseTestCase
         $this->assertSame('no', Helper::getSetting('email2fa'));
     }
 
+    public function test_passkeys_are_offered_to_the_chosen_roles()
+    {
+        update_option('home', 'https://example.org');
+
+        Onboarding::complete([
+            'two_fa' => [
+                'totp'    => false,
+                'email'   => false,
+                'passkey' => true,
+                'roles'   => ['administrator']
+            ]
+        ]);
+
+        $this->assertSame('yes', Helper::getSetting('passkey_2fa'));
+        $this->assertSame(['administrator'], Helper::getSetting('passkey_2fa_roles'));
+        // A second step only; the button that skips the password stays off.
+        $this->assertSame('no', Helper::getSetting('passkey_primary_login'));
+    }
+
+    /** jQuery form-encodes the answers, so a switched-off passkey arrives as the string "false". */
+    public function test_a_switched_off_passkey_sent_as_a_string_stays_off()
+    {
+        update_option('home', 'https://example.org');
+
+        Onboarding::complete([
+            'two_fa' => [
+                'totp'    => 'true',
+                'email'   => 'false',
+                'passkey' => 'false',
+                'roles'   => ['administrator']
+            ]
+        ]);
+
+        $this->assertSame('yes', Helper::getSetting('totp_2fa'));
+        $this->assertSame('no', Helper::getSetting('passkey_2fa'));
+    }
+
+    public function test_passkeys_alone_still_need_a_role()
+    {
+        update_option('home', 'https://example.org');
+
+        $result = Onboarding::complete([
+            'two_fa' => ['totp' => 'false', 'email' => 'false', 'passkey' => 'true', 'roles' => []]
+        ]);
+
+        $this->assertWPError($result);
+        $this->assertSame('roles_required', $result->get_error_code());
+    }
+
+    /** Over plain http the browser cannot create a passkey, so the answer is not written. */
+    public function test_passkeys_are_not_turned_on_where_they_cannot_work()
+    {
+        update_option('home', 'http://example.org');
+
+        $result = Onboarding::complete([
+            'two_fa' => [
+                'totp'    => false,
+                'email'   => false,
+                'passkey' => true,
+                'roles'   => ['administrator']
+            ]
+        ]);
+
+        $this->assertNotWPError($result);
+        $this->assertSame('no', Helper::getSetting('passkey_2fa'));
+        $this->assertSame([], $result['applied']);
+    }
+
     public function test_the_attempt_limit_is_written()
     {
         Onboarding::complete([
@@ -298,6 +366,88 @@ class OnboardingTest extends BaseTestCase
         ));
 
         $this->assertSame([], $result['settings']['notification_user_roles']);
+    }
+
+    public function test_the_summary_report_is_written_with_the_alerts()
+    {
+        Onboarding::complete([
+            'alerts' => [
+                'enabled' => true,
+                'roles'   => ['administrator'],
+                'digest'  => 'mon',
+                'email'   => '{admin_email}'
+            ]
+        ]);
+
+        $this->assertSame('mon', Helper::getSetting('digest_summary'));
+    }
+
+    /** A report already sent at the old frequency must not hold back the first one at the new. */
+    public function test_a_new_report_frequency_starts_from_now()
+    {
+        update_option('_fls_last_digest_sent', current_time('mysql'));
+
+        Onboarding::complete([
+            'alerts' => ['enabled' => 'false', 'digest' => 'mon', 'email' => '{admin_email}']
+        ]);
+
+        $this->assertFalse(get_option('_fls_last_digest_sent'));
+    }
+
+    public function test_an_unchanged_report_frequency_keeps_its_last_send()
+    {
+        update_option('_fls_last_digest_sent', '2026-10-01 00:00:00');
+
+        Onboarding::complete([
+            'alerts' => ['enabled' => 'false', 'digest' => 'monthly', 'email' => '{admin_email}']
+        ]);
+
+        $this->assertSame('2026-10-01 00:00:00', get_option('_fls_last_digest_sent'));
+    }
+
+    /** The report and the sign-in alerts are separate answers that share an address. */
+    public function test_the_summary_report_can_be_kept_with_alerts_off()
+    {
+        $result = Onboarding::complete([
+            'alerts' => [
+                'enabled' => false,
+                'roles'   => [],
+                'digest'  => 'daily',
+                'email'   => 'owner@example.com'
+            ]
+        ]);
+
+        $this->assertNotWPError($result);
+        $this->assertSame([], Helper::getSetting('notification_user_roles'));
+        $this->assertSame('daily', Helper::getSetting('digest_summary'));
+        $this->assertSame('owner@example.com', Helper::getSetting('notification_email'));
+    }
+
+    public function test_the_summary_report_can_be_turned_off()
+    {
+        Onboarding::complete([
+            'alerts' => ['enabled' => false, 'digest' => '']
+        ]);
+
+        $this->assertSame('', Helper::getSetting('digest_summary'));
+    }
+
+    public function test_a_frequency_no_screen_offered_turns_the_report_off()
+    {
+        Onboarding::complete([
+            'alerts' => ['enabled' => false, 'digest' => 'hourly']
+        ]);
+
+        $this->assertSame('', Helper::getSetting('digest_summary'));
+    }
+
+    public function test_a_malformed_address_is_refused_for_the_report_alone()
+    {
+        $error = Onboarding::complete([
+            'alerts' => ['enabled' => false, 'digest' => 'monthly', 'email' => 'not-an-address']
+        ]);
+
+        $this->assertWpErrorWithCode($error, 'invalid_email');
     }
 
     /* ---------------------------------------------------------- the connection */
@@ -576,6 +726,18 @@ class OnboardingTest extends BaseTestCase
             (int)$recommended['login_try_limit'],
             $steps['login_limit']['answer']['limit']
         );
+    }
+
+    /**
+     * A new install already sends a monthly report before anybody is asked, so the
+     * screen that asks what to email has to open on it rather than on "off".
+     */
+    public function test_the_alerts_step_opens_on_the_report_a_new_install_already_sends()
+    {
+        $steps = $this->keyedSteps();
+
+        $this->assertSame('monthly', $steps['alerts']['answer']['digest']);
+        $this->assertFalse($steps['two_fa']['answer']['passkey']);
     }
 
     /**

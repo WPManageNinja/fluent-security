@@ -53,6 +53,7 @@ export default {
         label() {
             const option = this.options.find(item => item.value === this.mode);
 
+            // translators: %s is the selected color theme (Light, Dark or System)
             return this.$t('Theme: %s', option ? option.label : this.$t('System'));
         }
     },
