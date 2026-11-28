@@ -939,6 +939,8 @@ class TransStrings
             'Show fewer' => __('Show fewer', 'fluent-security'),
             'Show the link form first' => __('Show the link form first', 'fluent-security'),
             'Show the side panel' => __('Show the side panel', 'fluent-security'),
+            /* translators: %s is the most users this screen reads */
+            'Showing the first %s users who have one' => __('Showing the first %s users who have one', 'fluent-security'),
             'Showing the last loaded results. Use Recheck to try again.' => __('Showing the last loaded results. Use Recheck to try again.', 'fluent-security'),
             /* translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes */
             'Shown after %1$s failed attempts within %2$s minutes.' => __('Shown after %1$s failed attempts within %2$s minutes.', 'fluent-security'),

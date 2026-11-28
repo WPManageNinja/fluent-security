@@ -23,6 +23,8 @@ export default {
             unusedDays: 90,
             available: true,
             turnedOffHere: false,
+            truncated: false,
+            maxUsers: 1000,
             filter: 'all',
             search: '',
             revoking: '',
@@ -82,6 +84,8 @@ export default {
             this.unusedDays = response.unused_days || 90;
             this.available = !!response.available;
             this.turnedOffHere = !!response.turned_off_here;
+            this.truncated = !!response.truncated;
+            this.maxUsers = response.max_users || 1000;
         },
         confirmRevoke(row) {
             this.$confirm(
@@ -192,7 +196,11 @@ export default {
                             </button>
                         </div>
                     </div>
-                    <p v-if="passwords.length" class="fls_app_pw_summary">{{ summary }}</p>
+                    <p v-if="passwords.length" class="fls_app_pw_summary">
+                        {{ summary }}
+                        <!-- translators: %s is the most users this screen reads -->
+                        <template v-if="truncated"> · {{ $t('Showing the first %s users who have one', maxUsers) }}</template>
+                    </p>
                 </div>
 
                 <div class="fls_list_body">

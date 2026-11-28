@@ -116,6 +116,66 @@ class AppPasswordsTest extends BaseTestCase
         $this->assertNotNull(\WP_Application_Passwords::get_user_application_password($other, $uuid));
     }
 
+    /**
+     * WooCommerce's shop manager holds list_users and edit_users, and Woo denies it
+     * edit_user on administrators. Core then hides an administrator's application
+     * passwords from it, so this list must too, and must not offer to revoke them.
+     */
+    public function test_a_shop_manager_does_not_see_or_revoke_an_administrators_passwords()
+    {
+        $adminUuid = $this->addPassword($this->admin, 'Owner phone', 10, 1);
+        $customer = self::factory()->user->create(['role' => 'subscriber', 'user_login' => 'customer']);
+        $this->addPassword($customer, 'Customer app', 10, 1);
+
+        add_role('fls_test_shop_manager', 'Shop manager', ['read' => true, 'list_users' => true, 'edit_users' => true]);
+        $manager = self::factory()->user->create(['role' => 'fls_test_shop_manager']);
+        $denyAdmins = function ($caps, $cap, $userId, $args) {
+            if ($cap === 'edit_user' && !empty($args[0]) && user_can((int)$args[0], 'manage_options') && !user_can($userId, 'manage_options')) {
+                return ['do_not_allow'];
+            }
+            return $caps;
+        };
+        add_filter('map_meta_cap', $denyAdmins, 10, 4);
+
+        try {
+            wp_set_current_user($manager);
+            AppPasswords::reset();
+
+            $logins = array_column(AppPasswords::all(), 'user_login');
+            $revoke = AppPasswords::revoke($this->admin, $adminUuid);
+        } finally {
+            remove_filter('map_meta_cap', $denyAdmins, 10);
+            remove_role('fls_test_shop_manager');
+        }
+
+        $this->assertSame(['customer'], $logins);
+        $this->assertWPError($revoke);
+        $this->assertNotNull(\WP_Application_Passwords::get_user_application_password($this->admin, $adminUuid));
+    }
+
+    public function test_the_check_does_not_claim_a_pass_when_the_list_was_cut_short()
+    {
+        $this->addPassword($this->admin, 'In use', 10, 1);
+        $this->addPassword(self::factory()->user->create(), 'Also in use', 10, 1);
+
+        $limit = new \ReflectionProperty(AppPasswords::class, 'maxUsers');
+        $limit->setAccessible(true);
+        $limit->setValue(null, 1);
+
+        try {
+            AppPasswords::reset();
+            $findings = (new AppPasswordsCheck())->run();
+            $truncated = AppPasswords::isTruncated();
+            $rows = AppPasswords::all();
+        } finally {
+            $limit->setValue(null, AppPasswords::MAX_USERS);
+        }
+
+        $this->assertTrue($truncated);
+        $this->assertCount(1, $rows);
+        $this->assertSame([], $findings, 'No "every password is in use" claim about passwords it did not read');
+    }
+
     public function test_revoke_unused_leaves_the_ones_in_use()
     {
         $kept = $this->addPassword($this->admin, 'In use', 300, 3);

@@ -39,6 +39,8 @@ class AppPasswordsController
     {
         return [
             'passwords'   => AppPasswords::all(),
+            'truncated'   => AppPasswords::isTruncated(),
+            'max_users'   => AppPasswords::MAX_USERS,
             'unused_days' => AppPasswords::UNUSED_DAYS,
             /* Off by the plugin's own setting, or by core / another plugin: either way none of these can sign in. */
             'available'   => function_exists('wp_is_application_passwords_available') && wp_is_application_passwords_available(),

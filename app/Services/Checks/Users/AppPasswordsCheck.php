@@ -32,6 +32,11 @@ class AppPasswordsCheck extends Check
 
         $unused = AppPasswords::unused();
 
+        // A list cut short at the cap cannot vouch for the passwords it did not read.
+        if (!$unused && AppPasswords::isTruncated()) {
+            return [];
+        }
+
         if (!$unused) {
             return [new Finding([
                 'id'     => $this->id(),

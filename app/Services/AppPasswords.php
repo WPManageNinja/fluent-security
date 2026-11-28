@@ -20,7 +20,12 @@ class AppPasswords
     /** Users read per request. A site with more people holding these has bigger problems than this list. */
     const MAX_USERS = 1000;
 
+    /** MAX_USERS, held where a test can lower it. */
+    private static $maxUsers = self::MAX_USERS;
+
     private static $rows = null;
+
+    private static $truncated = false;
 
     /**
      * @return array[] one row per password, newest use first, never-used last.
@@ -37,20 +42,24 @@ class AppPasswords
 
         global $wpdb;
 
-        /*
-         * Revoking a user's last password leaves an empty array behind rather than deleting
-         * the key, so the key existing says nothing; the empty value is ruled out here.
-         */
+        self::$truncated = false;
+
         /*
          * Served by usermeta's meta_key index: it touches only the rows of users who have
-         * ever had an application password, however many users the site has.
+         * ever had an application password, however many users the site has. Revoking a
+         * user's last password leaves an empty array behind rather than deleting the key,
+         * so that value is ruled out.
          */
         $userIds = $wpdb->get_col($wpdb->prepare(
             "SELECT DISTINCT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value != %s ORDER BY user_id LIMIT %d",
             \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS,
             'a:0:{}',
-            self::MAX_USERS
+            self::$maxUsers + 1
         ));
+
+        // One row past the limit says there are more, without counting them all.
+        self::$truncated = count($userIds) > self::$maxUsers;
+        $userIds = array_slice($userIds, 0, self::$maxUsers);
 
         // Users and their meta in two queries, rather than two per user below.
         cache_users(array_map('intval', $userIds));
@@ -64,8 +73,12 @@ class AppPasswords
                 continue;
             }
 
-            // The meta is network-wide; a subsite administrator sees their own site's people.
-            if (is_multisite() && !is_user_member_of_blog($user->ID) && !current_user_can('manage_network_users')) {
+            /*
+             * Core's own rule for who may see a user's application passwords. It maps to
+             * edit_user, so a shop manager does not see an administrator's and, on
+             * multisite, only a network administrator sees other people's.
+             */
+            if (!current_user_can('list_app_passwords', $user->ID)) {
                 continue;
             }
 
@@ -102,11 +115,12 @@ class AppPasswords
             return new \WP_Error('not_found', __('The user could not be found.', 'fluent-security'), ['status' => 404]);
         }
 
-        if (!current_user_can('edit_user', $user->ID)) {
+        $item = \WP_Application_Passwords::get_user_application_password($user->ID, (string)$uuid);
+
+        // The capability core's own REST endpoint checks before deleting one.
+        if (!current_user_can('delete_app_password', $user->ID, $item ? $item['uuid'] : '')) {
             return new \WP_Error('forbidden', __('You are not allowed to change this user.', 'fluent-security'), ['status' => 403]);
         }
-
-        $item = \WP_Application_Passwords::get_user_application_password($user->ID, (string)$uuid);
 
         if (!$item) {
             return new \WP_Error('not_found', __('That application password no longer exists.', 'fluent-security'), ['status' => 404]);
@@ -142,10 +156,17 @@ class AppPasswords
         return $count;
     }
 
+    /** Whether the last read stopped at MAX_USERS, so the list may be incomplete. */
+    public static function isTruncated()
+    {
+        return self::$truncated;
+    }
+
     /** Test seam: the list is read once per request. */
     public static function reset()
     {
         self::$rows = null;
+        self::$truncated = false;
     }
 
     private static function format($user, $item)
