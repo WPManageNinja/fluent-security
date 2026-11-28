@@ -105,7 +105,7 @@ class BuiltInEmailsTest extends BaseTestCase
         $this->assertStringContainsString('123456', $preview['body']);
     }
 
-    public function test_welcome_says_nothing_is_sent_while_the_registration_email_is_customised()
+    public function test_welcome_shows_the_default_welcome_while_the_registration_email_is_customised()
     {
         $this->assertSame('text', BuiltInEmails::preview('fluent_auth_welcome_email_to_user', $this->admin)['format']);
 
@@ -114,7 +114,10 @@ class BuiltInEmailsTest extends BaseTestCase
         ]]);
         SystemEmailService::resetStatics();
 
-        $this->assertSame('none', BuiltInEmails::preview('fluent_auth_welcome_email_to_user', $this->admin)['format']);
+        $preview = BuiltInEmails::preview('fluent_auth_welcome_email_to_user', $this->admin);
+        $this->assertSame('html', $preview['format']);
+        $this->assertStringNotContainsString('{{', $preview['subject'] . $preview['body']);
+        $this->assertStringContainsString('Site Owner', $preview['body']);
     }
 
     public function test_the_editor_receives_the_built_in_email()

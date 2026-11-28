@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\BuiltInEmails;
 use FluentAuth\App\Services\Libs\Emogrifier\Emogrifier;
 use FluentAuth\App\Services\SmartCodeParser;
 use FluentAuth\App\Services\SystemEmailService;
@@ -230,13 +231,20 @@ class WPSystemEmailHandler
 
         $status = Arr::get($setting, 'status', '');
 
+        $email = Arr::get($setting, 'email', []);
+
         if ($status === 'system') {
-            // The customized registration email is a "set your password" email, and this person just chose one.
             $registration = SystemEmailService::getEmailSettingsByType('user_registration_to_user');
-            if (Arr::get($registration, 'status', '') === 'active') {
-                add_filter('wp_send_new_user_notification_to_user', '__return_false', 99);
+            if (Arr::get($registration, 'status', '') !== 'active') {
+                return; // WordPress sends its own Login Details email.
             }
-            return;
+
+            /*
+             * The customized registration email is a "set your password" email, and this
+             * person just chose one, so it is held back. Holding it back used to leave them
+             * with no email at all; the default welcome text goes instead.
+             */
+            $email = BuiltInEmails::welcomeDefault();
         }
 
         // We will just disable the welcome email by WP
@@ -247,8 +255,6 @@ class WPSystemEmailHandler
         }
 
         $userObj = get_user_by('ID', $userId);
-        // Let's change these now
-        $email = Arr::get($setting, 'email', []);
         $subject = $this->parseCode(Arr::get($email, 'subject', ''), $userObj);
         $emailBody = Arr::get($email, 'body', '');
         if (!$subject || !$emailBody) {

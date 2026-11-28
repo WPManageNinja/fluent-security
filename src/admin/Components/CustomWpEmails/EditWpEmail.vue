@@ -150,13 +150,10 @@ export default {
                 <SettingsCard v-if="settings.status == 'system' && built_in" :title="$t('The built-in email')"
                               :description="built_in.format === 'text'
                                   ? $t('WordPress sends this as plain text. It is filled in with your account details, and the links are examples.')
-                                  : (built_in.format === 'html' ? $t('Filled in with your account details. Links and codes are examples.') : '')">
-                    <p v-if="built_in.format === 'none'" class="fls_builtin_none">{{ built_in.body }}</p>
-                    <template v-else>
-                        <p class="fls_builtin_subject"><strong>{{ $t('Subject:') }}</strong> {{ built_in.subject }}</p>
-                        <pre v-if="built_in.format === 'text'" class="fls_builtin_text">{{ built_in.body }}</pre>
-                        <EmailbodyContainer v-else :content="built_in.body"/>
-                    </template>
+                                  : $t('Filled in with your account details. Links and codes are examples.')">
+                    <p class="fls_builtin_subject"><strong>{{ $t('Subject:') }}</strong> {{ built_in.subject }}</p>
+                    <pre v-if="built_in.format === 'text'" class="fls_builtin_text">{{ built_in.body }}</pre>
+                    <EmailbodyContainer v-else :content="built_in.body"/>
                 </SettingsCard>
 
                 <SettingsCard v-if="settings.status == 'active'" :title="$t('Content')"

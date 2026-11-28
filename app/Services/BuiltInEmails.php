@@ -133,8 +133,7 @@ class BuiltInEmails
     /**
      * The built-in email for the editor screen, filled in with the signed-in admin.
      *
-     * @return array|null subject, body, and format: 'html', 'text', or 'none' when Built-in
-     *                    sends nothing (body then says why).
+     * @return array|null subject, body, and format: 'html' or 'text'.
      */
     public static function preview($emailId, $user)
     {
@@ -161,14 +160,18 @@ class BuiltInEmails
 
             case 'fluent_auth_welcome_email_to_user':
                 $registration = SystemEmailService::getEmailSettingsByType('user_registration_to_user');
-                if (Arr::get($registration, 'status') === 'active') {
-                    return [
-                        'subject' => '',
-                        'body'    => __('Nothing is sent. People who sign up on a FluentAuth form chose their own password, and your New User Registration email is a set-password email, so it is held back for them.', 'fluent-security'),
-                        'format'  => 'none'
-                    ];
+                if (Arr::get($registration, 'status') !== 'active') {
+                    return self::text(self::wpLoginDetails($user, $siteName, $sampleKey));
                 }
-                return self::text(self::wpLoginDetails($user, $siteName, $sampleKey));
+
+                // See WPSystemEmailHandler::maybeSendCustomizedEmailOnFluentAuthSignup().
+                $email = self::welcomeDefault();
+                $parser = new SmartCodeParser();
+
+                return self::html([
+                    'subject' => $parser->parse(Arr::get($email, 'subject', ''), $user),
+                    'body'    => SystemEmailService::withHtmlTemplate($parser->parse(Arr::get($email, 'body', ''), $user), null, $user)
+                ]);
 
             case 'password_reset_to_user':
                 // Core names the network here on multisite, not the site.
@@ -264,6 +267,12 @@ All at ###SITENAME###
     }
 
     /** Core changed this one: 7.1 dropped the username line, 7.0 the trailing login URL. */
+    /** The welcome email's default subject and body, the same text the editor's "Use the default text" loads. */
+    public static function welcomeDefault()
+    {
+        return Arr::get(SystemEmailService::getEmailDefaults(), 'fluent_auth_welcome_email_to_user.email', []);
+    }
+
     private static function wpLoginDetails($user, $siteName, $key)
     {
         $version = get_bloginfo('version');
