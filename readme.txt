@@ -217,12 +217,13 @@ If you use FluentAuth, you do not need these:
 
 == User Guides ==
 <ul>
-	<li><a href="https://fluentauth.com/docs/getting-started/" target="_blank">Getting Started with FluentAuth</a></li>
-	<li><a href="https://fluentauth.com/docs/login-redirects/" target="_blank">Login / Logout Redirects</a></li>
-	<li><a href="https://fluentauth.com/docs/shortcodes/" target="_blank">Register/Login Shortcodes in FluentAuth</a></li>
-	<li><a href="https://fluentauth.com/docs/github-auth-connection/" target="_blank">Configure Login with GitHub</a></li>
-	<li><a href="https://fluentauth.com/docs/google-auth-connection/" target="_blank">Configure Login with Google</a></li>
-	<li><a href="https://fluentauth.com/docs/facebook-auth-connection/" target="_blank">Configure Login with Facebook</a></li>
+	<li><a href="https://fluentauth.com/docs/introduction" target="_blank">Getting Started with FluentAuth</a></li>
+	<li><a href="https://fluentauth.com/docs/login-redirects" target="_blank">Login / Logout Redirects</a></li>
+	<li><a href="https://fluentauth.com/docs/shortcodes" target="_blank">Register/Login Shortcodes in FluentAuth</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-github" target="_blank">Configure Login with GitHub</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-google" target="_blank">Configure Login with Google</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-facebook" target="_blank">Configure Login with Facebook</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-linkedin" target="_blank">Configure Login with LinkedIn</a></li>
 </ul>
 
 == Other Plugins By The Same Team ==
