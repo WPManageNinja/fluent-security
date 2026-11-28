@@ -32,8 +32,8 @@ class AppPasswordsCheck extends Check
 
         $unused = AppPasswords::unused();
 
-        // A list cut short at the cap cannot vouch for the passwords it did not read.
-        if (!$unused && AppPasswords::isTruncated()) {
+        // A list cut short, or one with users this viewer may not see, cannot vouch for what it did not read.
+        if (!$unused && (AppPasswords::isTruncated() || AppPasswords::hiddenUsers())) {
             return [];
         }
 

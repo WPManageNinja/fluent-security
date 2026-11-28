@@ -40,6 +40,7 @@ class AppPasswordsController
         return [
             'passwords'   => AppPasswords::all(),
             'truncated'   => AppPasswords::isTruncated(),
+            'hidden_users' => AppPasswords::hiddenUsers(),
             'max_users'   => AppPasswords::MAX_USERS,
             'unused_days' => AppPasswords::UNUSED_DAYS,
             /* Off by the plugin's own setting, or by core / another plugin: either way none of these can sign in. */

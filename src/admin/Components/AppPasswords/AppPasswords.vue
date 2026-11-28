@@ -24,6 +24,7 @@ export default {
             available: true,
             turnedOffHere: false,
             truncated: false,
+            hiddenUsers: 0,
             maxUsers: 1000,
             filter: 'all',
             search: '',
@@ -85,6 +86,7 @@ export default {
             this.available = !!response.available;
             this.turnedOffHere = !!response.turned_off_here;
             this.truncated = !!response.truncated;
+            this.hiddenUsers = response.hidden_users || 0;
             this.maxUsers = response.max_users || 1000;
         },
         confirmRevoke(row) {
@@ -196,10 +198,15 @@ export default {
                             </button>
                         </div>
                     </div>
-                    <p v-if="passwords.length" class="fls_app_pw_summary">
-                        {{ summary }}
+                    <p v-if="passwords.length" class="fls_app_pw_summary">{{ summary }}</p>
+                    <!-- Said even over an empty table: an empty list that is incomplete is not "nobody has one". -->
+                    <p v-if="truncated" class="fls_app_pw_summary">
                         <!-- translators: %s is the most users this screen reads -->
-                        <template v-if="truncated"> · {{ $t('Showing the first %s users who have one', maxUsers) }}</template>
+                        {{ $t('Showing the first %s users who have an application password. There are more.', maxUsers) }}
+                    </p>
+                    <p v-if="hiddenUsers" class="fls_app_pw_summary">
+                        <!-- translators: %s is how many users are left out -->
+                        {{ $_n('%s user with application passwords is not shown, because you are not allowed to edit them.', '%s users with application passwords are not shown, because you are not allowed to edit them.', hiddenUsers) }}
                     </p>
                 </div>
 
@@ -253,7 +260,8 @@ export default {
                         <template #empty>
                             <div class="fls_empty">
                                 <span v-html="icons.empty"></span>
-                                <template v-if="!passwords.length">{{ $t('Nobody on this site has an application password.') }}</template>
+                                <template v-if="!passwords.length && !truncated && !hiddenUsers">{{ $t('Nobody on this site has an application password.') }}</template>
+                                <template v-else-if="!passwords.length">{{ $t('There are no application passwords you can manage.') }}</template>
                                 <template v-else>{{ $t('Nothing matches.') }}</template>
                             </div>
                         </template>

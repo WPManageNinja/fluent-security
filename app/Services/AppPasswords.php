@@ -27,6 +27,8 @@ class AppPasswords
 
     private static $truncated = false;
 
+    private static $hidden = 0;
+
     /**
      * @return array[] one row per password, newest use first, never-used last.
      */
@@ -43,18 +45,32 @@ class AppPasswords
         global $wpdb;
 
         self::$truncated = false;
+        self::$hidden = 0;
 
         /*
          * Served by usermeta's meta_key index: it touches only the rows of users who have
          * ever had an application password, however many users the site has. Revoking a
          * user's last password leaves an empty array behind rather than deleting the key,
          * so that value is ruled out.
+         *
+         * The meta is network-wide on multisite, so there the list is this site's members:
+         * joined on the site's own capabilities key, in the query, so other sites' users
+         * never take a place under the cap.
          */
+        $join = '';
+        $joinArgs = [];
+        if (is_multisite()) {
+            $join = "INNER JOIN {$wpdb->usermeta} AS member ON member.user_id = pw.user_id AND member.meta_key = %s";
+            $joinArgs[] = $wpdb->get_blog_prefix() . 'capabilities';
+        }
+
         $userIds = $wpdb->get_col($wpdb->prepare(
-            "SELECT DISTINCT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value != %s ORDER BY user_id LIMIT %d",
-            \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS,
-            'a:0:{}',
-            self::$maxUsers + 1
+            "SELECT DISTINCT pw.user_id FROM {$wpdb->usermeta} AS pw {$join} WHERE pw.meta_key = %s AND pw.meta_value != %s ORDER BY pw.user_id LIMIT %d",
+            array_merge($joinArgs, [
+                \WP_Application_Passwords::USERMETA_KEY_APPLICATION_PASSWORDS,
+                'a:0:{}',
+                self::$maxUsers + 1
+            ])
         ));
 
         // One row past the limit says there are more, without counting them all.
@@ -76,9 +92,11 @@ class AppPasswords
             /*
              * Core's own rule for who may see a user's application passwords. It maps to
              * edit_user, so a shop manager does not see an administrator's and, on
-             * multisite, only a network administrator sees other people's.
+             * multisite, only a network administrator sees other people's. Counted, so
+             * nothing claims to have checked them.
              */
             if (!current_user_can('list_app_passwords', $user->ID)) {
+                self::$hidden++;
                 continue;
             }
 
@@ -162,11 +180,18 @@ class AppPasswords
         return self::$truncated;
     }
 
+    /** How many users with application passwords the current user may not see. */
+    public static function hiddenUsers()
+    {
+        return self::$hidden;
+    }
+
     /** Test seam: the list is read once per request. */
     public static function reset()
     {
         self::$rows = null;
         self::$truncated = false;
+        self::$hidden = 0;
     }
 
     private static function format($user, $item)

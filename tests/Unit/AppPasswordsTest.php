@@ -149,6 +149,7 @@ class AppPasswordsTest extends BaseTestCase
         }
 
         $this->assertSame(['customer'], $logins);
+        $this->assertSame(1, AppPasswords::hiddenUsers());
         $this->assertWPError($revoke);
         $this->assertNotNull(\WP_Application_Passwords::get_user_application_password($this->admin, $adminUuid));
     }
@@ -174,6 +175,50 @@ class AppPasswordsTest extends BaseTestCase
         $this->assertTrue($truncated);
         $this->assertCount(1, $rows);
         $this->assertSame([], $findings, 'No "every password is in use" claim about passwords it did not read');
+    }
+
+    /** Nothing unused among what this viewer can see says nothing about what they cannot. */
+    public function test_the_check_does_not_claim_a_pass_over_users_it_could_not_see()
+    {
+        $other = self::factory()->user->create(['role' => 'administrator']);
+        $this->addPassword($other, 'Old and hidden', 300, 200);
+
+        add_role('fls_test_lister', 'Lister', ['read' => true, 'list_users' => true]);
+        wp_set_current_user(self::factory()->user->create(['role' => 'fls_test_lister']));
+
+        try {
+            AppPasswords::reset();
+            $findings = (new AppPasswordsCheck())->run();
+        } finally {
+            remove_role('fls_test_lister');
+        }
+
+        $this->assertSame([], $findings);
+        $this->assertSame(1, AppPasswords::hiddenUsers());
+    }
+
+    /**
+     * The meta is network-wide. A network admin on one site manages that site's members,
+     * so revoking "all unused" there cannot reach another site's integrations.
+     */
+    public function test_on_multisite_the_list_is_this_sites_members()
+    {
+        if (!is_multisite()) {
+            $this->markTestSkipped('Multisite only: run with WP_MULTISITE=1.');
+        }
+
+        grant_super_admin($this->admin);
+        $this->addPassword($this->admin, 'Owner phone', 10, 1);
+
+        $outsider = self::factory()->user->create(['user_login' => 'outsider']);
+        $this->addPassword($outsider, 'Elsewhere', 300, 200);
+        remove_user_from_blog($outsider, get_current_blog_id());
+
+        AppPasswords::reset();
+        $logins = array_column(AppPasswords::all(), 'user_login');
+
+        $this->assertContains('owner', $logins);
+        $this->assertNotContains('outsider', $logins);
     }
 
     public function test_revoke_unused_leaves_the_ones_in_use()

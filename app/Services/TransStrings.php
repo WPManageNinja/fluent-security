@@ -123,6 +123,8 @@ class TransStrings
             "%s unused\x00%s unused" => self::pluralForms(_n_noop('%s unused', '%s unused', 'fluent-security')),
             /* translators: %s is how many users hold an application password */
             "%s user\x00%s users" => self::pluralForms(_n_noop('%s user', '%s users', 'fluent-security')),
+            /* translators: %s is how many users are left out */
+            "%s user with application passwords is not shown, because you are not allowed to edit them.\x00%s users with application passwords are not shown, because you are not allowed to edit them." => self::pluralForms(_n_noop('%s user with application passwords is not shown, because you are not allowed to edit them.', '%s users with application passwords are not shown, because you are not allowed to edit them.', 'fluent-security')),
             /* translators: %s is the number of different usernames this IP address tried */
             "%s username tried\x00%s usernames tried" => self::pluralForms(_n_noop('%s username tried', '%s usernames tried', 'fluent-security')),
             /* translators: %s is the number of plugins or themes whose installed version is not published on WordPress.org */
@@ -940,7 +942,7 @@ class TransStrings
             'Show the link form first' => __('Show the link form first', 'fluent-security'),
             'Show the side panel' => __('Show the side panel', 'fluent-security'),
             /* translators: %s is the most users this screen reads */
-            'Showing the first %s users who have one' => __('Showing the first %s users who have one', 'fluent-security'),
+            'Showing the first %s users who have an application password. There are more.' => __('Showing the first %s users who have an application password. There are more.', 'fluent-security'),
             'Showing the last loaded results. Use Recheck to try again.' => __('Showing the last loaded results. Use Recheck to try again.', 'fluent-security'),
             /* translators: %1$s is the number of failed sign-in attempts, %2$s the number of minutes */
             'Shown after %1$s failed attempts within %2$s minutes.' => __('Shown after %1$s failed attempts within %2$s minutes.', 'fluent-security'),
@@ -1063,6 +1065,7 @@ class TransStrings
             /* translators: %s is the selected color theme (Light, Dark or System) */
             'Theme: %s' => __('Theme: %s', 'fluent-security'),
             'Themes' => __('Themes', 'fluent-security'),
+            'There are no application passwords you can manage.' => __('There are no application passwords you can manage.', 'fluent-security'),
             /* translators: %s is the number of administrators on this site */
             "There is %s administrator on this site.\x00There are %s administrators on this site." => self::pluralForms(_n_noop('There is %s administrator on this site.', 'There are %s administrators on this site.', 'fluent-security')),
             /* translators: %s is the number of signed-in sessions on this site */
