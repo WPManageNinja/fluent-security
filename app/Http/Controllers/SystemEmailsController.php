@@ -4,6 +4,7 @@ namespace FluentAuth\App\Http\Controllers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\BuiltInEmails;
 use FluentAuth\App\Services\SmartCodeParser;
 use FluentAuth\App\Services\SystemEmailService;
 
@@ -84,6 +85,7 @@ class SystemEmailsController
             'settings'        => $emailSettings['emails'][$remailId],
             'smartcodes'      => $editorCodes,
             'default_content' => Arr::get($defaultEmails, $remailId),
+            'built_in'        => BuiltInEmails::preview($remailId, wp_get_current_user()),
         ];
     }
 

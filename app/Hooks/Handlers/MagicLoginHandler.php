@@ -6,6 +6,7 @@ use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\SmartCodeParser;
+use FluentAuth\App\Services\BuiltInEmails;
 use FluentAuth\App\Services\SystemEmailService;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 
@@ -266,50 +267,7 @@ class MagicLoginHandler
 
         $emailData = $this->getCustomizedEmailSubjectBody($user, $loginUrl);
         if (empty($emailData['subject']) || empty($emailData['body'])) {
-            /* translators: %s: Site Name  */
-            $emailSubject = sprintf(__('Sign in to %s', 'fluent-security'), get_bloginfo('name'));
-
-            $emailLines = [
-                /* translators: %s: user's display name  */
-                sprintf(__('Hello %s,', 'fluent-security'), $user->display_name),
-                /* translators: %s: Site Name  */
-                sprintf(__('Click the link below to sign in to your %s account', 'fluent-security'), get_bloginfo('name')),
-                /* translators: %d: Minute  */
-                sprintf(__('This link will expire in %d minutes and can only be used once.', 'fluent-security'), $validity)
-            ];
-
-            $callToAction = [
-                /* translators: %s: Site Name  */
-                'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), get_bloginfo('name')),
-                'url'      => $loginUrl
-            ];
-
-            $footerLines = [
-                __('If the button above does not work, paste this link into your web browser:', 'fluent-security'),
-                esc_url($loginUrl),
-                ' ',
-                __('If you did not make this request, you can safely ignore this email.', 'fluent-security')
-            ];
-
-            $emailBody = '';
-            $emailBody .= Helper::loadView('magic_login.header', [
-                'pre_header' => $emailSubject
-            ]);
-
-            $emailBody .= Helper::loadView('magic_login.line_block', [
-                'lines' => $emailLines
-            ]);
-
-            $emailBody .= Helper::loadView('magic_login.call_to_action', $callToAction);
-
-            $emailBody .= Helper::loadView('magic_login.line_block', [
-                'lines' => $footerLines
-            ]);
-
-            $emailBody .= Helper::loadView('magic_login.footer', []);
-
-            $emailData['subject'] = $emailSubject;
-            $emailData['body'] = $emailBody;
+            $emailData = BuiltInEmails::magicLink($user, $loginUrl, $validity);
         }
 
         $result = \wp_mail(

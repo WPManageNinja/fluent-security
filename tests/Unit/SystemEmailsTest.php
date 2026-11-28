@@ -433,7 +433,8 @@ class SystemEmailsTest extends BaseTestCase
 
     /**
      * Someone who picked their own password is not sent a "set your password" email.
-     * The admin is still told.
+     * With the welcome email left on Built-in they used to get nothing at all; they get
+     * the default welcome text instead. The admin is still told.
      */
     public function test_fluentauth_signup_skips_the_customized_set_password_email()
     {
@@ -444,7 +445,11 @@ class SystemEmailsTest extends BaseTestCase
 
         $this->fluentAuthSignup('chooser');
 
-        $this->assertCount(0, $this->mailTo('chooser@example.test'));
+        $mail = $this->onlyMailTo('chooser@example.test');
+        $default = SystemEmailService::getEmailDefaults()['fluent_auth_welcome_email_to_user']['email'];
+        $this->assertSame((new \FluentAuth\App\Services\SmartCodeParser())->parse($default['subject'], get_user_by('login', 'chooser')), $mail['subject']);
+        $this->assertStringNotContainsString('Set your password', $mail['subject']);
+        $this->assertIsCustomizedHtml($mail);
         $this->assertCount(1, $this->mailTo(get_option('admin_email')));
     }
 

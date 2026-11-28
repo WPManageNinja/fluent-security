@@ -260,7 +260,8 @@ class SystemEmailService
             'fluent_auth_welcome_email_to_user'           => [
                 'status' => 'system',
                 'email'  => [
-                    'subject' => 'Welcome to {{site.name}} - Your Account is Ready',
+                    /* translators: %s: site name placeholder */
+                    'subject' => sprintf(__('Welcome to %s - your account is ready', 'fluent-security'), '{{site.name}}'),
                     'body'    => self::getDefaultEmailBody('fluent_auth_welcome_email_to_user'),
                 ]
             ],
@@ -467,26 +468,29 @@ class SystemEmailService
             <?php
             return ob_get_clean();
         } else if ($type == 'fluent_auth_welcome_email_to_user') {
-            ob_start();
-            ?>
-            <p>Hello {{user.display_name}},</p>
-            <p>Thank you for signing up! Your account has been successfully created and is now ready to use. We're
-                excited to have you join us and look forward to giving you a great experience on our website.</p>
-            <p><strong>Your Account Details:</strong></p>
-            <blockquote>
-                <p>Your Login Email: {{user.user_email}}</p>
-                <p>Your Login Password: <em>password you used during signup</em></p>
-                <p>Login URL: {{site.login_url}}</p>
-            </blockquote>
-            <p>&nbsp;</p>
-            <p class="align-center" style="text-align: center;" align="center"><a
-                    style="color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;"
-                    href="##site.url##">Visit the Website</a></p>
-            <p>&nbsp;</p>
-            <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-            <p>Best regards,<br/>All at {{site.name}}<br/>{{site.url}}</p>
-            <?php
-            return ob_get_clean();
+            /*
+             * Translated, unlike the other defaults: this one is sent without the owner
+             * choosing it, when a FluentAuth sign-up's set-password email is held back.
+             */
+            $button = 'color: #ffffff; background-color: #0072ff; font-size: 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-style: normal; padding: 0.8rem 1rem; border-color: #0072ff;';
+
+            /* translators: %s: the new user's display name placeholder */
+            return '<p>' . sprintf(esc_html__('Hello %s,', 'fluent-security'), '{{user.display_name}}') . '</p>' .
+                '<p>' . esc_html__('Thank you for signing up. Your account is ready to use.', 'fluent-security') . '</p>' .
+                '<p><strong>' . esc_html__('Your account details:', 'fluent-security') . '</strong></p>' .
+                '<blockquote>' .
+                /* translators: %s: the new user's email address placeholder */
+                '<p>' . sprintf(esc_html__('Login email: %s', 'fluent-security'), '{{user.user_email}}') . '</p>' .
+                /* translators: %s: the login page address placeholder */
+                '<p>' . sprintf(esc_html__('Login URL: %s', 'fluent-security'), '{{site.login_url}}') . '</p>' .
+                '</blockquote>' .
+                '<p>&nbsp;</p>' .
+                '<p class="align-center" style="text-align: center;" align="center"><a style="' . $button . '" href="##site.url##">' . esc_html__('Visit the website', 'fluent-security') . '</a></p>' .
+                '<p>&nbsp;</p>' .
+                '<p>' . esc_html__('If you have any questions, please contact us.', 'fluent-security') . '</p>' .
+                '<p>' . esc_html__('Best regards,', 'fluent-security') . '<br/>' .
+                /* translators: %s: site name placeholder */
+                sprintf(esc_html__('All at %s', 'fluent-security'), '{{site.name}}') . '<br/>{{site.url}}</p>';
         } else if ($type == 'two_fa_email_to_user') {
             ob_start();
             ?>

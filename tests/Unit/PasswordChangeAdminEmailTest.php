@@ -137,6 +137,7 @@ class PasswordChangeAdminEmailTest extends BaseTestCase
         do_action('init');
 
         $this->assertFalse(has_action('after_password_reset', 'wp_password_change_notification'));
+        $this->assertTrue(apply_filters('woocommerce_disable_password_change_notification', false), 'WooCommerce resets notify the admin directly');
     }
 
     public function test_it_stays_hooked_while_the_email_is_still_wanted()
@@ -150,5 +151,6 @@ class PasswordChangeAdminEmailTest extends BaseTestCase
         do_action('init');
 
         $this->assertNotFalse(has_action('after_password_reset', 'wp_password_change_notification'));
+        $this->assertFalse(apply_filters('woocommerce_disable_password_change_notification', false));
     }
 }

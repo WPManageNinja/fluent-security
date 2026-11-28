@@ -8,6 +8,7 @@ use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\LoginBridge;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
+use FluentAuth\App\Services\BuiltInEmails;
 use FluentAuth\App\Services\SystemEmailService;
 use FluentAuth\App\Services\Turnstile;
 
@@ -1551,20 +1552,9 @@ class CustomAuthHandler
         flsDb()->table('fls_login_hashes')
             ->insert($data);
 
-        /* translators: %s: Site Name */
-        $mailSubject = sprintf(__('Your registration verification code for %s', 'fluent-security'), get_bloginfo('name'));
-
-        $pStart = '<p style="font-family: Arial, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;">';
-
-        $firstName = esc_html(sanitize_text_field(wp_unslash((string)Arr::get($formData, 'first_name'))));
-
-        /* translators: %s: First Name */
-        $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), $firstName) . '</p>' .
-            $pStart . __('Thanks for signing up. Enter the code below on the registration page to finish setting up your account.', 'fluent-security') . '</p>' .
-            /* translators: %s: Verification code */
-            $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
-            '<br />' .
-            $pStart . __('The code works for 10 minutes. If you did not ask for it, you can ignore this email.', 'fluent-security') . '</p>';
+        $builtIn = BuiltInEmails::signupCode($formData, $verifcationCode);
+        $mailSubject = $builtIn['subject'];
+        $message = $builtIn['body'];
 
         $customSetting = SystemEmailService::getEmailSettingsByType('signup_verification_to_user');
         $customSubject = Arr::get($customSetting, 'email.subject');
@@ -1582,13 +1572,7 @@ class CustomAuthHandler
         $mailSubject = apply_filters('fluent_auth/signup_verification_mail_subject', $mailSubject);
         $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData);
 
-        $data = [
-            'body'        => $message,
-            'pre_header'  => __('Activate your account', 'fluent-security'),
-            'show_footer' => false
-        ];
-
-        $message = $useCustom ? SystemEmailService::withHtmlTemplate($message) : Helper::loadView('notification', $data);
+        $message = $useCustom ? SystemEmailService::withHtmlTemplate($message) : BuiltInEmails::signupLayout($message);
         $headers = SystemEmailService::getEmailHeaders();
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);
