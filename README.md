@@ -15,7 +15,7 @@ login redirects, admin bar hiding — with one that hooks in once.
 Everything is free. There is no paid tier and no locked screens.
 
 **[Plugin page](https://wordpress.org/plugins/fluent-security/)** ·
-**[Documentation](https://fluentauth.com/docs/getting-started/)** ·
+**[Documentation](https://fluentauth.com/docs/introduction)** ·
 **[Website](https://fluentauth.com)**
 
 ---
@@ -26,7 +26,7 @@ Everything is free. There is no paid tier and no locked screens.
 - Two-factor authentication: passkeys, authenticator apps (TOTP) and emailed codes
 - Passkey sign-in with no password at all — Touch ID, Windows Hello, security keys, password managers
 - Per-role enrollment and enforcement, with the factor enrolled *during* sign-in, before a session exists
-- Magic login links by email · Social login with Google, GitHub and Facebook · Google One Tap
+- Magic login links by email · Social login with Google, GitHub, Facebook and LinkedIn · Google One Tap
 - Ten single-use recovery codes per setup; authenticator secrets encryptable at rest
 
 **Protection**
@@ -34,6 +34,7 @@ Everything is free. There is no paid tier and no locked screens.
 - IP allow and block lists, with a role restriction for allow-listed addresses
 - Reverse proxy and Cloudflare detection, so rules act on the real visitor IP
 - Core hardening: disable XML-RPC, application passwords, REST user enumeration, admin bar
+- Application passwords across all users: who has them, when each was last used, revoke the unused ones
 
 **Visibility**
 - Security checklist that scores the site and fixes most findings for you
@@ -269,6 +270,7 @@ All accept `redirect_to="https://…"`.
 | `FLUENT_AUTH_GOOGLE_CLIENT_ID` / `_SECRET` | Google credentials, kept out of the database |
 | `FLUENT_AUTH_GITHUB_CLIENT_ID` / `_SECRET` | GitHub credentials |
 | `FLUENT_AUTH_FACEBOOK_CLIENT_ID` / `_SECRET` | Facebook credentials |
+| `FLUENT_AUTH_LINKEDIN_CLIENT_ID` / `_SECRET` | LinkedIn credentials |
 | `FLUENT_AUTH_DISABLE_IP_RESTRICTION` | Suspend IP rules to recover from a bad entry |
 | `FLUENT_AUTH_SERVER_MODE` | Run this site as the auth provider for others |
 
