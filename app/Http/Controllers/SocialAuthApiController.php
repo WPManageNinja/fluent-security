@@ -20,25 +20,25 @@ class SocialAuthApiController
                     'is_available'        => true,
                     'app_redirect'        => GithubAuthService::getAppRedirect(),
                     'has_wp_config_keys'  => self::hasWpConfigKeys('github'),
-                    'doc_url'             => 'https://fluentauth.com/docs/github-auth-connection'
+                    'doc_url'             => 'https://fluentauth.com/docs/login-with-github'
                 ],
                 'google'   => [
                     'is_available'        => true,
                     'app_redirect'        => GoogleAuthService::getAppRedirect(),
                     'has_wp_config_keys'  => self::hasWpConfigKeys('google'),
-                    'doc_url'             => 'https://fluentauth.com/docs/google-auth-connection'
+                    'doc_url'             => 'https://fluentauth.com/docs/login-with-google'
                 ],
                 'facebook' => [
                     'is_available'        => true,
                     'app_redirect'        => FacebookAuthService::getAppRedirect(),
                     'has_wp_config_keys'  => self::hasWpConfigKeys('facebook'),
-                    'doc_url'             => 'https://fluentauth.com/docs/facebook-auth-connection'
+                    'doc_url'             => 'https://fluentauth.com/docs/login-with-facebook'
                 ],
                 'linkedin' => [
                     'is_available'        => true,
                     'app_redirect'        => LinkedInAuthService::getAppRedirect(),
                     'has_wp_config_keys'  => self::hasWpConfigKeys('linkedin'),
-                    'doc_url'             => 'https://fluentauth.com/docs/linkedin-auth-connection'
+                    'doc_url'             => 'https://fluentauth.com/docs/login-with-linkedin'
                 ]
             ]
         ];

@@ -20,7 +20,7 @@ You get two-factor authentication, passkeys, social login, magic login links, lo
 
 - Two-Factor Authentication (email, authenticator app and passkeys)
 - Passkey sign-in with Touch ID, Windows Hello, a security key or a password manager
-- Social Login with Google, GitHub and Facebook
+- Social Login with Google, GitHub, Facebook and LinkedIn
 - Google One Tap Login
 - Magic Login links by email, with no password
 - Limit Login Attempts and block brute force attacks
@@ -64,6 +64,7 @@ Let people sign in with the accounts they already have.
 - Login with Google
 - Login with GitHub
 - Login with Facebook
+- Login with LinkedIn
 - Google One Tap Login
 
 Turn on the providers you want, paste the keys, and the buttons appear on your login and register forms. You can also stop social sign ups when registration is closed on your site.
@@ -140,7 +141,7 @@ Set your own logo, colours, background and form style on the WordPress login pag
 
 = Custom WordPress System Emails =
 
-WordPress sends a lot of plain default emails. FluentAuth lets you rewrite them with your own wording and branding, and gives you one template design they all share. You can also turn off the admin notification that fires every time a new user signs up.
+WordPress sends a lot of plain default emails. FluentAuth shows you what each one says, lets you rewrite it with your own wording and branding, and gives you one template design they all share. You can also turn off the admin notification that fires every time a new user signs up.
 
 = Core Security Hardening =
 
@@ -148,6 +149,7 @@ Turn off the parts of WordPress your site does not use.
 
 - Disable XML-RPC
 - Disable application passwords and remote app login
+- See every application password on your site, who it belongs to and when it was last used, and revoke the ones nobody uses
 - Stop user listings being read through the REST API
 - Restrict /wp-admin for low level roles
 - Hide the admin bar for the roles you choose
@@ -175,7 +177,7 @@ Nothing below leaves your site unless you turn that feature on.
 * **File scanning** compares your files against the official copies, so it fetches them from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`, `plugins.svn.wordpress.org`, `themes.svn.wordpress.org`) and the official WordPress mirror on GitHub (`raw.githubusercontent.com`). Only the name, version and file path of the item being checked is sent. [WordPress.org privacy](https://wordpress.org/about/privacy/) · GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) and [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
 * **FluentAuth Alerts Service** (`dash.fluentauth.com`, run by WPManageNinja LLC) sends you scheduled scan alerts by email. Off until you connect it, and the screen lists what would be sent - your name and email, your site address and title, the paths of files that differ, your plugin and theme versions, and your PHP and WordPress versions - before you decide. Never file contents, database data, or anything about your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
 * **Product update emails** (`dash.fluentauth.com`, run by WPManageNinja LLC). Off until you subscribe on the setup wizard or the dashboard. Sends your name, email and site address. If you also tick the box to send your site's versions, it sends your PHP, MySQL and WordPress versions too. Nothing about your plugins, your database or your visitors. [Privacy](https://fluentauth.com/privacy) · [Terms](https://fluentauth.com/terms).
-* **Social login** contacts Google, GitHub or Facebook only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)).
+* **Social login** contacts Google, GitHub, Facebook or LinkedIn only if you set one up, and only when a user clicks the button: the standard OAuth handshake plus the user's name and email so the account can be matched. Google ([terms](https://policies.google.com/terms), [privacy](https://policies.google.com/privacy)) · GitHub ([terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service), [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement)) · Facebook ([terms](https://www.facebook.com/terms.php), [privacy](https://www.facebook.com/privacy/policy/)) · LinkedIn ([terms](https://www.linkedin.com/legal/user-agreement), [privacy](https://www.linkedin.com/legal/privacy-policy)).
 * **About screen contributors** (`api.github.com`, `avatars.githubusercontent.com`). When an administrator opens FluentAuth → About, your site asks GitHub's public API for the list of people who have contributed to FluentAuth, at most once a day, and the administrator's browser loads their avatars from GitHub. No data about your site is sent: the request carries no site address, and the avatars load without a referrer. GitHub does see the IP address of your server and of the administrator's browser, as with any web request. GitHub [terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) · [privacy](https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement).
 * **Installing a recommended plugin** from the About screen downloads it from WordPress.org (`api.wordpress.org`, `downloads.wordpress.org`), the same as Plugins → Add New. It happens only when an administrator clicks Install. [WordPress.org privacy](https://wordpress.org/about/privacy/).
 * **Cloudflare Turnstile** (`challenges.cloudflare.com`) checks for bots on the forms you choose: signup, login and password reset, or WooCommerce's account forms. Off until you add your keys and pick a form. On those forms the visitor's browser loads Cloudflare's script, which collects signals from the browser to tell people from bots. When the form is sent, your site sends the result to Cloudflare to confirm it. [Turnstile privacy addendum](https://www.cloudflare.com/turnstile-privacy-policy/) · [Cloudflare terms](https://www.cloudflare.com/website-terms/).
@@ -217,12 +219,13 @@ If you use FluentAuth, you do not need these:
 
 == User Guides ==
 <ul>
-	<li><a href="https://fluentauth.com/docs/getting-started/" target="_blank">Getting Started with FluentAuth</a></li>
-	<li><a href="https://fluentauth.com/docs/login-redirects/" target="_blank">Login / Logout Redirects</a></li>
-	<li><a href="https://fluentauth.com/docs/shortcodes/" target="_blank">Register/Login Shortcodes in FluentAuth</a></li>
-	<li><a href="https://fluentauth.com/docs/github-auth-connection/" target="_blank">Configure Login with GitHub</a></li>
-	<li><a href="https://fluentauth.com/docs/google-auth-connection/" target="_blank">Configure Login with Google</a></li>
-	<li><a href="https://fluentauth.com/docs/facebook-auth-connection/" target="_blank">Configure Login with Facebook</a></li>
+	<li><a href="https://fluentauth.com/docs/introduction" target="_blank">Getting Started with FluentAuth</a></li>
+	<li><a href="https://fluentauth.com/docs/login-redirects" target="_blank">Login / Logout Redirects</a></li>
+	<li><a href="https://fluentauth.com/docs/shortcodes" target="_blank">Register/Login Shortcodes in FluentAuth</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-github" target="_blank">Configure Login with GitHub</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-google" target="_blank">Configure Login with Google</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-facebook" target="_blank">Configure Login with Facebook</a></li>
+	<li><a href="https://fluentauth.com/docs/login-with-linkedin" target="_blank">Configure Login with LinkedIn</a></li>
 </ul>
 
 == Other Plugins By The Same Team ==
@@ -279,7 +282,7 @@ Yes. You can pick which roles may set up a second factor and which roles must ha
 
 No. Two-factor authentication, passkeys, audit logs, login limits and the rest all run on your own site.
 
-A few things can reach out, and each one is off until you turn it on. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. There is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. If you turn on Cloudflare Turnstile for bot protection, the forms you pick use Cloudflare's check. Social login talks to Google, GitHub or Facebook when a user clicks that button. And if you subscribe to product update emails, your name, email and site address go to our mailing list. See the External Services section above.
+A few things can reach out, and each one is off until you turn it on. Scanning asks WordPress.org for the official copy of your files, which is how it can tell whether a file changed, and it sends nothing about your site to do that. There is an optional FluentAuth Alerts Service that handles scheduled scans and alert emails. It is off until you connect it, and the screen lists what would be sent before you decide. If you turn on Cloudflare Turnstile for bot protection, the forms you pick use Cloudflare's check. Social login talks to Google, GitHub, Facebook or LinkedIn when a user clicks that button. And if you subscribe to product update emails, your name, email and site address go to our mailing list. See the External Services section above.
 
 = Is it GDPR compliant? =
 
