@@ -106,11 +106,12 @@ class SocialAuthHandler
     {
         $actionType = Arr::get($data, 'fs_type');
 
-        if ($actionType === 'redirect' || empty($data['code'])) {
+        if ($actionType === 'redirect') {
             return $this->redirectToGithub();
         }
 
-        if (isset($data['code'])) {
+        // A cancelled consent comes back with error= and no code: show the login page.
+        if (!empty($data['code'])) {
             $redirectUrl = $this->handleGithubConfirm($data);
             if ($redirectUrl && !is_wp_error($redirectUrl)) {
                 wp_safe_redirect($redirectUrl);
@@ -149,11 +150,12 @@ class SocialAuthHandler
     {
         $actionType = Arr::get($data, 'fs_type');
 
-        if ($actionType === 'redirect' || empty($data['code'])) {
+        if ($actionType === 'redirect') {
             return $this->redirectToFacebook();
         }
 
-        if (isset($data['code'])) {
+        // A cancelled consent comes back with error= and no code: show the login page.
+        if (!empty($data['code'])) {
             $redirectUrl = $this->handleFacebookConfirm($data);
             if ($redirectUrl && !is_wp_error($redirectUrl)) {
                 wp_safe_redirect($redirectUrl);
