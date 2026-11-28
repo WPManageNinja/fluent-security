@@ -82,13 +82,14 @@ class SignupEmailCustomizationTest extends BaseTestCase
         $this->assertArrayNotHasKey('{{user.user_email}}', $codes);
     }
 
-    public function test_editor_requires_code_in_body_and_cannot_disable_verification()
+    public function test_editor_requires_code_in_body()
     {
-        foreach ([['status' => 'disabled'], ['status' => 'active', 'email' => ['subject' => '{{signup.verification_code}}', 'body' => '<p>No code</p>']]] as $settings) {
-            $result = SystemEmailsController::saveEmailSettings($this->request(['settings' => $settings]));
-            $this->assertWPError($result);
-            $this->assertFalse(get_option('fa_system_email_settings'));
-        }
+        $result = SystemEmailsController::saveEmailSettings($this->request(['settings' => [
+            'status' => 'active', 'email' => ['subject' => '{{signup.verification_code}}', 'body' => '<p>No code</p>'],
+        ]]));
+        $this->assertWPError($result);
+        $this->assertFalse(get_option('fa_system_email_settings'));
+
         foreach (['{{signup.verification_code}}', '##signup.verification_code##'] as $code) {
             $result = SystemEmailsController::saveEmailSettings($this->request(['settings' => [
                 'status' => 'active', 'email' => ['subject' => 'Confirm signup', 'body' => '<p>' . $code . '</p>'],

@@ -152,10 +152,6 @@ class SystemEmailsController
 
         $settings = (array) $request->get_param('settings');
 
-        if ($emailId === 'signup_verification_to_user' && Arr::get($settings, 'status') === 'disabled') {
-            return new \WP_Error('invalid_email_settings', __('The signup verification email cannot be disabled.', 'fluent-security'), ['status' => 400]);
-        }
-
         if ($settings['status'] == 'active') {
             $allEmailSettings['emails'][$emailId]['status'] = 'active';
 
