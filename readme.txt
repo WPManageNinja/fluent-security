@@ -45,11 +45,9 @@ Ask for a second step after the password. Three ways to do it, and you choose wh
 - **Authenticator app.** Google Authenticator, Authy, 1Password or any other TOTP app. FluentAuth draws the QR code on your own server, so the secret never leaves your site.
 - **Passkeys.** Touch ID, Face ID, Windows Hello, a hardware security key or a password manager. The browser ties the passkey to your domain, so it cannot be used on a fake copy of your login page.
 
-You can let a role set up a second factor or require it, and you choose how strong a required one has to be: a device factor only, meaning a passkey or an authenticator app, or any of the three. Anyone who must have one sets it up while they sign in, before a session is created for them, so the requirement cannot be walked past.
+Let a role set up a second factor, or require one, and choose how strong it must be: a passkey or authenticator app only, or any of the three. A required factor is set up during sign-in, before a session exists, so nobody can skip it.
 
-An authenticator app also hands out ten single use recovery codes, and passkey users can fall back on those too. Everyone manages their own second factor from their WordPress profile screen, and an admin screen lists who has enrolled, what each person registered, and lets you reset anyone locked out.
-
-Authenticator secrets can be encrypted in your database with a key you keep in wp-config.php, so reading the database gets an attacker nothing.
+Authenticator users get ten single use recovery codes. Everyone manages their own factors from their profile, and an admin screen shows who has enrolled and resets anyone locked out. Authenticator secrets can be encrypted with a key kept in wp-config.php.
 
 = Passkey Login =
 
@@ -162,10 +160,6 @@ Use one site as the login provider for your other sites. Users sign in once on t
 
 A short setup wizard runs the first time you open FluentAuth. It asks a handful of questions, shows you what each answer changes, and turns on a sensible set of options. Skip it and nothing is written, and every answer is an ordinary setting you can change later.
 
-= Built to Be Fast =
-
-FluentAuth is one plugin doing the work of several, written to stay out of the way. The admin area is a single page Vue 3 app over the REST API, logs live in custom database tables, and no scanning agent sits in front of every request on your site.
-
 = For Developers =
 
 Another plugin can put its own login screen on FluentAuth's flows. It registers with the LoginBridge service, and from then on its custom form gets the attempt limits, the IP rules and the two-factor challenge, including an inline second step on a custom AJAX action. There are filters through the whole auth flow, and the site owner's settings always win over what an adopting plugin asks for.
@@ -186,7 +180,7 @@ Nothing below leaves your site unless you turn that feature on.
 
 Most WordPress sites get broken into the same way. Somebody guesses a password, or reuses one that leaked somewhere else, and walks in through the login form. The login form is the door, and that is what FluentAuth guards.
 
-Running several security plugins to cover this is its own problem. Each one hooks into every request and runs its own set of rules, and the site gets slower for it. One plugin that covers login security, two-factor authentication, social login, file scanning and audit logs is less work for your server and less work for you.
+Running several security plugins to cover it makes a site slower, because each one runs its own rules on every request. One plugin is less work for your server and for you.
 
 That is why we built FluentAuth, and that is why it is free.
 
@@ -218,31 +212,16 @@ If you use FluentAuth, you do not need these:
 - Hide Admin Bar from Non-Admins
 
 == User Guides ==
-<ul>
-	<li><a href="https://fluentauth.com/docs/introduction" target="_blank">Getting Started with FluentAuth</a></li>
-	<li><a href="https://fluentauth.com/docs/login-redirects" target="_blank">Login / Logout Redirects</a></li>
-	<li><a href="https://fluentauth.com/docs/shortcodes" target="_blank">Register/Login Shortcodes in FluentAuth</a></li>
-	<li><a href="https://fluentauth.com/docs/login-with-github" target="_blank">Configure Login with GitHub</a></li>
-	<li><a href="https://fluentauth.com/docs/login-with-google" target="_blank">Configure Login with Google</a></li>
-	<li><a href="https://fluentauth.com/docs/login-with-facebook" target="_blank">Configure Login with Facebook</a></li>
-	<li><a href="https://fluentauth.com/docs/login-with-linkedin" target="_blank">Configure Login with LinkedIn</a></li>
-</ul>
+
+* [Getting started](https://fluentauth.com/docs/introduction)
+* [Login and logout redirects](https://fluentauth.com/docs/login-redirects)
+* [Login and signup shortcodes](https://fluentauth.com/docs/shortcodes)
+* Social login with [Google](https://fluentauth.com/docs/login-with-google), [GitHub](https://fluentauth.com/docs/login-with-github), [Facebook](https://fluentauth.com/docs/login-with-facebook) and [LinkedIn](https://fluentauth.com/docs/login-with-linkedin)
+* Report a bug or contribute on [GitHub](https://github.com/WPManageNinja/fluent-security/)
 
 == Other Plugins By The Same Team ==
-<ul>
-	<li><a href="https://wordpress.org/plugins/fluent-cart/" target="_blank">FluentCart A New Era of eCommerce – Faster, Lighter, and Simpler</a></li>
-	<li><a href="https://wordpress.org/plugins/fluent-crm/" target="_blank">FluentCRM – Email Marketing, Newsletter, Email Automation and CRM Plugin for WordPress</a></li>
-	<li><a href="https://wordpress.org/plugins/fluentform/" target="_blank">Fluent Forms – Fastest WordPress Form Builder Plugin</a></li>
-	<li><a href="https://wordpress.org/plugins/ninja-tables/" target="_blank">Ninja Tables – Best WP DataTables Plugin for WordPress</a></li>
-	<li><a href="https://wordpress.org/plugins/ninja-charts/" target="_blank">Ninja Charts – Best WP Charts Plugin for WordPress</a></li>
-	<li><a href="https://wordpress.org/plugins/wp-payment-form/" target="_blank">WPPayForm - Stripe Payments Plugin for WordPress</a></li>
-	<li><a href="https://wordpress.org/plugins/mautic-for-fluent-forms/" target="_blank">Mautic Integration For Fluent Forms</a></li>
-	<li><a href="https://wordpress.org/plugins/fluentforms-pdf/" target="_blank">Fluent Forms PDF - PDF Entries for Fluent Forms</a></li>
-	<li><a href="https://wordpress.org/plugins/fluent-smtp/" target="_blank">FluentSMTP - WordPress Mail SMTP, SES, SendGrid, MailGun Plugin</a></li>
-</ul>
 
-== CONTRIBUTE ==
-If you want to contribute to this project or report a bug, you are welcome. The repository is on <a href="https://github.com/WPManageNinja/fluent-security/">GitHub</a>.
+[FluentSMTP](https://wordpress.org/plugins/fluent-smtp/), [FluentCRM](https://wordpress.org/plugins/fluent-crm/), [Fluent Forms](https://wordpress.org/plugins/fluentform/), [FluentCart](https://wordpress.org/plugins/fluent-cart/) and more. FluentAuth > About installs them in one click.
 
 == Installation ==
 
