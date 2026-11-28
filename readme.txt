@@ -323,7 +323,7 @@ It is not a malware scanner. It tells you which files no longer match the offici
 
 == Changelog ==
 
-= 3.2.0 - Date: Unreleased =
+= 3.2.0 - Date: Nov 28, 2026 =
 * New: Login with LinkedIn. It only accepts an email address that LinkedIn has verified.
 * New: Application Passwords screen under Settings. See every application password on your site, who it belongs to and when it was last used, and revoke the ones nobody uses. The security checklist points out any not used for 90 days.
 * New: Staying Signed In settings. Choose how many days people stay signed in, with and without Remember Me. Remember Me is now ticked by default.
