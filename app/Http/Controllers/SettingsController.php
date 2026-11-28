@@ -706,16 +706,18 @@ class SettingsController
          */
         $issuedAt = (int)get_user_meta($userId, '__flsc_temp_token_at', true);
         $window = (int)apply_filters('fluent_auth/child_site_token_ttl', 5 * MINUTE_IN_SECONDS);
+        $tokenSite = (string)get_user_meta($userId, '__flsc_temp_token_site', true);
 
-        if (!$issuedAt || (time() - $issuedAt) > $window) {
-            delete_user_meta($userId, '__flsc_temp_token');
-            delete_user_meta($userId, '__flsc_temp_token_at');
+        // A token only works for the child it was sent to, so one child cannot sign in with another's.
+        $isOwnToken = $tokenSite !== '' && hash_equals($tokenSite, $data['site_id']);
+
+        if (!$isOwnToken || !$issuedAt || (time() - $issuedAt) > $window) {
+            self::spendChildSiteToken($userId);
 
             return new \WP_Error('invalid_request', __('That sign-in link has expired. Please try again.', 'fluent-security'), ['status' => 403]);
         }
 
-        update_user_meta($userId, '__flsc_temp_token', '');
-        delete_user_meta($userId, '__flsc_temp_token_at');
+        self::spendChildSiteToken($userId);
 
         // now we will prepare the data for the user
         $data = apply_filters('fluent_auth/remote_auth_response_data', [
@@ -737,6 +739,13 @@ class SettingsController
         return [
             'user_data' => $data,
         ];
+    }
+
+    private static function spendChildSiteToken($userId)
+    {
+        delete_user_meta($userId, '__flsc_temp_token');
+        delete_user_meta($userId, '__flsc_temp_token_at');
+        delete_user_meta($userId, '__flsc_temp_token_site');
     }
 
     public static function installPlugin(\WP_REST_Request $request)

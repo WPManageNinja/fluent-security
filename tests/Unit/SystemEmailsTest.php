@@ -5,6 +5,7 @@ namespace FluentAuth\Tests\Unit;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Hooks\Handlers\MagicLoginHandler;
+use FluentAuth\App\Hooks\Handlers\WPSystemEmailHandler;
 use FluentAuth\App\Services\AuthService;
 use FluentAuth\App\Services\SystemEmailService;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
@@ -480,6 +481,48 @@ class SystemEmailsTest extends BaseTestCase
         $this->fluentAuthSignup('bothways');
 
         $this->assertSame('Welcome', $this->onlyMailTo('bothways@example.test')['subject']);
+    }
+
+    /**
+     * The display name is shown in To, and a social login takes it from the provider - so
+     * the visitor writes it. wp_mail() splits To on commas.
+     */
+    public function test_a_display_name_cannot_add_a_recipient_to_the_welcome_email()
+    {
+        $this->setEmail('fluent_auth_welcome_email_to_user', 'active', [
+            'subject' => 'Welcome',
+            'body'    => '<p>Welcome</p>',
+        ]);
+
+        $userId = $this->factory->user->create([
+            'user_login'   => 'commaname',
+            'user_email'   => 'commaname@example.test',
+            'display_name' => 'Bob, x@evil.test <x@evil.test>'
+        ]);
+
+        (new WPSystemEmailHandler())->maybeSendCustomizedEmailOnFluentAuthSignup($userId);
+
+        $this->assertCount(0, $this->mailTo('evil.test>'), 'no address taken from the name');
+        $mail = $this->onlyMailTo('commaname@example.test');
+        $this->assertSame('Bob x@evil.test <commaname@example.test>', $mail['to']);
+    }
+
+    public function test_the_welcome_email_still_greets_people_by_name()
+    {
+        $this->setEmail('fluent_auth_welcome_email_to_user', 'active', [
+            'subject' => 'Welcome',
+            'body'    => '<p>Welcome</p>',
+        ]);
+
+        $userId = $this->factory->user->create([
+            'user_login'   => 'plainname',
+            'user_email'   => 'plainname@example.test',
+            'display_name' => 'Jane Doe'
+        ]);
+
+        (new WPSystemEmailHandler())->maybeSendCustomizedEmailOnFluentAuthSignup($userId);
+
+        $this->assertSame('Jane Doe <plainname@example.test>', $this->onlyMailTo('plainname@example.test')['to']);
     }
 
     public function test_fluentauth_signup_with_welcome_disabled_sends_the_user_nothing()

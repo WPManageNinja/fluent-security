@@ -236,13 +236,10 @@ class MagicLoginHandler
              */
             $this->recordMagicProbe();
 
-            if ($user) {
-                $error_message = apply_filters(
-                    'fluent_auth/magic_login_error_message',
-                    __('Your account cannot use sign-in links. Please use the normal login form.', 'fluent-security'),
-                    $user
-                );
+            // Silent by default for a restricted account too: saying no names it, and names its role.
+            $error_message = $user ? (string)apply_filters('fluent_auth/magic_login_error_message', '', $user) : '';
 
+            if ($error_message) {
                 wp_send_json(array(
                     'message' => $error_message
                 ), 422);

@@ -93,6 +93,8 @@ class ServerModeHandler
          * in user meta indefinitely, still good. See SettingsController::validateChildSiteToken.
          */
         update_user_meta($userId, '__flsc_temp_token_at', time());
+        // Only the child it was sent to may redeem it.
+        update_user_meta($userId, '__flsc_temp_token_site', (string)Arr::get($siteConfig, 'site_id', ''));
         $tokenData = [
             'fluent_auth_token' => $token
         ];
@@ -109,6 +111,11 @@ class ServerModeHandler
 
     public function maybeRemoteLoginRedirect($redirect_to, $intentRedirectTo, $user)
     {
+        // Core runs login_redirect before it checks the result, so this is a WP_Error on a failed login.
+        if (!$user instanceof \WP_User) {
+            return $redirect_to;
+        }
+
         // check cookie
         if (isset($_COOKIE['__fls_auth_client_id'])) {
             $clientId = sanitize_text_field($_COOKIE['__fls_auth_client_id']);

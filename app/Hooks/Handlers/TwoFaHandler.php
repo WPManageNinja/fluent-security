@@ -81,10 +81,11 @@ class TwoFaHandler
     private static $cookieMinted = false;
 
     /**
-     * Whether an application password authenticated this request. Those exist to skip
-     * interactive factors, and the plugin has its own switch for refusing them.
+     * The user an application password authenticated in this request. Those exist to skip
+     * interactive factors, and the plugin has its own switch for refusing them. Only
+     * that user: another account named in the same request still owes its factor.
      */
-    private static $appPasswordAuthenticated = false;
+    private static $appPasswordUserId = 0;
 
     /**
      * @param $user \WP_User
@@ -143,7 +144,7 @@ class TwoFaHandler
          * maybeDenyHeadlessLogin() - and nothing here stops a login.
          */
         add_action('auth_cookie_valid', [$this, 'rememberAuthenticatedUser'], 10, 2);
-        add_action('application_password_did_authenticate', [$this, 'rememberAppPasswordAuth']);
+        add_action('application_password_did_authenticate', [$this, 'rememberAppPasswordAuth'], 10, 1);
         add_action('set_auth_cookie', [$this, 'rememberCookieUser'], 10, 4);
 
         // A challenge raised where no form could be shown is picked up on the next page.
@@ -254,17 +255,45 @@ class TwoFaHandler
             exit();
         }
 
-        $this->invalidate2FaCode($logHash);
+        global $wpdb;
 
-        $redirectTo = $this->sendAndGet2FaConfirmFormUrl(
+        /*
+         * One switch per challenge: only the request that closes the old row goes on, or
+         * parallel switches would each open a fresh challenge with its own guesses.
+         */
+        $closed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'failed', updated_at = %s WHERE id = %d AND status = 'issued'",
+            current_time('mysql'),
+            $logHash->id
+        ));
+
+        if (!$closed) {
+            wp_safe_redirect(wp_login_url());
+            exit();
+        }
+
+        // Read after closing, so a guess made during the switch is counted too.
+        $usedCount = (int)$wpdb->get_var($wpdb->prepare(
+            "SELECT used_count FROM {$wpdb->prefix}fls_login_hashes WHERE id = %d",
+            $logHash->id
+        ));
+
+        $issued = $this->sendAndGet2FaConfirmFormUrl(
             $user,
-            'url',
+            'both',
             $logHash->redirect_intend,
             $alternative,
             (bool)strpos($logHash->login_hash, '-auth')
         );
 
-        wp_safe_redirect($redirectTo ? $redirectTo : wp_login_url());
+        // The wrong guesses come along, or switching back and forth would reset the limit.
+        if ($issued && $usedCount) {
+            flsDb()->table('fls_login_hashes')
+                ->where('login_hash', $issued['login_hash'])
+                ->update(['used_count' => $usedCount]);
+        }
+
+        wp_safe_redirect($issued ? $issued['redirect_to'] : wp_login_url());
         exit();
     }
 
@@ -664,7 +693,7 @@ class TwoFaHandler
          * one credential built to skip interactive factors; whether a site allows them
          * at all is `disable_app_login`, not this.
          */
-        if (self::$appPasswordAuthenticated) {
+        if (self::$appPasswordUserId && self::$appPasswordUserId === (int)$user->ID) {
             return $user;
         }
 
@@ -989,11 +1018,12 @@ class TwoFaHandler
     }
 
     /**
+     * @param $user \WP_User
      * @return void
      */
-    public function rememberAppPasswordAuth()
+    public function rememberAppPasswordAuth($user = null)
     {
-        self::$appPasswordAuthenticated = true;
+        self::$appPasswordUserId = $user instanceof \WP_User ? (int)$user->ID : 0;
     }
 
     /**
@@ -1035,7 +1065,7 @@ class TwoFaHandler
         self::$completingChallenge = false;
         self::$cookieAuthenticatedUserId = 0;
         self::$cookieMinted = false;
-        self::$appPasswordAuthenticated = false;
+        self::$appPasswordUserId = 0;
     }
 
     /**

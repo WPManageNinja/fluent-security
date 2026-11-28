@@ -892,7 +892,8 @@ class FileRecovery
             @file_put_contents($root . '/index.php', "<?php\n// Silence is golden.\n");
         }
 
-        $dir = $root . '/' . gmdate('Ymd-His') . '-' . sanitize_file_name($reason);
+        // The random part is the protection on nginx, which ignores the .htaccess above.
+        $dir = $root . '/' . gmdate('Ymd-His') . '-' . sanitize_file_name($reason) . '-' . wp_generate_password(12, false);
 
         if (!wp_mkdir_p($dir)) {
             return new \WP_Error(
@@ -927,7 +928,6 @@ class FileRecovery
 
         @file_put_contents($dir . '/manifest.json', wp_json_encode([
             'moved_at' => gmdate('c'),
-            'by'       => wp_get_current_user()->user_login,
             'reason'   => $reason,
             'files'    => $moved,
             'failed'   => $failed
