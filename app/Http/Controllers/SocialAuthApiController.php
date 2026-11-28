@@ -115,7 +115,6 @@ class SocialAuthApiController
                 'facebook_key_method'    => 'wp_config',
                 'facebook_client_id'     => '',
                 'facebook_client_secret' => '',
-                'facebook_api_version'   => 'v12.0',
                 'enable_linkedin'        => 'no',
                 'linkedin_key_method'    => 'wp_config',
                 'linkedin_client_id'     => '',
@@ -187,7 +186,6 @@ class SocialAuthApiController
             $settings['facebook_key_method'] = 'wp_config';
             $settings['facebook_client_id'] = '';
             $settings['facebook_client_secret'] = '';
-            $settings['facebook_api_version'] = 'v12.0';
         } else if ($settings['facebook_key_method'] == 'wp_config') {
             $settings['facebook_client_id'] = '';
             $settings['facebook_client_secret'] = '';

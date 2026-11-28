@@ -9,6 +9,7 @@ use FluentAuth\App\Services\LoginAssets;
 use FluentAuth\App\Services\LoginBridge;
 use FluentAuth\App\Services\TwoFa\AuthFactor;
 use FluentAuth\App\Services\SystemEmailService;
+use FluentAuth\App\Services\Turnstile;
 
 class CustomAuthHandler
 {
@@ -39,6 +40,54 @@ class CustomAuthHandler
         add_action('wp_ajax_nopriv_fluent_auth_signup', array($this, 'handleSignupAjax'));
         add_action('wp_ajax_nopriv_fluent_auth_rp', array($this, 'handlePasswordResentAjax'));
         add_action('fls_load_login_helper', array($this, 'loadAssets'));
+
+        // After social callbacks and pending second factors, which run at priority 1.
+        add_action('login_init', array($this, 'maybeRouteToLoginPage'), 5);
+    }
+
+    /**
+     * For developers and hosts: return a full on-site URL from `fluent_auth/login_page_url`,
+     * e.g. home_url('/sign-in/'), and a guest's plain visit to wp-login.php goes there,
+     * logouts included. POSTs and requests with an action or other query keys (2FA, magic
+     * links, password reset) stay with WordPress.
+     *
+     * - A safe `redirect_to` is appended to the URL. A `redirect_to` attribute on the
+     *   page's shortcode overrides it.
+     * - Links that WordPress prints still point at wp-login.php; filter `login_url` for those.
+     * - A visitor sent back to wp-login.php within 15 seconds (a force-login plugin) gets
+     *   WordPress's own form instead of a redirect loop.
+     */
+    public function maybeRouteToLoginPage()
+    {
+        if (is_user_logged_in() || Arr::get($_SERVER, 'REQUEST_METHOD') !== 'GET'
+            || array_diff(array_keys($_GET), ['redirect_to', 'reauth', 'loggedout', 'wp_lang'])) {
+            return;
+        }
+
+        $url = Helper::getValidatedRedirectUrl((string)apply_filters('fluent_auth/login_page_url', ''), '');
+        if (!$url) {
+            return;
+        }
+
+        // Back here within seconds of being sent to the page: something sent them back
+        // (a force-login or members-only plugin). Show core's form instead of looping.
+        if (!empty($_COOKIE['fls_login_routed'])) {
+            return;
+        }
+
+        $redirect = Arr::get($_GET, 'redirect_to');
+        $redirect = is_string($redirect) ? Helper::getValidatedRedirectUrl(esc_url_raw(wp_unslash($redirect)), '') : '';
+        if ($redirect) {
+            $url = add_query_arg('redirect_to', rawurlencode($redirect), $url);
+        }
+
+        if (!headers_sent()) {
+            setcookie('fls_login_routed', '1', time() + 15, SITECOOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+        }
+
+        nocache_headers();
+        wp_safe_redirect($url);
+        exit;
     }
 
     public function alterLoginRedirectUrl($redirect_to, $intentRedirectTo, $user)
@@ -163,7 +212,7 @@ class CustomAuthHandler
             'redirect'          => $redirect,
             'force_redirect_to' => $requestedRedirectTo,
             'remember'          => true,
-            'value_remember'    => true,
+            'value_remember'    => SessionLengthHandler::rememberByDefault(),
             'action_url'        => site_url('/')
         ]);
 
@@ -243,6 +292,7 @@ class CustomAuthHandler
         $registrationForm .= '<input type="hidden" name="__redirect_to" value="' . esc_url($attributes['redirect_to']) . '">';
         $registrationForm .= '<input type="hidden" name="_fls_signup_nonce" value="' . wp_create_nonce('fluent_auth_signup_nonce') . '">';
         $registrationForm .= LoginBridge::markerFields();
+        $registrationForm .= Turnstile::widget(Turnstile::SIGNUP);
         $registrationForm .= '<button type="submit" id="fls_submit">' . $this->submitBtnLoadingSvg() . '<span>' . __('Signup', 'fluent-security') . '</span></button>';
 
         $registrationForm .= '</div></form>';
@@ -305,6 +355,7 @@ class CustomAuthHandler
         $resetPasswordForm .= '<input type="hidden" name="__redirect_to" value="' . esc_attr($attributes['redirect_to']) . '">';
         $resetPasswordForm .= '<input type="hidden" name="_fls_reset_pass_nonce" value="' . wp_create_nonce('fluent_auth_reset_pass_nonce') . '">';
         $resetPasswordForm .= LoginBridge::markerFields();
+        $resetPasswordForm .= Turnstile::widget(Turnstile::LOGIN);
         $resetPasswordForm .= '<button type="submit" id="fls_reset_pass">' . $this->submitBtnLoadingSvg() . '<span>' . __('Reset Password', 'fluent-security') . '</span></button>';
 
         $resetPasswordForm .= '</form>';
@@ -336,13 +387,19 @@ class CustomAuthHandler
 
         $authForm = '<div class="fls_auth_wrapper">';
 
-        $authForm .= do_shortcode('[fluent_auth_login redirect_to="' . esc_url($atts['redirect_to']) . '" show-signup=true show-reset-password=true]');
+        // Never build shortcode text from redirect_to: with "self" it is the visitor's URL,
+        // and a ] in it would let them run any shortcode on the site.
+        $authForm .= $this->loginForm([
+            'redirect_to'         => $atts['redirect_to'],
+            'show-signup'         => 'true',
+            'show-reset-password' => 'true',
+        ]);
 
         if (get_option('users_can_register')) {
-            $authForm .= do_shortcode('[fluent_auth_signup redirect_to="' . esc_url($atts['redirect_to']) . '" hide=true]');
+            $authForm .= $this->registrationForm(['redirect_to' => $atts['redirect_to'], 'hide' => 'true']);
         }
 
-        $authForm .= do_shortcode('[fluent_auth_reset_password redirect_to="' . esc_url($atts['redirect_to']) . '" hide=true]');
+        $authForm .= $this->restPasswordForm(['redirect_to' => $atts['redirect_to'], 'hide' => 'true']);
 
         $authForm .= '</div>';
 
@@ -591,9 +648,23 @@ class CustomAuthHandler
         $redirectTo = Arr::get($attributes, 'redirect_to');
 
         if ($redirectTo == 'self') {
-            $redirectTo = home_url(Arr::get($_SERVER, 'REQUEST_URI'));
+            // REQUEST_URI already holds any home subdirectory, so it goes on the origin, not on
+            // home_url(). A proxy that strips the subdirectory keeps the old home_url() form.
+            $requestUri = (string)Arr::get($_SERVER, 'REQUEST_URI');
+            $origin = self::siteOrigin();
+            $homePath = rtrim((string)wp_parse_url(home_url(), PHP_URL_PATH), '/') . '/';
+            $redirectTo = ($origin && strpos($requestUri, $homePath) === 0) ? $origin . $requestUri : home_url($requestUri);
             $attributes['redirect_to'] = $redirectTo;
         } else if ($redirectTo) {
+            if (is_string($redirectTo) && strpos($redirectTo, '/') === 0 && strpos($redirectTo, '//') !== 0) {
+                // Downstream auth flows expect an absolute URL. Keep root paths at the
+                // site's origin, including its port, without prepending a home subdirectory.
+                if ($origin = self::siteOrigin()) {
+                    $redirectTo = $origin . $redirectTo;
+                    $attributes['redirect_to'] = $redirectTo;
+                }
+            }
+
             // Validate URL
             if (!filter_var($redirectTo, FILTER_VALIDATE_URL)) {
                 $attributes['redirect_to'] = '';
@@ -601,6 +672,22 @@ class CustomAuthHandler
         }
 
         return shortcode_atts($shortCodeDefaults, $attributes);
+    }
+
+    /**
+     * The home URL's scheme, host and port, without any subdirectory.
+     *
+     * @return string
+     */
+    private static function siteOrigin()
+    {
+        $home = wp_parse_url(home_url());
+
+        if (empty($home['scheme']) || empty($home['host'])) {
+            return '';
+        }
+
+        return $home['scheme'] . '://' . $home['host'] . (isset($home['port']) ? ':' . $home['port'] : '');
     }
 
     protected function handleAlreadyLoggedIn($attributes)
@@ -661,7 +748,7 @@ class CustomAuthHandler
      * @param $user \WP_User
      * @return false|string
      */
-    private function getDefaultLoginRedirectUrl($user)
+    public function getDefaultLoginRedirectUrl($user)
     {
         $settings = Helper::getAuthFormsSettings();
 
@@ -794,6 +881,14 @@ class CustomAuthHandler
             ], 422);
         }
 
+        $turnstile = Turnstile::check(Turnstile::LOGIN);
+
+        if (is_wp_error($turnstile)) {
+            wp_send_json([
+                'message' => $turnstile->get_error_message()
+            ], 422);
+        }
+
         $redirectUrl = admin_url();
         if (isset($data['redirect_to']) && filter_var($data['redirect_to'], FILTER_VALIDATE_URL)) {
             $userRedirect = sanitize_url($data['redirect_to']);
@@ -816,26 +911,19 @@ class CustomAuthHandler
             ], 200);
         }
 
-        $email = sanitize_user($data['log']);
+        /*
+         * An unknown account goes through wp_signon() like a real one. Answering it early
+         * skipped the attempt limit and the IP rules, so a locked-out or blocked visitor
+         * could still tell real accounts from unknown ones by the reply.
+         */
+        $user = wp_signon();
 
-        if (is_email($email)) {
-            $user = get_user_by('email', $email);
-        } else {
-            $user = get_user_by('login', $email);
-        }
-
-        if (!$user) {
-            $user = new \WP_Error('authentication_failed', __('<strong>Error</strong>: That username, email address or password is not correct.', 'fluent-security'));
-
-            do_action('wp_login_failed', $email, $user);
-
+        // One reply for no such account and a wrong password, or the two tell an account apart.
+        if (is_wp_error($user) && in_array($user->get_error_code(), ['invalid_username', 'invalid_email', 'incorrect_password'], true)) {
             wp_send_json([
                 'message' => __('That email address and password do not match. Please try again.', 'fluent-security')
             ], 422);
         }
-
-
-        $user = wp_signon();
 
         if (is_wp_error($user)) {
             wp_send_json([
@@ -892,6 +980,23 @@ class CustomAuthHandler
          */
         do_action('fluent_auth/before_signup_validation', $formData);
 
+        /*
+         * The post that carries the emailed code is proven by the code, and its widget token
+         * was spent on the first post. Only skipped where a code is actually asked for: with
+         * verification filtered off, a made-up code field would otherwise create the account.
+         */
+        $isCodeStep = !empty($formData['_email_verification_token']) && apply_filters('fluent_auth/verify_signup_email', true, $formData);
+
+        if (!$isCodeStep) {
+            $turnstile = Turnstile::check(Turnstile::SIGNUP);
+
+            if (is_wp_error($turnstile)) {
+                wp_send_json([
+                    'message' => $turnstile->get_error_message()
+                ], 422);
+            }
+        }
+
         $errors = $this->validateSignUpData($formData);
 
         if ($errors) {
@@ -923,20 +1028,16 @@ class CustomAuthHandler
             ], 422);
         }
 
-        // let's validate the name field
-        $fullName = trim(Arr::get($formData, 'first_name') . ' ' . Arr::get($formData, 'last_name'));
-        if (!empty($fullName)) {
-            // check if the name is valid
-            // Consider if there has any special characters like +, -, *, /, etc
-            // only check the +,-,*,$,/,=,%,!,@,#,^,&,*,(,),_,{,},[,],:,;,',",<,>,?,|,`,~,,
-            if (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $fullName)) {
-                return __('Please provide a valid name', 'fluent-security');
-            }
-
-            // check if there has any http or https
-            if (preg_match('/http|https/', $fullName)) {
-                return __('Please provide a valid name', 'fluent-security');
-            }
+        /*
+         * Names are not policed for characters - O'Brien and Mary-Jane are names, and
+         * WordPress itself only runs sanitize_text_field() over them. A link is the one
+         * thing refused, because that is what a spam signup puts there.
+         */
+        $fullName = Arr::get($formData, 'first_name') . ' ' . Arr::get($formData, 'last_name');
+        if (stripos($fullName, 'http') !== false) {
+            wp_send_json([
+                'message' => __('Please provide a valid name', 'fluent-security')
+            ], 422);
         }
 
         if (apply_filters('fluent_auth/verify_signup_email', true, $formData)) {
@@ -1042,6 +1143,14 @@ class CustomAuthHandler
 
         }
 
+        $turnstile = Turnstile::check(Turnstile::LOGIN);
+
+        if (is_wp_error($turnstile)) {
+            wp_send_json([
+                'message' => $turnstile->get_error_message()
+            ], 422);
+        }
+
         $usernameOrEmail = trim(wp_unslash(Arr::get($data, 'user_login')));
 
         if (!$usernameOrEmail) {
@@ -1132,8 +1241,10 @@ class CustomAuthHandler
         /* translators: %s: Site Name */
         $mailSubject = apply_filters('fluent_auth/reset_password_mail_subject', sprintf(__('Reset your password for %s', 'fluent-security'), get_bloginfo('name')));
 
-        /* translators: %s: User's first name */
-        $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), $user_data->first_name) . '</p>' .
+        $greetingName = $user_data->first_name ? $user_data->first_name : $user_data->display_name;
+
+        /* translators: %s: User's first name, or display name when there is none */
+        $message = '<p>' . \sprintf(__('Hi %s,', 'fluent-security'), esc_html($greetingName)) . '</p>' .
             '<p>' . __('Someone asked to reset the password for this account:', 'fluent-security') . '</p>' .
             /* translators: %s: User's Login */
             '<p>' . \sprintf(__('Username: %s', 'fluent-security'), $user_login) . '</p>' .
@@ -1152,7 +1263,7 @@ class CustomAuthHandler
 
         $data = [
             'body'        => $message,
-            'pre_header'  => 'reset your password',
+            'pre_header'  => __('Reset your password', 'fluent-security'),
             'show_footer' => false
         ];
 
@@ -1241,7 +1352,7 @@ class CustomAuthHandler
         $user = get_user_by('ID', $userId);
 
         if ($user) {
-            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user);
+            $challengeUrl = (new TwoFaHandler())->raiseChallengeForDirectLogin($user, null, true);
 
             if ($challengeUrl) {
                 return $challengeUrl;
@@ -1441,18 +1552,34 @@ class CustomAuthHandler
             ->insert($data);
 
         /* translators: %s: Site Name */
-        $mailSubject = apply_filters("fluent_auth/signup_verification_mail_subject", sprintf(__('Your registration verification code for %s', 'fluent-security'), get_bloginfo('name')));
+        $mailSubject = sprintf(__('Your registration verification code for %s', 'fluent-security'), get_bloginfo('name'));
 
         $pStart = '<p style="font-family: Arial, sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 16px;">';
 
+        $firstName = esc_html(sanitize_text_field(wp_unslash((string)Arr::get($formData, 'first_name'))));
+
         /* translators: %s: First Name */
-        $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), Arr::get($formData, 'first_name')) . '</p>' .
+        $message = $pStart . sprintf(__('Hello %s,', 'fluent-security'), $firstName) . '</p>' .
             $pStart . __('Thanks for signing up. Enter the code below on the registration page to finish setting up your account.', 'fluent-security') . '</p>' .
             /* translators: %s: Verification code */
             $pStart . '<b>' . sprintf(__('Verification Code: %s', 'fluent-security'), $verifcationCode) . '</b></p>' .
             '<br />' .
             $pStart . __('The code works for 10 minutes. If you did not ask for it, you can ignore this email.', 'fluent-security') . '</p>';
 
+        $customSetting = SystemEmailService::getEmailSettingsByType('signup_verification_to_user');
+        $customSubject = Arr::get($customSetting, 'email.subject');
+        $customBody = Arr::get($customSetting, 'email.body');
+        $useCustom = Arr::get($customSetting, 'status') === 'active'
+            && is_string($customSubject) && trim($customSubject) !== ''
+            && is_string($customBody)
+            && (strpos($customBody, '{{signup.verification_code}}') !== false || strpos($customBody, '##signup.verification_code##') !== false);
+
+        if ($useCustom) {
+            $mailSubject = SystemEmailService::parseSignupEmail($customSubject, $formData, $verifcationCode);
+            $message = SystemEmailService::parseSignupEmail($customBody, $formData, $verifcationCode, true);
+        }
+
+        $mailSubject = apply_filters('fluent_auth/signup_verification_mail_subject', $mailSubject);
         $message = apply_filters('fluent_auth/signup_verification_email_body', $message, $verifcationCode, $formData);
 
         $data = [
@@ -1461,7 +1588,7 @@ class CustomAuthHandler
             'show_footer' => false
         ];
 
-        $message = Helper::loadView('notification', $data);
+        $message = $useCustom ? SystemEmailService::withHtmlTemplate($message) : Helper::loadView('notification', $data);
         $headers = SystemEmailService::getEmailHeaders();
 
         \wp_mail($formData['email'], $mailSubject, $message, $headers);

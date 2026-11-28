@@ -11,7 +11,7 @@ class FacebookAuthService
     public static function getAuthRedirect($state = '')
     {
         $config = Helper::getSocialAuthSettings('edit');
-        $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
+        $apiVersion = Helper::DEFAULT_FACEBOOK_API_VERSION;
 
         $params = [
             'client_id'     => $config['facebook_client_id'],
@@ -26,8 +26,7 @@ class FacebookAuthService
 
     public static function getTokenByCode($code)
     {
-        $config = Helper::getSocialAuthSettings('edit');
-        $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
+        $apiVersion = Helper::DEFAULT_FACEBOOK_API_VERSION;
 
         $postUrl = "https://graph.facebook.com/{$apiVersion}/oauth/access_token";
         $params = self::getAuthConfirmParams($code);
@@ -67,8 +66,7 @@ class FacebookAuthService
 
     public static function getDataByAccessToken($token)
     {
-        $config = Helper::getSocialAuthSettings('edit');
-        $apiVersion = !empty($config['facebook_api_version']) ? $config['facebook_api_version'] : 'v12.0';
+        $apiVersion = Helper::DEFAULT_FACEBOOK_API_VERSION;
 
         $fields = 'id,name,email';
         $url = "https://graph.facebook.com/{$apiVersion}/me?fields={$fields}&access_token={$token}";
@@ -86,6 +84,7 @@ class FacebookAuthService
         $body = wp_remote_retrieve_body($response);
         $userData = json_decode($body, true);
 
+        // Facebook returns only a confirmed email; it has no flag to check, unlike Google and GitHub.
         if (empty($userData['email'])) {
             return new \WP_Error('payload_error', __('Sorry! There was an error when fetching data for Facebook authentication. Please try again', 'fluent-security'));
         }

@@ -138,6 +138,7 @@ export default {
             }
 
             if (this.counts.activeFolders) {
+                // translators: %s is the number of changed WordPress core folders
                 parts.push(this.$_n('%s folder', '%s folders', this.counts.activeFolders));
             }
 
@@ -181,6 +182,7 @@ export default {
                     and without it the ignore list quietly does its work unmentioned.
                 -->
                 <span v-if="counts.accepted" class="fls_tag is_neutral">
+                    <!-- translators: %s is a number of files or items the site owner chose to ignore -->
                     {{ $_n('%s ignored', '%s ignored', counts.accepted) }}
                 </span>
             </span>

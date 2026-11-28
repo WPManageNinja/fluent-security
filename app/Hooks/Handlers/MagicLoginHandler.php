@@ -20,11 +20,7 @@ class MagicLoginHandler
         add_action('wp_ajax_nopriv_fls_magic_send_magic_email', array($this, 'handleMagicLoginAjax'));
 
         add_action('init', function () {
-            if (isset($_GET['fls_al'])) {
-                $hash = sanitize_text_field($_GET['fls_al']);
-                $this->makeLogin($hash);
-            }
-
+            $this->handleLinkRequest();
             $this->rememberRedirect();
         }, 1);
 
@@ -83,7 +79,7 @@ class MagicLoginHandler
 
                 <div class="fls_magic_login_btn">
                     <button class="fls_magic_show_btn magic_btn_secondary button button-primary button-large">
-                        <?php esc_html_e('Login Via Magic URL', 'fluent-security'); ?>
+                        <?php esc_html_e('Email me a login link', 'fluent-security'); ?>
                     </button>
                 </div>
             </div>
@@ -240,13 +236,10 @@ class MagicLoginHandler
              */
             $this->recordMagicProbe();
 
-            if ($user) {
-                $error_message = apply_filters(
-                    'fluent_auth/magic_login_error_message',
-                    __('Your account cannot use sign-in links. Please use the normal login form.', 'fluent-security'),
-                    $user
-                );
+            // Silent by default for a restricted account too: saying no names it, and names its role.
+            $error_message = $user ? (string)apply_filters('fluent_auth/magic_login_error_message', '', $user) : '';
 
+            if ($error_message) {
                 wp_send_json(array(
                     'message' => $error_message
                 ), 422);
@@ -490,7 +483,7 @@ class MagicLoginHandler
          * which is not a thing anybody should have to know to answer "is this safe".
          */
         $string = bin2hex(random_bytes(32));
-        $hash = wp_hash_password($string);
+        $hash = wp_hash_password(Helper::emailBoundSecret($string, $user->user_email));
 
         $data = array(
             'login_hash'      => $hash,
@@ -508,6 +501,88 @@ class MagicLoginHandler
             ->insert($data);
 
         return $string . ':' . $insertId;
+    }
+
+    /**
+     * Opening the link only shows a page. The page posts the link back, and the POST signs in.
+     *
+     * Mail scanners - Microsoft Safe Links above all - fetch every URL in an email before the
+     * person sees it. When the GET itself signed in, the scanner spent the one-time link and
+     * took the session, and the person who clicked landed logged out. A scanner fetches; it
+     * does not submit forms, so the page submits itself in a real browser and nowhere else.
+     *
+     * @return void
+     */
+    public function handleLinkRequest()
+    {
+        if (!isset($_GET['fls_al']) || !is_string($_GET['fls_al']) || !$this->isEnabled()) {
+            return;
+        }
+
+        $hash = sanitize_text_field(wp_unslash($_GET['fls_al']));
+
+        if (is_user_logged_in()) {
+            $this->makeLogin($hash);
+            return;
+        }
+
+        if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            if ($this->makeLogin($hash)) {
+                // No force_redirect: land on the page the link pointed at, as a GET.
+                wp_safe_redirect(remove_query_arg(['fls_al', 'force_redirect']));
+                exit();
+            }
+
+            $this->renderLinkPage(false);
+            exit();
+        }
+
+        $this->renderLinkPage($this->isRedeemable($hash));
+        exit();
+    }
+
+    /**
+     * Whether the link would sign in if it were posted now. Reads only: a GET must not spend it.
+     *
+     * @param string $hash the `<secret>:<rowId>` pair from the URL
+     * @return bool
+     */
+    public function isRedeemable($hash)
+    {
+        $hashes = explode(':', $hash);
+
+        if (count($hashes) != 2) {
+            return false;
+        }
+
+        $row = flsDb()->table('fls_login_hashes')
+            ->where('id', $hashes[1])
+            ->where('use_type', 'magic_login')
+            ->where('status', 'issued')
+            ->first();
+
+        $user = $row ? get_user_by('ID', $row->user_id) : false;
+
+        if (!$user || !$this->isPasswordEqual(Helper::emailBoundSecret($hashes[0], $user->user_email), $row->login_hash)) {
+            return false;
+        }
+
+        return strtotime($row->valid_till, current_time('timestamp')) >= current_time('timestamp');
+    }
+
+    private function renderLinkPage($isValid)
+    {
+        if (!headers_sent()) {
+            nocache_headers();
+            header('Content-Type: text/html; charset=' . get_option('blog_charset'));
+            header('X-Robots-Tag: noindex, nofollow');
+        }
+
+        echo Helper::loadView('magic_login.redeem', [ // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            'is_valid'  => $isValid,
+            'site_name' => get_bloginfo('name'),
+            'login_url' => wp_login_url()
+        ]);
     }
 
     public function makeLogin($hash)
@@ -549,7 +624,9 @@ class MagicLoginHandler
             return false;
         }
 
-        if (!$this->isPasswordEqual($hash, $row->login_hash)) {
+        $user = get_user_by('ID', $row->user_id);
+
+        if (!$user || !$this->isPasswordEqual(Helper::emailBoundSecret($hash, $user->user_email), $row->login_hash)) {
             return false;
         }
 
@@ -566,10 +643,6 @@ class MagicLoginHandler
                 ]);
             return false;
         }
-
-        // The hash is valid now make the user logged in
-        $userId = $row->user_id;
-        $user = get_user_by('ID', $userId);
 
         if (!apply_filters('fluent_auth/magic_login_can_use', $this->canUseMagic($user), $user)) {
             return false;
@@ -632,15 +705,32 @@ class MagicLoginHandler
         add_filter('wordfence_ls_require_captcha', $noCaptcha);
         add_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10, 3);    // hook in earlier than other callbacks to short-circuit them
 
+        $remember = SessionLengthHandler::rememberByDefault();
+
+        // A 2FA challenge raised inside wp_signon() reads the choice from the request.
+        $hadRemember = array_key_exists('rememberme', $_REQUEST);
+        $previousRemember = $hadRemember ? $_REQUEST['rememberme'] : null;
+        unset($_REQUEST['rememberme']);
+        if ($remember) {
+            $_REQUEST['rememberme'] = '1';
+        }
+
         try {
             $user = wp_signon(array(
                     'user_login'    => $user->user_login,
-                    'user_password' => ''
+                    'user_password' => '',
+                    'remember'      => $remember
                 )
             );
         } finally {
             remove_filter('authenticate', array($this, 'allowProgrammaticLogin'), 10);
             remove_filter('wordfence_ls_require_captcha', $noCaptcha);
+
+            if ($hadRemember) {
+                $_REQUEST['rememberme'] = $previousRemember;
+            } else {
+                unset($_REQUEST['rememberme']);
+            }
         }
 
         Helper::setTokenVerifiedLogin(false);
@@ -660,6 +750,13 @@ class MagicLoginHandler
                     ]);
 
                 Helper::setLoginMedia('magic_login');
+
+                /*
+                 * The link was bound to this address, so redeeming it proves the inbox.
+                 *
+                 * @param \WP_User $user
+                 */
+                do_action('fluent_auth/email_verified', $user);
 
                 if (!wp_doing_ajax()) {
                     if (isset($_GET['force_redirect']) && $_GET['force_redirect'] == 'yes') {
@@ -694,7 +791,10 @@ class MagicLoginHandler
 
     private function getLoginRedirect($user)
     {
-        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : site_url();
+        $requested_redirect_to = isset($_REQUEST['redirect_to']) && is_string($_REQUEST['redirect_to']) ? esc_url_raw(wp_unslash($_REQUEST['redirect_to'])) : '';
+        if (!$requested_redirect_to) {
+            $requested_redirect_to = (new CustomAuthHandler())->getDefaultLoginRedirectUrl($user) ?: site_url();
+        }
         return apply_filters('login_redirect', $requested_redirect_to, $requested_redirect_to, $user);
     }
 

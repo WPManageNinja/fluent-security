@@ -203,4 +203,118 @@ class LoginBridgeTest extends BaseTestCase
         $this->assertSame('https://example.test/portal', $args['force_redirect_to']);
         $this->assertSame('https://example.test/portal', apply_filters('fluent_auth/social_redirect_to', ''));
     }
+
+    /**
+     * A page can render a host's adopted form and then a different FluentAuth form
+     * further down. The second one is not the host's and must not go out as if it were.
+     */
+    public function test_a_form_rendered_after_release_carries_nothing_of_the_host()
+    {
+        LoginBridge::register('test-host', 'is_host_screen');
+
+        LoginBridge::adopt([
+            'host'          => 'test-host',
+            'redirect_to'   => 'https://example.test/portal',
+            'hidden_fields' => ['host_token' => 'abc123'],
+            'ajax_actions'  => ['host_login']
+        ]);
+
+        $this->assertStringContainsString('_fls_host', LoginBridge::markerFields());
+
+        LoginBridge::release();
+
+        $this->assertSame('', LoginBridge::markerFields());
+        $this->assertSame('', apply_filters('login_form_top', '', []));
+        $this->assertSame([], apply_filters('fluent_auth/login_form_args', []));
+        $this->assertSame('', apply_filters('fluent_auth/social_redirect_to', ''));
+
+        $_REQUEST['action'] = 'host_login';
+        $this->assertFalse(apply_filters('fluent_auth/can_render_2fa_inline', false));
+
+        $this->assertFalse($this->handler()->isEnabled());
+    }
+
+    /**
+     * The form that was rendered posts back in a later request, and that post still has
+     * to be recognised.
+     */
+    public function test_release_keeps_the_registration()
+    {
+        LoginBridge::register('test-host', 'is_host_screen', ['host_login']);
+        LoginBridge::adopt(['host' => 'test-host']);
+        LoginBridge::release();
+
+        $this->assertTrue(LoginBridge::isRegistered('test-host'));
+
+        $_REQUEST['action'] = 'host_login';
+        $this->assertTrue(apply_filters('fluent_auth/can_render_2fa_inline', false));
+
+        $_REQUEST['is_host_screen'] = 'yes';
+        $this->assertTrue(LoginBridge::claimed());
+    }
+
+    public function test_a_host_that_claims_every_request_counts_as_registered()
+    {
+        LoginBridge::register('test-host');
+
+        $this->assertTrue(LoginBridge::isRegistered('test-host'));
+    }
+
+    /**
+     * adopt() stands in for registration on the screen it renders. Left behind, that
+     * stand-in has no test of its own and would claim every request after it.
+     */
+    public function test_release_forgets_a_host_that_only_adopted()
+    {
+        LoginBridge::adopt(['host' => 'test-host']);
+        LoginBridge::release();
+
+        $this->assertFalse(LoginBridge::isRegistered('test-host'));
+        $this->assertFalse(LoginBridge::claimed());
+    }
+
+    public function test_adopting_twice_replaces_the_first_adoption()
+    {
+        LoginBridge::adopt([
+            'host'          => 'test-host',
+            'redirect_to'   => 'https://example.test/first',
+            'hidden_fields' => ['first_field' => '1']
+        ]);
+
+        LoginBridge::adopt([
+            'host'          => 'test-host',
+            'redirect_to'   => 'https://example.test/second',
+            'hidden_fields' => ['second_field' => '2']
+        ]);
+
+        $html = apply_filters('login_form_top', '', []);
+
+        $this->assertStringNotContainsString('first_field', $html);
+        $this->assertStringContainsString('name="second_field" value="2"', $html);
+        $this->assertSame('https://example.test/second', apply_filters('fluent_auth/social_redirect_to', ''));
+        $this->assertTrue(LoginBridge::isRegistered('test-host'));
+    }
+
+    public function test_registering_after_adopting_survives_release()
+    {
+        LoginBridge::adopt(['host' => 'test-host']);
+        LoginBridge::register('test-host', 'is_host_screen');
+        LoginBridge::release();
+
+        $this->assertTrue(LoginBridge::isRegistered('test-host'));
+    }
+
+    /**
+     * Another host booting late clears the memoised claim. The adoption must not go
+     * with it, or the form being drawn would lose its marker.
+     */
+    public function test_a_later_registration_does_not_end_an_adoption()
+    {
+        LoginBridge::register('test-host', 'is_host_screen');
+        LoginBridge::adopt(['host' => 'test-host']);
+        LoginBridge::register('other-host', 'is_other_screen');
+
+        $this->assertTrue(LoginBridge::claimed());
+        $this->assertStringContainsString('value="test-host"', LoginBridge::markerFields());
+    }
 }

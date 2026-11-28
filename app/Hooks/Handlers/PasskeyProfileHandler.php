@@ -3,6 +3,7 @@
 namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
+use FluentAuth\App\Services\TwoFa\FactorStore;
 use FluentAuth\App\Services\TwoFa\PasskeyTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\RecoveryCodes;
 use FluentAuth\App\Services\TwoFa\WebAuthn\Base64Url;
@@ -219,6 +220,7 @@ class PasskeyProfileHandler
     public function purgeForUser($userId)
     {
         PasskeyStore::deleteAllForUser($userId);
+        FactorStore::deleteForUser($userId);
     }
 
     /**

@@ -87,7 +87,8 @@ export default {
 
             if (this.finding.action === 'none' && !this.isPassed && !this.isAccepted) return this.$t('View instructions');
 
-            return this.$_n('Show detail', 'Show %s details', this.finding.details.length);
+            // translators: %s is the number of detail lines under this finding
+            return this.$_n('Show %s detail', 'Show %s details', this.finding.details.length);
         },
         /*
          * A finding that can only point at where the work is done still gets a button, but it
@@ -152,7 +153,7 @@ export default {
             </el-button>
             <template v-else>
                 <el-button v-if="finding.url" size="small" tag="a" :href="finding.url" target="_blank" rel="noopener noreferrer"
-                           :aria-label="$t('%s (opens in a new tab)', primaryLabel)">
+                           :aria-label="/* translators: %s is the button label, e.g. Turn on or Set up */ $t('%s (opens in a new tab)', primaryLabel)">
                     {{ primaryLabel }} <span aria-hidden="true">↗</span>
                 </el-button>
                 <el-button v-else-if="finding.action !== 'none'" :type="isCritical ? 'primary' : 'default'" size="small"

@@ -26,6 +26,7 @@ class Registry
 
         $checks = [
             new SettingsCheck(),
+            new Login\SignupBotCheck(),
             new Files\MuPluginsCheck(),
             new Files\DropInsCheck(),
             new Files\UploadsExecutionCheck(),

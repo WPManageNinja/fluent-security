@@ -130,6 +130,7 @@ export default {
             }
 
             if (this.barState === 'changed') {
+                // translators: %s is the number of files
                 return this.$_n(
                     '%s file has changed since your snapshot',
                     '%s files have changed since your snapshot',
@@ -143,6 +144,7 @@ export default {
              * pluralised - and a five-figure count is exactly where an ungrouped number stops
              * being readable at a glance.
              */
+            // translators: %s is the number of files, already formatted with thousands separators
             return this.$_n(
                 'Watching %s file against your snapshot',
                 'Watching %s files against your snapshot',
@@ -175,6 +177,7 @@ export default {
             const unit = this.unitOf(item);
 
             if (unit.changed) {
+                // translators: %s is the number of changed files in this plugin or theme
                 return {klass: 'is_blocked', label: this.$_n('%s changed', '%s changed', unit.changed)};
             }
 
@@ -186,8 +189,9 @@ export default {
             if (unit.skipped) {
                 return {
                     klass: 'is_warning',
+                    // translators: %1$s is the number of files watched, %2$s the total files in this plugin or theme
                     label: this.$t(
-                        'Watching %s of %s',
+                        'Watching %1$s of %2$s',
                         this.readableCount(unit.file_count),
                         this.readableCount(unit.file_count + unit.skipped)
                     )
@@ -241,6 +245,7 @@ export default {
     <div class="fls_dcard" v-loading="busy">
         <div class="fls_dcard_head">
             <h2>{{ $t('Premium & Custom Extensions') }}</h2>
+            <!-- translators: %s is the number of premium or custom plugins and themes -->
             <span class="fls_dcard_meta">{{ $_n('%s with no official copy', '%s with no official copy', items.length) }}</span>
         </div>
 
@@ -273,8 +278,9 @@ export default {
                     <span v-else-if="barState === 'changed'">{{ $t('__baseline_changed_note__') }}</span>
 
                     <span v-else>
+                        <!-- translators: %s is the number of plugins and themes in the snapshot -->
                         {{ $_n('%s plugin or theme recorded', '%s plugins and themes recorded', recordedCount) }}<template
-                            v-if="missingCount"> · {{ $_n('%s not yet recorded', '%s not yet recorded', missingCount) }}</template>
+                            v-if="missingCount"> · <!-- translators: %s is the number of plugins and themes not in the snapshot yet -->{{ $_n('%s not yet recorded', '%s not yet recorded', missingCount) }}</template>
                     </span>
 
                     <!--
@@ -283,6 +289,7 @@ export default {
                         complete as the walk that produced them.
                     -->
                     <em v-if="skippedFiles" class="is_warning">
+                        <!-- translators: %s is the number of files, already formatted with thousands separators -->
                         {{ $_n('%s file is not being watched because one plugin or theme is too large to record in full.', '%s files are not being watched because some plugins or themes are too large to record in full.', readableCount(skippedFiles)) }}
                     </em>
                 </div>
@@ -325,6 +332,7 @@ export default {
                             list of changes is exactly the case where it matters most.
                         -->
                         <p v-if="unitOf(item).skipped" class="fls_scan_snapshot_fact is_warning">
+                            <!-- translators: %1$s is the number of files in this plugin or theme that can run code, %2$s how many of them are watched -->
                             {{ $t('__baseline_unit_partial__', readableCount(unitOf(item).file_count + unitOf(item).skipped), readableCount(unitOf(item).file_count)) }}
                         </p>
 
@@ -351,6 +359,7 @@ export default {
                         <!-- Recorded and quiet: what is being watched, and since when. -->
                         <template v-else-if="unitOf(item).in_snapshot">
                             <p class="fls_scan_snapshot_fact">
+                                <!-- translators: %s is the number of files, already formatted with thousands separators -->
                                 {{ $_n('%s file recorded', '%s files recorded', readableCount(unitOf(item).file_count)) }}<template
                                     v-if="unitOf(item).checked_at"> · {{ $t('last checked') }}
                                 {{ readableDate(unitOf(item).checked_at) }}</template>

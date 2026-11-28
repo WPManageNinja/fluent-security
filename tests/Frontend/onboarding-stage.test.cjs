@@ -69,3 +69,18 @@ test('the frame shows the registration address for signup previews', () => {
     assert.equal(stage().previewUrl, 'https://example.test/wp-login.php');
     assert.equal(stage({step: {preview: 'signup'}}).previewUrl, 'https://example.test/wp-login.php?action=register');
 });
+
+test('a passkey alone asks for a touch, not a code', () => {
+    const secure = {site_url: 'https://example.test/', passkey_supported: true};
+    const passkeyOnly = stage({appVars: secure, answer: {passkey: true}});
+
+    assert.equal(passkeyOnly.isOn, true);
+    assert.equal(passkeyOnly.twoFactorFields.length, 0);
+    assert.match(passkeyOnly.twoFactorNotice, /passkey/);
+
+    // Beside a code method, the code screen is still the one shown.
+    assert.equal(stage({appVars: secure, answer: {passkey: true, email: true}}).twoFactorFields.length, 1);
+
+    // Where passkeys cannot work, the answer turns nothing on.
+    assert.equal(stage({answer: {passkey: true}}).isOn, false);
+});

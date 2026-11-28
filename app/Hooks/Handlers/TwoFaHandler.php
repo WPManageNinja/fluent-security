@@ -4,6 +4,7 @@ namespace FluentAuth\App\Hooks\Handlers;
 
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Services\TwoFa\AuthFactor;
 use FluentAuth\App\Services\TwoFa\BaseTwoFaMethod;
 use FluentAuth\App\Services\TwoFa\DeviceRequirement;
 use FluentAuth\App\Services\TwoFa\EmailTwoFaMethod;
@@ -80,10 +81,11 @@ class TwoFaHandler
     private static $cookieMinted = false;
 
     /**
-     * Whether an application password authenticated this request. Those exist to skip
-     * interactive factors, and the plugin has its own switch for refusing them.
+     * The user an application password authenticated in this request. Those exist to skip
+     * interactive factors, and the plugin has its own switch for refusing them. Only
+     * that user: another account named in the same request still owes its factor.
      */
-    private static $appPasswordAuthenticated = false;
+    private static $appPasswordUserId = 0;
 
     /**
      * @param $user \WP_User
@@ -142,7 +144,7 @@ class TwoFaHandler
          * maybeDenyHeadlessLogin() - and nothing here stops a login.
          */
         add_action('auth_cookie_valid', [$this, 'rememberAuthenticatedUser'], 10, 2);
-        add_action('application_password_did_authenticate', [$this, 'rememberAppPasswordAuth']);
+        add_action('application_password_did_authenticate', [$this, 'rememberAppPasswordAuth'], 10, 1);
         add_action('set_auth_cookie', [$this, 'rememberCookieUser'], 10, 4);
 
         // A challenge raised where no form could be shown is picked up on the next page.
@@ -253,16 +255,45 @@ class TwoFaHandler
             exit();
         }
 
-        $this->invalidate2FaCode($logHash);
+        global $wpdb;
 
-        $redirectTo = $this->sendAndGet2FaConfirmFormUrl(
+        /*
+         * One switch per challenge: only the request that closes the old row goes on, or
+         * parallel switches would each open a fresh challenge with its own guesses.
+         */
+        $closed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'failed', updated_at = %s WHERE id = %d AND status = 'issued'",
+            current_time('mysql'),
+            $logHash->id
+        ));
+
+        if (!$closed) {
+            wp_safe_redirect(wp_login_url());
+            exit();
+        }
+
+        // Read after closing, so a guess made during the switch is counted too.
+        $usedCount = (int)$wpdb->get_var($wpdb->prepare(
+            "SELECT used_count FROM {$wpdb->prefix}fls_login_hashes WHERE id = %d",
+            $logHash->id
+        ));
+
+        $issued = $this->sendAndGet2FaConfirmFormUrl(
             $user,
-            'url',
+            'both',
             $logHash->redirect_intend,
-            $alternative
+            $alternative,
+            (bool)strpos($logHash->login_hash, '-auth')
         );
 
-        wp_safe_redirect($redirectTo ? $redirectTo : wp_login_url());
+        // The wrong guesses come along, or switching back and forth would reset the limit.
+        if ($issued && $usedCount) {
+            flsDb()->table('fls_login_hashes')
+                ->where('login_hash', $issued['login_hash'])
+                ->update(['used_count' => $usedCount]);
+        }
+
+        wp_safe_redirect($issued ? $issued['redirect_to'] : wp_login_url());
         exit();
     }
 
@@ -319,9 +350,11 @@ class TwoFaHandler
      * @param $return string 'url' or 'both'
      * @param $redirectIntend string|null explicit intent for callers that do not carry
      *                                    it in $_REQUEST, such as social login
+     * @param bool|null $remember trusted remembered-session choice; null keeps the
+     *                            current request-derived default
      * @return array|string|false
      */
-    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null)
+    public function sendAndGet2FaConfirmFormUrl($user, $return = 'url', $redirectIntend = null, $method = null, $remember = null)
     {
         /*
          * Passed unresolved: whether the account is under attack costs two queries over
@@ -351,7 +384,10 @@ class TwoFaHandler
             $redirectIntend = $this->resolveRedirectIntent();
         }
 
-        if (isset($_REQUEST['rememberme'])) {
+        if ($remember === null) {
+            $remember = isset($_REQUEST['rememberme']);
+        }
+        if ($remember) {
             $hash .= '-auth';
         }
 
@@ -392,6 +428,30 @@ class TwoFaHandler
         ];
     }
 
+    /**
+     * A double-submitted password form sends two emails, and the page shows the newer
+     * challenge. Checking the typed code against the older one would give a second guess
+     * per attempt, so this only asks whether this page is the newest of several open ones.
+     */
+    private function isNewestOfSeveralEmailChallenges($logHash, $method)
+    {
+        if (!$method instanceof EmailTwoFaMethod) {
+            return false;
+        }
+
+        $open = function ($operator) use ($logHash, $method) {
+            return (bool)flsDb()->table('fls_login_hashes')
+                ->where('user_id', $logHash->user_id)
+                ->whereIn('use_type', [$method->getKey(), $method->getChallengeKey()])
+                ->where('status', 'issued')
+                ->where('id', $operator, $logHash->id)
+                ->where('created_at', '>=', date('Y-m-d H:i:s', current_time('timestamp') - self::PENDING_TIMEOUT))
+                ->first();
+        };
+
+        return $open('<') && !$open('>');
+    }
+
     public function verifyChallenge()
     {
         $hash = sanitize_text_field(Arr::get($_REQUEST, 'login_hash'));
@@ -428,14 +488,6 @@ class TwoFaHandler
             ], 422);
         }
 
-        if ($logHash->used_count >= self::MAX_VERIFY_ATTEMPTS) {
-            $this->invalidate2FaCode($logHash);
-
-            wp_send_json([
-                'message' => __('Too many tries with that code. Please sign in again.', 'fluent-security')
-            ], 422);
-        }
-
         /*
          * A challenge authorises itself: it was raised precisely because the account was
          * under attack, so it has to keep working even if the attack has since died down
@@ -447,9 +499,43 @@ class TwoFaHandler
             ], 422);
         }
 
+        /*
+         * The attempt is claimed in one statement, before the proof is compared. Reading
+         * used_count and writing it back later let parallel guesses all see the same count,
+         * so fifty of them cost one attempt. Written through $wpdb because the builder's
+         * update() does not say how many rows matched.
+         */
+        global $wpdb;
+
+        $claimed = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET used_count = used_count + 1, updated_at = %s
+             WHERE id = %d AND status = 'issued' AND used_count < %d",
+            current_time('mysql'),
+            $logHash->id,
+            self::MAX_VERIFY_ATTEMPTS
+        ));
+
+        if (!$claimed) {
+            $this->invalidate2FaCode($logHash);
+
+            wp_send_json([
+                'message' => __('Too many tries with that code. Please sign in again.', 'fluent-security')
+            ], 422);
+        }
+
+        $logHash->used_count++;
+
         $verified = $method->verifyProof($user, $logHash, $_REQUEST);
 
         if (is_wp_error($verified)) {
+            // Malformed input, not a guess - see BaseTwoFaMethod::verifyProof. This hands back
+            // only the attempt this request claimed, so parallel guesses gain nothing from it.
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET used_count = used_count - 1 WHERE id = %d AND used_count > 0",
+                $logHash->id
+            ));
+
             wp_send_json([
                 'message' => $verified->get_error_message()
             ], 422);
@@ -458,8 +544,28 @@ class TwoFaHandler
         if (!$verified) {
             $this->recordFailedAttempt($logHash, $user, $method);
 
+            $message = $this->isNewestOfSeveralEmailChallenges($logHash, $method)
+                ? __('That code is not correct. If you got more than one email, use the code from the newest one.', 'fluent-security')
+                : __('That code is not correct. Please try again.', 'fluent-security');
+
             wp_send_json([
-                'message' => __('That code is not correct. Please try again.', 'fluent-security')
+                'message' => $message
+            ], 422);
+        }
+
+        // One winner per code: two requests carrying the same right code must not both sign in.
+        $won = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->prefix}fls_login_hashes
+             SET status = 'used', success_ip_address = %s, updated_at = %s
+             WHERE id = %d AND status = 'issued'",
+            Helper::getIp(),
+            current_time('mysql'),
+            $logHash->id
+        ));
+
+        if (!$won) {
+            wp_send_json([
+                'message' => __('That code has expired. Please sign in again.', 'fluent-security')
             ], 422);
         }
 
@@ -500,12 +606,10 @@ class TwoFaHandler
         if ($user instanceof \WP_User) {
             wp_set_current_user($user->ID, $user->user_login);
             if (is_user_logged_in()) {
-                flsDb()->table('fls_login_hashes')
-                    ->where('id', $logHash->id)
-                    ->update([
-                        'status'             => 'used',
-                        'success_ip_address' => Helper::getIp()
-                    ]);
+                if ($method->getSatisfiedFactor() === AuthFactor::EMAIL) {
+                    /** This action is documented in MagicLoginHandler::makeLogin() */
+                    do_action('fluent_auth/email_verified', $user);
+                }
 
                 $redirectTo = $logHash->redirect_intend;
                 if (!$redirectTo) {
@@ -589,7 +693,7 @@ class TwoFaHandler
          * one credential built to skip interactive factors; whether a site allows them
          * at all is `disable_app_login`, not this.
          */
-        if (self::$appPasswordAuthenticated) {
+        if (self::$appPasswordUserId && self::$appPasswordUserId === (int)$user->ID) {
             return $user;
         }
 
@@ -877,15 +981,16 @@ class TwoFaHandler
      *
      * @param $user \WP_User
      * @param $redirectIntend string|null where to return the browser afterwards
+     * @param bool|null $remember whether the finished login is remembered; null reads the request
      * @return string|false the URL to send the browser to, or false if nothing is owed
      */
-    public function raiseChallengeForDirectLogin($user, $redirectIntend = null)
+    public function raiseChallengeForDirectLogin($user, $redirectIntend = null, $remember = null)
     {
         if (!$user instanceof \WP_User || self::$completingChallenge) {
             return false;
         }
 
-        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend);
+        $raised = $this->sendAndGet2FaConfirmFormUrl($user, 'both', $redirectIntend, null, $remember);
 
         if (!$raised) {
             return false;
@@ -913,11 +1018,12 @@ class TwoFaHandler
     }
 
     /**
+     * @param $user \WP_User
      * @return void
      */
-    public function rememberAppPasswordAuth()
+    public function rememberAppPasswordAuth($user = null)
     {
-        self::$appPasswordAuthenticated = true;
+        self::$appPasswordUserId = $user instanceof \WP_User ? (int)$user->ID : 0;
     }
 
     /**
@@ -959,7 +1065,7 @@ class TwoFaHandler
         self::$completingChallenge = false;
         self::$cookieAuthenticatedUserId = 0;
         self::$cookieMinted = false;
-        self::$appPasswordAuthenticated = false;
+        self::$appPasswordUserId = 0;
     }
 
     /**
@@ -1263,7 +1369,8 @@ class TwoFaHandler
     }
 
     /**
-     * Counts a wrong answer and burns the challenge once the cap is reached.
+     * Burns the challenge once the cap is reached and reports the wrong answer. The
+     * attempt itself was already counted when it was claimed.
      *
      * @param $logHash object
      * @param $user \WP_User
@@ -1272,21 +1379,15 @@ class TwoFaHandler
      */
     private function recordFailedAttempt($logHash, $user, $method)
     {
-        $usedCount = $logHash->used_count + 1;
-
-        $update = [
-            'used_count' => $usedCount,
-            'updated_at' => current_time('mysql')
-        ];
-
         // Burn the challenge once the cap is reached, it must not stay guessable.
-        if ($usedCount >= self::MAX_VERIFY_ATTEMPTS) {
-            $update['status'] = 'failed';
+        if ($logHash->used_count >= self::MAX_VERIFY_ATTEMPTS) {
+            flsDb()->table('fls_login_hashes')
+                ->where('id', $logHash->id)
+                ->update([
+                    'status'     => 'failed',
+                    'updated_at' => current_time('mysql')
+                ]);
         }
-
-        flsDb()->table('fls_login_hashes')
-            ->where('id', $logHash->id)
-            ->update($update);
 
         /*
          * The first factor already succeeded to get here, so nothing has been recorded
@@ -1334,8 +1435,10 @@ class TwoFaHandler
             return;
         }
 
+        // Still issued only: a parallel request may have just completed the login with it.
         flsDb()->table('fls_login_hashes')
             ->where('id', $logHash->id)
+            ->where('status', 'issued')
             ->update([
                 'status'     => 'failed',
                 'updated_at' => current_time('mysql')

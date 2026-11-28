@@ -80,7 +80,10 @@ class TwoFaEncryptionController
          * encryption is on, the value in wp-config.php is the live key and this endpoint
          * has no business handing it back out.
          */
-        if ($supported && !SecretKey::hasKey() && !SecretKey::isEnabled()) {
+        // On multisite the key goes in the network's shared wp-config.php, so only a network admin sees it.
+        $mayHoldKey = !is_multisite() || current_user_can('manage_network_options');
+
+        if ($supported && $mayHoldKey && !SecretKey::hasKey() && !SecretKey::isEnabled()) {
             $status['proposed_line'] = SecretKey::configLine(self::proposedValue());
         }
 

@@ -5,6 +5,7 @@ namespace FluentAuth\App\Http\Controllers;
 use FluentAuth\App\Services\TwoFa\RivalTwoFa;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
+use FluentAuth\App\Hooks\Handlers\PhpAdvisoryHandler;
 use FluentAuth\App\Services\IntegrityChecker\IntegrityHelper;
 use FluentAuth\App\Services\IpRules;
 use FluentAuth\App\Services\SecurityChecks;
@@ -506,7 +507,8 @@ class DashboardController
                 'disconnected' => (string)Arr::get($scan, 'relay_rejection', '')
             ],
             'retention' => (int)Arr::get($settings, 'auto_delete_logs_day', 0),
-            'digest'    => Arr::get($settings, 'digest_summary', '')
+            'digest'    => Arr::get($settings, 'digest_summary', ''),
+            'php_advisory' => PhpAdvisoryHandler::advisory()
         ];
     }
 

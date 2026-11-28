@@ -85,11 +85,13 @@ export default {
         verdict() {
             if (this.counts.to_fix) {
                 return {tone: 'is_fix', icon: icons.alert,
+                    // translators: %s is the number of findings that need action
                     title: this.$_n('%s finding needs action', '%s findings need action', this.counts.to_fix),
                     body: this.$t('Start with the items marked Action needed.')};
             }
             if (this.views[0].count) {
                 return {tone: 'is_look', icon: icons.shield,
+                    // translators: %s is the number of findings to review
                     title: this.$_n('%s finding to review', '%s findings to review', this.views[0].count),
                     body: this.$t('Review the findings below to decide what applies to your site.')};
             }
@@ -206,6 +208,7 @@ export default {
                     <p class="fls_page_desc">{{ $t('What the checks found on your site, and what to do about it.') }}</p>
                 </div>
                 <div class="fls_security_refresh">
+                    <!-- translators: %s is a clock time, e.g. 10:42 AM -->
                     <span v-if="updatedAt">{{ $t('Updated at %s', updatedAt) }}</span>
                     <el-button :loading="refreshing" :disabled="!!acting" @click="refresh">
                         {{ $t('Recheck') }}
@@ -231,6 +234,7 @@ export default {
                     </div>
                     <button type="button" class="fls_security_passed_link" @click="selectView('passed')">
                         <span aria-hidden="true" v-html="icons.tick"></span>
+                        <!-- translators: %s is the number of checks that passed -->
                         {{ $_n('%s check passed', '%s checks passed', passed.length) }} <span aria-hidden="true">→</span>
                     </button>
                 </section>
@@ -255,7 +259,8 @@ export default {
                             <p>{{ viewDescription }}</p>
                             <button v-if="isFiltered && visibleFindings.length" type="button" @click="clearFilters">{{ $t('Clear filters') }}</button>
                         </div>
-                        <p v-if="isFiltered" class="fls_security_match_count" role="status">{{ $t('%s of %s checks', visibleFindings.length, viewFindings.length) }}</p>
+                        <!-- translators: %1$s is the number of checks matching the search and filter, %2$s the number of checks in this view -->
+                        <p v-if="isFiltered" class="fls_security_match_count" role="status">{{ $t('%1$s of %2$s checks', visibleFindings.length, viewFindings.length) }}</p>
                         <div v-if="visibleFindings.length" class="fls_find_list">
                             <finding-row v-for="finding in visibleFindings" :key="view + finding.id"
                                          :finding="finding" :busy="acting === finding.id" :disabled="!!acting || refreshing"

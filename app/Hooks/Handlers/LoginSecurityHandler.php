@@ -10,7 +10,15 @@ use FluentAuth\App\Services\SystemEmailService;
 
 class LoginSecurityHandler
 {
-    private $failedLogged = false;
+    /**
+     * Which attempt paths already have a row for this request, keyed by attemptPath().
+     * Per path, because one request can carry both: a Basic header checked at bootstrap
+     * and an account password checked later. One shared flag let the first silence the
+     * second.
+     *
+     * @var array
+     */
+    private $failedLogged = [];
 
     /**
      * Sign-ins this request can account for, by id: either the `authenticate` chain
@@ -49,10 +57,11 @@ class LoginSecurityHandler
         add_action('set_auth_cookie', [$this, 'noteDirectLogin'], 10, 4);
 
         /*
-         * Application Password auth (REST / XML-RPC over Basic auth) never runs through
-         * the `authenticate` filter chain: wp_validate_application_password() calls
-         * wp_authenticate_application_password() directly. Without these two hooks the
-         * attempt limit above simply does not apply to it and nothing gets logged.
+         * Basic-auth application passwords are checked at bootstrap by
+         * wp_validate_application_password(), outside the `authenticate` chain, so the
+         * attempt limit above never sees them. These two hooks give them their own count.
+         * Inside `authenticate` (XML-RPC, Basic-auth plugins) the account password is
+         * tested too, and both hooks step aside there - see attemptPathSql().
          */
         add_filter('wp_is_application_passwords_available', [$this, 'maybeBlockAppPasswordAuth'], 999);
         add_action('application_password_failed_authentication', [$this, 'logFailedAppPasswordAuth'], 10, 1);
@@ -205,7 +214,7 @@ class LoginSecurityHandler
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
 
         $count = (int)$wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `user_id` = %d AND `created_at` > %s AND `status` IN ('failed','blocked')",
+            "SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `user_id` = %d AND `created_at` > %s AND `status` IN ('failed','blocked')" . self::attemptPathSql('web'),
             $user->ID,
             $dateTime
         ));
@@ -263,6 +272,12 @@ class LoginSecurityHandler
             return $status;
         }
 
+        // Inside wp_authenticate() (XML-RPC, Basic-auth plugins) the account password is
+        // tested too, so the ordinary attempt limit rules there, not this one.
+        if (doing_filter('authenticate')) {
+            return $status;
+        }
+
         /*
          * Core calls wp_is_application_passwords_available() more than once per request.
          * Resolve the block once, otherwise we would count the same attempt twice.
@@ -289,7 +304,7 @@ class LoginSecurityHandler
             return false;
         }
 
-        $isLimitExceeded = $this->checkLoginAttempt(null, $username);
+        $isLimitExceeded = $this->checkLoginAttempt(null, $username, 'app_password');
 
         $this->appPasswordBlocked = is_wp_error($isLimitExceeded);
 
@@ -297,12 +312,20 @@ class LoginSecurityHandler
             return $status;
         }
 
-        $this->logBlockedAuth(
-            new \WP_Error('blocked', __('Too many failed application password attempts', 'fluent-security')),
-            $username,
-            'app_password',
-            $this->blockReason($isLimitExceeded)
-        );
+        $ruleReason = $this->blockReason($isLimitExceeded);
+
+        if ($ruleReason) {
+            $refusal = __('A sign-in with an application password was refused. This IP address is on the site\'s block list.', 'fluent-security');
+        } else {
+            $refusal = sprintf(
+                /* translators: 1: the failed sign-in limit, 2: minutes */
+                __('A sign-in with an application password was refused. This IP address had %1$d or more failed application password sign-ins in the last %2$d minutes.', 'fluent-security'),
+                (int)Helper::getSetting('login_try_limit'),
+                (int)Helper::getSetting('login_try_timing')
+            );
+        }
+
+        $this->logBlockedAuth(new \WP_Error('blocked', $refusal), $username, 'app_password', $ruleReason);
 
         return false;
     }
@@ -321,6 +344,13 @@ class LoginSecurityHandler
          * logging the same attempt twice.
          */
         if (!isset($_SERVER['PHP_AUTH_USER'])) {
+            return;
+        }
+
+        // Inside wp_authenticate() the account password was tested as well; wp_login_failed
+        // logs that attempt on the ordinary path. Counting it here would let account
+        // password guesses escape the ordinary limit.
+        if (doing_filter('authenticate')) {
             return;
         }
 
@@ -361,11 +391,20 @@ class LoginSecurityHandler
          * reading their own inbox is not guessing. The address restriction is about *where*
          * they are, and a rule saying administrators may only sign in from the office is
          * worth nothing if asking the site to email you a link is a way around it.
+         *
+         * Both refusals below say "your password is correct" only once per block window.
+         * Said every time, an address that is refused anyway could test passwords without
+         * limit.
          */
         if (IpRules::deniesSignIn($user)) {
-            $this->logBlockedAuth($user, $username, 'web', 'Blocked: role restricted to the allow list');
+            if (Helper::isTokenVerifiedLogin() || !$this->recentBlockedRow()) {
+                $this->logBlockedAuth($user, $username, 'web', 'Blocked: role restricted to the allow list');
 
-            return new \WP_Error('login_error', $this->restrictedLocationMessage($user));
+                return new \WP_Error('login_error', $this->restrictedLocationMessage($user));
+            }
+
+            // Refused here before: answer exactly as a wrong password would.
+            $user = new \WP_Error('incorrect_password', '');
         }
 
         /*
@@ -383,9 +422,10 @@ class LoginSecurityHandler
         $blockRule = IpRules::blockingRule(Helper::getIp());
 
         if ($blockRule) {
+            $refusedBefore = (bool)$this->recentBlockedRow();
             $this->logBlockedAuth($user, $username, 'web', 'Blocked by IP rule ' . $blockRule);
 
-            return $this->blockedAddressError($user, $blockRule);
+            return $this->blockedAddressError($refusedBefore ? null : $user, $blockRule);
         }
 
         /*
@@ -404,7 +444,7 @@ class LoginSecurityHandler
 
         if (is_wp_error($user)) {
             $errorCode = $user->get_error_code();
-            if ($errorCode == 'invalid_username' || $errorCode == 'incorrect_password') {
+            if (in_array($errorCode, ['invalid_username', 'invalid_email', 'incorrect_password'], true)) {
                 return new \WP_Error(
                     $errorCode,
                     __('<strong>Error</strong>: That username and password do not match. Please try again.', 'fluent-security')
@@ -440,7 +480,7 @@ class LoginSecurityHandler
         $ip = Helper::getIp();
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
 
-        $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked', 'password_reset')", $ip, $dateTime));
+        $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked', 'password_reset')" . self::attemptPathSql('web'), $ip, $dateTime));
 
         if (!$count || $count < $limit) {
 
@@ -494,7 +534,12 @@ class LoginSecurityHandler
      */
     public function logFailedAuth($username, $error, $media = '')
     {
-        if ($this->failedLogged || !Helper::isLoginSecurityEnabled()) {
+        if (!$media) {
+            // `wp_login_failed` passes no media, so honour whatever the flow set.
+            $media = Helper::getLoginMedia();
+        }
+
+        if (!empty($this->failedLogged[self::attemptPath($media)]) || !Helper::isLoginSecurityEnabled()) {
             return;
         }
 
@@ -511,9 +556,14 @@ class LoginSecurityHandler
             return;
         }
 
-        if (!$media) {
-            // `wp_login_failed` passes no media, so honour whatever the flow set.
-            $media = Helper::getLoginMedia();
+        /*
+         * The password was never checked against a widget that could not run - a browser
+         * blocking Cloudflare, or a submit before the token arrived. Counting it would let
+         * the owner lock out their own address on top of the refusal. Bots are already
+         * stopped by the refusal itself.
+         */
+        if ($error->get_error_code() === 'fls_turnstile_failed') {
+            return;
         }
 
         global $wpdb;
@@ -550,7 +600,7 @@ class LoginSecurityHandler
 
         $wpdb->insert("{$wpdb->prefix}fls_auth_logs", $data);
 
-        $this->failedLogged = true;
+        $this->failedLogged[self::attemptPath($media)] = true;
     }
 
     /**
@@ -830,6 +880,29 @@ class LoginSecurityHandler
     }
 
     /**
+     * @param $media string
+     * @return object|null this IP's blocked row within the block window
+     */
+    private function recentBlockedRow($media = 'web')
+    {
+        global $wpdb;
+
+        /*
+         * Look back over the same window checkLoginAttempt() uses. With a fixed window
+         * the two lookups can disagree when login_try_timing is longer than it, and we
+         * would insert a second blocked row for an IP that is already blocked.
+         */
+        $minutes = (int)Helper::getSetting('login_try_timing');
+        if (!$minutes) {
+            $minutes = 60;
+        }
+
+        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
+
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked'" . self::attemptPathSql($media) . " LIMIT 1", Helper::getIp(), $dateTime));
+    }
+
+    /**
      * @param $user \WP_User | \WP_Error
      * @param $username string
      * @param $media string
@@ -843,19 +916,7 @@ class LoginSecurityHandler
 
         $ipAddress = Helper::getIp();
 
-        /*
-         * Look back over the same window checkLoginAttempt() uses. With a fixed window
-         * the two lookups can disagree when login_try_timing is longer than it, and we
-         * would insert a second blocked row for an IP that is already blocked.
-         */
-        $minutes = (int)Helper::getSetting('login_try_timing');
-        if (!$minutes) {
-            $minutes = 60;
-        }
-
-        // get previous blocked row for this ip within the block window
-        $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
-        $prev = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked' LIMIT 1", $ipAddress, $dateTime));
+        $prev = $this->recentBlockedRow($media);
 
         if ($prev) {
             $wpdb->update($wpdb->prefix . 'fls_auth_logs', [
@@ -864,7 +925,7 @@ class LoginSecurityHandler
             ], [
                 'id' => $prev->id
             ]);
-            $this->failedLogged = true;
+            $this->failedLogged[self::attemptPath($media)] = true;
             return;
         }
 
@@ -893,7 +954,7 @@ class LoginSecurityHandler
 
         $wpdb->insert("{$wpdb->prefix}fls_auth_logs", $data);
 
-        $this->failedLogged = true;
+        $this->failedLogged[self::attemptPath($media)] = true;
 
         $this->maybeSendBlockedEmail($user, $username);
     }
@@ -936,7 +997,33 @@ class LoginSecurityHandler
         );
     }
 
-    private function checkLoginAttempt($user, $userName)
+    /**
+     * Application passwords sent over REST Basic auth are counted apart from every other
+     * sign-in. That path accepts only application passwords (24 random characters), so they
+     * cannot be guessed, and one shared counter let an app retrying an old password lock its
+     * owner out of wp-admin. Anything inside wp_authenticate() also tests the account
+     * password and stays on the ordinary count - see logFailedAppPasswordAuth().
+     *
+     * @param string $media
+     * @return string a fixed SQL condition, no user input
+     */
+    private static function attemptPathSql($media)
+    {
+        return self::attemptPath($media) === 'app_password'
+            ? " AND `media` = 'app_password'"
+            : " AND (`media` IS NULL OR `media` != 'app_password')";
+    }
+
+    /**
+     * @param string $media
+     * @return string 'app_password' or 'web'
+     */
+    private static function attemptPath($media)
+    {
+        return $media === 'app_password' ? 'app_password' : 'web';
+    }
+
+    private function checkLoginAttempt($user, $userName, $media = 'web')
     {
         if (!Helper::isLoginSecurityEnabled()) {
             return true;
@@ -974,7 +1061,7 @@ class LoginSecurityHandler
         $dateTime = date('Y-m-d H:i:s', current_time('timestamp') - $minutes * 60);
 
         // check if already blocked then no need to create a new row
-        $blocked = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked' LIMIT 1", $ip, $dateTime));
+        $blocked = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` = 'blocked'" . self::attemptPathSql($media) . " LIMIT 1", $ip, $dateTime));
 
         if ($blocked) {
             /*
@@ -989,7 +1076,7 @@ class LoginSecurityHandler
                 'id' => $blocked->id
             ]);
         } else {
-            $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked')", $ip, $dateTime));
+            $count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}fls_auth_logs WHERE `ip` = %s AND `created_at` > %s AND `status` IN ('failed','blocked')" . self::attemptPathSql($media), $ip, $dateTime));
 
             if (!$count || $count < $limit) {
                 return true;
@@ -998,6 +1085,27 @@ class LoginSecurityHandler
 
         /* translators: %d: munites */
         return new \WP_Error('login_error', sprintf(__('Too many tries. Please wait %d minutes and try again.', 'fluent-security'), $minutes));
+    }
+
+    /**
+     * The Browser line for the alert emails, plus the raw client name when the detector
+     * does not know it - an API client says what it is in its own user agent.
+     *
+     * @param string $agent
+     * @return string
+     */
+    private function browserLinesHtml($agent)
+    {
+        $detection = new \FluentAuth\App\Helpers\BrowserDetection();
+        $browser = $detection->getBrowser($agent)['browser_name'];
+
+        $html = '<li><b>Browser:</b> ' . esc_html($detection->getOS($agent)['os_family'] . ' / ' . $browser) . '</li>';
+
+        if ($agent && strtolower($browser) === 'unknown') {
+            $html .= '<li><b>' . esc_html__('Client', 'fluent-security') . ':</b> ' . esc_html($agent) . '</li>';
+        }
+
+        return $html;
     }
 
     /**
@@ -1024,7 +1132,6 @@ class LoginSecurityHandler
         $userEditLInk = add_query_arg('user_id', $user->ID, self_admin_url('user-edit.php'));
 
         $agent = $this->getUserAgent();
-        $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
 
         $userRoles = (array)$user->roles;
 
@@ -1032,16 +1139,16 @@ class LoginSecurityHandler
 
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
-        $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
+        $infoHtml .= '<li><b>Site URL:</b> <a href="' . esc_url(site_url()) . '">' . esc_html(site_url()) . '</a></li>';
         $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
-        $infoHtml .= '<li><b>User Role:</b> ' . $roleNames . '</li>';
+        $infoHtml .= '<li><b>User Role:</b> ' . esc_html($roleNames) . '</li>';
         if ($media && $media != 'web') {
-            $infoHtml .= '<li><b>Media:</b> ' . $media . '</li>';
+            $infoHtml .= '<li><b>Media:</b> ' . esc_html(Helper::getLoginMediaLabel($media)) . '</li>';
         }
-        $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
-        $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
-        $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
-        $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
+        $infoHtml .= '<li><b>Email:</b> ' . esc_html($user->user_email) . '</li>';
+        $infoHtml .= '<li><b>Name:</b> ' . esc_html(trim($user->first_name . ' ' . $user->last_name)) . '</li>';
+        $infoHtml .= '<li><b>Login IP Address:</b> <a href="' . esc_url('https://ipinfo.io/' . $ip) . '">' . esc_html($ip) . '</a></li>';
+        $infoHtml .= $this->browserLinesHtml($agent);
         $infoHtml .= '</ul>';
 
         $lines = [
@@ -1049,7 +1156,8 @@ class LoginSecurityHandler
             $infoHtml
         ];
 
-        $siteName = get_bloginfo('name');
+        // Stored with & already encoded; a mail subject is plain text.
+        $siteName = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
         $data = [
             'body'        => implode('', $lines),
             'pre_header'  => 'Login success at ' . $siteName,
@@ -1094,23 +1202,28 @@ class LoginSecurityHandler
         update_option('fls_last_blocked_email_send_time', time(), false);
 
         $agent = $this->getUserAgent();
-        $browserDetection = new \FluentAuth\App\Helpers\BrowserDetection();
 
         $ip = Helper::getIp();
         $infoHtml = '<ul style="padding-left:20px;line-height:25px;font-size: 14px;background: #f9f9f9;padding-top: 20px;padding-bottom: 20px;font-family: monospace;">';
-        $infoHtml .= '<li><b>Site URL:</b> <a href="' . site_url() . '">' . site_url() . '</a></li>';
+        $infoHtml .= '<li><b>Site URL:</b> <a href="' . esc_url(site_url()) . '">' . esc_html(site_url()) . '</a></li>';
         /* Typed by whoever was refused, and printed into an email to the site's owner. */
         $infoHtml .= '<li><b>Username:</b> ' . esc_html($userName) . '</li>';
-        $infoHtml .= '<li><b>Login IP Address:</b> <a href="https://ipinfo.io/' . $ip . '">' . $ip . '</a></li>';
-        $infoHtml .= '<li><b>Browser:</b> ' . $browserDetection->getOS($agent)['os_family'] . ' / ' . $browserDetection->getBrowser($agent)['browser_name'] . '</li>';
+        $infoHtml .= '<li><b>Login IP Address:</b> <a href="' . esc_url('https://ipinfo.io/' . $ip) . '">' . esc_html($ip) . '</a></li>';
+        $infoHtml .= $this->browserLinesHtml($agent);
+
+        // The path only: a query string can carry tokens.
+        $requestPath = wp_parse_url((string)Arr::get($_SERVER, 'REQUEST_URI'), PHP_URL_PATH);
+        if ($requestPath) {
+            $infoHtml .= '<li><b>' . esc_html__('Requested URL', 'fluent-security') . ':</b> ' . esc_html($requestPath) . '</li>';
+        }
 
         if (is_wp_error($user)) {
             $infoHtml .= '<li>' . wp_kses_post($user->get_error_message()) . '</li>';
         } else if ($user instanceof \WP_User) {
             $userEditLInk = add_query_arg('user_id', $user->ID, self_admin_url('user-edit.php'));
             $infoHtml .= '<li><b>Username:</b> <a href="' . esc_url($userEditLInk) . '">' . esc_html($user->user_login) . '</a></li>';
-            $infoHtml .= '<li><b>Email:</b> ' . $user->user_email . '</li>';
-            $infoHtml .= '<li><b>Name:</b> ' . $user->first_name . ' ' . $user->last_name . '</li>';
+            $infoHtml .= '<li><b>Email:</b> ' . esc_html($user->user_email) . '</li>';
+            $infoHtml .= '<li><b>Name:</b> ' . esc_html(trim($user->first_name . ' ' . $user->last_name)) . '</li>';
         }
         $infoHtml .= '</ul>';
 
@@ -1119,7 +1232,8 @@ class LoginSecurityHandler
             $infoHtml
         ];
 
-        $siteName = get_bloginfo('name');
+        // Stored with & already encoded; a mail subject is plain text.
+        $siteName = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
         $data = [
             'body'        => implode('', $lines),
             'pre_header'  => 'Blocked from login ' . $siteName,

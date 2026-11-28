@@ -122,6 +122,67 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame('used', $this->rowFor($link)->status);
     }
 
+    private function signedInSessionLength()
+    {
+        $sessions = \WP_Session_Tokens::get_instance($this->user->ID)->get_all();
+        $this->assertCount(1, $sessions);
+
+        return reset($sessions)['expiration'] - time();
+    }
+
+    public function testAMagicLinkIsRememberedByDefault()
+    {
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+
+        $this->assertEqualsWithDelta(14 * DAY_IN_SECONDS, $this->signedInSessionLength(), 5);
+        $this->assertArrayNotHasKey('rememberme', $_REQUEST);
+    }
+
+    public function testAMagicLinkIsNotRememberedWhenTheOwnerTurnsTheDefaultOff()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['remember_default'] = 'no';
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $this->assertTrue($this->handler->makeLogin($this->issueLink()));
+
+        $this->assertEqualsWithDelta(2 * DAY_IN_SECONDS, $this->signedInSessionLength(), 5);
+    }
+
+    public function testAMagicLinkThatOwesAFactorStaysRememberedAfterTheChallenge()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        $settings['totp_required_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $stop = function () {
+            throw new \RuntimeException('redirected to the challenge');
+        };
+        add_filter('wp_redirect', $stop);
+
+        try {
+            $this->handler->makeLogin($this->issueLink());
+            $this->fail('precondition: the link should hand over to a challenge');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('redirected to the challenge', $e->getMessage());
+        } finally {
+            remove_filter('wp_redirect', $stop);
+        }
+
+        $pending = flsDb()->table('fls_login_hashes')
+            ->where('user_id', $this->user->ID)
+            ->where('use_type', '!=', 'magic_login')
+            ->first();
+
+        $this->assertNotNull($pending, 'precondition: a challenge was raised');
+        $this->assertStringEndsWith('-auth', $pending->login_hash);
+        $this->assertArrayNotHasKey('rememberme', $_REQUEST);
+    }
+
     /**
      * The half the email promises out loud.
      */
@@ -235,6 +296,54 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame(0, get_current_user_id());
     }
 
+    /* ----------------------------------------------- opening the link (mail scanners) */
+
+    /**
+     * Microsoft Safe Links fetches every URL in an email before the person clicks. The GET
+     * used to sign in, so the scanner spent the link and the person landed logged out.
+     */
+    public function testOpeningTheLinkSpendsNothingAndSignsNobodyIn()
+    {
+        $link = $this->issueLink();
+
+        $html = $this->renderLinkPage($this->handler->isRedeemable($link));
+
+        $this->assertStringContainsString('method="post"', $html);
+        $this->assertStringContainsString("getElementById('fls_redeem_form').submit()", $html);
+        $this->assertSame('issued', $this->rowFor($link)->status);
+        $this->assertSame(0, get_current_user_id());
+
+        /* The person's own browser posts it next, and that still works. */
+        $this->assertTrue($this->handler->makeLogin($link));
+    }
+
+    public function testAnOpenedLinkThatCannotSignInSaysSo()
+    {
+        $link = $this->issueLink();
+        $this->assertTrue($this->handler->makeLogin($link));
+        wp_set_current_user(0);
+
+        $html = $this->renderLinkPage($this->handler->isRedeemable($link));
+
+        $this->assertStringNotContainsString('fls_redeem_form', $html);
+        $this->assertStringContainsString('expired or was already used', $html);
+    }
+
+    public function testCheckingALinkNeverWritesToIt()
+    {
+        $link = $this->issueLink();
+        $parts = explode(':', $link);
+
+        flsDb()->table('fls_login_hashes')
+            ->where('id', $parts[1])
+            ->update(['valid_till' => date('Y-m-d H:i:s', current_time('timestamp') - 60)]);
+
+        $this->assertFalse($this->handler->isRedeemable($link));
+        $this->assertFalse($this->handler->isRedeemable(bin2hex(random_bytes(32)) . ':' . $parts[1]));
+        $this->assertFalse($this->handler->isRedeemable('nonsense'));
+        $this->assertSame('issued', $this->rowFor($link)->status, 'expiry is recorded on redemption, not on a look');
+    }
+
     /* ------------------------------------------------------- what the form gives away */
 
     /**
@@ -259,6 +368,83 @@ class MagicLoginTest extends BaseTestCase
             str_replace('magic_probe@example.test', 'X', $real['message']),
             str_replace('nobody-here@example.test', 'X', $fake['message'])
         );
+    }
+
+    /**
+     * A role that cannot use sign-in links gets the same reply as an account that does not
+     * exist: anything else tells a stranger the account is there, and that it is a
+     * privileged one.
+     */
+    public function testARestrictedAccountGetsTheSameReplyAsAMissingOne()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['magic_restricted_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $restricted = $this->magicFormReply('magic_probe');
+        $missing = $this->magicFormReply('nobody_here_zz9');
+
+        $this->assertSame('Check your inbox', $missing['heading']);
+        $this->assertSame($missing['heading'], $restricted['heading']);
+        $this->assertSame($missing['result'], $restricted['result']);
+        $this->assertSame(0, flsDb()->table('fls_login_hashes')->where('user_id', $this->user->ID)->count(), 'and no link was issued');
+    }
+
+    public function testASiteCanStillTellARestrictedAccountWhy()
+    {
+        $settings = get_option('__fls_auth_settings', []);
+        $settings['magic_restricted_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings, false);
+        Helper::resetStatics();
+
+        $say = function () {
+            return 'Please use the normal login form.';
+        };
+        add_filter('fluent_auth/magic_login_error_message', $say);
+
+        try {
+            $reply = $this->magicFormReply('magic_probe');
+        } finally {
+            remove_filter('fluent_auth/magic_login_error_message', $say);
+        }
+
+        $this->assertSame('Please use the normal login form.', $reply['message']);
+        $this->assertArrayNotHasKey('heading', $reply);
+    }
+
+    /**
+     * @return array the decoded JSON reply
+     */
+    private function magicFormReply($email)
+    {
+        $_REQUEST = [
+            'email'  => $email,
+            '_nonce' => wp_create_nonce('fls_magic_logon_nonce')
+        ];
+
+        $die = function () {
+            return function () {
+                throw new \WPDieException('sent');
+            };
+        };
+
+        add_filter('wp_doing_ajax', '__return_true');
+        add_filter('wp_die_ajax_handler', $die);
+
+        ob_start();
+        try {
+            $this->handler->handleMagicLoginAjax();
+        } catch (\WPDieException $e) {
+            // Expected: wp_send_json() ends in wp_die().
+        } finally {
+            $output = ob_get_clean();
+            remove_filter('wp_doing_ajax', '__return_true');
+            remove_filter('wp_die_ajax_handler', $die);
+            $_REQUEST = [];
+        }
+
+        return (array)json_decode($output, true);
     }
 
     /**
@@ -389,6 +575,86 @@ class MagicLoginTest extends BaseTestCase
         $this->assertSame(home_url('/dashboard/'), $landed);
     }
 
+    /** @dataProvider configuredMagicRedirects */
+    public function testAnUnspecifiedDestinationUsesTheConfiguredLoginRedirect($enabled, $default, $rules, $expected)
+    {
+        $absolute = home_url('/members/');
+        update_option('__fls_auth_forms_settings', [
+            'enabled' => 'yes', 'login_redirects' => $enabled,
+            'default_login_redirect' => $default === 'absolute' ? $absolute : $default,
+            'redirect_rules' => $rules
+        ]);
+        $target = $expected === 'home' ? site_url() : ($expected === 'absolute' ? $absolute : $expected);
+        $this->assertSame($target, $this->redeemAndCaptureRedirect($this->issueLink()));
+    }
+
+    public static function configuredMagicRedirects()
+    {
+        $role = ['conditions' => [['condition' => 'user_role', 'values' => ['subscriber']]], 'login' => '/role/'];
+        $other = ['conditions' => [['condition' => 'user_role', 'values' => ['editor']]], 'login' => '/editor/'];
+        return [
+            'absolute default' => ['yes', 'absolute', [], 'absolute'],
+            'relative default' => ['yes', '/members/', [], '/members/'],
+            'first matching role rule' => ['yes', '/members/', [$role, array_merge($role, ['login' => '/later/'])], '/role/'],
+            'disabled rules' => ['no', '/members/', [$role], 'home'],
+            'empty default' => ['yes', '', [], 'home'],
+            'unmatched role uses default' => ['yes', '/members/', [$other], '/members/'],
+            'unmatched role without default' => ['yes', '', [$other], 'home']
+        ];
+    }
+
+    public function testConfiguredMagicFallbackDoesNotReplaceAnExplicitDestination()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $this->assertSame(home_url('/account/'), $this->redeemAndCaptureRedirect($this->issueLinkTo(home_url('/account/'))));
+    }
+
+    public function testConfiguredMagicFallbackPreservesFrontendOverridePolicy()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        add_filter('fluent_auth/respect_front_login_url', '__return_false');
+        try {
+            $this->assertSame('/members/', $this->redeemAndCaptureRedirect($this->issueLinkTo(home_url('/account/'))));
+        } finally {
+            remove_filter('fluent_auth/respect_front_login_url', '__return_false');
+        }
+    }
+
+    public function testConfiguredMagicFallbackKeepsTrustedCookiePrecedence()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $_COOKIE['_fls_redirect_to'] = home_url('/checkout/');
+        try {
+            $this->assertSame(home_url('/checkout/'), $this->redeemAndCaptureRedirect($this->issueLink()));
+        } finally {
+            unset($_COOKIE['_fls_redirect_to']);
+        }
+    }
+
+    public function testAnEmptyRequestDestinationUsesTheConfiguredMagicFallback()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $request = $_REQUEST;
+        $_REQUEST['redirect_to'] = '';
+        try {
+            $this->assertSame('/members/', $this->redeemAndCaptureRedirect($this->issueLink()));
+        } finally {
+            $_REQUEST = $request;
+        }
+    }
+
+    public function testANonemptyRequestDestinationStillWinsOverTheMagicFallback()
+    {
+        update_option('__fls_auth_forms_settings', ['login_redirects' => 'yes', 'default_login_redirect' => '/members/']);
+        $request = $_REQUEST;
+        $_REQUEST['redirect_to'] = home_url('/requested/');
+        try {
+            $this->assertSame(home_url('/requested/'), $this->redeemAndCaptureRedirect($this->issueLink()));
+        } finally {
+            $_REQUEST = $request;
+        }
+    }
+
     /**
      * A filter sending the person off the site is still caught by wp_safe_redirect().
      */
@@ -446,7 +712,7 @@ class MagicLoginTest extends BaseTestCase
         };
 
         try {
-            do_action('init');
+            $this->assertFalse($this->handler->makeLogin($_GET['fls_al']));
 
             add_filter('authenticate', $probe, 25);
             wp_signon(['user_login' => 'magic_probe', 'user_password' => 'a guess']);
@@ -560,6 +826,17 @@ class MagicLoginTest extends BaseTestCase
         return $row;
     }
 
+    private function renderLinkPage($isValid)
+    {
+        $method = new \ReflectionMethod(MagicLoginHandler::class, 'renderLinkPage');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke($this->handler, $isValid);
+
+        return ob_get_clean();
+    }
+
     private function issueLinkTo($destination)
     {
         $method = new \ReflectionMethod(MagicLoginHandler::class, 'generateHash');
@@ -604,5 +881,42 @@ class MagicLoginTest extends BaseTestCase
             ->where('use_type', 'magic_login')
             ->where('created_at', '>', date('Y-m-d H:i:s', current_time('timestamp') - 1800))
             ->count();
+    }
+
+    /*
+     * The link proves the inbox it was mailed to. Bound to that address, it stops working
+     * once the account email changes, so a changed address cannot borrow the old proof.
+     */
+    public function testALinkStopsWorkingWhenTheAccountEmailChanges()
+    {
+        $link = $this->issueLink();
+
+        add_filter('send_email_change_email', '__return_false');
+        wp_update_user(['ID' => $this->user->ID, 'user_email' => 'moved_probe@example.test']);
+        remove_filter('send_email_change_email', '__return_false');
+
+        $this->assertFalse($this->handler->isRedeemable($link));
+        $this->assertFalse($this->handler->makeLogin($link));
+        $this->assertSame(0, get_current_user_id());
+        $this->assertSame('issued', $this->rowFor($link)->status);
+    }
+
+    public function testALinkSignInReportsTheEmailAsVerified()
+    {
+        $link = $this->issueLink();
+
+        $seen = [];
+        $spy = function ($user) use (&$seen) {
+            $seen[] = [$user->ID, $user->user_email];
+        };
+        add_action('fluent_auth/email_verified', $spy, 10, 1);
+
+        try {
+            $this->assertTrue($this->handler->makeLogin($link));
+        } finally {
+            remove_action('fluent_auth/email_verified', $spy, 10);
+        }
+
+        $this->assertSame([[$this->user->ID, 'magic_probe@example.test']], $seen);
     }
 }

@@ -25,6 +25,7 @@ add_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeMigrateS
 (new \FluentAuth\App\Hooks\Handlers\AdminMenuHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\CustomAuthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\LoginSecurityHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\SessionLengthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\MagicLoginHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\SocialAuthHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\GoogleOneTapAuthHandler())->register();
@@ -36,9 +37,11 @@ add_action('plugins_loaded', ['FluentAuth\App\Helpers\Activator', 'maybeMigrateS
 (new \FluentAuth\App\Hooks\Handlers\TotpNudgeHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TwoFaReminderHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\TwoFaBypassHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\PhpAdvisoryHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\PasskeyLoginHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\BasicTasksHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\SiteActivityHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\WPSystemEmailHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\LoginCustomizerHandler())->register();
+(new \FluentAuth\App\Hooks\Handlers\TurnstileHandler())->register();
 (new \FluentAuth\App\Hooks\Handlers\ServerModeHandler())->register();

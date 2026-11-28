@@ -421,6 +421,31 @@ class SocialAuthSecurityTest extends BaseTestCase
         $this->assertSame($intended, $pending->redirect_intend);
     }
 
+    public function testASocialLoginThatOwesAFactorIsRememberedAfterTheChallenge()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['totp_2fa'] = 'yes';
+        $settings['totp_2fa_roles'] = ['subscriber'];
+        $settings['totp_required_roles'] = ['subscriber'];
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        unset($_REQUEST['rememberme']);
+
+        $newUser = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        Helper::setSatisfiedFactors(['idp', 'email']);
+        $this->assertTrue(is_wp_error(AuthService::makeLogin($newUser, 'google')), 'precondition: a factor is still owed');
+
+        $existingUser = $this->factory->user->create_and_get(['role' => 'subscriber']);
+        $this->assertNotEmpty(AuthService::getSocialTwoFaRedirect($existingUser));
+
+        foreach ([$newUser, $existingUser] as $user) {
+            $pending = flsDb()->table('fls_login_hashes')->where('user_id', $user->ID)->first();
+            $this->assertNotNull($pending);
+            $this->assertStringEndsWith('-auth', $pending->login_hash);
+        }
+    }
+
     /**
      * And with no such cookie the challenge works it out from the request, as it does
      * for every other caller - passing an empty intent would have thrown that away.

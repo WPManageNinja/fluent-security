@@ -90,6 +90,16 @@ export default {
                         <router-link :to="{name: 'security_findings'}">{{ $t('Review the security checklist') }}</router-link>
                         <span>{{ $t('What this setup did not cover, and why each item matters.') }}</span>
                     </li>
+                    <!--
+                        Pointed to rather than asked. Requiring a second step before anybody
+                        has set one up is not a wizard question - see the note in
+                        Steps/_TwoFactor.vue - but it is the setting people go looking for
+                        next, so the way to it is on the screen they finish on.
+                    -->
+                    <li>
+                        <router-link :to="{name: 'settings_general', query: {section: 'two_fa'}}">{{ $t('Require two-factor for administrators') }}</router-link>
+                        <span>{{ $t('Set up your own method first, then make it required for the roles that matter.') }}</span>
+                    </li>
                     <li>
                         <router-link :to="{name: 'settings_ip_rules'}">{{ $t('Add your own address to the allow list') }}</router-link>
                         <span>{{ $t('So the attempt limit can never lock you out of your own site.') }}</span>

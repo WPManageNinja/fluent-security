@@ -182,7 +182,7 @@ export default {
             -->
             <p class="fls_scan_section_note">
                 <span v-if="baselinedHuman"
-                      v-html="$t('__mu_plugins_watched_note__', baselinedHuman)"></span>
+                      v-html="/* translators: %s is how long ago the files were recorded, e.g. 3 days */ $t('__mu_plugins_watched_note__', baselinedHuman)"></span>
                 <span v-else>{{ $t('__mu_plugins_note__') }}</span>
             </p>
 
@@ -197,9 +197,11 @@ export default {
 
                 <div class="fls_scan_snapshot_text">
                     <strong v-if="unrecorded.length">
+                        <!-- translators: %s is the number of must-use plugin files -->
                         {{ $_n('%s file is new or changed since it was recorded', '%s files are new or changed since they were recorded', unrecorded.length) }}
                     </strong>
                     <strong v-else>
+                        <!-- translators: %s is the number of must-use plugin files being watched -->
                         {{ $_n('Watching %s file', 'Watching %s files', files.length) }}
                     </strong>
 

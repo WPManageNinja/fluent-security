@@ -137,16 +137,20 @@ export default {
             }
 
             if (!this.checkedCount) {
+                // translators: %s is a number of items waiting to be checked
                 return this.$_n('%s to check', '%s to check', this.items.length);
             }
 
-            const parts = [this.$t('%s of %s checked', this.checkedCount, this.items.length)];
+            // translators: %1$s is the number of plugins or themes checked, %2$s the total in this list
+            const parts = [this.$t('%1$s of %2$s checked', this.checkedCount, this.items.length)];
 
             if (this.changedCount) {
+                // translators: %s is the number of plugins or themes with changed files
                 parts.push(this.$_n('%s with changes', '%s with changes', this.changedCount));
             }
 
             if (this.suspiciousCount) {
+                // translators: %s is the number of plugins or themes whose installed version is not published on WordPress.org
                 parts.push(this.$_n('%s version not on WordPress.org', '%s versions not on WordPress.org', this.suspiciousCount));
             }
 
@@ -180,6 +184,7 @@ export default {
 
             <div v-if="hiddenCount || showAll" class="fls_scan_exts_more">
                 <el-button text size="small" @click="showAll = !showAll">
+                    <!-- translators: %s is the number of plugins or themes hidden from the list -->
                     {{ showAll ? $t('Show fewer') : $_n('Show %s more', 'Show %s more', hiddenCount) }}
                 </el-button>
             </div>

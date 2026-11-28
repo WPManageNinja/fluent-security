@@ -141,7 +141,8 @@
         white-space: nowrap;
     }
 
-    span {
+    /* A child only: a button's own label is a `span` too. */
+    > span {
         @apply text-xs text-ink-light;
     }
 }

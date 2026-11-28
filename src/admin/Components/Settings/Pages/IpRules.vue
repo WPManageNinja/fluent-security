@@ -111,6 +111,7 @@ export default {
             <el-alert v-if="restrictions_off" type="warning" :closable="false" show-icon
                       class="fls_row_alert"
                       :title="$t('IP rules are switched off in wp-config.php')">
+                <!-- translators: %s is the PHP constant name FLUENT_AUTH_DISABLE_IP_RESTRICTION -->
                 {{ $t('%s is set in wp-config.php, so the block list and the role restriction below are not being applied. Remove that line once your lists are fixed.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
             </el-alert>
 
@@ -138,11 +139,14 @@ export default {
                           class="fls_rules_box" placeholder="203.0.113.4&#10;198.51.100.0/24"/>
 
                 <p class="fls_note">
+                    <!-- translators: %s is the maximum number of entries allowed in the list -->
                     {{ $t('One address or range per line, at most %s.', max_entries) }}
                     <template v-if="current_ip_listed">
+                        <!-- translators: %s is your current IP address -->
                         {{ $t('Your current address is %s, and it is on this list.', current_ip) }}
                     </template>
                     <template v-else>
+                        <!-- translators: %s is your current IP address -->
                         {{ $t('Your current address is %s.', current_ip) }}
                         <a href="#" @click.prevent="addCurrentIp()">{{ $t('Add it') }}</a>
                     </template>
@@ -175,11 +179,13 @@ export default {
                 <el-alert v-if="restricted_roles.length && !current_ip_listed" type="error"
                           :closable="false" show-icon class="fls_row_alert"
                           :title="$t('Your own address is not on the allowed list')">
+                    <!-- translators: %s is your current IP address -->
                     {{ $t('Saving this would lock you out straight away, so it will be refused. Add %s to the allowed addresses first.', current_ip) }}
                 </el-alert>
 
                 <p class="fls_note">
-                    {{ $t('If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                    <!-- translators: %s is a line of PHP code to paste into wp-config.php -->
+                    {{ $t('If the allowed list is ever emptied, this restriction stops applying instead of locking everyone out. Adding %s to wp-config.php switches it off, along with the block list.', "define('FLUENT_AUTH_DISABLE_IP_RESTRICTION', true);") }}
                 </p>
             </SettingsCard>
 
@@ -194,11 +200,13 @@ export default {
                     found in the documentation of a site they can no longer open.
                 -->
                 <p class="fls_note">
+                    <!-- translators: %s is the maximum number of entries allowed in the list -->
                     {{ $t('One address or range per line, up to %s. The dashboard shows the addresses with the most failed logins and a Block button next to each.', max_entries) }}
                 </p>
 
                 <p class="fls_note">
-                    {{ $t('You cannot block your own address. If you are ever locked out anyway, add %s to wp-config.php to switch every IP rule off and get back in.', 'FLUENT_AUTH_DISABLE_IP_RESTRICTION') }}
+                    <!-- translators: %s is a line of PHP code to paste into wp-config.php -->
+                    {{ $t('You cannot block your own address. If you are ever locked out anyway, add %s to wp-config.php to switch every IP rule off and get back in.', "define('FLUENT_AUTH_DISABLE_IP_RESTRICTION', true);") }}
                 </p>
             </SettingsCard>
         </div>

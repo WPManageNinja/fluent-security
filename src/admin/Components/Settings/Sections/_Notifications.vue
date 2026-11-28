@@ -1,6 +1,7 @@
 <script type="text/babel">
 import SettingRow from '../_SettingRow.vue';
 import SettingToggle from '../_SettingToggle.vue';
+import digestFrequencies from '@/Bits/digestFrequencies';
 
 export default {
     name: 'NotificationsSection',
@@ -11,17 +12,7 @@ export default {
     },
     data() {
         return {
-            digest_items: {
-                daily: this.$t('Daily'),
-                sun: this.$t('Every Sunday'),
-                mon: this.$t('Every Monday'),
-                tue: this.$t('Every Tuesday'),
-                wed: this.$t('Every Wednesday'),
-                thu: this.$t('Every Thursday'),
-                fri: this.$t('Every Friday'),
-                sat: this.$t('Every Saturday'),
-                monthly: this.$t('Monthly, on the 1st')
-            }
+            digest_items: digestFrequencies(this.$t)
         }
     },
     computed: {
@@ -51,7 +42,7 @@ export default {
 
         <SettingRow :label="$t('Summary report')"
                     :description="$t('A count of successful, failed and blocked logins for the period. Nothing is sent if there were none.')">
-            <el-select v-model="settings.digest_summary">
+            <el-select v-model="settings.digest_summary" :empty-values="[null, undefined]">
                 <el-option value="" :label="$t('Do not send a summary')"></el-option>
                 <el-option v-for="(day, dayName) in digest_items" :key="dayName"
                            :value="dayName" :label="day"></el-option>

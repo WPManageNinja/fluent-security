@@ -27,7 +27,8 @@ class LoginCustomizerHandler
                     margin-bottom: 20px;
                 }
 
-                body.fls_register_form_token #registerform > p {
+                body.fls_register_form_token #registerform > p,
+                body.fls_register_form_token #registerform .fls_turnstile {
                     display: none !important;
                 }
             </style>
@@ -95,7 +96,10 @@ class LoginCustomizerHandler
         $allSettings = $this->getSettings();
         $formSettings = Arr::get($allSettings, $formType, []);
 
-        if (!$formSettings) {
+        // Not every top-level key is a form: `status` holds 'yes' or 'no'. A
+        // form type another plugin added (extraActions()) can share such a
+        // name; it gets the login form's look like any type with no settings.
+        if (!is_array($formSettings) || !$formSettings) {
             $formSettings = Arr::get($allSettings, 'login', []);
 
             $formSettings['form']['title'] = '';
@@ -103,6 +107,12 @@ class LoginCustomizerHandler
 
             if ($formType == 'reset_password') {
                 $formSettings['form']['title'] = __('Reset Password', 'fluent-security');
+                $formSettings['form']['description'] = '';
+            }
+
+            // A posted form is the "Your password has been reset" page, which needs no heading.
+            if ($formType == 'new_password' && empty($_POST['pass1'])) {
+                $formSettings['form']['title'] = __('Choose a new password', 'fluent-security');
                 $formSettings['form']['description'] = '';
             }
 
@@ -114,12 +124,12 @@ class LoginCustomizerHandler
 
         $smartCodeParse = new \FluentAuth\App\Services\SmartCodeParser();
 
-        $formSettings['form']['title'] = $smartCodeParse->parse($formSettings['form']['title'], null);
-        $formSettings['form']['description'] = $smartCodeParse->parse($formSettings['form']['description'], null);
+        $formSettings['form']['title'] = $smartCodeParse->parse(Arr::get($formSettings, 'form.title', ''), null);
+        $formSettings['form']['description'] = $smartCodeParse->parse(Arr::get($formSettings, 'form.description', ''), null);
 
         if (isset($formSettings['banner'])) {
-            $formSettings['banner']['title'] = $smartCodeParse->parse($formSettings['banner']['title'], null);
-            $formSettings['banner']['description'] = $smartCodeParse->parse($formSettings['banner']['description'], null);
+            $formSettings['banner']['title'] = $smartCodeParse->parse(Arr::get($formSettings, 'banner.title', ''), null);
+            $formSettings['banner']['description'] = $smartCodeParse->parse(Arr::get($formSettings, 'banner.description', ''), null);
         } else {
             $loginForm = Arr::get($allSettings, 'login', []);
             $formSettings['banner']['title'] = $smartCodeParse->parse($loginForm['banner']['title'], null);
@@ -134,22 +144,15 @@ class LoginCustomizerHandler
                 FLUENT_AUTH_VERSION
             );
 
-            $bannerDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
-            $formDesignElements = ['title_color', 'text_color', 'button_color', 'button_label_color', 'background_color', 'background_image'];
-
-            $bannerValues = array_filter(Arr::only(Arr::get($formSettings, 'banner', []), $bannerDesignElements));
-            $formValues = array_filter(Arr::only(Arr::get($formSettings, 'form', []), $formDesignElements));
-
             $css = '';
-            foreach ($bannerValues as $designKey => $designValue) {
-                if ($designValue) {
-                    $css .= '--fls-banner-' . $designKey . ': ' . $designValue . ';';
-                }
-            }
-
-            foreach ($formValues as $designKey => $designValue) {
-                if ($designValue) {
-                    $css .= '--fls-form-' . $designKey . ': ' . $designValue . ';';
+            foreach (['banner', 'form'] as $section) {
+                $values = Arr::only(Arr::get($formSettings, $section, []), Helper::colorFields());
+                foreach ($values as $designKey => $designValue) {
+                    // Checked again here: values saved before 3.0.2 never went through the save-time check.
+                    $designValue = Helper::sanitizeCssColor($designValue);
+                    if ($designValue) {
+                        $css .= '--fls-' . $section . '-' . $designKey . ': ' . $designValue . ';';
+                    }
                 }
             }
 
@@ -158,10 +161,14 @@ class LoginCustomizerHandler
             wp_add_inline_style('fls-login-customizer', $cssVars);
         });
 
-        add_action('login_header', function () use ($formSettings, $formType) {
+        $bannerHidden = Arr::isTrue($formSettings, 'banner.hidden');
 
-            $extraCssClass = apply_filters('fluent_auth/extra_login_page_wrap_css_class', '');
-            $extraCssClass .= 'fls_layout_banner_' . Arr::get($formSettings, 'banner.position');
+        add_action('login_header', function () use ($formSettings, $formType, $bannerHidden) {
+
+            $extraCssClass = trim((string)apply_filters('fluent_auth/extra_login_page_wrap_css_class', ''));
+            if (!$bannerHidden) {
+                $extraCssClass = trim($extraCssClass . ' fls_layout_banner_' . Arr::get($formSettings, 'banner.position'));
+            }
 
             ?>
             <div class="fls_login_page_wrap fls_form_type_<?php echo esc_attr($formType); ?> <?php echo esc_attr($extraCssClass); ?>">
@@ -173,11 +180,12 @@ class LoginCustomizerHandler
             <?php
         });
 
-        add_action('login_footer', function () use ($formSettings) {
+        add_action('login_footer', function () use ($formSettings, $bannerHidden) {
             $backgroundImage = Arr::get($formSettings, 'banner.background_image');
             ?>
             </div></div> <!-- End of fls_form_wrap and fls_login_form_wrap-->
 
+            <?php if (!$bannerHidden): ?>
             <div style="<?php if ($backgroundImage) {
                 echo 'background-image: url(' . esc_url($backgroundImage) . ')';
             } ?>" class="fls_login_cusom_content_wrap">
@@ -194,6 +202,7 @@ class LoginCustomizerHandler
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
             </div> <!-- End of fls_login_page_wrap-->
             <?php
         });
@@ -206,7 +215,7 @@ class LoginCustomizerHandler
         $policyUrl = apply_filters('fluent_auth/signup_policy_url', $policyUrl);
 
         // We will add the custom fields here
-        $fullName = Arr::get($_POST, 'user_full_name', '');
+        $fullName = wp_unslash(Arr::get($_POST, 'user_full_name', ''));
         $password = Arr::get($_POST, 'user_password', '');
         $confirmPassword = Arr::get($_POST, 'user_confirm_password', '');
         $agreeTerms = Arr::get($_POST, 'agree_terms', '');
@@ -277,6 +286,7 @@ class LoginCustomizerHandler
 
         $formData = [
             'email'      => $user_email,
+            'username'   => $sanitized_user_login,
             'first_name' => $firstName,
             'last_name'  => $lastName,
         ];
@@ -420,17 +430,8 @@ class LoginCustomizerHandler
             $errors->add('user_full_name', __('Please enter your full name.', 'fluent-security'));
         }
 
-        $fullName = Arr::get($data, 'user_full_name', '');
-
-        // check if the name is valid
-        // Consider if there has any special characters like +, -, *, /, etc
-        // only check the +,-,*,$,/,=,%,!,@,#,^,&,*,(,),_,{,},[,],:,;,',",<,>,?,|,`,~,,
-        if (preg_match('/[\'^£$%&*()}{@#~?><>,|=_+¬-]/u', $fullName)) {
-            $errors->add('user_full_name', __('Please provide a full name.', 'fluent-security'));
-        }
-
-        // check if there has any http or https
-        if (preg_match('/http|https/', $fullName)) {
+        // Any characters a name has are fine; a link is what a spam signup puts here.
+        if (stripos((string)Arr::get($data, 'user_full_name', ''), 'http') !== false) {
             $errors->add('user_full_name', __('Please provide a valid name.', 'fluent-security'));
         }
 
@@ -458,6 +459,12 @@ class LoginCustomizerHandler
     {
         $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : 'login';
 
+        // ?action[]=x makes it an array, which is no action this screen knows,
+        // and as an array key (below) a fatal TypeError.
+        if (!is_string($action)) {
+            return '';
+        }
+
         if (isset($_GET['key'])) {
             $action = 'resetpass';
         }
@@ -466,7 +473,21 @@ class LoginCustomizerHandler
             $action = 'checkemail';
         }
 
-        $default_actions = array(
+        if (!in_array($action, self::builtInActions(), true) && !isset(self::extraActions()[$action])) {
+            $action = '';
+        }
+
+        return $action;
+    }
+
+    /**
+     * The wp-login.php actions the designer dresses on its own.
+     *
+     * @return string[]
+     */
+    private static function builtInActions()
+    {
+        return array(
             'confirm_admin_email',
             'postpass',
             'logout',
@@ -486,12 +507,40 @@ class LoginCustomizerHandler
             TotpSetupPageHandler::LOGIN_ACTION,
             TwoFaService::LOGIN_ACTION
         );
+    }
 
-        if (!in_array($action, $default_actions, true)) {
-            $action = '';
+    /**
+     * Login screens other plugins add to wp-login.php (an OAuth consent screen,
+     * for example), dressed like the plugin's own: action => form type.
+     *
+     * A form type with no saved settings takes the login form's colours and
+     * banner, with no title or description; the screen prints its own words.
+     *
+     * @return array<string, string>
+     */
+    public static function extraActions()
+    {
+        /**
+         * Filter the extra wp-login.php actions the login designer dresses.
+         *
+         * @param array<string, string> $actions action => form type, both
+         *                                       lowercase letters, digits and
+         *                                       underscores.
+         */
+        $actions = apply_filters('fluent_auth/login_designer_actions', []);
+        $valid = [];
+        // Only new screens: a built-in screen keeps its own form type.
+        $builtIn = self::builtInActions();
+
+        if (is_array($actions)) {
+            foreach ($actions as $action => $type) {
+                if (is_string($action) && is_string($type) && !in_array($action, $builtIn, true) && preg_match('/^[a-z0-9_]{1,64}$/', $action) && preg_match('/^[a-z0-9_]{1,64}$/', $type)) {
+                    $valid[$action] = $type;
+                }
+            }
         }
 
-        return $action;
+        return $valid;
     }
 
     public function getFormType($action)
@@ -510,6 +559,20 @@ class LoginCustomizerHandler
             case 'retrievepassword':
                 $type = 'reset_password_confirm';
                 break;
+            case 'rp':
+            case 'resetpass':
+                $type = 'new_password';
+                break;
+            case 'checkemail':
+                $type = 'check_email';
+                break;
+            case 'confirmaction':
+            case 'confirm_admin_email':
+                $type = $action;
+                break;
+            case TwoFaService::LOGIN_ACTION:
+                $type = 'two_fa_verify';
+                break;
             /*
              * A type of its own, with nothing configured against it, so it takes the
              * login form's colours and banner but not its words - "Please enter your
@@ -519,7 +582,9 @@ class LoginCustomizerHandler
                 $type = 'totp_setup';
                 break;
             default:
-                return 'login';
+                $extra = self::extraActions();
+
+                return isset($extra[$action]) ? $extra[$action] : 'login';
         }
 
         return $type;

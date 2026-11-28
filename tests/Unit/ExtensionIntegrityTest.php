@@ -128,6 +128,24 @@ class ExtensionIntegrityTest extends BaseTestCase
             'Only the real file should be reported; the rest are noise on every site');
     }
 
+    /* node_modules is noise, but a PHP file in it runs, so it is not a hiding place. */
+    public function testPhpInsideNodeModulesIsStillReported()
+    {
+        $dir = $this->makeExtensionDir([
+            'node_modules/pkg/index.js'     => 'var a;',
+            'node_modules/pkg/shell.php'    => '<?php // planted',
+            'real.php'                      => '<?php // original'
+        ]);
+
+        $findings = $this->compare($this->target($dir), [
+            'algo'  => 'md5',
+            'files' => ['real.php' => [md5('<?php // original')]]
+        ]);
+
+        $this->assertEquals(['node_modules/pkg/shell.php'], array_keys($findings));
+        $this->assertEquals('new', $findings['node_modules/pkg/shell.php']['status']);
+    }
+
     /* A single-file plugin is its own whole extent, not the plugins directory it sits in. */
     public function testSingleFilePluginHashesOnlyItself()
     {

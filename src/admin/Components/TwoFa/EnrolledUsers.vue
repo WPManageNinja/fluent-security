@@ -1,5 +1,6 @@
 <script type="text/babel">
 import icons from '../Dashboard/icons';
+import formatList from '../../Bits/formatList';
 import SettingsHeader from '../Settings/_SettingsHeader.vue';
 
 /**
@@ -87,11 +88,12 @@ export default {
              * passkeys rolled out read "5 of 5 have set one up" over a column of "Not set
              * up", because the five were holding the method the sentence left out.
              */
+            // translators: %1$s is how many users have set one up, %2$s how many could, %3$s the sign-in methods, e.g. "an authenticator app or a passkey"
             return this.$t(
-                '%1s of %2s users who can use %3s have set one up',
+                '%1$s of %2$s users who can use %3$s have set one up',
                 this.summary.enrolled,
                 this.summary.eligible,
-                this.deviceMethods.join(this.$t(' or '))
+                formatList(this.deviceMethods, 'disjunction')
             );
         },
         /* Named so the notice can say which one is missing rather than "some of them". */
@@ -111,6 +113,9 @@ export default {
             }
 
             return missing;
+        },
+        missingMethodsList() {
+            return formatList(this.missingMethods, 'disjunction');
         },
         /*
          * Passkeys are set on their own card now, so an alert that names them has to be
@@ -158,7 +163,7 @@ export default {
             const from = (this.pagination.current_page - 1) * this.pagination.per_page + 1;
             const to = Math.min(from + this.users.length - 1, total);
 
-            return this.$t('%1s-%2s of %3s', from, to, total);
+            return this.$t('%1$s-%2$s of %3$s', from, to, total);
         }
     },
     methods: {
@@ -230,6 +235,7 @@ export default {
          */
         confirmReset(user) {
             this.$confirm(
+                // translators: %s is the user's login name
                 this.$t('Do this if %s has lost the device the app was on. They can set up a new one from their profile.', user.user_login),
                 this.$t('Remove the authenticator app?'),
                 {
@@ -284,6 +290,7 @@ export default {
                     key: 'passkey',
                     icon: 'passkey',
                     label: user.passkey_count > 1
+                        // translators: %s is the number of passkeys this user has, always 2 or more
                         ? this.$t('%s passkeys', user.passkey_count)
                         : this.$t('Passkey')
                 });
@@ -371,7 +378,8 @@ export default {
                 <el-alert v-if="loaded && missingMethods.length" type="info" :closable="false" show-icon
                           class="fls_row_alert"
                           :title="$t('Some sign-in methods are off')">
-                    {{ $t('This site does not offer %s, so nobody can set that up.', missingMethods.join($t(' or '))) }}
+                    <!-- translators: %s is the sign-in methods that are switched off, e.g. "an authenticator app, passkeys or emailed codes" -->
+                    {{ $t('This site does not offer %s, so nobody can set that up.', missingMethodsList) }}
                     <router-link :to="{name: 'settings_general', query: {section: missingMethodsSection}}">
                         {{ $t('Review sign-in settings') }}
                     </router-link>

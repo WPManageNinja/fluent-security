@@ -215,6 +215,101 @@ class AuthServiceTest extends BaseTestCase
         $this->assertInstanceOf(\WP_Error::class, $result);
     }
 
+    private function insertSignupCode($token)
+    {
+        global $wpdb;
+        $loginHash = wp_generate_password(32, false);
+
+        $wpdb->insert($wpdb->prefix . 'fls_login_hashes', [
+            'login_hash' => $loginHash,
+            'status' => 'issued',
+            'use_type' => 'signup_verification',
+            'used_count' => 0,
+            'two_fa_code_hash' => wp_hash_password($token),
+            'valid_till' => date('Y-m-d H:i:s', strtotime('+1 hour')),
+            'created_at' => current_time('mysql'),
+        ]);
+
+        return $loginHash;
+    }
+
+    private function signupUsedCount($loginHash)
+    {
+        global $wpdb;
+
+        return (int)$wpdb->get_var($wpdb->prepare(
+            "SELECT used_count FROM {$wpdb->prefix}fls_login_hashes WHERE login_hash = %s",
+            $loginHash
+        ));
+    }
+
+    // `> 5` on the stored count let a seventh guess through.
+    public function testVerifyTokenHashAllowsFiveGuesses()
+    {
+        $loginHash = $this->insertSignupCode('right_token');
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->assertWpErrorWithCode(AuthService::verifyTokenHash($loginHash, 'wrong'), 'invalid_verification_code');
+        }
+
+        $this->assertWpErrorWithCode(AuthService::verifyTokenHash($loginHash, 'right_token'), 'verification_code_expired');
+        $this->assertSame(5, $this->signupUsedCount($loginHash));
+    }
+
+    // A parallel guess claims its attempt mid-compare; the old stale write erased it.
+    public function testVerifyTokenHashKeepsAParallelGuess()
+    {
+        global $wpdb;
+
+        $loginHash = $this->insertSignupCode('right_token');
+
+        $parallel = function ($check) use ($wpdb, $loginHash) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET used_count = used_count + 1 WHERE login_hash = %s",
+                $loginHash
+            ));
+
+            return $check;
+        };
+
+        add_filter('check_password', $parallel);
+
+        try {
+            AuthService::verifyTokenHash($loginHash, 'wrong');
+        } finally {
+            remove_filter('check_password', $parallel);
+        }
+
+        $this->assertSame(2, $this->signupUsedCount($loginHash));
+    }
+
+    // A parallel signup with the same right code finished first.
+    public function testVerifyTokenHashPassesOnlyOnce()
+    {
+        global $wpdb;
+
+        $loginHash = $this->insertSignupCode('right_token');
+
+        $winner = function ($check) use ($wpdb, $loginHash) {
+            $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->prefix}fls_login_hashes SET status = 'used' WHERE login_hash = %s",
+                $loginHash
+            ));
+
+            return $check;
+        };
+
+        add_filter('check_password', $winner);
+
+        try {
+            $result = AuthService::verifyTokenHash($loginHash, 'right_token');
+        } finally {
+            remove_filter('check_password', $winner);
+        }
+
+        $this->assertWpErrorWithCode($result, 'verification_code_expired');
+    }
+
     public function testVerifyTokenHashInvalidHash()
     {
         $result = AuthService::verifyTokenHash('nonexistent_hash', 'test_token');
