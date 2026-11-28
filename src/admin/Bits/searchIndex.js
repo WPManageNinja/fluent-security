@@ -75,6 +75,13 @@ export const searchIndex = (vm) => {
         },
         {
             group: 'Settings',
+            title: vm.$t('Application Passwords'),
+            subtitle: vm.$t('Who uses them, and which nobody uses any more'),
+            to: {name: 'settings_app_passwords'},
+            keywords: ['application passwords', 'app passwords', 'rest api', 'revoke', 'api keys', 'integrations']
+        },
+        {
+            group: 'Settings',
             title: vm.$t('IP Access Rules'),
             subtitle: vm.$t('Addresses always allowed, and always blocked'),
             to: {name: 'settings_ip_rules'},

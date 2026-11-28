@@ -383,7 +383,8 @@ class Helper
             'plugin_activated'     => __('Plugin activated', 'fluent-security'),
             'plugin_deactivated'   => __('Plugin deactivated', 'fluent-security'),
             'plugin_updated'       => __('Plugin updated', 'fluent-security'),
-            'password_reset_request' => __('Password reset requested', 'fluent-security')
+            'password_reset_request' => __('Password reset requested', 'fluent-security'),
+            'app_password_revoked'   => __('Application password revoked', 'fluent-security')
         ]);
     }
 

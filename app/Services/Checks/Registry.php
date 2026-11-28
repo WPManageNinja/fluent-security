@@ -39,6 +39,7 @@ class Registry
             new Config\SecretEncryptionCheck(),
             new Users\AdminUsernameCheck(),
             new Users\DormantAdminCheck(),
+            new Users\AppPasswordsCheck(),
             new Users\HiddenUsersCheck()
         ];
 

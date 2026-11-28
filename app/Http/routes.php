@@ -54,6 +54,10 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
      */
     ->get('two-fa/users', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'getUsers'], $userPermissions)
     ->post('two-fa/users/{id}/reset', ['\FluentAuth\App\Http\Controllers\TwoFaController', 'resetUser'], $userPermissions)
+    /* Application passwords across users: a list of people too, so the same capability. */
+    ->get('app-passwords', ['\FluentAuth\App\Http\Controllers\AppPasswordsController', 'index'], $userPermissions)
+    ->post('app-passwords/revoke', ['\FluentAuth\App\Http\Controllers\AppPasswordsController', 'revoke'], $userPermissions)
+    ->post('app-passwords/revoke-unused', ['\FluentAuth\App\Http\Controllers\AppPasswordsController', 'revokeUnused'], $userPermissions)
     /*
      * Encryption of the authenticator secrets. Two calls to switch on rather than one,
      * because the key lives in wp-config.php and this request cannot see a line added to
