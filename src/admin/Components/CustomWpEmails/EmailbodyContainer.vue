@@ -108,6 +108,7 @@ export default {
 
 <template>
     <div class="fls_email_frame">
-        <iframe ref="ifr" frameborder="0" allowFullScreen mozallowfullscreen webkitallowfullscreen></iframe>
+        <!-- No allow-scripts: nothing in an email may run here, inline handlers included. allow-same-origin only lets paint() write into it. -->
+        <iframe ref="ifr" sandbox="allow-same-origin" frameborder="0"></iframe>
     </div>
 </template>

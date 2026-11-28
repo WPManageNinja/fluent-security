@@ -2,13 +2,14 @@
 import WpEditor from './_wp_editor.vue';
 import InputPopover from './MCE/InputPopover.vue';
 import PreviewEmail from "./PreviewEmail.vue";
+import EmailbodyContainer from './EmailbodyContainer.vue';
 import SettingsHeader from '../Settings/_SettingsHeader.vue';
 import SettingsCard from '../Settings/_SettingsCard.vue';
 import SettingRow from '../Settings/_SettingRow.vue';
 
 export default {
     name: 'EditWpEmail',
-    components: {PreviewEmail, WpEditor, InputPopover, SettingsHeader, SettingsCard, SettingRow},
+    components: {PreviewEmail, EmailbodyContainer, WpEditor, InputPopover, SettingsHeader, SettingsCard, SettingRow},
     props: {
         email_id: {
             type: String,
@@ -24,6 +25,7 @@ export default {
             saving: false,
             required_smartcodes: [],
             default_content: null,
+            built_in: null,
             disableEditor: false,
             showPreview: false
         }
@@ -56,6 +58,7 @@ export default {
                     this.email = response.email;
                     this.settings = response.settings;
                     this.default_content = response.default_content;
+                    this.built_in = response.built_in;
                 })
                 .catch((errors) => {
                     this.$handleError(errors);
@@ -142,6 +145,18 @@ export default {
                                              :label="$t('Nothing')"/>
                         </el-radio-group>
                     </SettingRow>
+                </SettingsCard>
+
+                <SettingsCard v-if="settings.status == 'system' && built_in" :title="$t('The built-in email')"
+                              :description="built_in.format === 'text'
+                                  ? $t('WordPress sends this as plain text. It is filled in with your account details, and the links are examples.')
+                                  : (built_in.format === 'html' ? $t('Filled in with your account details. Links and codes are examples.') : '')">
+                    <p v-if="built_in.format === 'none'" class="fls_builtin_none">{{ built_in.body }}</p>
+                    <template v-else>
+                        <p class="fls_builtin_subject"><strong>{{ $t('Subject:') }}</strong> {{ built_in.subject }}</p>
+                        <pre v-if="built_in.format === 'text'" class="fls_builtin_text">{{ built_in.body }}</pre>
+                        <EmailbodyContainer v-else :content="built_in.body"/>
+                    </template>
                 </SettingsCard>
 
                 <SettingsCard v-if="settings.status == 'active'" :title="$t('Content')"

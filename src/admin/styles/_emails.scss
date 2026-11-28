@@ -154,6 +154,38 @@
 
 /* --------------------------------------------------------------- the editor */
 
+/* What Built-in sends, shown under the choice so nobody has to switch away to find out. */
+.fls_builtin_subject {
+    @apply text-sm text-ink;
+
+    margin: 0 0 10px;
+}
+
+/*
+ * WordPress's own emails are plain text, so they are shown as plain text: line breaks kept,
+ * long reset links wrapped. White in both themes, like the HTML preview, because this is
+ * the recipient's inbox and not this plugin's screen.
+ */
+.fls_builtin_text {
+    margin: 0;
+    padding: 14px 16px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #1d2327;
+    background: #fff;
+    border: 1px solid var(--fls-border);
+    border-radius: 4px;
+}
+
+.fls_builtin_none {
+    @apply text-sm text-ink;
+
+    margin: 0;
+}
+
+
 .fls_required_codes {
     margin: 6px 0 0;
     padding-left: 18px;

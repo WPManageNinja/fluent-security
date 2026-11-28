@@ -5,6 +5,7 @@ namespace FluentAuth\App\Services\TwoFa;
 use FluentAuth\App\Helpers\Arr;
 use FluentAuth\App\Helpers\Helper;
 use FluentAuth\App\Services\SmartCodeParser;
+use FluentAuth\App\Services\BuiltInEmails;
 use FluentAuth\App\Services\SystemEmailService;
 
 /**
@@ -288,64 +289,7 @@ class EmailTwoFaMethod extends BaseTwoFaMethod
         $emailData = $this->getCustomizedEmailSubjectBody($data, $user, $autoLoginUrl);
 
         if (empty($emailData['subject']) || empty($emailData['body'])) {
-            $blogName = html_entity_decode(get_bloginfo('name'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-            /* translators: %1$s: Site Name, %2$d: login code */
-            $emailSubject = sprintf(__('Your login code for %1$s - %2$d', 'fluent-security'), $blogName, $data['two_fa_code']);
-
-            $emailLines = [
-                /* translators: %s: User's Display Name  */
-                sprintf(__('Hello %s,', 'fluent-security'), $user->display_name),
-                /* translators: %s: Site Name  */
-                sprintf(__('Someone asked to sign in to %s. Here is the code to type into the login form:', 'fluent-security'), $blogName),
-                '<b>' . __('Your Login Code: ', 'fluent-security') . '</b>',
-                '<p style="font-size: 22px;border: 2px dashed #555454;padding: 5px 10px;text-align: center;background: #fffaca;letter-spacing: 7px;color: #555454;display:block;">' . $data['two_fa_code'] . '</p>',
-                /* translators: %d: Minute  */
-                sprintf(__('This code will expire in %d minutes and can only be used once.', 'fluent-security'), self::VALIDITY_MINUTES),
-                ' ',
-                '<hr />'
-            ];
-
-            $callToAction = false;
-
-            if ($autoLoginUrl) {
-                $emailLines[] = ' ';
-                $emailLines[] = __('Or you can sign in by tapping the button below.', 'fluent-security');
-                $callToAction = [
-                    /* translators: %s: Site Name  */
-                    'btn_text' => sprintf(__('Sign in to %s', 'fluent-security'), $blogName),
-                    'url'      => $autoLoginUrl
-                ];
-            }
-
-            $footerLines = [
-                ' ',
-                __('If you did not make this request, you can safely ignore this email.', 'fluent-security')
-            ];
-
-            $emailBody = '';
-            $emailBody .= Helper::loadView('magic_login.header', [
-                'pre_header' => $emailSubject
-            ]);
-
-            $emailBody .= Helper::loadView('magic_login.line_block', [
-                'lines' => $emailLines
-            ]);
-
-            if ($callToAction) {
-                $emailBody .= Helper::loadView('magic_login.call_to_action', $callToAction);
-            }
-
-            $emailBody .= Helper::loadView('magic_login.line_block', [
-                'lines' => $footerLines
-            ]);
-
-            $emailBody .= Helper::loadView('magic_login.footer', []);
-
-            $emailData = [
-                'subject' => $emailSubject,
-                'body'    => $emailBody
-            ];
+            $emailData = BuiltInEmails::twoFaCode($user, $data['two_fa_code'], $autoLoginUrl, self::VALIDITY_MINUTES);
         }
 
         return \wp_mail(
