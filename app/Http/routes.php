@@ -69,6 +69,10 @@ $router->get('settings', ['\FluentAuth\App\Http\Controllers\SettingsController',
     ->post('two-fa/encryption/disable', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'disable'], $networkPermissions)
     ->post('two-fa/encryption/rekey', ['\FluentAuth\App\Http\Controllers\TwoFaEncryptionController', 'rekey'], $networkPermissions)
     ->get('auth-logs', ['\FluentAuth\App\Http\Controllers\LogsController', 'getLogs'], $permissions)
+    /* The About screen. Installing checks install_plugins and activate_plugins in the service, as WordPress's own screen does. */
+    ->get('about', ['\FluentAuth\App\Http\Controllers\AboutController', 'index'], $permissions)
+    ->get('about/contributors', ['\FluentAuth\App\Http\Controllers\AboutController', 'contributors'], $permissions)
+    ->post('about/install-plugin', ['\FluentAuth\App\Http\Controllers\AboutController', 'installPlugin'], $permissions)
     ->get('dashboard', ['\FluentAuth\App\Http\Controllers\DashboardController', 'getDashboard'], $permissions)
     /*
      * Superseded, and unreachable from this plugin's own screens: nothing calls it. The

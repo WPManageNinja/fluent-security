@@ -1,0 +1,122 @@
+/* The About screen. */
+
+.fls_about_story p {
+    @apply text-sm text-ink m-0;
+
+    line-height: 1.7;
+
+    & + p {
+        margin-top: 12px;
+    }
+}
+
+.fls_about_sub {
+    @apply text-xs text-ink-light m-0;
+
+    margin-top: 3px;
+}
+
+.fls_about_pad {
+    padding: 20px;
+}
+
+/* Two columns of plugins, one on a phone. */
+.fls_about_plugins {
+    @apply grid m-0 p-0 list-none;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fls_about_plugin {
+    @apply flex items-start m-0 border-0 border-b border-solid border-hairline;
+
+    gap: 14px;
+    padding: 18px 20px;
+
+    &:nth-child(odd) {
+        @apply border-r;
+    }
+
+    img {
+        @apply flex-none rounded;
+    }
+
+    .fls_about_plugin_text {
+        @apply flex-1;
+
+        min-width: 0;
+
+        p {
+            @apply text-xs text-ink-mid m-0;
+
+            margin-top: 4px;
+            line-height: 1.55;
+        }
+    }
+
+    .fls_about_plugin_name {
+        @apply text-sm font-semibold text-ink-head no-underline;
+
+        &:hover {
+            @apply underline;
+        }
+    }
+
+    .fls_about_plugin_action {
+        @apply flex-none;
+
+        a.el-button {
+            @apply no-underline;
+        }
+    }
+}
+
+.fls_about_aside {
+    .fls_eyebrow {
+        margin-top: 22px;
+
+        &:first-child {
+            margin-top: 0;
+        }
+    }
+}
+
+.fls_about_links {
+    @apply m-0 p-0 list-none text-sm;
+
+    li {
+        margin: 0 0 8px;
+    }
+}
+
+.fls_about_note {
+    @apply text-xs text-ink-light m-0;
+
+    margin-bottom: 10px;
+}
+
+.fls_about_people {
+    @apply flex flex-wrap;
+
+    gap: 8px;
+
+    img {
+        @apply block rounded-full;
+    }
+}
+
+.fls_about_version {
+    @apply text-xs text-ink-light m-0;
+
+    margin-top: 22px;
+}
+
+@media (max-width: 1100px) {
+    .fls_about_plugins {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fls_about_plugin:nth-child(odd) {
+        @apply border-r-0;
+    }
+}

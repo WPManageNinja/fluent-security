@@ -90,5 +90,8 @@
   "The card the message sits on.": "The card the message sits on.",
   "The message text.": "The message text.",
   "Behind the box.": "Behind the box.",
-  "Text inside the box.": "Text inside the box."
+  "Text inside the box.": "Text inside the box.",
+  "__about_story_1__": "Most WordPress sites get broken into the same way. Somebody guesses a password, or reuses one that leaked somewhere else, and walks in through the login form. FluentAuth guards that door: login limits, two-factor sign-in, magic links and social login, with file scanning and audit logs behind them.",
+  "__about_story_2__": "It is made by WPManageNinja, the team behind FluentCRM, Fluent Forms, FluentSMTP and FluentCart. Running several security plugins to cover the login makes a site slower and harder to look after. One plugin that covers it is less work for your server and for you.",
+  "__about_story_3__": "That is why we built FluentAuth, and that is why it is free and open source. If something does not work the way you expect, tell us on GitHub."
 }
