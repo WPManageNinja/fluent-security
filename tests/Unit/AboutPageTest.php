@@ -48,6 +48,27 @@ class AboutPageTest extends BaseTestCase
         $this->assertSame('forbidden', $result->get_error_code());
     }
 
+    /** A host can block one plugin through activate_plugin; this screen must respect that. */
+    public function test_a_plugin_the_site_blocks_from_activation_is_refused()
+    {
+        $block = function ($caps, $cap, $userId, $args) {
+            if ($cap === 'activate_plugin' && ($args[0] ?? '') === 'fluent-smtp/fluent-smtp.php') {
+                return ['do_not_allow'];
+            }
+            return $caps;
+        };
+        add_filter('map_meta_cap', $block, 10, 4);
+
+        try {
+            $result = AboutPage::installAndActivate('fluent-smtp');
+        } finally {
+            remove_filter('map_meta_cap', $block, 10);
+        }
+
+        $this->assertWPError($result);
+        $this->assertSame('forbidden', $result->get_error_code());
+    }
+
     public function test_the_install_endpoint_returns_the_error_rather_than_installing()
     {
         $request = new \WP_REST_Request('POST', '/fluent-auth/about/install-plugin');

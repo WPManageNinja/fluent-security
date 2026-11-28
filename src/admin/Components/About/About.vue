@@ -193,7 +193,8 @@ export default {
                 <div v-else-if="contributors.length" class="fls_about_people">
                     <a v-for="person in contributors" :key="person.login" :href="person.url"
                        target="_blank" rel="noopener" :title="person.login">
-                        <img :src="person.avatar" :alt="person.login" width="40" height="40" loading="lazy"/>
+                        <img :src="person.avatar" :alt="person.login" width="40" height="40" loading="lazy"
+                             referrerpolicy="no-referrer"/>
                     </a>
                 </div>
                 <p v-else class="fls_about_note">

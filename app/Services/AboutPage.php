@@ -96,11 +96,12 @@ class AboutPage
             return new \WP_Error('unknown_plugin', __('That plugin cannot be installed from here.', 'fluent-security'), ['status' => 400]);
         }
 
-        if (!current_user_can('activate_plugins')) {
+        $file = $catalogue[$slug][0];
+
+        // Per file, as Plugins → Activate checks it, so a host that blocks one plugin is respected.
+        if (!current_user_can('activate_plugin', $file)) {
             return new \WP_Error('forbidden', __('You are not allowed to activate plugins.', 'fluent-security'), ['status' => 403]);
         }
-
-        $file = $catalogue[$slug][0];
 
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
@@ -119,7 +120,8 @@ class AboutPage
         if (!is_plugin_active($file)) {
             $activated = activate_plugin($file);
 
-            if (is_wp_error($activated)) {
+            // unexpected_output means the plugin printed something while activating; it is active all the same.
+            if (is_wp_error($activated) && $activated->get_error_code() !== 'unexpected_output') {
                 return $activated;
             }
         }
