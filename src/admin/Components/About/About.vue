@@ -1,10 +1,13 @@
 <script type="text/babel">
+import InlineSentence from '../Settings/_InlineSentence.vue';
+
 /**
  * About FluentAuth: what it is, who makes it, and a few of the team's other plugins that
  * install in one click. Nothing is installed or fetched until the admin asks.
  */
 export default {
     name: 'AboutPage',
+    components: {InlineSentence},
     data() {
         return {
             loading: true,
@@ -21,9 +24,26 @@ export default {
         links() {
             return [
                 {url: 'https://fluentauth.com/docs/', label: this.$t('Read the documentation')},
+                {url: 'https://community.wpmanageninja.com/portal/', label: this.$t('Ask in the community')},
                 {url: 'https://github.com/WPManageNinja/fluent-security/issues', label: this.$t('Report a problem on GitHub')},
                 {url: 'https://github.com/WPManageNinja/fluent-security', label: this.$t('Browse the source code')},
                 {url: 'https://wordpress.org/support/plugin/fluent-security/reviews/#new-post', label: this.$t('Leave a review on WordPress.org')}
+            ];
+        },
+        websites() {
+            return [
+                {url: 'https://fluentauth.com/', label: 'fluentauth.com'},
+                {url: 'https://wpmanageninja.com/', label: 'wpmanageninja.com'}
+            ];
+        },
+        /* The names in the second paragraph, in the order of its placeholders. */
+        team() {
+            return [
+                {url: 'https://wpmanageninja.com/', name: 'WPManageNinja'},
+                {url: 'https://fluentcrm.com/', name: 'FluentCRM'},
+                {url: 'https://fluentforms.com/', name: 'Fluent Forms'},
+                {url: 'https://fluentsmtp.com/', name: 'FluentSMTP'},
+                {url: 'https://fluentcart.com/', name: 'FluentCart'}
             ];
         }
     },
@@ -103,7 +123,16 @@ export default {
                 <section class="fls_card fls_about_story">
                     <div class="fls_card_body">
                         <p>{{ $t('__about_story_1__') }}</p>
-                        <p>{{ $t('__about_story_2__') }}</p>
+                        <p>
+                            <!-- translators: %1$s is the company name, %2$s to %5$s are product names; each becomes a link -->
+                            <InlineSentence :text="$t('__about_story_2__')">
+                                <template #field1><a :href="team[0].url" target="_blank" rel="noopener">{{ team[0].name }}</a></template>
+                                <template #field2><a :href="team[1].url" target="_blank" rel="noopener">{{ team[1].name }}</a></template>
+                                <template #field3><a :href="team[2].url" target="_blank" rel="noopener">{{ team[2].name }}</a></template>
+                                <template #field4><a :href="team[3].url" target="_blank" rel="noopener">{{ team[3].name }}</a></template>
+                                <template #field5><a :href="team[4].url" target="_blank" rel="noopener">{{ team[4].name }}</a></template>
+                            </InlineSentence>
+                        </p>
                         <p>{{ $t('__about_story_3__') }}</p>
                     </div>
                 </section>
@@ -148,6 +177,13 @@ export default {
                 <ul class="fls_about_links">
                     <li v-for="link in links" :key="link.url">
                         <a :href="link.url" target="_blank" rel="noopener">{{ link.label }}</a>
+                    </li>
+                </ul>
+
+                <h3 class="fls_eyebrow">{{ $t('Websites') }}</h3>
+                <ul class="fls_about_links">
+                    <li v-for="site in websites" :key="site.url">
+                        <a :href="site.url" target="_blank" rel="noopener">{{ site.label }}</a>
                     </li>
                 </ul>
 

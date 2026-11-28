@@ -225,6 +225,7 @@ class TransStrings
             'Are you sure you want to reset the ignored files and folders?' => __('Are you sure you want to reset the ignored files and folders?', 'fluent-security'),
             'Are your emails arriving?' => __('Are your emails arriving?', 'fluent-security'),
             'Ask for more than a password. Turn on the methods you want to offer, then decide which roles must use one.' => __('Ask for more than a password. Turn on the methods you want to offer, then decide which roles must use one.', 'fluent-security'),
+            'Ask in the community' => __('Ask in the community', 'fluent-security'),
             'Ask people to choose a new password' => __('Ask people to choose a new password', 'fluent-security'),
             'Auth Customizer' => __('Auth Customizer', 'fluent-security'),
             'Auth Logs' => __('Auth Logs', 'fluent-security'),
@@ -1229,6 +1230,7 @@ class TransStrings
             "Watching %s file against your snapshot\x00Watching %s files against your snapshot" => self::pluralForms(_n_noop('Watching %s file against your snapshot', 'Watching %s files against your snapshot', 'fluent-security')),
             'We have emailed you a code. It expires in a few minutes.' => __('We have emailed you a code. It expires in a few minutes.', 'fluent-security'),
             'We sent a code to that address. Enter it to confirm the address is yours.' => __('We sent a code to that address. Enter it to confirm the address is yours.', 'fluent-security'),
+            'Websites' => __('Websites', 'fluent-security'),
             'Wednesday' => __('Wednesday', 'fluent-security'),
             'What it never sends' => __('What it never sends', 'fluent-security'),
             'What needs doing on this site' => __('What needs doing on this site', 'fluent-security'),
@@ -1312,9 +1314,10 @@ class TransStrings
             'Your site’s login activity and security status, in one place.' => __('Your site’s login activity and security status, in one place.', 'fluent-security'),
             'Your subject and body below are sent instead of the built-in email.' => __('Your subject and body below are sent instead of the built-in email.', 'fluent-security'),
             '__2fa_conflict_blocking_desc__' => __('Two plugins cannot both finish a login, so sign-ins get stuck. Please use just one.', 'fluent-security'),
-            '__about_story_1__' => __('Most WordPress sites get broken into the same way. Somebody guesses a password, or reuses one that leaked somewhere else, and walks in through the login form. FluentAuth guards that door: login limits, two-factor sign-in, magic links and social login, with file scanning and audit logs behind them.', 'fluent-security'),
-            '__about_story_2__' => __('It is made by WPManageNinja, the team behind FluentCRM, Fluent Forms, FluentSMTP and FluentCart. Running several security plugins to cover the login makes a site slower and harder to look after. One plugin that covers it is less work for your server and for you.', 'fluent-security'),
-            '__about_story_3__' => __('That is why we built FluentAuth, and that is why it is free and open source. If something does not work the way you expect, tell us on GitHub.', 'fluent-security'),
+            '__about_story_1__' => __('Most hacked WordPress sites are broken into through the login page. Someone guesses a weak password, or uses one that leaked from another website. FluentAuth protects that page. It limits login attempts, adds two-factor sign-in, magic links and social login, and keeps a log of who signed in. It also checks your files for changes.', 'fluent-security'),
+            /* translators: %1$s is the company name, %2$s to %5$s are product names; each becomes a link */
+            '__about_story_2__' => __('FluentAuth is made by %1$s. We also make %2$s, %3$s, %4$s and %5$s.', 'fluent-security'),
+            '__about_story_3__' => __('FluentAuth is free and open source. If something is broken or confusing, tell us on GitHub or in our community.', 'fluent-security'),
             /* translators: %s is the email address the key was sent to */
             '__api_key_email_sent__' => __('We just sent you an email with the API key. Please check your <b>email (%s) inbox</b> and provide the API key.', 'fluent-security'),
             /* translators: %s is a link to the privacy policy and terms and conditions */

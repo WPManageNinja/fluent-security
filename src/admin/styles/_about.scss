@@ -10,6 +10,13 @@
     }
 }
 
+/* Running text with links, not a row of form fields: no flex gap around each link. */
+.fls_about_story .fls_sentence {
+    display: inline;
+    font-weight: inherit;
+    line-height: inherit;
+}
+
 .fls_about_sub {
     @apply text-xs text-ink-light m-0;
 
