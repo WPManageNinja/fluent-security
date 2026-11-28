@@ -363,6 +363,7 @@ class Helper
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),
             'facebook'    => __('Facebook', 'fluent-security'),
+            'linkedin'    => __('LinkedIn', 'fluent-security'),
 
             /*
              * The log keeps more than logins, and the same column has to name those rows.
@@ -811,7 +812,11 @@ class Helper
             'enable_facebook'        => 'no',
             'facebook_key_method'    => 'wp_config',
             'facebook_client_id'     => '',
-            'facebook_client_secret' => ''
+            'facebook_client_secret' => '',
+            'enable_linkedin'        => 'no',
+            'linkedin_key_method'    => 'wp_config',
+            'linkedin_client_id'     => '',
+            'linkedin_client_secret' => ''
         ];
 
         $settings = get_option('__fls_social_auth_settings');
@@ -836,6 +841,11 @@ class Helper
             if ($settings['facebook_key_method'] == 'wp_config') {
                 $settings['facebook_client_id'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_ID')) ? FLUENT_AUTH_FACEBOOK_CLIENT_ID : '';
                 $settings['facebook_client_secret'] = (defined('FLUENT_AUTH_FACEBOOK_CLIENT_SECRET')) ? FLUENT_AUTH_FACEBOOK_CLIENT_SECRET : '';
+            }
+
+            if ($settings['linkedin_key_method'] == 'wp_config') {
+                $settings['linkedin_client_id'] = (defined('FLUENT_AUTH_LINKEDIN_CLIENT_ID')) ? FLUENT_AUTH_LINKEDIN_CLIENT_ID : '';
+                $settings['linkedin_client_secret'] = (defined('FLUENT_AUTH_LINKEDIN_CLIENT_SECRET')) ? FLUENT_AUTH_LINKEDIN_CLIENT_SECRET : '';
             }
         }
 
