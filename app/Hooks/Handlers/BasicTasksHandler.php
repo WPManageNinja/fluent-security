@@ -451,19 +451,41 @@ class BasicTasksHandler
         }
         $infoHtml .= '</ul>';
 
+        $openingMessages = [
+            /* translators: %s: site URL */
+            'daily'   => __('Here is the daily report of sign-in activity on %s.', 'fluent-security'),
+            /* translators: %s: site URL */
+            'weekly'  => __('Here is the weekly report of sign-in activity on %s.', 'fluent-security'),
+            /* translators: %s: site URL */
+            'monthly' => __('Here is the monthly report of sign-in activity on %s.', 'fluent-security')
+        ];
+
+        $subjectFormats = [
+            /* translators: 1: site name, 2: date */
+            'daily'   => __('Daily report for %1$s - %2$s', 'fluent-security'),
+            /* translators: 1: site name, 2: date */
+            'weekly'  => __('Weekly report for %1$s - %2$s', 'fluent-security'),
+            /* translators: 1: site name, 2: date */
+            'monthly' => __('Monthly report for %1$s - %2$s', 'fluent-security')
+        ];
+
         $lines = [
-            sprintf('<p style="font-size: 16px; line-height: 25px;">Hello there, <br />Here is the %1$s digest report of your site\'s (%2$s) login activity.</p>', $period, site_url()),
+            '<p style="font-size: 16px; line-height: 25px;">' . esc_html__('Hello there,', 'fluent-security') . '<br />' . esc_html(sprintf($openingMessages[$period], site_url())) . '</p>',
             $infoHtml
         ];
 
+        // Stored with & already encoded; a mail subject is plain text.
+        $siteName = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
+
         $data = [
             'body'        => implode('', $lines),
-            'pre_header'  => sprintf('Auth Report for %s', get_bloginfo('name')),
+            /* translators: %s: site name */
+            'pre_header'  => sprintf(__('Sign-in report for %s', 'fluent-security'), $siteName),
             'show_footer' => true
         ];
 
         $body = Helper::loadView('notification', $data);
-        $subject = sprintf('%1$s report for %2$s - %3$s', ucfirst($period), get_bloginfo('name'), date('d, M Y', current_time('timestamp')));
+        $subject = sprintf($subjectFormats[$period], $siteName, $this->siteDate('d M Y'));
 
         $headers = SystemEmailService::getEmailHeaders();
 

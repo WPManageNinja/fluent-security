@@ -13,6 +13,13 @@ class LoginSecurityHandlerTest extends BaseTestCase
 {
     private $handler;
 
+    private function invokeNotification($method, array $arguments)
+    {
+        $reflection = new \ReflectionMethod(LoginSecurityHandler::class, $method);
+
+        return $reflection->invokeArgs($this->handler, $arguments);
+    }
+
     public function setUp(): void
     {
         parent::setUp();
@@ -223,7 +230,7 @@ class LoginSecurityHandlerTest extends BaseTestCase
         $this->assertNotNull($mail);
         $this->assertStringContainsString('&lt;img src=x onerror=alert(1)&gt; Doe', $mail['message']);
         $this->assertStringStartsWith('[A & B] ', $mail['subject']);
-        $this->assertMatchesRegularExpression('/class="preheader"[^>]*>Blocked from login A &(amp;)? B</', $mail['message']);
+        $this->assertMatchesRegularExpression('/class="preheader"[^>]*>Blocked from login at A &(amp;)? B</', $mail['message']);
     }
 
     /**
@@ -1739,6 +1746,72 @@ class LoginSecurityHandlerTest extends BaseTestCase
         }
 
         $this->assertCount(1, $mails, 'precondition: the success email is switched on');
+    }
+
+    public function test_success_notification_uses_readable_values_and_translatable_text()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notification_user_roles'] = ['administrator'];
+        $settings['notification_email'] = 'owner@example.org';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $user = $this->factory->user->create_and_get([
+            'role'       => 'administrator',
+            'user_login' => 'admin-alert',
+            'first_name' => 'Admin',
+            'last_name'  => 'Alert'
+        ]);
+
+        $mail = null;
+        $spy = function ($atts) use (&$mail) {
+            $mail = $atts;
+            return $atts;
+        };
+        add_filter('wp_mail', $spy);
+
+        try {
+            $this->invokeNotification('maybeSendSuccessEmail', [$user, 'two_factor_email']);
+        } finally {
+            remove_filter('wp_mail', $spy);
+        }
+
+        $this->assertNotNull($mail);
+        $this->assertStringContainsString('Email code', $mail['message']);
+        $this->assertStringNotContainsString('two_factor_email', $mail['message']);
+        $this->assertStringContainsString('Administrator', $mail['message']);
+        $this->assertStringNotContainsString('>administrator<', $mail['message']);
+        $this->assertStringContainsString('Here are the details:', $mail['message']);
+        $this->assertStringContainsString('Login success at', $mail['message']);
+        $this->assertStringContainsString('Login success for admin-alert', $mail['subject']);
+    }
+
+    public function test_blocked_notification_uses_correct_grammar_and_translatable_text()
+    {
+        $settings = Helper::getAuthSettings();
+        $settings['notify_on_blocked'] = 'yes';
+        $settings['notification_email'] = 'owner@example.org';
+        update_option('__fls_auth_settings', $settings);
+        Helper::resetStatics();
+
+        $mail = null;
+        $spy = function ($atts) use (&$mail) {
+            $mail = $atts;
+            return $atts;
+        };
+        add_filter('wp_mail', $spy);
+
+        try {
+            $this->invokeNotification('maybeSendBlockedEmail', [new \WP_Error('blocked', 'Blocked'), 'blocked-user']);
+        } finally {
+            remove_filter('wp_mail', $spy);
+        }
+
+        $this->assertNotNull($mail);
+        $this->assertStringContainsString('was blocked from logging in to your site. Here are the details:', $mail['message']);
+        $this->assertStringNotContainsString('has been blocked from logged in', $mail['message']);
+        $this->assertStringContainsString('Blocked from login', $mail['message']);
+        $this->assertStringContainsString('Blocked from login - blocked-user', $mail['subject']);
     }
 
     /**
