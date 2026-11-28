@@ -34,12 +34,14 @@ class WPSystemEmailHandler
 
         /*
          * Core has no wp_send_* filter for the admin's password change notice,
-         * so the only way to silence it is to take the action off.
+         * so the only way to silence it is to take the action off. WooCommerce's
+         * My Account reset calls the function itself and has its own filter for it.
          */
         add_action('init', function () {
             $setting = SystemEmailService::getEmailSettingsByType('password_change_to_admin');
             if ($setting && Arr::get($setting, 'status', '') === 'disabled') {
                 remove_action('after_password_reset', 'wp_password_change_notification');
+                add_filter('woocommerce_disable_password_change_notification', '__return_true');
             }
         }, 9);
 
