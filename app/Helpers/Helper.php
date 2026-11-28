@@ -363,6 +363,7 @@ class Helper
             'google'      => __('Google', 'fluent-security'),
             'github'      => __('GitHub', 'fluent-security'),
             'facebook'    => __('Facebook', 'fluent-security'),
+            'linkedin'    => __('LinkedIn', 'fluent-security'),
 
             /*
              * The log keeps more than logins, and the same column has to name those rows.

@@ -85,7 +85,7 @@ export const searchIndex = (vm) => {
             title: vm.$t('Social Login'),
             subtitle: vm.$t('Google, GitHub and Facebook sign-in'),
             to: {name: 'settings_social_login'},
-            keywords: ['google', 'github', 'facebook', 'oauth', 'one tap', 'sso']
+            keywords: ['google', 'github', 'facebook', 'linkedin', 'oauth', 'one tap', 'sso']
         },
         {
             group: 'Settings',

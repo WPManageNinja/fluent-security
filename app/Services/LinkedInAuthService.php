@@ -81,6 +81,16 @@ class LinkedInAuthService
             return new \WP_Error('payload_error', __('Sorry! There has an error when fetching data for LinkedIn authentication. Please try again', 'fluent-security'));
         }
 
+        /*
+         * The email is what we match an existing WordPress account on, and social sign-in
+         * skips the email code, so an unverified address would let anybody who puts it on
+         * a LinkedIn profile sign in as whoever holds it here.
+         */
+        $verified = Arr::get($data, 'email_verified');
+        if ($verified !== true && !(is_string($verified) && strtolower($verified) === 'true')) {
+            return new \WP_Error('email_unverified', __('Your LinkedIn email address is not verified. Please verify it with LinkedIn and try again', 'fluent-security'));
+        }
+
         $fullName = trim(Arr::get($data, 'given_name', '') . ' ' . Arr::get($data, 'family_name', ''));
         if (!$fullName) {
             $fullName = Arr::get($data, 'name');

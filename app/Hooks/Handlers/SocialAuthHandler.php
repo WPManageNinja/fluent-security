@@ -170,11 +170,12 @@ class SocialAuthHandler
     {
         $actionType = Arr::get($data, 'fs_type');
 
-        if ($actionType === 'redirect' || empty($data['code'])) {
+        if ($actionType === 'redirect') {
             return $this->redirectToLinkedIn();
         }
 
-        if (isset($data['code'])) {
+        // A cancelled consent comes back with error= and no code: show the login page.
+        if (!empty($data['code'])) {
             $redirectUrl = $this->handleLinkedInConfirm($data);
             if ($redirectUrl && !is_wp_error($redirectUrl)) {
                 wp_safe_redirect($redirectUrl);
@@ -492,7 +493,18 @@ class SocialAuthHandler
             return '';
         }
 
-        $buttons = $this->getSocialAuthButtons($this->getSocialRedirectTo(), __('Login with', 'fluent-security'));
+        if ($this->redirectIntent) {
+            $redirect_to = $this->redirectIntent;
+        } else if (isset($_REQUEST['redirect_to'])) {
+            $redirect_to = $_REQUEST['redirect_to'];
+        } else {
+            $redirect_to = admin_url();
+        }
+
+        $redirect_to = apply_filters('fluent_auth/social_redirect_to', $redirect_to);
+
+
+        $buttons = $this->getSocialAuthButtons($redirect_to, __('Login with', 'fluent-security'));
 
         if (!$this->isEnabled('google')) {
             unset($buttons['google']);
@@ -511,21 +523,6 @@ class SocialAuthHandler
         $this->loadButtons($buttons);
         $this->loadJs('loginform');
         $this->loadCss();
-    }
-
-    private function getSocialRedirectTo($redirect = '')
-    {
-        if ($redirect) {
-            $redirect_to = $redirect;
-        } else if ($this->redirectIntent) {
-            $redirect_to = $this->redirectIntent;
-        } else if (isset($_REQUEST['redirect_to'])) {
-            $redirect_to = $_REQUEST['redirect_to'];
-        } else {
-            $redirect_to = admin_url();
-        }
-
-        return apply_filters('fluent_auth/social_redirect_to', $redirect_to);
     }
 
     public function getSocialAuthButtons($redirect_to, $buttonText)
@@ -625,7 +622,8 @@ class SocialAuthHandler
     private function initSignupButtonLoads($selector = 'fm_signup_with_wrap', $display = 'block', $redirect = '')
     {
         // The filter has the last word, as it does for the login buttons.
-        $redirect = $this->getSocialRedirectTo($redirect);
+        // The filter has the last word, as it does for the login buttons.
+        $redirect = apply_filters('fluent_auth/social_redirect_to', $redirect ?: admin_url());
 
         $buttons = $this->getSocialAuthButtons($redirect, __('Signup with', 'fluent-security'));
 
