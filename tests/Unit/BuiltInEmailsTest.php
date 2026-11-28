@@ -116,6 +116,18 @@ class BuiltInEmailsTest extends BaseTestCase
         $this->assertStringContainsString('Filtered body 123456', $preview['body']);
     }
 
+    /**
+     * Social sign-ups get this email too, and their password is a random one they never
+     * saw, so the default says nothing about passwords.
+     */
+    public function test_the_default_welcome_says_nothing_about_a_password()
+    {
+        $email = BuiltInEmails::welcomeDefault();
+
+        $this->assertStringNotContainsStringIgnoringCase('password', $email['subject'] . $email['body']);
+        $this->assertStringContainsString('{{site.login_url}}', $email['body']);
+    }
+
     public function test_fluentauth_emails_are_the_same_html_that_is_sent()
     {
         $preview = BuiltInEmails::preview('two_fa_email_to_user', $this->admin);

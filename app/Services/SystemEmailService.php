@@ -481,7 +481,6 @@ class SystemEmailService
                 '<blockquote>' .
                 /* translators: %s: the new user's email address placeholder */
                 '<p>' . sprintf(esc_html__('Login email: %s', 'fluent-security'), '{{user.user_email}}') . '</p>' .
-                '<p>' . esc_html__('Password: the one you chose when you signed up', 'fluent-security') . '</p>' .
                 /* translators: %s: the login page address placeholder */
                 '<p>' . sprintf(esc_html__('Login URL: %s', 'fluent-security'), '{{site.login_url}}') . '</p>' .
                 '</blockquote>' .
