@@ -6,6 +6,13 @@
     "/dist/public/login_helper.css": "/dist/public/login_helper.css",
     "/dist/images/index.php": "/dist/images/index.php",
     "/dist/images/logo.png": "/dist/images/logo.png",
+    "/dist/images/plugins/fluent-booking.svg": "/dist/images/plugins/fluent-booking.svg",
+    "/dist/images/plugins/fluent-cart.svg": "/dist/images/plugins/fluent-cart.svg",
+    "/dist/images/plugins/fluent-community.svg": "/dist/images/plugins/fluent-community.svg",
+    "/dist/images/plugins/fluent-crm.svg": "/dist/images/plugins/fluent-crm.svg",
+    "/dist/images/plugins/fluent-smtp.svg": "/dist/images/plugins/fluent-smtp.svg",
+    "/dist/images/plugins/fluent-support.svg": "/dist/images/plugins/fluent-support.svg",
+    "/dist/images/plugins/fluentform.png": "/dist/images/plugins/fluentform.png",
     "/dist/images/success.png": "/dist/images/success.png",
     "/dist/libs/diff.js": "/dist/libs/diff.js",
     "/dist/libs/index.php": "/dist/libs/index.php"
