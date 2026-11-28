@@ -43,7 +43,8 @@ class AppPasswordsCheck extends Check
                 'check'  => $this->id(),
                 'group'  => $this->group(),
                 'state'  => Finding::STATE_PASSED,
-                'title'  => __('Every application password is in use', 'fluent-security'),
+                /* translators: %d: number of days */
+                'title'  => sprintf(__('No application password has gone unused for %d days', 'fluent-security'), AppPasswords::UNUSED_DAYS),
                 'scored' => false
             ])];
         }
