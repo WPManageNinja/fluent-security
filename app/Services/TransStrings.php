@@ -107,6 +107,8 @@ class TransStrings
             "%s optional recommendation\x00%s optional recommendations" => self::pluralForms(_n_noop('%s optional recommendation', '%s optional recommendations', 'fluent-security')),
             /* translators: %s is the number of passkeys this user has, always 2 or more */
             '%s passkeys' => __('%s passkeys', 'fluent-security'),
+            /* translators: %s is how many application passwords the site has */
+            "%s password\x00%s passwords" => self::pluralForms(_n_noop('%s password', '%s passwords', 'fluent-security')),
             /* translators: %s is the number of plugins and themes in the snapshot */
             "%s plugin or theme\x00%s plugins and themes" => self::pluralForms(_n_noop('%s plugin or theme', '%s plugins and themes', 'fluent-security')),
             /* translators: %s is the number of plugins and themes in the snapshot */
@@ -117,6 +119,10 @@ class TransStrings
             "%s to check\x00%s to check" => self::pluralForms(_n_noop('%s to check', '%s to check', 'fluent-security')),
             /* translators: %s is the number of files that are not part of the official copy */
             "%s unexpected file\x00%s unexpected files" => self::pluralForms(_n_noop('%s unexpected file', '%s unexpected files', 'fluent-security')),
+            /* translators: %s is how many application passwords nobody has used for a long time */
+            "%s unused\x00%s unused" => self::pluralForms(_n_noop('%s unused', '%s unused', 'fluent-security')),
+            /* translators: %s is how many users hold an application password */
+            "%s user\x00%s users" => self::pluralForms(_n_noop('%s user', '%s users', 'fluent-security')),
             /* translators: %s is the number of different usernames this IP address tried */
             "%s username tried\x00%s usernames tried" => self::pluralForms(_n_noop('%s username tried', '%s usernames tried', 'fluent-security')),
             /* translators: %s is the number of plugins or themes whose installed version is not published on WordPress.org */
@@ -201,7 +207,13 @@ class TransStrings
             'Anything connected with an application password will stop working' => __('Anything connected with an application password will stop working', 'fluent-security'),
             'Anything from your database, including users and passwords' => __('Anything from your database, including users and passwords', 'fluent-security'),
             'Anything on a version WordPress.org never published is replaced with the current release instead.' => __('Anything on a version WordPress.org never published is replaced with the current release instead.', 'fluent-security'),
+            /* translators: %d is a number of days */
+            'Anything still using one of them will stop signing in. Every password on this list has gone unused for at least %d days.' => __('Anything still using one of them will stop signing in. Every password on this list has gone unused for at least %d days.', 'fluent-security'),
+            /* translators: %1$s is the application password's name, %2$s is the user's login name */
+            'Anything using "%1$s" will stop signing in as %2$s. This cannot be undone, but they can create a new one from their profile.' => __('Anything using "%1$s" will stop signing in as %2$s. This cannot be undone, but they can create a new one from their profile.', 'fluent-security'),
             'App' => __('App', 'fluent-security'),
+            'Application Passwords' => __('Application Passwords', 'fluent-security'),
+            'Application passwords are turned off' => __('Application passwords are turned off', 'fluent-security'),
             'Applies to no one' => __('Applies to no one', 'fluent-security'),
             'Apply recommended' => __('Apply recommended', 'fluent-security'),
             'Apply settings' => __('Apply settings', 'fluent-security'),
@@ -329,6 +341,7 @@ class TransStrings
             'Counts recommendations that passed or that you dismissed. File scan results are not included.' => __('Counts recommendations that passed or that you dismissed. File scan results are not included.', 'fluent-security'),
             'Counts the protections recommended for every site. Dismissed items and optional extras are left out.' => __('Counts the protections recommended for every site. Dismissed items and optional extras are left out.', 'fluent-security'),
             'Covers' => __('Covers', 'fluent-security'),
+            'Created' => __('Created', 'fluent-security'),
             'Current protection' => __('Current protection', 'fluent-security'),
             'Custom redirects' => __('Custom redirects', 'fluent-security'),
             'Customized' => __('Customized', 'fluent-security'),
@@ -536,6 +549,7 @@ class TransStrings
             'Last changed (UTC)' => __('Last changed (UTC)', 'fluent-security'),
             'Last file check' => __('Last file check', 'fluent-security'),
             'Last file scan' => __('Last file scan', 'fluent-security'),
+            'Last used' => __('Last used', 'fluent-security'),
             /* translators: %1$s is the date and time, %2$s the user's name */
             'Last used %1$s by %2$s' => __('Last used %1$s by %2$s', 'fluent-security'),
             /* translators: %s is the date and time the action was last run, by a scheduled task or WP-CLI */
@@ -612,6 +626,7 @@ class TransStrings
             'Needs an app from your GitHub developer settings.' => __('Needs an app from your GitHub developer settings.', 'fluent-security'),
             'Needs an app you create in Google Cloud Console.' => __('Needs an app you create in Google Cloud Console.', 'fluent-security'),
             'Needs attention' => __('Needs attention', 'fluent-security'),
+            'Never' => __('Never', 'fluent-security'),
             /* translators: %s is an IP address */
             'Never lock out %s' => __('Never lock out %s', 'fluent-security'),
             'New' => __('New', 'fluent-security'),
@@ -649,8 +664,10 @@ class TransStrings
             'Nobody has set up two-factor sign-in yet' => __('Nobody has set up two-factor sign-in yet', 'fluent-security'),
             'Nobody is locked out by this. Setting up an app or a passkey stays optional until you make it required in Settings.' => __('Nobody is locked out by this. Setting up an app or a passkey stays optional until you make it required in Settings.', 'fluent-security'),
             'Nobody is required' => __('Nobody is required', 'fluent-security'),
+            'Nobody on this site has an application password.' => __('Nobody on this site has an application password.', 'fluent-security'),
             'Nobody yet' => __('Nobody yet', 'fluent-security'),
             'None' => __('None', 'fluent-security'),
+            'None of these can sign in right now. They will work again if application passwords are turned back on.' => __('None of these can sign in right now. They will work again if application passwords are turned back on.', 'fluent-security'),
             'None of your plugins come from WordPress.org, so there is nothing to compare them with.' => __('None of your plugins come from WordPress.org, so there is nothing to compare them with.', 'fluent-security'),
             'None of your themes come from WordPress.org, so there is nothing to compare them with.' => __('None of your themes come from WordPress.org, so there is nothing to compare them with.', 'fluent-security'),
             'Not a sign-in' => __('Not a sign-in', 'fluent-security'),
@@ -663,6 +680,8 @@ class TransStrings
             'Not set up' => __('Not set up', 'fluent-security'),
             'Not set up yet' => __('Not set up yet', 'fluent-security'),
             'Not sure?' => __('Not sure?', 'fluent-security'),
+            /* translators: %d is a number of days */
+            'Not used in %d days' => __('Not used in %d days', 'fluent-security'),
             'Not watched' => __('Not watched', 'fluent-security'),
             'Nothing' => __('Nothing', 'fluent-security'),
             'Nothing detected' => __('Nothing detected', 'fluent-security'),
@@ -673,6 +692,7 @@ class TransStrings
             'Nothing is saved until you review and apply it at the end.' => __('Nothing is saved until you review and apply it at the end.', 'fluent-security'),
             'Nothing is watching these files yet' => __('Nothing is watching these files yet', 'fluent-security'),
             'Nothing matches that search' => __('Nothing matches that search', 'fluent-security'),
+            'Nothing matches.' => __('Nothing matches.', 'fluent-security'),
             'Nothing needs attention' => __('Nothing needs attention', 'fluent-security'),
             'Nothing picked here, so this line is ignored.' => __('Nothing picked here, so this line is ignored.', 'fluent-security'),
             'Nothing to require yet' => __('Nothing to require yet', 'fluent-security'),
@@ -722,7 +742,9 @@ class TransStrings
             'Passkeys are on, but no role has been picked.' => __('Passkeys are on, but no role has been picked.', 'fluent-security'),
             'Passkeys only work on https sites. Move this site to https and come back.' => __('Passkeys only work on https sites. Move this site to https and come back.', 'fluent-security'),
             'Password' => __('Password', 'fluent-security'),
+            'Password name' => __('Password name', 'fluent-security'),
             'Password reset' => __('Password reset', 'fluent-security'),
+            'Passwords that apps and services use to sign in as one of your users. Revoke any you do not recognise.' => __('Passwords that apps and services use to sign in as one of your users. Revoke any you do not recognise.', 'fluent-security'),
             'Paste one into a page. Add redirect_to=\'your URL\' to any of them to choose where people land afterwards.' => __('Paste one into a page. Add redirect_to=\'your URL\' to any of them to choose where people land afterwards.', 'fluent-security'),
             'Paste the connection details here' => __('Paste the connection details here', 'fluent-security'),
             'Paste the key from your email' => __('Paste the key from your email', 'fluent-security'),
@@ -828,7 +850,14 @@ class TransStrings
             'Review sign-in settings' => __('Review sign-in settings', 'fluent-security'),
             'Review the findings below to decide what applies to your site.' => __('Review the findings below to decide what applies to your site.', 'fluent-security'),
             'Review the security checklist' => __('Review the security checklist', 'fluent-security'),
+            'Review the setting' => __('Review the setting', 'fluent-security'),
             'Review these findings, starting with the highest priority.' => __('Review these findings, starting with the highest priority.', 'fluent-security'),
+            'Revoke' => __('Revoke', 'fluent-security'),
+            /* translators: %s is how many application passwords will be revoked */
+            "Revoke %s unused application password?\x00Revoke %s unused application passwords?" => self::pluralForms(_n_noop('Revoke %s unused application password?', 'Revoke %s unused application passwords?', 'fluent-security')),
+            /* translators: %s is how many unused application passwords the button revokes */
+            "Revoke the %s unused\x00Revoke the %s unused" => self::pluralForms(_n_noop('Revoke the %s unused', 'Revoke the %s unused', 'fluent-security')),
+            'Revoke this application password?' => __('Revoke this application password?', 'fluent-security'),
             'Role' => __('Role', 'fluent-security'),
             'Roles' => __('Roles', 'fluent-security'),
             'Roles allowed to set one up' => __('Roles allowed to set one up', 'fluent-security'),
@@ -859,6 +888,7 @@ class TransStrings
             'Search by username, IP address or how they signed in. Press Enter to search.' => __('Search by username, IP address or how they signed in. Press Enter to search.', 'fluent-security'),
             'Search checks' => __('Search checks', 'fluent-security'),
             'Search settings and pages' => __('Search settings and pages', 'fluent-security'),
+            'Search user or password name' => __('Search user or password name', 'fluent-security'),
             'Secret key' => __('Secret key', 'fluent-security'),
             'Security' => __('Security', 'fluent-security'),
             'Security Findings' => __('Security Findings', 'fluent-security'),
@@ -1125,6 +1155,7 @@ class TransStrings
             'Under Hostnames, add the address of this site:' => __('Under Hostnames, add the address of this site:', 'fluent-security'),
             'Under Widget Mode, choose Managed. It is the recommended mode. Choose Invisible if you do not want visitors to see anything.' => __('Under Widget Mode, choose Managed. It is the recommended mode. Choose Invisible if you do not want visitors to see anything.', 'fluent-security'),
             'Underline' => __('Underline', 'fluent-security'),
+            'Unused' => __('Unused', 'fluent-security'),
             'Update PHP on your server' => __('Update PHP on your server', 'fluent-security'),
             'Update record' => __('Update record', 'fluent-security'),
             'Update snapshot' => __('Update snapshot', 'fluent-security'),
@@ -1197,6 +1228,7 @@ class TransStrings
             'Who gets the second step' => __('Who gets the second step', 'fluent-security'),
             'Who has set up an authenticator app' => __('Who has set up an authenticator app', 'fluent-security'),
             'Who it applies to' => __('Who it applies to', 'fluent-security'),
+            'Who uses them, and which nobody uses any more' => __('Who uses them, and which nobody uses any more', 'fluent-security'),
             'With changes' => __('With changes', 'fluent-security'),
             'With emailed codes on, these roles get a code at every sign-in. With an app on, they are invited to set one up after signing in.' => __('With emailed codes on, these roles get a code at every sign-in. With an app on, they are invited to set one up after signing in.', 'fluent-security'),
             'With this off, WordPress decides where people go, which is usually the dashboard.' => __('With this off, WordPress decides where people go, which is usually the dashboard.', 'fluent-security'),

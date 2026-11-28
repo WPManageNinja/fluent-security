@@ -4,6 +4,7 @@ import Logs from './Components/Logs.vue';
 import SettingsLayout from './Components/Settings/SettingsLayout.vue';
 import GeneralSettings from './Components/Settings/Pages/General.vue';
 import EnrolledUsers from './Components/TwoFa/EnrolledUsers.vue';
+import AppPasswords from './Components/AppPasswords/AppPasswords.vue';
 import IpRulesSettings from './Components/Settings/Pages/IpRules.vue';
 import BotProtectionSettings from './Components/Settings/Pages/BotProtection.vue';
 
@@ -43,6 +44,18 @@ const settingsChildren = [
          * endpoints behind it ask for the same capability, so this only saves the screen
          * from rendering a page of failed requests.
          */
+        beforeEnter: (to, from, next) => {
+            const vars = window.fluentAuthAdmin || {};
+
+            next(vars.can_list_users ? undefined : {name: 'settings_general'});
+        }
+    },
+    {
+        path: 'application-passwords',
+        name: 'settings_app_passwords',
+        component: AppPasswords,
+        meta: {title: 'Application Passwords'},
+        // Same gate as the enrollment list above, for the same reason.
         beforeEnter: (to, from, next) => {
             const vars = window.fluentAuthAdmin || {};
 

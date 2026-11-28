@@ -28,6 +28,7 @@ const icons = {
     mail: icon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'),
     server: icon('<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>'),
     bot: icon('<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9 17h6"/>'),
+    key: icon('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>'),
     shieldCheck: icon('<path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/>')
 };
 
@@ -45,6 +46,12 @@ export const settingsNav = (vm) => [
         title: vm.$t('2FA Enrollment'),
         icon: icons.users,
         /* A list of users, so it asks for the capability for listing users. */
+        when: (appVars) => !!appVars.can_list_users
+    },
+    {
+        route: 'settings_app_passwords',
+        title: vm.$t('Application Passwords'),
+        icon: icons.key,
         when: (appVars) => !!appVars.can_list_users
     },
     {
