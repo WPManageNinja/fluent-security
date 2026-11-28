@@ -75,7 +75,7 @@ export default {
             }
 
             if (status == 'system') {
-                return this.$t('WordPress default');
+                return this.$t('Built-in');
             }
 
             return status;
@@ -109,7 +109,7 @@ export default {
 
         <div class="fls_settings_content" v-loading="loading">
             <SettingsCard :title="$t('Sent to your users')"
-                          :description="$t('Anything left as the WordPress default keeps sending exactly as it does today.')">
+                          :description="$t('Emails left on Built-in keep sending exactly as they do today.')">
                 <el-table :data="groups.user_emails" class="fls_table">
                     <el-table-column min-width="300" prop="name" :label="$t('Email')">
                         <template #default="scope">

@@ -43,7 +43,7 @@ export default {
                 return this.$t('This email is not sent at all. Nobody is told when the event happens.');
             }
 
-            return this.$t('Your subject and body below are sent instead of the WordPress default.');
+            return this.$t('Your subject and body below are sent instead of the built-in email.');
         }
     },
     methods: {
@@ -137,7 +137,7 @@ export default {
                     <SettingRow :label="$t('What to send')" :description="statusNote">
                         <el-radio-group v-model="settings.status">
                             <el-radio-button value="active" :label="$t('Your own')"/>
-                            <el-radio-button value="system" :label="$t('WordPress default')"/>
+                            <el-radio-button value="system" :label="$t('Built-in')"/>
                             <el-radio-button v-if="email.can_disable == 'yes'" value="disabled"
                                              :label="$t('Nothing')"/>
                         </el-radio-group>
