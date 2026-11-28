@@ -4,7 +4,7 @@ Tags: security, two factor authentication, limit login attempts, social login, l
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.3
-Stable tag: 3.1.1
+Stable tag: 3.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -323,10 +323,36 @@ It is not a malware scanner. It tells you which files no longer match the offici
 
 == Changelog ==
 
-= 3.1.2 - Date: Unreleased =
-* Security: Hardening for login replies, two-factor method switching, server-mode sign-in links, admin error messages and the quarantine folder.
-* Change: GitHub login now asks only to read your profile and email addresses.
+= 3.2.0 - Date: Unreleased =
+* New: Login with LinkedIn. It only accepts an email address that LinkedIn has verified.
+* New: Application Passwords screen under Settings. See every application password on your site, who it belongs to and when it was last used, and revoke the ones nobody uses. The security checklist points out any not used for 90 days.
+* New: Staying Signed In settings. Choose how many days people stay signed in, with and without Remember Me. Remember Me is now ticked by default.
+* New: The System Emails screen shows what each built-in email says before you replace it.
+* New: The signup verification code email can now be edited under System Emails.
+* New: An About page with help links, the people behind FluentAuth, and one-click installs of our other plugins.
+* Improvement: Login alerts, blocked login alerts and the summary report can now be translated, and show readable role and sign-in method names.
+* Improvement: Admin screens use your own profile language when it differs from the site language.
+* Improvement: Application password sign-ins have their own attempt limit, and the blocked login email says which one was refused.
+* Improvement: If a double-clicked login sends two email codes, the error now says to use the newest email.
+* Improvement: Facebook login uses the current Graph API version.
+* Fix: People who sign up on a FluentAuth form or with a social account now get a welcome email when the New User Registration email is customized. Before, they got no email at all.
+* Fix: The customized New User Registration email now reaches users added under Users > Add New, by FluentCRM and by other plugins.
+* Fix: Password Change Notification set to Nothing now also stops the admin email on WooCommerce password resets.
+* Fix: Cancelling on GitHub, Facebook or LinkedIn brings you back to the login page.
+* Fix: GitHub login works with GitHub apps that match the redirect URL exactly.
+* Fix: Magic login follows your Login Redirects default and role rules.
+* Fix: Shortcode redirects such as redirect_to="/portal/" work, and redirect_to="self" stays on the page in a subdirectory install.
+* Fix: "Hide banner" in the login customizer now hides the banner on the login, signup and lost password screens.
+* Fix: With the login designer on, the password reset screens show their own headings, and the reset email no longer says "Hi ,".
+* Fix: Numbers in text boxes are readable in dark mode.
+* Fix: Plural counts read correctly in German, French and other languages.
+* Fix: No crash when another plugin, such as Polylang or User Role Editor, switches a plugin on or off while WordPress is loading.
+* Fix: Documentation links go to the current fluentauth.com pages.
+* Developer: New fluent_auth/login_page_url filter sends wp-login.php visits to a login page on your site.
+* Developer: New fluent_auth/login_designer_actions filter lets another plugin's wp-login.php screen use the login designer.
 * Developer: fluent_auth/magic_login_error_message now starts from an empty message, so a role that cannot use sign-in links gets the same "Check your inbox" reply as anyone else. Return a message from the filter to show it instead, with the 422 response used before.
+* Change: GitHub login now asks only to read your profile and email addresses.
+* Security: Hardening for login replies, two-factor method switching, server-mode sign-in links, the [fluent_auth] shortcode, admin error messages and the quarantine folder.
 
 = 3.1.1 - Date: Nov 3, 2026 =
 * Fix: Magic link and signup email limits now work for visitors on IPv6.
